@@ -87,6 +87,7 @@ fi
 
 PYTHON_BASE_PREFIX="$("$SOURCE_VENV/bin/python3" -c 'import sys; print(sys.base_prefix)')"
 PYTHON_FRAMEWORK_ROOT="$(cd "$PYTHON_BASE_PREFIX/../.." && pwd)"
+PYTHON_FRAMEWORK_VERSION="$(basename "$PYTHON_BASE_PREFIX")"
 PYTHON_LIB_DIR="$(find "$SOURCE_VENV/lib" -maxdepth 1 -type d -name 'python3.*' | head -n 1)"
 if [ -z "$PYTHON_LIB_DIR" ]; then
   printf 'Could not locate Python stdlib inside %s\n' "$SOURCE_VENV/lib" >&2
@@ -94,9 +95,7 @@ if [ -z "$PYTHON_LIB_DIR" ]; then
 fi
 
 PYTHON_VERSION_NAME="$(basename "$PYTHON_LIB_DIR")"
-EMBEDDED_PYTHON_HOME="$FRAMEWORKS_DIR/Python.framework/Versions/3.13"
-EMBEDDED_PYTHON_BIN="$EMBEDDED_PYTHON_HOME/bin/python3.13"
-EMBEDDED_PYTHON_APP="$EMBEDDED_PYTHON_HOME/Resources/Python.app/Contents/MacOS/Python"
+EMBEDDED_PYTHON_HOME="$FRAMEWORKS_DIR/Python.framework/Versions/$PYTHON_FRAMEWORK_VERSION"
 
 rm -rf "$FRAMEWORKS_DIR/Python.framework" "$EMBEDDED_RUNTIME_DIR"
 cp -R "$PYTHON_FRAMEWORK_ROOT" "$FRAMEWORKS_DIR/"
@@ -133,13 +132,14 @@ rm -rf "$EMBEDDED_SITE_PACKAGES/pip" \
        "$EMBEDDED_PYTHON_HOME/lib/$PYTHON_VERSION_NAME/venv" \
        "$EMBEDDED_PYTHON_HOME/lib/$PYTHON_VERSION_NAME/pydoc_data" \
        "$EMBEDDED_PYTHON_HOME/bin/pip3" \
-       "$EMBEDDED_PYTHON_HOME/bin/pip3.13" \
        "$EMBEDDED_PYTHON_HOME/bin/idle3" \
-       "$EMBEDDED_PYTHON_HOME/bin/idle3.13" \
        "$EMBEDDED_PYTHON_HOME/bin/pydoc3" \
-       "$EMBEDDED_PYTHON_HOME/bin/pydoc3.13" \
-       "$EMBEDDED_PYTHON_HOME/bin/python3-config" \
-       "$EMBEDDED_PYTHON_HOME/bin/python3.13-config"
+       "$EMBEDDED_PYTHON_HOME/bin/python3-config"
+
+rm -rf "$EMBEDDED_PYTHON_HOME/bin"/pip3.* \
+       "$EMBEDDED_PYTHON_HOME/bin"/idle3.* \
+       "$EMBEDDED_PYTHON_HOME/bin"/pydoc3.* \
+       "$EMBEDDED_PYTHON_HOME/bin"/python3.*-config
 
 rm -rf "$EMBEDDED_SITE_PACKAGES"/pip-*.dist-info \
        "$EMBEDDED_SITE_PACKAGES"/setuptools-*.dist-info \

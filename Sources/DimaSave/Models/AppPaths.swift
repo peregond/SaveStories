@@ -93,20 +93,52 @@ enum AppPaths {
     }
 
     static var bundledPythonHome: URL? {
-        let path = bundledFrameworksRoot?
+        guard let versionsDirectory = bundledFrameworksRoot?
             .appendingPathComponent("Python.framework", isDirectory: true)
-            .appendingPathComponent("Versions", isDirectory: true)
-            .appendingPathComponent("3.13", isDirectory: true)
+            .appendingPathComponent("Versions", isDirectory: true),
+              let versionsRoot = existingDirectory(at: versionsDirectory),
+              let entries = try? FileManager.default.contentsOfDirectory(
+                at: versionsRoot,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles]
+              )
+        else {
+            return nil
+        }
 
-        return existingDirectory(at: path)
+        let candidates = entries
+            .filter { $0.lastPathComponent != "Current" }
+            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedDescending }
+
+        return candidates.compactMap(existingDirectory(at:)).first
     }
 
     static var bundledPythonExecutable: URL? {
-        let path = bundledPythonHome?
-            .appendingPathComponent("bin", isDirectory: true)
-            .appendingPathComponent("python3.13", isDirectory: false)
+        guard let binDirectory = bundledPythonHome?
+            .appendingPathComponent("bin", isDirectory: true),
+              let binRoot = existingDirectory(at: binDirectory)
+        else {
+            return nil
+        }
 
-        return existingFile(at: path)
+        let preferred = existingFile(at: binRoot.appendingPathComponent("python3", isDirectory: false))
+        if let preferred {
+            return preferred
+        }
+
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: binRoot,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return nil
+        }
+
+        let candidates = entries
+            .filter { $0.lastPathComponent.hasPrefix("python3") }
+            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedDescending }
+
+        return candidates.compactMap(existingFile(at:)).first
     }
 
     static var bundledSitePackages: URL? {
