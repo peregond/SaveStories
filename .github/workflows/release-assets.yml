@@ -43,6 +43,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Select newest available Xcode
+        run: |
+          xcode_path="$(find /Applications -maxdepth 1 -type d -name 'Xcode*.app' | sort -V | tail -n 1)"
+          if [ -z "$xcode_path" ]; then
+            echo "No Xcode installation found in /Applications" >&2
+            exit 1
+          fi
+          sudo xcode-select -s "$xcode_path/Contents/Developer"
+          xcodebuild -version
+          swift --version
+
       - name: Bootstrap bundled worker runtime
         run: ./scripts/bootstrap_worker.sh
 

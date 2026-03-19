@@ -25,6 +25,15 @@ def iso_now() -> str:
     return datetime.now().astimezone().isoformat(timespec="milliseconds")
 
 
+def app_version() -> str:
+    version_path = AppPaths.resource_root() / "VERSION"
+    if version_path.exists():
+        value = version_path.read_text(encoding="utf-8").strip()
+        if value:
+            return value
+    return "0.1.39"
+
+
 def normalize_profile_link(raw: str) -> str:
     trimmed = raw.strip()
     if not trimmed:
@@ -396,7 +405,7 @@ class MainWindow(QtWidgets.QMainWindow):
         subtitle_label = QtWidgets.QLabel(subtitle)
         subtitle_label.setWordWrap(True)
         subtitle_label.setObjectName("heroSubtitle")
-        version_label = QtWidgets.QLabel(f"Windows shell · {QtWidgets.QApplication.applicationVersion() or 'dev'}")
+        version_label = QtWidgets.QLabel(f"Windows shell · {QtWidgets.QApplication.applicationVersion() or app_version()}")
         version_label.setObjectName("heroVersion")
         layout.addWidget(title_label)
         layout.addWidget(subtitle_label)
@@ -873,7 +882,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 def main() -> int:
     QtWidgets.QApplication.setApplicationName("DimaSave")
-    QtWidgets.QApplication.setApplicationVersion("windows-dev")
+    QtWidgets.QApplication.setApplicationVersion(app_version())
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle("Fusion")
     window = MainWindow()
