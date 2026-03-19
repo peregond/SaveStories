@@ -13,7 +13,6 @@ import urllib.parse
 import urllib.request
 import uuid
 import base64
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
 from importlib import metadata
@@ -143,33 +142,56 @@ def import_playwright():
         ) from exc
 
 
-@dataclass
 class StoryMedia:
-    source_url: str
-    media_type: str
-    page_url: str
-    poster_url: str | None = None
-    captured_at: float = 0.0
-    width: int = 0
-    height: int = 0
+    def __init__(
+        self,
+        source_url: str,
+        media_type: str,
+        page_url: str,
+        poster_url: str | None = None,
+        captured_at: float = 0.0,
+        width: int = 0,
+        height: int = 0,
+    ) -> None:
+        self.source_url = source_url
+        self.media_type = media_type
+        self.page_url = page_url
+        self.poster_url = poster_url
+        self.captured_at = captured_at
+        self.width = width
+        self.height = height
 
 
-@dataclass
 class ResolvedStoryItem:
-    item_id: str
-    username: str
-    page_url: str
-    source_url: str
-    media_type: str
-    taken_at: int = 0
+    def __init__(
+        self,
+        item_id: str,
+        username: str,
+        page_url: str,
+        source_url: str,
+        media_type: str,
+        taken_at: int = 0,
+    ) -> None:
+        self.item_id = item_id
+        self.username = username
+        self.page_url = page_url
+        self.source_url = source_url
+        self.media_type = media_type
+        self.taken_at = taken_at
 
 
-@dataclass
 class BrowserSession:
-    playwright: Any
-    context: Any
-    browser: Any | None = None
-    background: bool = False
+    def __init__(
+        self,
+        playwright: Any,
+        context: Any,
+        browser: Any | None = None,
+        background: bool = False,
+    ) -> None:
+        self.playwright = playwright
+        self.context = context
+        self.browser = browser
+        self.background = background
 
     def first_page(self):
         return self.context.pages[0] if self.context.pages else self.context.new_page()
