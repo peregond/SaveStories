@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import threading
+import traceback
 from datetime import datetime
 import importlib.util
 from pathlib import Path
@@ -23,6 +25,35 @@ else:
 
 def iso_now() -> str:
     return datetime.now().astimezone().isoformat(timespec="milliseconds")
+
+
+def crash_log_path() -> Path:
+    return AppPaths.logs_directory() / "windows-crash.log"
+
+
+def write_crash_log(title: str, details: str) -> None:
+    try:
+        AppPaths.ensure_directories()
+        with crash_log_path().open("a", encoding="utf-8") as handle:
+            handle.write(f"{iso_now()}  {title}\n{details.rstrip()}\n\n")
+    except Exception:
+        pass
+
+
+def install_global_exception_hooks() -> None:
+    def handle_exception(exc_type, exc_value, exc_traceback) -> None:
+        details = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        write_crash_log("Unhandled exception", details)
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+
+    def handle_thread_exception(args: threading.ExceptHookArgs) -> None:
+        details = "".join(
+            traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback)
+        )
+        write_crash_log("Unhandled thread exception", details)
+
+    sys.excepthook = handle_exception
+    threading.excepthook = handle_thread_exception
 
 
 def app_version() -> str:
@@ -74,7 +105,12 @@ class WorkerTask(QtCore.QThread):
         self.request = request
 
     def run(self) -> None:
-        response = self.client.run(self.request)
+        try:
+            response = self.client.run(self.request)
+        except Exception as error:
+            details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+            write_crash_log("WorkerTask failure", details)
+            response = WorkerResponse.process_failure(f"WorkerTask failure:\n{error}")
         self.response_ready.emit(response)
 
 
@@ -82,19 +118,24 @@ class BootstrapTask(QtCore.QThread):
     finished_output = QtCore.Signal(bool, str)
 
     def run(self) -> None:
-        script = AppPaths.bootstrap_script()
-        command = [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            str(script),
-        ]
-        env = os.environ.copy()
-        env["DIMASAVE_APP_SUPPORT"] = str(AppPaths.application_support())
-        process = subprocess.run(command, capture_output=True, text=True, env=env)
-        output = (process.stdout or process.stderr or "").strip()
-        self.finished_output.emit(process.returncode == 0, output)
+        try:
+            script = AppPaths.bootstrap_script()
+            command = [
+                "powershell.exe",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(script),
+            ]
+            env = os.environ.copy()
+            env["DIMASAVE_APP_SUPPORT"] = str(AppPaths.application_support())
+            process = subprocess.run(command, capture_output=True, text=True, env=env)
+            output = (process.stdout or process.stderr or "").strip()
+            self.finished_output.emit(process.returncode == 0, output)
+        except Exception as error:
+            details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+            write_crash_log("BootstrapTask failure", details)
+            self.finished_output.emit(False, f"BootstrapTask failure:\n{error}")
 
 
 class SettingsDialog(QtWidgets.QDialog):
@@ -529,8 +570,14 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
     def prepare(self) -> None:
-        self.append_log(f"Подготовлены папки приложения в {AppPaths.application_support()}.")
-        self.refresh_environment(startup=True)
+        try:
+            self.append_log(f"Подготовлены папки приложения в {AppPaths.application_support()}.")
+            self.refresh_environment(startup=True)
+        except Exception as error:
+            details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+            write_crash_log("Startup prepare failure", details)
+            self.set_status("Ошибка", f"Ошибка запуска: {error}")
+            self.append_log(f"[startup_error] {error}")
 
     def refresh_environment(self, *, startup: bool = False) -> None:
         self.start_request(
@@ -814,10 +861,16 @@ class MainWindow(QtWidgets.QMainWindow):
         callback = self.current_callback
         self.current_callback = None
         self.current_task = None
-        if callback is not None:
-            callback(response)
-        else:
-            self.apply_response(response)
+        try:
+            if callback is not None:
+                callback(response)
+            else:
+                self.apply_response(response)
+        except Exception as error:
+            details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+            write_crash_log("finish_request failure", details)
+            self.set_status("Ошибка", f"Ошибка UI-обработки: {error}")
+            self.append_log(f"[ui_error] {error}")
 
     def cleanup_request(self) -> None:
         self.current_task = None
@@ -881,12 +934,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 def main() -> int:
+    install_global_exception_hooks()
     QtWidgets.QApplication.setApplicationName("DimaSave")
     QtWidgets.QApplication.setApplicationVersion(app_version())
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle("Fusion")
     window = MainWindow()
     window.show()
+    write_crash_log("Application start", f"Version: {app_version()}\nExecutable: {sys.executable}")
     return app.exec()
 
 
