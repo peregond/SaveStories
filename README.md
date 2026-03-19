@@ -98,3 +98,34 @@ export DIMASAVE_BUILD="14"
 ```
 
 The release artifact is written to `dist/release/DimaSave.dmg`.
+
+## GitHub Releases
+
+GitHub can now publish both desktop builds into the repository `Releases` page.
+
+How it works:
+
+1. Create a version tag locally, for example:
+
+```bash
+git tag v0.1.38
+git push origin main
+git push origin v0.1.38
+```
+
+2. The workflow below will automatically:
+   - create or update a GitHub release named after the tag
+   - build the macOS `.dmg`
+   - build the Windows package
+   - upload both files into `Releases`
+
+Workflow:
+
+- `.github/workflows/release-assets.yml`
+
+Release assets:
+
+- `DimaSave-macOS-vX.Y.Z.dmg`
+- `DimaSave-Windows-vX.Y.Z.zip`
+
+You can also start the same workflow manually from GitHub Actions and pass a tag such as `v0.1.38`.

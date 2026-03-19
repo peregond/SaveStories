@@ -1,0 +1,90 @@
+name: Build Release Assets
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (for example v0.1.38)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG"
+          else
+            gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --title "$RELEASE_TAG" --generate-notes
+          fi
+
+  build-macos:
+    needs: create-release
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bootstrap bundled worker runtime
+        run: ./scripts/bootstrap_worker.sh
+
+      - name: Build macOS DMG
+        run: |
+          export DIMASAVE_VERSION="${RELEASE_TAG#v}"
+          export DIMASAVE_BUILD="${GITHUB_RUN_NUMBER}"
+          ./scripts/build_release_dmg.sh
+          cp dist/release/DimaSave.dmg "dist/release/DimaSave-macOS-${RELEASE_TAG}.dmg"
+
+      - name: Upload macOS asset to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE_TAG" "dist/release/DimaSave-macOS-${RELEASE_TAG}.dmg" --clobber
+
+  build-windows:
+    needs: create-release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Build Windows distribution
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+          ./windows_app/build_windows.ps1
+
+      - name: Pack Windows release asset
+        shell: pwsh
+        run: |
+          $archive = "dist/windows/DimaSave-Windows-$env:RELEASE_TAG.zip"
+          if (Test-Path $archive) {
+              Remove-Item $archive -Force
+          }
+          Compress-Archive -Path "dist/windows/DimaSave-Windows" -DestinationPath $archive
+
+      - name: Upload Windows asset to release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload $env:RELEASE_TAG "dist/windows/DimaSave-Windows-$env:RELEASE_TAG.zip" --clobber
