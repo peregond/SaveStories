@@ -1,131 +1,179 @@
 # DimaSave
 
-Desktop utility for downloading Instagram stories through a local browser automation worker.
+`DimaSave` — десктопное приложение для выгрузки активных stories из Instagram через локальный browser automation worker.
 
-## Stack
+Текущая версия проекта:
 
-- `SwiftUI` macOS shell built with Swift Package Manager
-- local Python worker
-- `Playwright` with persistent Chromium profile
-- separate Windows shell under [windows_app/README.md](windows_app/README.md)
+- `0.1.39`
 
-## Current MVP
+## Что уже умеет
 
-- choose a save directory
-- prepare or verify the worker environment from inside the app
-- open a visible Instagram login browser
-- check whether the saved session is still valid
-- download active stories from a profile URL or username
-- write a JSON manifest for each downloaded media item
+- вход в Instagram через встроенный сценарий авторизации
+- проверка сохранённой сессии
+- выгрузка активных stories по ссылке на профиль или username
+- пакетная очередь профилей
+- отдельные подпапки для каждого профиля
+- сохранение `manifest`-файла для каждого скачанного media
+- отдельная версия для `macOS`
+- отдельная версия для `Windows`
 
-## Bootstrap
+## Архитектура
 
-The worker expects a local virtual environment in:
+- `SwiftUI`-приложение для `macOS`
+- `PySide6`-клиент для `Windows`
+- общий Python worker
+- `Playwright` + `Chromium`
+- локальный persistent browser profile
 
-`~/Library/Application Support/DimaSave/worker/.venv`
+Основной worker:
 
-Install it manually with:
+- [bridge.py](Sources/DimaSave/Resources/worker/bridge.py)
 
-```bash
-./scripts/bootstrap_worker.sh
-```
+## Структура проекта
 
-This creates the venv, installs `playwright`, and downloads Chromium into the app support folder.
+- [Sources](Sources) — исходники macOS-приложения
+- [windows_app](windows_app) — Windows-клиент и сборочные скрипты
+- [scripts](scripts) — сборка и упаковка macOS
+- [packaging](packaging) — иконки, plist и упаковочные утилиты
+- [.github/workflows](.github/workflows) — GitHub Actions
+- [VERSION](VERSION) — единый номер версии проекта
 
-The app can do the same from Settings via `Установить движок`, which is the intended path for `.dmg` installs on other Macs.
+## macOS
 
-Release builds now prefer a bundled runtime when available:
+macOS-версия собирается как `.app` и пакуется в `.dmg`.
 
-- embedded `Python.framework`
-- embedded `site-packages` for Playwright
-- embedded Chromium and ffmpeg under `Contents/SharedSupport/runtime`
+Что внутри release-сборки:
 
-## Run
+- встроенный `Python.framework`
+- встроенный `site-packages`
+- встроенный `Playwright`
+- встроенный `Chromium`
+- встроенный `ffmpeg`
+
+То есть release-сборка рассчитана на автономный запуск без отдельной установки Python.
+
+Локальный запуск из исходников:
 
 ```bash
 ./scripts/run_app.sh
 ```
 
-Or directly:
+Или напрямую:
 
 ```bash
 swift run DimaSave
 ```
 
-## Windows Prototype
+Локальная подготовка worker runtime:
 
-There is now a separate Windows client scaffold in:
+```bash
+./scripts/bootstrap_worker.sh
+```
 
-[windows_app/README.md](windows_app/README.md)
+## Windows
 
-It reuses the same Python worker and supports:
+Windows-версия лежит в:
 
-- visible Instagram login
-- session check
-- single profile download
-- batch queue download
+- [windows_app](windows_app)
 
-Windows packaging:
+Она использует тот же Python worker и сейчас поддерживает:
 
-- local build script produces `dist/windows/DimaSave-Windows/DimaSave-Windows.exe`
-- optional packaging script creates `DimaSave-Windows.zip` + `DimaSave-Windows.sha256`
-- GitHub Actions workflow builds and uploads a ready artifact (`folder + zip + sha256`)
+- видимый вход в Instagram
+- проверку сессии
+- выгрузку одного профиля
+- пакетную очередь профилей
+- остановку текущего элемента очереди
 
-## Notes
+Сборка `.exe` на Windows:
 
-- The worker keeps a persistent browser profile under `~/Library/Application Support/DimaSave/worker/browser-profile`.
-- Each saved media item gets a manifest in `.../manifests/` with source URL, viewer page URL, type, timestamp, and sha256.
-- The automation is intentionally visible and conservative. It does not try to bypass login checks or anti-bot challenges.
-- The worker now prefers a metadata-first path: it captures Instagram JSON responses, resolves story items and media variants, and only falls back to DOM heuristics if metadata extraction fails.
+```powershell
+cd windows_app
+./build_windows.ps1
+```
 
-## Release Packaging
+Основной артефакт:
 
-Unsigned direct-distribution build:
+```text
+dist/windows/DimaSave-Windows/DimaSave-Windows.exe
+```
+
+Подробнее:
+
+- [windows_app/README.md](windows_app/README.md)
+
+## GitHub Releases
+
+Проект умеет автоматически публиковать обе версии в `GitHub Releases`.
+
+Workflow:
+
+- [.github/workflows/release-assets.yml](.github/workflows/release-assets.yml)
+
+Что публикуется в релиз:
+
+- `DimaSave-macOS-vX.Y.Z.dmg`
+- `DimaSave-Windows-vX.Y.Z.zip`
+
+Как выпустить новую версию:
+
+1. Закоммитить изменения в `main`
+2. Создать тег
+3. Отправить тег в GitHub
+
+Пример:
+
+```bash
+git add .
+git commit -m "Prepare v0.1.39 release"
+git pull --rebase origin main
+git push origin main
+git tag v0.1.39
+git push origin v0.1.39
+```
+
+После этого GitHub Actions:
+
+- создаст или обновит release
+- соберёт macOS `.dmg`
+- соберёт Windows `.zip`
+- прикрепит оба файла в раздел `Releases`
+
+Также workflow можно запускать вручную из GitHub Actions и передавать тег, например `v0.1.39`.
+
+## Релизная сборка macOS вручную
+
+Без подписи и notarization:
 
 ```bash
 ./scripts/build_release_dmg.sh
 ```
 
-Signed and notarized build:
+С подписью и notarization:
 
 ```bash
 export APPLE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
 export APPLE_NOTARY_PROFILE="dimasave-notary"
 export DIMASAVE_BUNDLE_ID="com.example.dimasave"
-export DIMASAVE_VERSION="0.2.0"
-export DIMASAVE_BUILD="14"
+export DIMASAVE_VERSION="0.1.39"
+export DIMASAVE_BUILD="39"
 ./scripts/build_release_dmg.sh
 ```
 
-The release artifact is written to `dist/release/DimaSave.dmg`.
+Итоговый файл:
 
-## GitHub Releases
-
-GitHub can now publish both desktop builds into the repository `Releases` page.
-
-How it works:
-
-1. Create a version tag locally, for example:
-
-```bash
-git tag v0.1.38
-git push origin main
-git push origin v0.1.38
+```text
+dist/release/DimaSave.dmg
 ```
 
-2. The workflow below will automatically:
-   - create or update a GitHub release named after the tag
-   - build the macOS `.dmg`
-   - build the Windows package
-   - upload both files into `Releases`
+## Важные замечания
 
-Workflow:
+- Worker хранит persistent browser profile в локальной папке приложения.
+- Для каждого media создаётся отдельный `manifest` с метаданными и `sha256`.
+- Приложение не пытается обходить challenge-экраны, антибот-защиту или приватные ограничения доступа.
+- На данный момент основной сценарий — выгрузка именно активных stories по профилю.
 
-- `.github/workflows/release-assets.yml`
+## Дополнительно
 
-Release assets:
-
-- `DimaSave-macOS-vX.Y.Z.dmg`
-- `DimaSave-Windows-vX.Y.Z.zip`
-
-You can also start the same workflow manually from GitHub Actions and pass a tag such as `v0.1.38`.
+- Windows README: [windows_app/README.md](windows_app/README.md)
+- Release workflow: [.github/workflows/release-assets.yml](.github/workflows/release-assets.yml)
+- Windows EXE workflow: [.github/workflows/windows-exe.yml](.github/workflows/windows-exe.yml)
