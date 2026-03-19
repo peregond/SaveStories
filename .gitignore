@@ -1,0 +1,16 @@
+.DS_Store
+/.build
+/Packages
+xcuserdata/
+DerivedData/
+.swiftpm/configuration/registries.json
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+.netrc
+/beta-build
+/.beta-build
+/dist
+/.runtime
+__pycache__/
+*.pyc
+windows_app/.venv/
+windows_app/.build/
