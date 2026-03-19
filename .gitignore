@@ -14,3 +14,4 @@ __pycache__/
 *.pyc
 windows_app/.venv/
 windows_app/.build/
+node_worker/node_modules/

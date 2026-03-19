@@ -1,99 +1,83 @@
-# DimaSave for Windows
+# DimaSave для Windows
 
-This folder contains the first Windows shell for DimaSave.
+Эта папка содержит Windows-клиент `DimaSave`.
 
-## Current status
+## Что внутри
 
-- separate Windows desktop UI on `PySide6`
-- reuses the same downloader core from `Sources/DimaSave/Resources/worker/bridge.py`
-- supports:
-  - visible Instagram login
-  - session check
-  - single profile download
-  - batch queue download
-  - stop current batch item
+- desktop UI на `PySide6`
+- общий downloader runtime на `Node 24 LTS`
+- `Playwright` + `Chromium`
+- пакетная очередь профилей
+- логин в Instagram, проверка сессии и выгрузка активных stories
 
-## Runtime notes
+Основной worker:
 
-This Windows app is packaged with PyInstaller and includes the runtime payload (`playwright` + Chromium) in the distribution folder.
+- [node_worker/bridge.mjs](../node_worker/bridge.mjs)
 
-From source, local development still assumes:
+## Локальный запуск из исходников
 
-- `Python 3.13+` is installed on the target Windows machine
-- the worker environment is prepared through `bootstrap_worker.ps1`
+Для локальной разработки на Windows нужны:
 
-## Run from source
+- `Python 3.13+` для самого Windows-shell
+- `Node 24 LTS` для общего worker runtime
+
+Запуск:
 
 ```powershell
 cd windows_app
 ./run_windows.ps1
 ```
 
-## Prepare worker runtime
+## Подготовка worker runtime
+
+```powershell
+cd windows_app
+./bootstrap_node_worker.ps1
+```
+
+Совместимый старый алиас тоже оставлен:
 
 ```powershell
 cd windows_app
 ./bootstrap_worker.ps1
 ```
 
-This creates:
+После этого браузеры `Playwright` ставятся в:
 
-- `%LOCALAPPDATA%\DimaSave\worker\.venv`
-- `%LOCALAPPDATA%\DimaSave\worker\ms-playwright`
+```text
+%LOCALAPPDATA%\DimaSave\worker\ms-playwright
+```
 
-## Build `.exe`
+## Сборка `.exe`
 
 ```powershell
 cd windows_app
 ./build_windows.ps1
 ```
 
-Artifacts go to:
-
-```text
-dist/windows/DimaSave-Windows/
-```
-
-Main executable:
+Основной результат:
 
 ```text
 dist/windows/DimaSave-Windows/DimaSave-Windows.exe
 ```
 
-Optional packaged archive (for sharing):
+Полная папка сборки:
 
 ```text
-dist/windows/DimaSave-Windows.zip
+dist/windows/DimaSave-Windows/
 ```
 
-Create ZIP + SHA256 checksum:
+## GitHub Actions
 
-```powershell
-cd windows_app
-./package_windows_artifact.ps1
-```
+Windows-сборка автоматически собирается в workflow:
 
-## Build `.exe` from macOS through GitHub Actions
+- [windows-exe.yml](../.github/workflows/windows-exe.yml)
 
-If the project is pushed to GitHub, there is also a Windows workflow:
+А релизный архив с Windows-версией прикрепляется через:
 
-[windows-exe.yml](../.github/workflows/windows-exe.yml)
+- [release-assets.yml](../.github/workflows/release-assets.yml)
 
-After a manual run or a push that touches the Windows files, the workflow uploads:
+## Что важно
 
-```text
-DimaSave-Windows
-```
-
-as a downloadable artifact.
-
-The artifact contains:
-
-- `DimaSave-Windows/` (full runnable folder)
-- `DimaSave-Windows.zip` (portable archive)
-- `DimaSave-Windows.sha256` (checksum for zip)
-
-## Next step
-
-- polish installer UX (MSI/Inno Setup)
-- validate final artifact behavior on multiple Windows versions
+- Во время обычного запуска пользователю не нужен установленный `Node.js`, если используется релизная сборка.
+- `Python` нужен только для сборки Windows-shell и для локальной разработки из исходников.

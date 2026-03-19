@@ -5,14 +5,26 @@ $venv = Join-Path $PSScriptRoot ".venv"
 $dist = Join-Path $root "dist\\windows"
 $runtime = Join-Path $PSScriptRoot ".build\\runtime"
 $runtimeBrowsers = Join-Path $runtime "ms-playwright"
+$runtimeNode = Join-Path $runtime "node"
 $versionFile = Join-Path $root "VERSION"
 $iconPath = Join-Path $root "packaging\\AppBundle\\DimaSave.ico"
-$version = if (Test-Path $versionFile) { (Get-Content $versionFile -Raw).Trim() } else { "0.1.39" }
+$version = if (Test-Path $versionFile) { (Get-Content $versionFile -Raw).Trim() } else { "0.2.0" }
+$nodeWorkerDir = Join-Path $root "node_worker"
 $versionParts = $version.Split(".")
 $major = if ($versionParts.Length -ge 1) { $versionParts[0] } else { "0" }
 $minor = if ($versionParts.Length -ge 2) { $versionParts[1] } else { "0" }
 $patch = if ($versionParts.Length -ge 3) { $versionParts[2] } else { "0" }
 $versionInfoPath = Join-Path $PSScriptRoot ".build\\version_info.txt"
+$nodeCommand = Get-Command node -ErrorAction SilentlyContinue
+$npmCommand = Get-Command npm -ErrorAction SilentlyContinue
+
+if (-not $nodeCommand) {
+    throw "Node 24 LTS не найден. Установи Node 24 LTS."
+}
+
+if (-not $npmCommand) {
+    throw "npm не найден. Установи Node 24 LTS."
+}
 
 if (-not (Test-Path $venv)) {
     if (Get-Command py -ErrorAction SilentlyContinue) {
@@ -26,14 +38,18 @@ if (-not (Test-Path $venv)) {
 
 & "$venv\\Scripts\\python.exe" -m pip install --upgrade pip
 & "$venv\\Scripts\\pip.exe" install -r (Join-Path $PSScriptRoot "requirements.txt")
-& "$venv\\Scripts\\pip.exe" install playwright
 
 New-Item -ItemType Directory -Force -Path $dist | Out-Null
 New-Item -ItemType Directory -Force -Path $runtimeBrowsers | Out-Null
+New-Item -ItemType Directory -Force -Path $runtimeNode | Out-Null
 New-Item -ItemType Directory -Force -Path (Split-Path $versionInfoPath) | Out-Null
 $env:PLAYWRIGHT_BROWSERS_PATH = $runtimeBrowsers
-& "$venv\\Scripts\\python.exe" -m playwright install chromium
 & "$venv\\Scripts\\python.exe" (Join-Path $root "packaging\\generate_windows_icon.py") $iconPath
+
+Push-Location $nodeWorkerDir
+npm install
+node .\node_modules\playwright\cli.js install chromium
+Pop-Location
 
 @"
 VSVersionInfo(
@@ -80,12 +96,11 @@ Push-Location $root
     --specpath $dist `
     --icon $iconPath `
     --version-file $versionInfoPath `
-    --collect-all playwright `
-    --hidden-import playwright.sync_api `
-    --add-data "$root\\Sources\\DimaSave\\Resources\\worker;worker" `
+    --add-binary "$($nodeCommand.Source);runtime\\node" `
+    --add-data "$root\\node_worker;node_worker" `
     --add-data "$root\\VERSION;." `
     --add-data "$runtimeBrowsers;runtime\\ms-playwright" `
-    --add-data "$PSScriptRoot\\bootstrap_worker.ps1;windows_app" `
+    --add-data "$PSScriptRoot\\bootstrap_node_worker.ps1;windows_app" `
     "$PSScriptRoot\\dimasave_windows\\main.py"
 
 Pop-Location

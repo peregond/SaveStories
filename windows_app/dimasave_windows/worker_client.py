@@ -24,8 +24,7 @@ class WorkerClient:
 
     def run(self, request: WorkerRequest) -> WorkerResponse:
         AppPaths.ensure_directories()
-        script = AppPaths.worker_script()
-        command = list(self.resolve_python_command()) + [str(script)]
+        command, runtime = self.resolve_command()
 
         environment = os.environ.copy()
         environment["DIMASAVE_APP_SUPPORT"] = str(AppPaths.application_support())
@@ -33,6 +32,7 @@ class WorkerClient:
         environment["DIMASAVE_MANIFESTS"] = str(AppPaths.manifests_directory())
         environment["DIMASAVE_PLAYWRIGHT_BROWSERS"] = str(AppPaths.playwright_browsers())
         environment["DIMASAVE_DEFAULT_DOWNLOADS"] = str(AppPaths.default_downloads())
+        environment["DIMASAVE_WORKER_RUNTIME"] = runtime
 
         process = subprocess.Popen(
             command,
@@ -70,6 +70,29 @@ class WorkerClient:
             items=items,
             logs=payload.get("logs", []) or [],
         )
+
+    @staticmethod
+    def resolve_command() -> tuple[Sequence[str], str]:
+        try:
+            script = AppPaths.node_worker_script()
+            return ([str(AppPaths.node_executable()), str(script)], "node")
+        except FileNotFoundError:
+            pass
+
+        try:
+            script = AppPaths.node_worker_script()
+            node = shutil.which("node")
+            if node:
+                return ([node, str(script)], "node")
+        except FileNotFoundError:
+            pass
+
+        if getattr(sys, "frozen", False):
+            raise RuntimeError("Не удалось найти встроенный Node runtime. Переустанови приложение.")
+
+        script = AppPaths.worker_script()
+        python_command = WorkerClient.resolve_python_command()
+        return (list(python_command) + [str(script)], "python")
 
     @staticmethod
     def resolve_python_command() -> Sequence[str]:

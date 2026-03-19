@@ -5,7 +5,7 @@ on:
   push:
     paths:
       - "windows_app/**"
-      - "Sources/DimaSave/Resources/worker/**"
+      - "node_worker/**"
       - ".github/workflows/windows-exe.yml"
 
 jobs:
@@ -20,6 +20,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+
+      - name: Setup Node 24 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
 
       - name: Build Windows distribution
         shell: pwsh

@@ -62,7 +62,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.1.39"
+    return "0.2.0"
 
 
 def normalize_profile_link(raw: str) -> str:
@@ -603,7 +603,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def build_runtime_summary(self, response: WorkerResponse) -> str:
         lines = [
             f"app_support={AppPaths.application_support()}",
-            f"python={response.data.get('python', AppPaths.worker_python())}",
+            f"worker_runtime={response.data.get('runtime', 'node')}",
+            f"executable={response.data.get('node') or response.data.get('python') or (AppPaths.node_executable() if AppPaths.has_embedded_runtime() else AppPaths.worker_python())}",
             f"profile={response.data.get('browserProfile', str(AppPaths.browser_profile()))}",
             f"browsers={response.data.get('playwrightBrowsers', str(AppPaths.playwright_browsers()))}",
             f"manifests={response.data.get('manifests', str(AppPaths.manifests_directory()))}",

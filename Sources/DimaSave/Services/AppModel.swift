@@ -447,7 +447,8 @@ final class AppModel: ObservableObject {
     }
 
     private func buildRuntimeSummary(from response: WorkerResponse) -> String {
-        let python = response.data["python"] ?? "unknown"
+        let runtimeExecutable = response.data["node"] ?? response.data["python"] ?? "unknown"
+        let runtimeKind = response.data["runtime"] ?? "node"
         let profile = response.data["browserProfile"] ?? AppPaths.browserProfile.path
         let browsers = response.data["playwrightBrowsers"] ?? AppPaths.playwrightBrowsers.path
         let manifests = response.data["manifests"] ?? AppPaths.manifestsDirectory.path
@@ -455,7 +456,8 @@ final class AppModel: ObservableObject {
         return """
         mode=\(runtimeMode)
         runtime=\(AppPaths.applicationSupport.path)
-        python=\(python)
+        worker_runtime=\(runtimeKind)
+        executable=\(runtimeExecutable)
         profile=\(profile)
         browsers=\(browsers)
         manifests=\(manifests)

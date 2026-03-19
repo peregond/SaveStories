@@ -13,19 +13,22 @@ MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 FRAMEWORKS_DIR="$CONTENTS_DIR/Frameworks"
 SHARED_SUPPORT_DIR="$CONTENTS_DIR/SharedSupport"
+NODE_WORKER_DIR="$SHARED_SUPPORT_DIR/node_worker"
 EMBEDDED_RUNTIME_DIR="$SHARED_SUPPORT_DIR/runtime"
-EMBEDDED_SITE_PACKAGES="$EMBEDDED_RUNTIME_DIR/site-packages"
 EMBEDDED_PLAYWRIGHT_DIR="$EMBEDDED_RUNTIME_DIR/ms-playwright"
+EMBEDDED_NODE_DIR="$EMBEDDED_RUNTIME_DIR/node"
+EMBEDDED_NODE_BIN_DIR="$EMBEDDED_NODE_DIR/bin"
 ICONSET_DIR="$BUILD_DIR/$APP_NAME.iconset"
 ICON_PATH="$BUILD_DIR/$APP_NAME.icns"
 SOURCE_PLIST="$ROOT/packaging/AppBundle/Info.plist"
 STATIC_ICON_PATH="$ROOT/packaging/AppBundle/$APP_NAME.icns"
 PLIST_PATH="$CONTENTS_DIR/Info.plist"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
-SOURCE_APP_SUPPORT="${DIMASAVE_APP_SUPPORT:-$HOME/Library/Application Support/DimaSave}"
-SOURCE_WORKER_ROOT="$SOURCE_APP_SUPPORT/worker"
-SOURCE_VENV="$SOURCE_WORKER_ROOT/.venv"
-SOURCE_PLAYWRIGHT_DIR="$SOURCE_WORKER_ROOT/ms-playwright"
+NODE_SOURCE_EXECUTABLE="${DIMASAVE_NODE_EXECUTABLE:-$(command -v node || true)}"
+NPM_SOURCE_EXECUTABLE="${DIMASAVE_NPM_EXECUTABLE:-$(command -v npm || true)}"
+NODE_SOURCE_WORKER_DIR="$ROOT/node_worker"
+NODE_BUILD_RUNTIME_DIR="$BUILD_DIR/node-runtime"
+NODE_BUILD_PLAYWRIGHT_DIR="$NODE_BUILD_RUNTIME_DIR/ms-playwright"
 VERSION_FILE="$ROOT/VERSION"
 
 if [ -f "$VERSION_FILE" ]; then
@@ -75,79 +78,42 @@ if [ -n "$RESOURCE_BUNDLE_PATH" ] && [ -d "$RESOURCE_BUNDLE_PATH" ]; then
   cp -R "$RESOURCE_BUNDLE_PATH" "$RESOURCES_DIR/"
 fi
 
-if [ ! -x "$SOURCE_VENV/bin/python3" ]; then
-  printf 'Embedded runtime source not found: %s\n' "$SOURCE_VENV/bin/python3" >&2
+if [ -z "$NODE_SOURCE_EXECUTABLE" ] || [ ! -x "$NODE_SOURCE_EXECUTABLE" ]; then
+  printf 'node executable not found. Install Node 24 LTS or set DIMASAVE_NODE_EXECUTABLE.\n' >&2
   exit 1
 fi
 
-if [ ! -d "$SOURCE_PLAYWRIGHT_DIR" ]; then
-  printf 'Embedded Playwright browsers not found: %s\n' "$SOURCE_PLAYWRIGHT_DIR" >&2
+if [ -z "$NPM_SOURCE_EXECUTABLE" ] || [ ! -x "$NPM_SOURCE_EXECUTABLE" ]; then
+  printf 'npm executable not found. Install Node 24 LTS or set DIMASAVE_NPM_EXECUTABLE.\n' >&2
   exit 1
 fi
 
-PYTHON_BASE_PREFIX="$("$SOURCE_VENV/bin/python3" -c 'import sys; print(sys.base_prefix)')"
-PYTHON_FRAMEWORK_ROOT="$(cd "$PYTHON_BASE_PREFIX/../.." && pwd)"
-PYTHON_FRAMEWORK_VERSION="$(basename "$PYTHON_BASE_PREFIX")"
-PYTHON_LIB_DIR="$(find "$SOURCE_VENV/lib" -maxdepth 1 -type d -name 'python3.*' | head -n 1)"
-if [ -z "$PYTHON_LIB_DIR" ]; then
-  printf 'Could not locate Python stdlib inside %s\n' "$SOURCE_VENV/lib" >&2
+if [ ! -f "$NODE_SOURCE_WORKER_DIR/package.json" ]; then
+  printf 'Node worker package.json not found: %s\n' "$NODE_SOURCE_WORKER_DIR/package.json" >&2
   exit 1
 fi
 
-PYTHON_VERSION_NAME="$(basename "$PYTHON_LIB_DIR")"
-EMBEDDED_PYTHON_HOME="$FRAMEWORKS_DIR/Python.framework/Versions/$PYTHON_FRAMEWORK_VERSION"
+rm -rf "$EMBEDDED_RUNTIME_DIR" "$NODE_BUILD_RUNTIME_DIR"
+mkdir -p "$EMBEDDED_PLAYWRIGHT_DIR" "$EMBEDDED_NODE_BIN_DIR" "$NODE_BUILD_PLAYWRIGHT_DIR"
 
-rm -rf "$FRAMEWORKS_DIR/Python.framework" "$EMBEDDED_RUNTIME_DIR"
-cp -R "$PYTHON_FRAMEWORK_ROOT" "$FRAMEWORKS_DIR/"
-mkdir -p "$EMBEDDED_RUNTIME_DIR"
-cp -R "$PYTHON_LIB_DIR/site-packages" "$EMBEDDED_SITE_PACKAGES"
-cp -R "$SOURCE_PLAYWRIGHT_DIR" "$EMBEDDED_PLAYWRIGHT_DIR"
+(
+  cd "$NODE_SOURCE_WORKER_DIR"
+  PLAYWRIGHT_BROWSERS_PATH="$NODE_BUILD_PLAYWRIGHT_DIR" "$NPM_SOURCE_EXECUTABLE" install --no-fund --no-audit
+  PLAYWRIGHT_BROWSERS_PATH="$NODE_BUILD_PLAYWRIGHT_DIR" "$NODE_SOURCE_EXECUTABLE" ./node_modules/playwright/cli.js install chromium
+)
+
+rm -rf "$NODE_WORKER_DIR"
+cp -R "$NODE_SOURCE_WORKER_DIR" "$NODE_WORKER_DIR"
+cp -R "$NODE_BUILD_PLAYWRIGHT_DIR"/. "$EMBEDDED_PLAYWRIGHT_DIR/"
+cp "$NODE_SOURCE_EXECUTABLE" "$EMBEDDED_NODE_BIN_DIR/node"
+chmod +x "$EMBEDDED_NODE_BIN_DIR/node"
 
 rm -rf "$EMBEDDED_PLAYWRIGHT_DIR"/chromium_headless_shell-*
-
-find "$EMBEDDED_SITE_PACKAGES" -type d -name "__pycache__" -prune -exec rm -rf {} +
-find "$EMBEDDED_PYTHON_HOME/lib/$PYTHON_VERSION_NAME" -type d -name "__pycache__" -prune -exec rm -rf {} +
-
-rm -rf "$EMBEDDED_SITE_PACKAGES/pip" \
-       "$EMBEDDED_SITE_PACKAGES/setuptools" \
-       "$EMBEDDED_SITE_PACKAGES/wheel" \
-       "$EMBEDDED_SITE_PACKAGES/playwright/_impl/__pyinstaller" \
-       "$EMBEDDED_SITE_PACKAGES/playwright/py.typed" \
-       "$EMBEDDED_SITE_PACKAGES/playwright/driver/README.md" \
-       "$EMBEDDED_SITE_PACKAGES/playwright/driver/LICENSE" \
-       "$EMBEDDED_SITE_PACKAGES/playwright/driver/package/types" \
-       "$EMBEDDED_SITE_PACKAGES/playwright/driver/package/bin" \
-       "$EMBEDDED_SITE_PACKAGES/playwright/driver/package/README.md" \
-       "$EMBEDDED_SITE_PACKAGES/playwright/driver/package/NOTICE" \
-       "$EMBEDDED_SITE_PACKAGES/playwright/driver/package/ThirdPartyNotices.txt" \
-       "$EMBEDDED_SITE_PACKAGES/playwright/driver/package/index.d.ts" \
-       "$EMBEDDED_PYTHON_HOME/include" \
-       "$EMBEDDED_PYTHON_HOME/share" \
-       "$EMBEDDED_PYTHON_HOME/Headers" \
-       "$EMBEDDED_PYTHON_HOME/lib/$PYTHON_VERSION_NAME/test" \
-       "$EMBEDDED_PYTHON_HOME/lib/$PYTHON_VERSION_NAME/ensurepip" \
-       "$EMBEDDED_PYTHON_HOME/lib/$PYTHON_VERSION_NAME/idlelib" \
-       "$EMBEDDED_PYTHON_HOME/lib/$PYTHON_VERSION_NAME/turtledemo" \
-       "$EMBEDDED_PYTHON_HOME/lib/$PYTHON_VERSION_NAME/tkinter" \
-       "$EMBEDDED_PYTHON_HOME/lib/$PYTHON_VERSION_NAME/venv" \
-       "$EMBEDDED_PYTHON_HOME/lib/$PYTHON_VERSION_NAME/pydoc_data" \
-       "$EMBEDDED_PYTHON_HOME/bin/pip3" \
-       "$EMBEDDED_PYTHON_HOME/bin/idle3" \
-       "$EMBEDDED_PYTHON_HOME/bin/pydoc3" \
-       "$EMBEDDED_PYTHON_HOME/bin/python3-config"
-
-rm -rf "$EMBEDDED_PYTHON_HOME/bin"/pip3.* \
-       "$EMBEDDED_PYTHON_HOME/bin"/idle3.* \
-       "$EMBEDDED_PYTHON_HOME/bin"/pydoc3.* \
-       "$EMBEDDED_PYTHON_HOME/bin"/python3.*-config
-
-rm -rf "$EMBEDDED_SITE_PACKAGES"/pip-*.dist-info \
-       "$EMBEDDED_SITE_PACKAGES"/setuptools-*.dist-info \
-       "$EMBEDDED_SITE_PACKAGES"/wheel-*.dist-info
-
-rm -f "$EMBEDDED_PYTHON_HOME/lib/$PYTHON_VERSION_NAME/site-packages"
-mkdir -p "$EMBEDDED_PYTHON_HOME/lib/$PYTHON_VERSION_NAME/site-packages"
-rm -f "$EMBEDDED_PYTHON_HOME/lib/$PYTHON_VERSION_NAME/sitecustomize.py"
+find "$NODE_WORKER_DIR" -type d -name "__pycache__" -prune -exec rm -rf {} +
+find "$NODE_WORKER_DIR" -type d -name ".bin" -prune -exec rm -rf {} +
+rm -rf "$NODE_WORKER_DIR"/node_modules/playwright-core/.local-browsers \
+       "$NODE_WORKER_DIR"/node_modules/playwright/.cache \
+       "$NODE_WORKER_DIR"/node_modules/playwright-core/.cache
 
 if [ -n "$SIGN_IDENTITY" ]; then
   codesign --force --deep --sign "$SIGN_IDENTITY" --timestamp --options runtime "$APP_DIR"

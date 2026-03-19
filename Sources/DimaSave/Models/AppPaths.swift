@@ -155,12 +155,27 @@ enum AppPaths {
         return existingDirectory(at: path)
     }
 
+    static var bundledNodeExecutable: URL? {
+        let candidates = [
+            bundledRuntimeRoot?
+                .appendingPathComponent("node", isDirectory: true)
+                .appendingPathComponent("bin", isDirectory: true)
+                .appendingPathComponent("node", isDirectory: false),
+            bundledRuntimeRoot?
+                .appendingPathComponent("node", isDirectory: true)
+                .appendingPathComponent("node", isDirectory: false),
+        ]
+
+        return candidates.compactMap(existingFile(at:)).first
+    }
+
     static var bundledFrameworksDirectory: URL? {
         bundledFrameworksRoot
     }
 
     static var hasEmbeddedRuntime: Bool {
-        bundledPythonExecutable != nil && bundledSitePackages != nil && bundledPlaywrightBrowsers != nil
+        (bundledNodeExecutable != nil && bundledPlaywrightBrowsers != nil)
+            || (bundledPythonExecutable != nil && bundledSitePackages != nil && bundledPlaywrightBrowsers != nil)
     }
 
     static var logsDirectory: URL {

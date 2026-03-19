@@ -38,6 +38,28 @@ class AppPaths:
         return AppPaths.worker_root() / ".venv" / "Scripts" / "python.exe"
 
     @staticmethod
+    def node_executable() -> Path:
+        candidates = [
+            AppPaths.resource_root() / "runtime" / "node" / "node.exe",
+            AppPaths.resource_root() / "runtime" / "node" / "bin" / "node.exe",
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        raise FileNotFoundError("Не удалось найти встроенный runtime/node/node.exe")
+
+    @staticmethod
+    def node_worker_script() -> Path:
+        candidates = [
+            AppPaths.resource_root() / "node_worker" / "bridge.mjs",
+            AppPaths.project_root() / "node_worker" / "bridge.mjs",
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        raise FileNotFoundError("Не удалось найти node_worker/bridge.mjs")
+
+    @staticmethod
     def browser_profile() -> Path:
         return AppPaths.worker_root() / "browser-profile"
 
@@ -58,7 +80,12 @@ class AppPaths:
 
     @staticmethod
     def has_embedded_runtime() -> bool:
-        return AppPaths.playwright_browsers().exists()
+        try:
+            AppPaths.node_executable()
+            AppPaths.node_worker_script()
+            return AppPaths.playwright_browsers().exists()
+        except FileNotFoundError:
+            return False
 
     @staticmethod
     def default_downloads() -> Path:
@@ -81,6 +108,8 @@ class AppPaths:
     @staticmethod
     def bootstrap_script() -> Path:
         candidates = [
+            AppPaths.resource_root() / "windows_app" / "bootstrap_node_worker.ps1",
+            AppPaths.project_root() / "windows_app" / "bootstrap_node_worker.ps1",
             AppPaths.resource_root() / "windows_app" / "bootstrap_worker.ps1",
             AppPaths.project_root() / "windows_app" / "bootstrap_worker.ps1",
         ]

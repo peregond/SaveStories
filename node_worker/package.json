@@ -1,0 +1,16 @@
+{
+  "name": "dimasave-node-worker",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "worker": "node bridge.mjs",
+    "install:browsers": "playwright install chromium"
+  },
+  "dependencies": {
+    "playwright": "^1.58.0"
+  }
+}

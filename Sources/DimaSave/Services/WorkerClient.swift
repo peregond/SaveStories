@@ -48,19 +48,14 @@ final class WorkerClient {
     private func execute(_ request: WorkerRequest) async throws -> WorkerResponse {
         try AppPaths.ensureDirectories()
 
-        let scriptURL = try workerScriptURL()
         let process = Process()
         let stdinPipe = Pipe()
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
 
-        if FileManager.default.isExecutableFile(atPath: AppPaths.workerPython.path) {
-            process.executableURL = AppPaths.workerPython
-            process.arguments = [scriptURL.path]
-        } else {
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-            process.arguments = ["python3", scriptURL.path]
-        }
+        let launch = try workerLaunchConfiguration()
+        process.executableURL = launch.executable
+        process.arguments = launch.arguments
 
         process.standardInput = stdinPipe
         process.standardOutput = stdoutPipe
@@ -72,14 +67,15 @@ final class WorkerClient {
         environment["DIMASAVE_MANIFESTS"] = AppPaths.manifestsDirectory.path
         environment["DIMASAVE_PLAYWRIGHT_BROWSERS"] = AppPaths.playwrightBrowsers.path
         environment["DIMASAVE_DEFAULT_DOWNLOADS"] = AppPaths.defaultDownloads.path
+        environment["DIMASAVE_WORKER_RUNTIME"] = launch.runtime
         if let bundledFrameworks = AppPaths.bundledFrameworksDirectory {
             environment["DYLD_FRAMEWORK_PATH"] = bundledFrameworks.path
         }
-        if let bundledPythonHome = AppPaths.bundledPythonHome {
+        if launch.runtime == "python", let bundledPythonHome = AppPaths.bundledPythonHome {
             environment["PYTHONHOME"] = bundledPythonHome.path
             environment["PYTHONNOUSERSITE"] = "1"
         }
-        if let bundledSitePackages = AppPaths.bundledSitePackages {
+        if launch.runtime == "python", let bundledSitePackages = AppPaths.bundledSitePackages {
             environment["PYTHONPATH"] = bundledSitePackages.path
         }
         process.environment = environment
@@ -163,7 +159,46 @@ final class WorkerClient {
         }
     }
 
-    private func workerScriptURL() throws -> URL {
+    private func workerLaunchConfiguration() throws -> (executable: URL, arguments: [String], runtime: String) {
+        if let nodeScript = nodeWorkerScriptURL(),
+           let bundledNode = AppPaths.bundledNodeExecutable {
+            return (bundledNode, [nodeScript.path], "node")
+        }
+
+        if let nodeScript = nodeWorkerScriptURL(),
+           let nodeExecutable = locateExecutable(named: "node") {
+            return (nodeExecutable, [nodeScript.path], "node")
+        }
+
+        let scriptURL = try pythonWorkerScriptURL()
+        if FileManager.default.isExecutableFile(atPath: AppPaths.workerPython.path) {
+            return (AppPaths.workerPython, [scriptURL.path], "python")
+        }
+
+        return (URL(fileURLWithPath: "/usr/bin/env"), ["python3", scriptURL.path], "python")
+    }
+
+    private func nodeWorkerScriptURL() -> URL? {
+        let candidates = [
+            Bundle.main.sharedSupportURL?
+                .appendingPathComponent("node_worker", isDirectory: true)
+                .appendingPathComponent("bridge.mjs", isDirectory: false),
+            Bundle.main.bundleURL
+                .appendingPathComponent("Contents", isDirectory: true)
+                .appendingPathComponent("SharedSupport", isDirectory: true)
+                .appendingPathComponent("node_worker", isDirectory: true)
+                .appendingPathComponent("bridge.mjs", isDirectory: false),
+            URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                .appendingPathComponent("node_worker", isDirectory: true)
+                .appendingPathComponent("bridge.mjs", isDirectory: false),
+        ]
+
+        return candidates
+            .compactMap { $0 }
+            .first(where: { FileManager.default.fileExists(atPath: $0.path) })
+    }
+
+    private func pythonWorkerScriptURL() throws -> URL {
         if let bundled = bundledResourceURL(relativePath: "worker/bridge.py"),
            FileManager.default.fileExists(atPath: bundled.path) {
             return bundled
@@ -181,6 +216,18 @@ final class WorkerClient {
         }
 
         throw WorkerClientError.workerScriptNotFound
+    }
+
+    private func locateExecutable(named executable: String) -> URL? {
+        let pathVariable = ProcessInfo.processInfo.environment["PATH"] ?? ""
+        for component in pathVariable.split(separator: ":") {
+            let candidate = URL(fileURLWithPath: String(component), isDirectory: true)
+                .appendingPathComponent(executable, isDirectory: false)
+            if FileManager.default.isExecutableFile(atPath: candidate.path) {
+                return candidate
+            }
+        }
+        return nil
     }
 
     private func bundledResourceURL(relativePath: String) -> URL? {

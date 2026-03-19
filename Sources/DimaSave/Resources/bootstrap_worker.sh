@@ -8,24 +8,47 @@ if ! mkdir -p "$APP_SUPPORT" 2>/dev/null; then
 fi
 
 WORKER_ROOT="$APP_SUPPORT/worker"
-VENV="$WORKER_ROOT/.venv"
 BROWSERS="$WORKER_ROOT/ms-playwright"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORKER_DIR=""
+
+for candidate in \
+  "$(pwd)/node_worker" \
+  "$SCRIPT_DIR/node_worker" \
+  "$SCRIPT_DIR/../../../../node_worker" \
+  "$SCRIPT_DIR/../../../node_worker" \
+  "$SCRIPT_DIR/../../node_worker"; do
+  if [ -d "$candidate" ]; then
+    WORKER_DIR="$(cd "$candidate" && pwd)"
+    break
+  fi
+done
 
 mkdir -p "$WORKER_ROOT"
 
-if ! command -v python3 >/dev/null 2>&1; then
-  printf 'python3 не найден. Установите Python 3 и повторите попытку.\n' >&2
+if ! command -v node >/dev/null 2>&1; then
+  printf 'node не найден. Установите Node 24 LTS и повторите попытку.\n' >&2
   exit 1
 fi
 
-python3 -m venv "$VENV"
-"$VENV/bin/pip" install --upgrade pip setuptools wheel
-"$VENV/bin/pip" install playwright
+if ! command -v npm >/dev/null 2>&1; then
+  printf 'npm не найден. Установите Node 24 LTS и повторите попытку.\n' >&2
+  exit 1
+fi
+
+if [ -z "$WORKER_DIR" ] || [ ! -d "$WORKER_DIR" ]; then
+  printf 'Не удалось найти каталог node_worker рядом с проектом.\n' >&2
+  exit 1
+fi
 
 export PLAYWRIGHT_BROWSERS_PATH="$BROWSERS"
-"$VENV/bin/python" -m playwright install chromium
+
+cd "$WORKER_DIR"
+npm install
+node ./node_modules/playwright/cli.js install chromium
 
 printf '\nWorker bootstrap complete.\n'
-printf 'Python: %s\n' "$VENV/bin/python"
+printf 'Node: %s\n' "$(command -v node)"
+printf 'Worker: %s\n' "$WORKER_DIR/bridge.mjs"
 printf 'Browser profile: %s\n' "$WORKER_ROOT/browser-profile"
 printf 'Playwright browsers: %s\n' "$BROWSERS"

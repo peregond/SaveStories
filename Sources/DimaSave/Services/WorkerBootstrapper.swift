@@ -67,7 +67,7 @@ struct WorkerBootstrapper {
 
         let fallback = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
             .appendingPathComponent("scripts", isDirectory: true)
-            .appendingPathComponent("bootstrap_worker.sh", isDirectory: false)
+            .appendingPathComponent("bootstrap_node_worker.sh", isDirectory: false)
 
         if FileManager.default.fileExists(atPath: fallback.path) {
             return fallback

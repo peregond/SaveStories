@@ -1,10 +1,10 @@
 # DimaSave
 
-`DimaSave` — десктопное приложение для выгрузки активных stories из Instagram через локальный browser automation worker.
+`DimaSave` — десктопное приложение для выгрузки активных stories из Instagram через локальный `Playwright` worker.
 
 Текущая версия проекта:
 
-- `0.1.39`
+- `0.2.0`
 
 ## Что уже умеет
 
@@ -21,13 +21,13 @@
 
 - `SwiftUI`-приложение для `macOS`
 - `PySide6`-клиент для `Windows`
-- общий Python worker
+- общий `Node 24 LTS` worker
 - `Playwright` + `Chromium`
 - локальный persistent browser profile
 
 Основной worker:
 
-- [bridge.py](Sources/DimaSave/Resources/worker/bridge.py)
+- [bridge.mjs](node_worker/bridge.mjs)
 
 ## Структура проекта
 
@@ -44,13 +44,12 @@ macOS-версия собирается как `.app` и пакуется в `.d
 
 Что внутри release-сборки:
 
-- встроенный `Python.framework`
-- встроенный `site-packages`
+- встроенный `node`
+- встроенный `node_worker`
 - встроенный `Playwright`
 - встроенный `Chromium`
-- встроенный `ffmpeg`
 
-То есть release-сборка рассчитана на автономный запуск без отдельной установки Python.
+То есть release-сборка рассчитана на автономный запуск без отдельной установки `Node.js`.
 
 Локальный запуск из исходников:
 
@@ -67,7 +66,7 @@ swift run DimaSave
 Локальная подготовка worker runtime:
 
 ```bash
-./scripts/bootstrap_worker.sh
+./scripts/bootstrap_node_worker.sh
 ```
 
 ## Windows
@@ -76,7 +75,7 @@ Windows-версия лежит в:
 
 - [windows_app](windows_app)
 
-Она использует тот же Python worker и сейчас поддерживает:
+Она использует тот же `Node 24 LTS` worker и сейчас поддерживает:
 
 - видимый вход в Instagram
 - проверку сессии
@@ -124,11 +123,11 @@ Workflow:
 
 ```bash
 git add .
-git commit -m "Prepare v0.1.39 release"
+git commit -m "Prepare v0.2.0 release"
 git pull --rebase origin main
 git push origin main
-git tag v0.1.39
-git push origin v0.1.39
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 После этого GitHub Actions:
@@ -138,7 +137,7 @@ git push origin v0.1.39
 - соберёт Windows `.zip`
 - прикрепит оба файла в раздел `Releases`
 
-Также workflow можно запускать вручную из GitHub Actions и передавать тег, например `v0.1.39`.
+Также workflow можно запускать вручную из GitHub Actions и передавать тег, например `v0.2.0`.
 
 ## Релизная сборка macOS вручную
 
@@ -154,7 +153,7 @@ git push origin v0.1.39
 export APPLE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
 export APPLE_NOTARY_PROFILE="dimasave-notary"
 export DIMASAVE_BUNDLE_ID="com.example.dimasave"
-export DIMASAVE_VERSION="0.1.39"
+export DIMASAVE_VERSION="0.2.0"
 export DIMASAVE_BUILD="39"
 ./scripts/build_release_dmg.sh
 ```
@@ -163,6 +162,22 @@ export DIMASAVE_BUILD="39"
 
 ```text
 dist/release/DimaSave.dmg
+```
+
+## Локальная разработка
+
+Для запуска из исходников сейчас нужен `Node 24 LTS`, потому что downloader runtime уже переведён на `Node worker`.
+
+Подготовить локальный worker:
+
+```bash
+./scripts/bootstrap_node_worker.sh
+```
+
+Старый алиас тоже оставлен для совместимости:
+
+```bash
+./scripts/bootstrap_worker.sh
 ```
 
 ## Важные замечания
