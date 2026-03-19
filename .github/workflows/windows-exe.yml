@@ -27,8 +27,25 @@ jobs:
           Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
           ./windows_app/build_windows.ps1
 
+      - name: Validate executable
+        shell: pwsh
+        run: |
+          $exePath = "dist/windows/DimaSave-Windows/DimaSave-Windows.exe"
+          if (-not (Test-Path $exePath)) {
+            throw "Missing expected executable: $exePath"
+          }
+
+      - name: Package artifact
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+          ./windows_app/package_windows_artifact.ps1
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: DimaSave-Windows
-          path: dist/windows/DimaSave-Windows
+          path: |
+            dist/windows/DimaSave-Windows
+            dist/windows/DimaSave-Windows.zip
+            dist/windows/DimaSave-Windows.sha256
