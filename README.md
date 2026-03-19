@@ -7,7 +7,7 @@ Desktop utility for downloading Instagram stories through a local browser automa
 - `SwiftUI` macOS shell built with Swift Package Manager
 - local Python worker
 - `Playwright` with persistent Chromium profile
-- separate Windows shell under [windows_app/README.md](/Users/peregon/Documents/DimaSave/windows_app/README.md)
+- separate Windows shell under [windows_app/README.md](windows_app/README.md)
 
 ## Current MVP
 
@@ -56,7 +56,7 @@ swift run DimaSave
 
 There is now a separate Windows client scaffold in:
 
-[windows_app/README.md](/Users/peregon/Documents/DimaSave/windows_app/README.md)
+[windows_app/README.md](windows_app/README.md)
 
 It reuses the same Python worker and supports:
 
@@ -65,10 +65,11 @@ It reuses the same Python worker and supports:
 - single profile download
 - batch queue download
 
-Current limitation:
+Windows packaging:
 
-- the Windows build still expects `Python 3.13+` on the target machine
-- a fully self-contained Windows release is a separate next step
+- local build script produces `dist/windows/DimaSave-Windows/DimaSave-Windows.exe`
+- optional packaging script creates `DimaSave-Windows.zip` + `DimaSave-Windows.sha256`
+- GitHub Actions workflow builds and uploads a ready artifact (`folder + zip + sha256`)
 
 ## Notes
 
