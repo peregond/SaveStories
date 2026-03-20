@@ -64,7 +64,7 @@ jobs:
           export DIMASAVE_VERSION="${RELEASE_TAG#v}"
           export DIMASAVE_BUILD="${GITHUB_RUN_NUMBER}"
           ./scripts/build_release_dmg.sh
-          cp dist/release/DimaSave.dmg "dist/release/SaveStories-macOS-${RELEASE_TAG}.dmg"
+          cp dist/release/SaveStories.dmg "dist/release/SaveStories-macOS-${RELEASE_TAG}.dmg"
 
       - name: Upload macOS asset to release
         env:

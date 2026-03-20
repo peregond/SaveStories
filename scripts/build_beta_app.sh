@@ -3,17 +3,19 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP_NAME="DimaSave"
+BUNDLE_NAME="SaveStories"
+EXECUTABLE_NAME="DimaSave"
+ICON_BASENAME="DimaSave"
 BUILD_DIR="$ROOT/beta-build"
 RELEASE_DIR="$BUILD_DIR/release"
-APP_DIR="$RELEASE_DIR/$APP_NAME.app"
+APP_DIR="$RELEASE_DIR/$BUNDLE_NAME.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
-ICONSET_DIR="$BUILD_DIR/$APP_NAME.iconset"
-ICON_PATH="$BUILD_DIR/$APP_NAME.icns"
-STATIC_ICON_PATH="$ROOT/packaging/AppBundle/$APP_NAME.icns"
-RESOURCE_BUNDLE_NAME="$APP_NAME"_DimaSave.bundle
+ICONSET_DIR="$BUILD_DIR/$ICON_BASENAME.iconset"
+ICON_PATH="$BUILD_DIR/$ICON_BASENAME.icns"
+STATIC_ICON_PATH="$ROOT/packaging/AppBundle/$ICON_BASENAME.icns"
+RESOURCE_BUNDLE_NAME="$EXECUTABLE_NAME"_DimaSave.bundle
 
 mkdir -p "$BUILD_DIR" "$RELEASE_DIR"
 
@@ -33,8 +35,8 @@ rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
 cp "$ROOT/packaging/AppBundle/Info.plist" "$CONTENTS_DIR/Info.plist"
-cp "$ROOT/.build/release/$APP_NAME" "$MACOS_DIR/$APP_NAME"
-cp "$ICON_PATH" "$RESOURCES_DIR/$APP_NAME.icns"
+cp "$ROOT/.build/release/$EXECUTABLE_NAME" "$MACOS_DIR/$EXECUTABLE_NAME"
+cp "$ICON_PATH" "$RESOURCES_DIR/$ICON_BASENAME.icns"
 
 RESOURCE_BUNDLE_PATH="$(find "$ROOT/.build" -maxdepth 4 -type d -name "$RESOURCE_BUNDLE_NAME" | head -n 1)"
 if [ -n "$RESOURCE_BUNDLE_PATH" ] && [ -d "$RESOURCE_BUNDLE_PATH" ]; then

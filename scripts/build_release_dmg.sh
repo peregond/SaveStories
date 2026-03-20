@@ -3,12 +3,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP_NAME="DimaSave"
+BUNDLE_NAME="SaveStories"
 BUILD_DIR="$ROOT/dist"
 RELEASE_DIR="$BUILD_DIR/release"
-APP_DIR="$RELEASE_DIR/$APP_NAME.app"
-APP_ZIP="$RELEASE_DIR/$APP_NAME-notary.zip"
-DMG_PATH="$RELEASE_DIR/$APP_NAME.dmg"
+APP_DIR="$RELEASE_DIR/$BUNDLE_NAME.app"
+APP_ZIP="$RELEASE_DIR/$BUNDLE_NAME-notary.zip"
+DMG_PATH="$RELEASE_DIR/$BUNDLE_NAME.dmg"
 STAGING_DIR="$BUILD_DIR/dmg-staging"
 SIGN_IDENTITY="${APPLE_SIGN_IDENTITY:-}"
 NOTARY_PROFILE="${APPLE_NOTARY_PROFILE:-}"
@@ -35,7 +35,7 @@ ln -s /Applications "$STAGING_DIR/Applications"
 
 rm -f "$DMG_PATH"
 hdiutil create \
-  -volname "$APP_NAME" \
+  -volname "$BUNDLE_NAME" \
   -srcfolder "$STAGING_DIR" \
   -ov \
   -format UDZO \

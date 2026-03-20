@@ -3,11 +3,11 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP_NAME="DimaSave"
+BUNDLE_NAME="SaveStories"
 BUILD_DIR="$ROOT/beta-build"
 RELEASE_DIR="$BUILD_DIR/release"
-APP_DIR="$RELEASE_DIR/$APP_NAME.app"
-DMG_PATH="$RELEASE_DIR/$APP_NAME-beta.dmg"
+APP_DIR="$RELEASE_DIR/$BUNDLE_NAME.app"
+DMG_PATH="$RELEASE_DIR/$BUNDLE_NAME-beta.dmg"
 STAGING_DIR="$BUILD_DIR/dmg-staging"
 
 "$ROOT/scripts/build_beta_app.sh"
@@ -18,7 +18,7 @@ cp -R "$APP_DIR" "$STAGING_DIR/"
 
 rm -f "$DMG_PATH"
 hdiutil create \
-  -volname "$APP_NAME Beta" \
+  -volname "$BUNDLE_NAME Beta" \
   -srcfolder "$STAGING_DIR" \
   -ov \
   -format UDZO \

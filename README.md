@@ -4,7 +4,7 @@
 
 Текущая версия проекта:
 
-- `0.2.4`
+- `0.2.7`
 
 ## Что уже умеет
 
@@ -123,11 +123,11 @@ Workflow:
 
 ```bash
 git add .
-git commit -m "Prepare v0.2.4 release"
+git commit -m "Prepare v0.2.7 release"
 git pull --rebase origin main
 git push origin main
-git tag v0.2.4
-git push origin v0.2.4
+git tag v0.2.7
+git push origin v0.2.7
 ```
 
 После этого GitHub Actions:
@@ -137,7 +137,7 @@ git push origin v0.2.4
 - соберёт Windows `.zip`
 - прикрепит оба файла в раздел `Releases`
 
-Также workflow можно запускать вручную из GitHub Actions и передавать тег, например `v0.2.4`.
+Также workflow можно запускать вручную из GitHub Actions и передавать тег, например `v0.2.7`.
 
 ## Релизная сборка macOS вручную
 
@@ -153,7 +153,7 @@ git push origin v0.2.4
 export APPLE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
 export APPLE_NOTARY_PROFILE="dimasave-notary"
 export DIMASAVE_BUNDLE_ID="com.example.dimasave"
-export DIMASAVE_VERSION="0.2.4"
+export DIMASAVE_VERSION="0.2.7"
 export DIMASAVE_BUILD="39"
 ./scripts/build_release_dmg.sh
 ```
@@ -161,7 +161,7 @@ export DIMASAVE_BUILD="39"
 Итоговый файл:
 
 ```text
-dist/release/DimaSave.dmg
+dist/release/SaveStories.dmg
 ```
 
 ## Локальная разработка
