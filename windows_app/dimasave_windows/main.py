@@ -572,8 +572,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def prepare(self) -> None:
         try:
+            write_crash_log("MainWindow.prepare", "Startup UI prepare started.")
             self.append_log(f"Подготовлены папки приложения в {AppPaths.application_support()}.")
-            self.refresh_environment(startup=True)
+            self.set_status("Готово", "Приложение запущено. Проверку среды и вход можно выполнить вручную в настройках.")
+            self.activity_subtitle.setText("Приложение запущено. Воркер не проверяется автоматически на старте.")
+            write_crash_log("MainWindow.prepare", "Startup UI prepare finished without auto worker checks.")
         except Exception as error:
             details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
             write_crash_log("Startup prepare failure", details)
@@ -949,6 +952,10 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         os.startfile(str(path))
 
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        write_crash_log("MainWindow.closeEvent", "Window close requested.")
+        super().closeEvent(event)
+
 
 def main() -> int:
     install_global_exception_hooks()
@@ -956,9 +963,13 @@ def main() -> int:
     QtWidgets.QApplication.setApplicationVersion(app_version())
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle("Fusion")
+    app.aboutToQuit.connect(lambda: write_crash_log("Application aboutToQuit", "Qt signalled application shutdown."))
     window = MainWindow()
+    write_crash_log("MainWindow created", "Main window constructed successfully.")
     window.show()
     write_crash_log("Application start", f"Version: {app_version()}\nExecutable: {sys.executable}")
+    QtCore.QTimer.singleShot(250, lambda: write_crash_log("Application heartbeat", "Event loop still alive after 250ms."))
+    QtCore.QTimer.singleShot(2000, lambda: write_crash_log("Application heartbeat", "Event loop still alive after 2000ms."))
     return app.exec()
 
 
