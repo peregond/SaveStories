@@ -260,6 +260,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.login_poll_timer.setInterval(3000)
         self.login_poll_timer.timeout.connect(lambda: self.check_session(startup=False))
         self.login_poll_active = False
+        self.startup_login_prompt_shown = False
 
         self.worker_ready = False
         self.session_ready = False
@@ -623,10 +624,10 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             write_crash_log("MainWindow.prepare", "Startup UI prepare started.")
             self.append_log(f"Подготовлены папки приложения в {AppPaths.application_support()}.")
-            self.set_status("Готово", "Приложение запущено. Проверку среды и вход можно выполнить вручную в настройках.")
-            self.activity_subtitle.setText("Приложение запущено. Готовлю безопасную проверку среды и сессии.")
-            QtCore.QTimer.singleShot(900, self.startup_probe)
-            QtCore.QTimer.singleShot(4200, self.auto_check_for_updates)
+            self.set_status("Готово", "Приложение запущено. Выполню безопасную проверку среды через пару секунд.")
+            self.activity_subtitle.setText("Приложение запущено. Жду стабилизации UI и затем проверю среду и сессию.")
+            QtCore.QTimer.singleShot(1800, self.startup_probe)
+            QtCore.QTimer.singleShot(12000, self.auto_check_for_updates)
             write_crash_log("MainWindow.prepare", "Startup UI prepare finished. Delayed startup probe scheduled.")
         except Exception as error:
             details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
@@ -635,6 +636,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.append_log(f"[startup_error] {error}")
 
     def auto_check_for_updates(self) -> None:
+        if self.login_poll_active or self.current_task is not None:
+            write_crash_log("auto_check_for_updates", "Deferred because startup work is still active.")
+            QtCore.QTimer.singleShot(12000, self.auto_check_for_updates)
+            return
         if not self.should_check_for_updates():
             return
         self.check_for_updates(silent=True)
@@ -658,6 +663,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def startup_probe(self) -> None:
         if self.current_task is not None:
             write_crash_log("startup_probe", "Skipped because another request is already active.")
+            QtCore.QTimer.singleShot(2000, self.startup_probe)
             return
         self.append_log("Запускаю отложенную проверку среды и Instagram-сессии.")
         self.refresh_environment(startup=True)
@@ -766,12 +772,30 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         if startup and not self.session_ready:
-            self.set_status("Нужен вход", "Сессия Instagram не найдена. Открываю браузер для входа.")
-            self.activity_subtitle.setText("Сессия не найдена. Сейчас откроется браузер для авторизации.")
-            self.append_log("Сессия Instagram не найдена. Автоматически открываю браузер для входа.")
-            QtCore.QTimer.singleShot(250, self.login)
+            self.set_status("Нужен вход", "Сессия Instagram не найдена. Можно открыть браузер для входа.")
+            self.activity_subtitle.setText("Сессия не найдена. Сейчас предложу открыть браузер для авторизации.")
+            self.append_log("Сессия Instagram не найдена. Показываю безопасный prompt для входа.")
+            if not self.startup_login_prompt_shown:
+                self.startup_login_prompt_shown = True
+                QtCore.QTimer.singleShot(350, self.prompt_startup_login)
         elif self.login_poll_active and not self.session_ready:
             self.activity_subtitle.setText("Ожидаю завершения входа в Instagram в отдельном окне браузера.")
+
+    def prompt_startup_login(self) -> None:
+        write_crash_log("prompt_startup_login", "Showing startup login prompt.")
+        dialog = QtWidgets.QMessageBox(self)
+        dialog.setWindowTitle("Нужен вход в Instagram")
+        dialog.setIcon(QtWidgets.QMessageBox.Information)
+        dialog.setText("Сохранённая Instagram-сессия не найдена.")
+        dialog.setInformativeText("Открыть отдельное окно браузера для входа сейчас?")
+        open_button = dialog.addButton("Открыть браузер", QtWidgets.QMessageBox.AcceptRole)
+        dialog.addButton("Позже", QtWidgets.QMessageBox.RejectRole)
+        dialog.exec()
+        if dialog.clickedButton() is open_button:
+            self.login()
+        else:
+            self.append_log("Вход в Instagram отложен пользователем.")
+            self.activity_subtitle.setText("Вход можно выполнить позже через кнопку в настройках.")
 
     def check_for_updates(self, *, silent: bool) -> None:
         if not self.updater.is_available:
