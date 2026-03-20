@@ -4,6 +4,14 @@ import Foundation
 
 @MainActor
 final class AppModel: ObservableObject {
+    private struct BatchWorkerResult: Decodable {
+        let url: String
+        let status: String
+        let message: String
+        let foundCount: Int
+        let savedCount: Int
+    }
+
     struct BatchProfileItem: Identifiable, Hashable {
         enum Status: String {
             case pending
@@ -173,7 +181,7 @@ final class AppModel: ObservableObject {
         showLoginPrompt = false
         await perform("Открытие видимого браузера для входа в Instagram") {
             let response = await self.worker.run(
-                WorkerRequest(command: "login", url: nil, outputDirectory: self.saveDirectory.path, headless: false)
+                WorkerRequest(command: "login", url: nil, urls: nil, outputDirectory: self.saveDirectory.path, headless: false)
             )
             if response.ok {
                 self.sessionReady = response.data["loggedIn"] == "true"
@@ -191,7 +199,7 @@ final class AppModel: ObservableObject {
     func checkSession() async {
         await perform("Проверка сохранённой сессии Instagram") {
             let response = await self.worker.run(
-                WorkerRequest(command: "check_session", url: nil, outputDirectory: nil, headless: true)
+                WorkerRequest(command: "check_session", url: nil, urls: nil, outputDirectory: nil, headless: true)
             )
             if response.ok {
                 self.sessionReady = response.data["loggedIn"] == "true"
@@ -272,67 +280,60 @@ final class AppModel: ObservableObject {
         }
 
         await perform("Пакетная выгрузка активных stories") {
-            var totalFound = 0
-            var totalSaved = 0
-            var failedCount = 0
-            var processedCount = 0
-
             self.batchIsRunning = true
             self.batchStopRequested = false
-            self.batchCurrentIndex = 0
+            self.batchCurrentIndex = 1
             self.batchTotalCount = pendingItems.count
-            self.batchRemainingCount = pendingItems.count
-            self.batchCurrentURL = ""
+            self.batchRemainingCount = max(pendingItems.count - 1, 0)
+            self.batchCurrentURL = "Пакетная выгрузка выполняется в одном окне браузера."
 
-            for (offset, item) in pendingItems.enumerated() {
-                if self.batchStopRequested {
-                    break
+            for item in pendingItems {
+                self.updateBatchProfile(id: item.id, status: .running, message: "Ожидает обработки в общем окне браузера.")
+            }
+
+            self.statusTitle = "Пакетная выгрузка"
+            self.statusDetail = "Вся очередь обрабатывается в одном окне браузера."
+
+            let response = await self.worker.run(
+                WorkerRequest(
+                    command: "download_profile_batch",
+                    url: nil,
+                    urls: pendingItems.map { self.normalizedProfileLink($0.url) },
+                    outputDirectory: self.saveDirectory.path,
+                    headless: self.downloadMode.usesHeadless
+                )
+            )
+
+            if response.status == "cancelled" {
+                for item in pendingItems where self.batchQueue.contains(where: { $0.id == item.id && $0.status == .running }) {
+                    self.updateBatchProfile(id: item.id, status: .stopped, message: "Пакетная выгрузка остановлена пользователем.")
                 }
-
-                self.batchCurrentIndex = offset + 1
-                self.batchRemainingCount = max(pendingItems.count - offset - 1, 0)
-                self.batchCurrentURL = item.url
-                self.updateBatchProfile(id: item.id, status: .running, message: "Идёт выгрузка профиля.")
-                self.statusTitle = "Пакетная выгрузка"
-                self.statusDetail = "Обрабатывается \(offset + 1) из \(pendingItems.count), осталось \(max(pendingItems.count - offset - 1, 0)): \(item.url)"
-
-                let response = await self.runProfileDownload(for: item.url)
-                if response.status == "cancelled" {
-                    self.updateBatchProfile(id: item.id, status: .stopped, message: response.message)
-                    self.append(response)
-                    break
-                }
-
                 self.append(response)
-                processedCount += 1
-
-                let found = Int(response.data["foundCount"] ?? "") ?? response.items.count
-                let saved = Int(response.data["savedCount"] ?? "") ?? response.items.count
-                totalFound += found
-                totalSaved += saved
-                self.foundStoriesCount = totalFound
-                self.savedStoriesCount = totalSaved
-
-                if response.ok {
-                    self.updateBatchProfile(id: item.id, status: .completed, message: response.message)
-                } else {
-                    failedCount += 1
-                    self.updateBatchProfile(id: item.id, status: .failed, message: response.message)
-                }
-            }
-
-            let stoppedDuringItem = self.batchStopRequested && !self.batchCurrentURL.isEmpty
-
-            if self.batchStopRequested {
                 self.statusTitle = "Остановлено"
-                self.statusDetail = "Пакетная выгрузка остановлена. Обработано \(processedCount) из \(pendingItems.count)."
-            } else {
-                self.statusTitle = failedCount == 0 ? "Готово" : "Завершено с ошибками"
-                self.statusDetail = "Обработано \(pendingItems.count) профилей. Сохранено файлов: \(totalSaved)."
+                self.statusDetail = "Пакетная выгрузка остановлена пользователем."
+                self.lastResult = self.statusDetail
+                self.batchRemainingCount = pendingItems.count
+                self.batchCurrentIndex = 0
+                self.batchCurrentURL = ""
+                self.batchIsRunning = false
+                self.batchStopRequested = false
+                return
             }
+
+            self.applyBatchResults(response, pendingItems: pendingItems)
+            self.append(response)
+
+            let processedCount = Int(response.data["processedCount"] ?? "") ?? pendingItems.count
+            let failedCount = pendingItems.filter { item in
+                self.batchQueue.first(where: { $0.id == item.id })?.status == .failed
+            }.count
+
+            self.statusTitle = failedCount == 0 ? "Готово" : "Завершено с ошибками"
+            self.statusDetail = "Обработано \(processedCount) профилей. Сохранено файлов: \(self.savedStoriesCount)."
             self.lastResult = self.statusDetail
-            self.batchRemainingCount = max(pendingItems.count - processedCount - (stoppedDuringItem ? 1 : 0), 0)
+            self.batchRemainingCount = 0
             self.batchCurrentURL = ""
+            self.batchCurrentIndex = 0
             self.batchIsRunning = false
             self.batchStopRequested = false
         }
@@ -377,6 +378,7 @@ final class AppModel: ObservableObject {
             WorkerRequest(
                 command: "download_profile_stories",
                 url: normalizedProfileLink(url),
+                urls: nil,
                 outputDirectory: saveDirectory.path,
                 headless: downloadMode.usesHeadless
             )
@@ -415,12 +417,12 @@ final class AppModel: ObservableObject {
     }
 
     private func environmentResponse() async -> WorkerResponse {
-        await worker.run(WorkerRequest(command: "environment", url: nil, outputDirectory: nil, headless: nil))
+        await worker.run(WorkerRequest(command: "environment", url: nil, urls: nil, outputDirectory: nil, headless: nil))
     }
 
     private func refreshStartupSession() async {
         let response = await worker.run(
-            WorkerRequest(command: "check_session", url: nil, outputDirectory: nil, headless: true)
+            WorkerRequest(command: "check_session", url: nil, urls: nil, outputDirectory: nil, headless: true)
         )
         if response.ok {
             sessionReady = response.data["loggedIn"] == "true"
@@ -490,6 +492,46 @@ final class AppModel: ObservableObject {
         guard let index = batchQueue.firstIndex(where: { $0.id == id }) else { return }
         batchQueue[index].status = status
         batchQueue[index].message = message
+    }
+
+    private func applyBatchResults(_ response: WorkerResponse, pendingItems: [BatchProfileItem]) {
+        let found = Int(response.data["foundCount"] ?? "") ?? response.items.count
+        let saved = Int(response.data["savedCount"] ?? "") ?? response.items.count
+        foundStoriesCount = found
+        savedStoriesCount = saved
+
+        guard let raw = response.data["batchResults"],
+              let data = raw.data(using: .utf8),
+              let results = try? JSONDecoder().decode([BatchWorkerResult].self, from: data)
+        else {
+            for item in pendingItems {
+                updateBatchProfile(
+                    id: item.id,
+                    status: response.ok ? .completed : .failed,
+                    message: response.message
+                )
+            }
+            return
+        }
+
+        let resultMap = Dictionary(uniqueKeysWithValues: results.map { (normalizedProfileLink($0.url), $0) })
+        for item in pendingItems {
+            let normalized = normalizedProfileLink(item.url)
+            guard let result = resultMap[normalized] else {
+                updateBatchProfile(id: item.id, status: .failed, message: "Для профиля нет результата пакетной выгрузки.")
+                continue
+            }
+            let status: BatchProfileItem.Status
+            switch result.status {
+            case "completed":
+                status = .completed
+            case "stopped":
+                status = .stopped
+            default:
+                status = .failed
+            }
+            updateBatchProfile(id: item.id, status: status, message: result.message)
+        }
     }
 
     private func resetBatchProgress() {

@@ -1164,23 +1164,26 @@ async function ensureLoggedIn(page) {
   throw new Error("Требуется вход в Instagram. Сначала откройте браузер для входа.");
 }
 
-async function profileCommand(profileUrl, outputDirectory, headless = true) {
+async function downloadProfileWithPage(page, profileUrl, outputDirectory) {
   const username = extractUsername(profileUrl);
   if (!username) {
-    emit(false, "profile_error", "Не удалось извлечь имя пользователя из ссылки на профиль.");
-    return;
+    return {
+      ok: false,
+      status: "profile_error",
+      message: "Не удалось извлечь имя пользователя из ссылки на профиль.",
+      data: { foundCount: "0", savedCount: "0" },
+      items: [],
+      logs: [],
+      username: "",
+      profileUrl,
+    };
   }
 
-  await ensureDirectories();
   const rootDestination = path.resolve(outputDirectory || DEFAULT_DOWNLOADS);
   const destination = path.join(rootDestination, sanitizeFilename(username));
   const logs = [];
-  let session = null;
 
   try {
-    session = await launchContext(headless);
-    const page = await session.firstPage();
-    await prepareBackgroundWindow(session, page, logs);
     const jsonPayloads = installJsonCapture(page, logs);
     const networkCandidates = installNetworkCapture(page, logs);
 
@@ -1216,20 +1219,174 @@ async function profileCommand(profileUrl, outputDirectory, headless = true) {
     const foundCount = extractFoundCount(result.logs, result.items.length);
 
     if (result.items.length === 0) {
-      emit(false, "download_empty", `Для профиля ${username} не удалось получить активные stories.`, {
+      return {
+        ok: false,
+        status: "download_empty",
+        message: `Для профиля ${username} не удалось получить активные stories.`,
         data: { foundCount: String(foundCount), savedCount: "0" },
+        items: [],
         logs,
-      });
-      return;
+        username,
+        profileUrl,
+      };
     }
 
-    emit(true, "download_complete", `Для профиля ${username} сохранено файлов: ${result.items.length}.`, {
+    return {
+      ok: true,
+      status: "download_complete",
+      message: `Для профиля ${username} сохранено файлов: ${result.items.length}.`,
       data: { foundCount: String(foundCount), savedCount: String(result.items.length) },
       items: result.items,
       logs,
+      username,
+      profileUrl,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: "download_error",
+      message: String(error),
+      data: { foundCount: "0", savedCount: "0" },
+      items: [],
+      logs,
+      username,
+      profileUrl,
+    };
+  }
+}
+
+async function profileCommand(profileUrl, outputDirectory, headless = true) {
+  await ensureDirectories();
+  let session = null;
+
+  try {
+    session = await launchContext(headless);
+    const page = await session.firstPage();
+    await prepareBackgroundWindow(session, page, []);
+    const result = await downloadProfileWithPage(page, profileUrl, outputDirectory);
+    emit(result.ok, result.status, result.message, {
+      data: result.data,
+      items: result.items,
+      logs: result.logs,
+    });
+  } finally {
+    if (session) await session.close();
+  }
+}
+
+async function profileBatchCommand(profileUrls, outputDirectory, headless = true) {
+  await ensureDirectories();
+  const normalizedUrls = profileUrls
+    .map((entry) => String(entry || "").trim())
+    .filter((entry) => entry.length > 0);
+
+  if (normalizedUrls.length === 0) {
+    emit(false, "request_error", "Для пакетной выгрузки нужен хотя бы один профиль.");
+    return;
+  }
+
+  const logs = [];
+  const items = [];
+  const batchResults = new Array(normalizedUrls.length);
+  let totalFound = 0;
+  let totalSaved = 0;
+  let successCount = 0;
+  let session = null;
+
+  try {
+    session = await launchContext(headless);
+    const windowPage = await session.firstPage();
+    await prepareBackgroundWindow(session, windowPage, logs);
+    const concurrency = Math.min(headless ? 3 : 2, normalizedUrls.length);
+    let cursor = 0;
+    logs.push(`batch_concurrency=${concurrency}`);
+
+    const nextJob = () => {
+      if (cursor >= normalizedUrls.length) {
+        return null;
+      }
+      const index = cursor;
+      const rawUrl = normalizedUrls[index];
+      cursor += 1;
+      const normalizedUrl = rawUrl.includes("instagram.com")
+        ? rawUrl
+        : `https://www.instagram.com/${extractUsername(rawUrl)}/`;
+      return { index, normalizedUrl };
+    };
+
+    const workerLoop = async (slot, page) => {
+      while (true) {
+        const job = nextJob();
+        if (!job) {
+          return;
+        }
+
+        logs.push(`batch_slot_${slot}_start=${job.normalizedUrl}`);
+        const result = await downloadProfileWithPage(page, job.normalizedUrl, outputDirectory);
+        try {
+          await page.goto("about:blank");
+        } catch {}
+
+        const foundCount = Number(result.data.foundCount || "0");
+        const savedCount = Number(result.data.savedCount || "0");
+        totalFound += foundCount;
+        totalSaved += savedCount;
+        if (result.ok) successCount += 1;
+        items.push(...result.items);
+        logs.push(...result.logs.map((entry) => `[${result.username || job.normalizedUrl}] ${entry}`));
+        batchResults[job.index] = {
+          url: job.normalizedUrl,
+          status: result.ok ? "completed" : "failed",
+          message: result.message,
+          foundCount,
+          savedCount,
+        };
+        logs.push(`batch_slot_${slot}_done=${job.normalizedUrl}`);
+      }
+    };
+
+    const pages = [windowPage];
+    for (let i = 1; i < concurrency; i += 1) {
+      pages.push(await session.context.newPage());
+    }
+
+    await Promise.all(
+      pages.map((page, index) => workerLoop(index + 1, page))
+    );
+
+    for (const page of pages.slice(1)) {
+      try {
+        await page.close();
+      } catch {}
+    }
+
+    const ok = successCount > 0;
+    const status = ok ? "batch_complete" : "batch_failed";
+    const message = ok
+      ? `Пакетная выгрузка завершена. Обработано профилей: ${normalizedUrls.length}.`
+      : "Не удалось получить активные stories ни для одного профиля из очереди.";
+
+    emit(ok, status, message, {
+      data: {
+        foundCount: String(totalFound),
+        savedCount: String(totalSaved),
+        processedCount: String(normalizedUrls.length),
+        batchResults: JSON.stringify(batchResults),
+      },
+      items,
+      logs,
     });
   } catch (error) {
-    emit(false, "download_error", String(error), { logs });
+    emit(false, "download_error", String(error), {
+      data: {
+        foundCount: String(totalFound),
+        savedCount: String(totalSaved),
+        processedCount: String(batchResults.length),
+        batchResults: JSON.stringify(batchResults),
+      },
+      items,
+      logs,
+    });
   } finally {
     if (session) await session.close();
   }
@@ -1240,6 +1397,7 @@ async function main() {
     const request = await readRequest();
     const command = request.command;
     const url = request.url;
+    const urls = Array.isArray(request.urls) ? request.urls : [];
     const outputDirectory = request.outputDirectory;
     const headless = request.headless ?? true;
 
@@ -1255,6 +1413,8 @@ async function main() {
         return;
       }
       await profileCommand(url, outputDirectory, Boolean(headless));
+    } else if (command === "download_profile_batch") {
+      await profileBatchCommand(urls, outputDirectory, Boolean(headless));
     } else if (command === "download_story_url") {
       emit(false, "request_error", "download_story_url пока не перенесён в Node worker.");
     } else {

@@ -1628,21 +1628,46 @@ def extract_username(value: str) -> str:
 
 
 def profile_command(profile_url: str, output_directory: str | None, headless: bool = True) -> None:
-    username = extract_username(profile_url)
-    if not username:
-        emit(False, "profile_error", "Не удалось извлечь имя пользователя из ссылки на профиль.")
-        return
-
     ensure_directories()
-    root_destination = Path(output_directory or DEFAULT_DOWNLOADS).expanduser()
-    destination = root_destination / sanitize_filename(username)
-    logs: list[str] = []
     session = None
 
     try:
         session = launch_context(headless=headless)
         page = session.first_page()
-        prepare_background_window(session, page, logs)
+        prepare_background_window(session, page, [])
+        result = download_profile_with_page(page, profile_url, output_directory)
+        emit(
+            result["ok"],
+            result["status"],
+            result["message"],
+            data=result["data"],
+            items=result["items"],
+            logs=result["logs"],
+        )
+    finally:
+        if session:
+            session.close()
+
+
+def download_profile_with_page(page, profile_url: str, output_directory: str | None) -> dict[str, Any]:
+    username = extract_username(profile_url)
+    if not username:
+        return {
+            "ok": False,
+            "status": "profile_error",
+            "message": "Не удалось извлечь имя пользователя из ссылки на профиль.",
+            "data": {"foundCount": "0", "savedCount": "0"},
+            "items": [],
+            "logs": [],
+            "username": "",
+            "profileUrl": profile_url,
+        }
+
+    root_destination = Path(output_directory or DEFAULT_DOWNLOADS).expanduser()
+    destination = root_destination / sanitize_filename(username)
+    logs: list[str] = []
+
+    try:
         json_payloads = install_json_capture(page, logs)
         network_candidates = install_network_capture(page, logs)
 
@@ -1675,25 +1700,121 @@ def profile_command(profile_url: str, output_directory: str | None, headless: bo
         found_count = extract_found_count(sequence_logs, len(items))
 
         if not items:
-            emit(
-                False,
-                "download_empty",
-                f"Для профиля {username} не удалось получить активные stories.",
-                data={"foundCount": str(found_count), "savedCount": "0"},
-                logs=logs,
-            )
-            return
+            return {
+                "ok": False,
+                "status": "download_empty",
+                "message": f"Для профиля {username} не удалось получить активные stories.",
+                "data": {"foundCount": str(found_count), "savedCount": "0"},
+                "items": [],
+                "logs": logs,
+                "username": username,
+                "profileUrl": profile_url,
+            }
 
+        return {
+            "ok": True,
+            "status": "download_complete",
+            "message": f"Для профиля {username} сохранено файлов: {len(items)}.",
+            "data": {"foundCount": str(found_count), "savedCount": str(len(items))},
+            "items": items,
+            "logs": logs,
+            "username": username,
+            "profileUrl": profile_url,
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "status": "download_error",
+            "message": str(exc),
+            "data": {"foundCount": "0", "savedCount": "0"},
+            "items": [],
+            "logs": logs,
+            "username": username,
+            "profileUrl": profile_url,
+        }
+
+
+def profile_batch_command(profile_urls: list[str], output_directory: str | None, headless: bool = True) -> None:
+    ensure_directories()
+    normalized_urls = [str(entry).strip() for entry in profile_urls if str(entry).strip()]
+    if not normalized_urls:
+        emit(False, "request_error", "Для пакетной выгрузки нужен хотя бы один профиль.")
+        return
+
+    logs: list[str] = []
+    items: list[dict[str, str]] = []
+    batch_results: list[dict[str, Any]] = []
+    total_found = 0
+    total_saved = 0
+    success_count = 0
+    session = None
+
+    try:
+        session = launch_context(headless=headless)
+        window_page = session.first_page()
+        prepare_background_window(session, window_page, logs)
+
+        for raw_url in normalized_urls:
+            normalized_url = raw_url if "instagram.com" in raw_url else f"https://www.instagram.com/{extract_username(raw_url)}/"
+            page = session.context.new_page()
+            result = download_profile_with_page(page, normalized_url, output_directory)
+            try:
+                page.close()
+            except Exception:
+                pass
+
+            found_count = int(result["data"].get("foundCount", "0") or 0)
+            saved_count = int(result["data"].get("savedCount", "0") or 0)
+            total_found += found_count
+            total_saved += saved_count
+            if result["ok"]:
+                success_count += 1
+            items.extend(result["items"])
+            logs.extend([f"[{result.get('username') or normalized_url}] {entry}" for entry in result["logs"]])
+            batch_results.append(
+                {
+                    "url": normalized_url,
+                    "status": "completed" if result["ok"] else "failed",
+                    "message": result["message"],
+                    "foundCount": found_count,
+                    "savedCount": saved_count,
+                }
+            )
+
+        ok = success_count > 0
+        status = "batch_complete" if ok else "batch_failed"
+        message = (
+            f"Пакетная выгрузка завершена. Обработано профилей: {len(normalized_urls)}."
+            if ok
+            else "Не удалось получить активные stories ни для одного профиля из очереди."
+        )
         emit(
-            True,
-            "download_complete",
-            f"Для профиля {username} сохранено файлов: {len(items)}.",
-            data={"foundCount": str(found_count), "savedCount": str(len(items))},
+            ok,
+            status,
+            message,
+            data={
+                "foundCount": str(total_found),
+                "savedCount": str(total_saved),
+                "processedCount": str(len(normalized_urls)),
+                "batchResults": json.dumps(batch_results),
+            },
             items=items,
             logs=logs,
         )
     except Exception as exc:
-        emit(False, "download_error", str(exc), logs=logs)
+        emit(
+            False,
+            "download_error",
+            str(exc),
+            data={
+                "foundCount": str(total_found),
+                "savedCount": str(total_saved),
+                "processedCount": str(len(batch_results)),
+                "batchResults": json.dumps(batch_results),
+            },
+            items=items,
+            logs=logs,
+        )
     finally:
         if session:
             session.close()
@@ -1704,6 +1825,7 @@ def main() -> None:
         request = read_request()
         command = request.get("command")
         url = request.get("url")
+        urls = request.get("urls") or []
         output_directory = request.get("outputDirectory")
         headless = request.get("headless")
         if headless is None:
@@ -1725,6 +1847,8 @@ def main() -> None:
                 emit(False, "request_error", "Для download_profile_stories нужна ссылка на профиль или имя пользователя.")
                 return
             profile_command(url, output_directory, headless=bool(headless))
+        elif command == "download_profile_batch":
+            profile_batch_command(list(urls), output_directory, headless=bool(headless))
         else:
             emit(False, "request_error", f"Неподдерживаемая команда: {command}")
     except Exception as exc:

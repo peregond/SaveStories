@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 class WorkerRequest:
     command: str
     url: str | None = None
+    urls: list[str] | None = None
     outputDirectory: str | None = None
     headless: bool | None = None
 

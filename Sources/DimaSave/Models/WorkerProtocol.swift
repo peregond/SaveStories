@@ -3,6 +3,7 @@ import Foundation
 struct WorkerRequest: Codable {
     let command: String
     let url: String?
+    let urls: [String]?
     let outputDirectory: String?
     let headless: Bool?
 }
