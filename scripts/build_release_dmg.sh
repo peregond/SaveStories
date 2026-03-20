@@ -9,6 +9,7 @@ RELEASE_DIR="$BUILD_DIR/release"
 APP_DIR="$RELEASE_DIR/$BUNDLE_NAME.app"
 APP_ZIP="$RELEASE_DIR/$BUNDLE_NAME-notary.zip"
 DMG_PATH="$RELEASE_DIR/$BUNDLE_NAME.dmg"
+TEMP_DMG_PATH="$RELEASE_DIR/$BUNDLE_NAME-$RANDOM.tmp.dmg"
 STAGING_DIR="$BUILD_DIR/dmg-staging"
 SIGN_IDENTITY="${APPLE_SIGN_IDENTITY:-}"
 NOTARY_PROFILE="${APPLE_NOTARY_PROFILE:-}"
@@ -34,12 +35,15 @@ python3 "$ROOT/packaging/generate_install_guide.py" "$STAGING_DIR"
 ln -s /Applications "$STAGING_DIR/Applications"
 
 rm -f "$DMG_PATH"
+rm -f "$TEMP_DMG_PATH"
 hdiutil create \
   -volname "$BUNDLE_NAME" \
   -srcfolder "$STAGING_DIR" \
   -ov \
   -format UDZO \
-  "$DMG_PATH"
+  "$TEMP_DMG_PATH"
+
+mv -f "$TEMP_DMG_PATH" "$DMG_PATH"
 
 if [ -n "$SIGN_IDENTITY" ]; then
   codesign --force --sign "$SIGN_IDENTITY" --timestamp "$DMG_PATH"
