@@ -2,10 +2,10 @@ $ErrorActionPreference = "Stop"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $distRoot = Join-Path $root "dist\\windows"
-$appDir = Join-Path $distRoot "DimaSave-Windows"
-$zipPath = Join-Path $distRoot "DimaSave-Windows.zip"
-$shaPath = Join-Path $distRoot "DimaSave-Windows.sha256"
-$exePath = Join-Path $appDir "DimaSave-Windows.exe"
+$appDir = Join-Path $distRoot "SaveStories-Windows"
+$zipPath = Join-Path $distRoot "SaveStories-Windows.zip"
+$shaPath = Join-Path $distRoot "SaveStories-Windows.sha256"
+$exePath = Join-Path $appDir "SaveStories-Windows.exe"
 
 if (-not (Test-Path $appDir)) {
     throw "Build folder not found: $appDir. Run build_windows.ps1 first."

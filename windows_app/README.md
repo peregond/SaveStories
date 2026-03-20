@@ -1,6 +1,6 @@
-# DimaSave для Windows
+# SaveStories для Windows
 
-Эта папка содержит Windows-клиент `DimaSave`.
+Эта папка содержит Windows-клиент `SaveStories`.
 
 ## Что внутри
 
@@ -58,13 +58,13 @@ cd windows_app
 Основной результат:
 
 ```text
-dist/windows/DimaSave-Windows/DimaSave-Windows.exe
+dist/windows/SaveStories-Windows/SaveStories-Windows.exe
 ```
 
 Полная папка сборки:
 
 ```text
-dist/windows/DimaSave-Windows/
+dist/windows/SaveStories-Windows/
 ```
 
 ## GitHub Actions

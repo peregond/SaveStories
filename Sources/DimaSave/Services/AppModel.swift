@@ -4,6 +4,13 @@ import Foundation
 
 @MainActor
 final class AppModel: ObservableObject {
+    private static let logDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateFormat = "dd.MM.yyyy HH:mm:ss"
+        return formatter
+    }()
+
     private struct BatchWorkerResult: Decodable {
         let url: String
         let status: String
@@ -560,9 +567,7 @@ final class AppModel: ObservableObject {
     }
 
     private func appendLog(_ message: String) {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        logs.insert("\(formatter.string(from: Date()))  \(message)", at: 0)
+        logs.insert("\(Self.logDateFormatter.string(from: Date()))  \(message)", at: 0)
     }
 
     private func updateCurrentStep(from log: String) {

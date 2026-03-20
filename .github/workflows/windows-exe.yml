@@ -35,7 +35,7 @@ jobs:
       - name: Validate executable
         shell: pwsh
         run: |
-          $exePath = "dist/windows/DimaSave-Windows/DimaSave-Windows.exe"
+          $exePath = "dist/windows/SaveStories-Windows/SaveStories-Windows.exe"
           if (-not (Test-Path $exePath)) {
             throw "Missing expected executable: $exePath"
           }
@@ -49,8 +49,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DimaSave-Windows
+          name: SaveStories-Windows
           path: |
-            dist/windows/DimaSave-Windows
-            dist/windows/DimaSave-Windows.zip
-            dist/windows/DimaSave-Windows.sha256
+            dist/windows/SaveStories-Windows
+            dist/windows/SaveStories-Windows.zip
+            dist/windows/SaveStories-Windows.sha256

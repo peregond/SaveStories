@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>DimaSave</string>
+	<string>SaveStories</string>
 	<key>CFBundleExecutable</key>
 	<string>DimaSave</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleIconFile</key>
 	<string>DimaSave</string>
 	<key>CFBundleName</key>
-	<string>DimaSave</string>
+	<string>SaveStories</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

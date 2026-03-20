@@ -2,42 +2,35 @@ import SwiftUI
 
 struct ContentView: View {
     enum AppSection: String, CaseIterable, Identifiable {
-        case home
-        case following
         case batch
+        case home
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
-            case .home:
-                "Главная"
-            case .following:
-                "Following"
             case .batch:
                 "Списочная"
+            case .home:
+                "Главная"
             }
         }
 
         var subtitle: String {
             switch self {
-            case .home:
-                "Текущий режим выгрузки"
-            case .following:
-                "Будущий режим"
             case .batch:
                 "Очередь профилей"
+            case .home:
+                "Текущий режим выгрузки"
             }
         }
 
         var systemImage: String {
             switch self {
-            case .home:
-                "sparkles.rectangle.stack"
-            case .following:
-                "person.2.wave.2"
             case .batch:
                 "list.bullet.rectangle.portrait"
+            case .home:
+                "sparkles.rectangle.stack"
             }
         }
     }
@@ -45,7 +38,7 @@ struct ContentView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.colorScheme) private var colorScheme
     @State private var showingSettings = false
-    @State private var selectedSection: AppSection = .home
+    @State private var selectedSection: AppSection = .batch
     @State private var busyPulse = false
 
     private var isDark: Bool { colorScheme == .dark }
@@ -130,7 +123,7 @@ struct ContentView: View {
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("DimaSave")
+                Text("SaveStories")
                     .font(.system(size: 24, weight: .semibold, design: .rounded))
                     .foregroundStyle(primaryText)
 
@@ -266,12 +259,10 @@ struct ContentView: View {
     private var detailContent: some View {
         Group {
             switch selectedSection {
-            case .home:
-                homeView
-            case .following:
-                followingView
             case .batch:
                 batchView
+            case .home:
+                homeView
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -283,7 +274,7 @@ struct ContentView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     header(
-                        title: "DimaSave",
+                        title: "SaveStories",
                         subtitle: "macOS-приложение для выгрузки активных stories из Instagram по ссылке на профиль."
                     )
                     progressCard
@@ -298,28 +289,6 @@ struct ContentView: View {
         }
         .padding(.horizontal, 28)
         .padding(.bottom, 28)
-    }
-
-    private var followingView: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                detailHero(
-                    eyebrow: "Following",
-                    title: "Режим появится позже",
-                    subtitle: "В следующих версиях здесь появится отдельный сценарий для работы с теми профилями, за которыми ты следишь."
-                )
-
-                card("Что будет дальше") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        placeholderBullet("Умные подборки профилей.")
-                        placeholderBullet("Отдельная очередь для избранных аккаунтов.")
-                        placeholderBullet("Автоматическая повторная выгрузка новых stories.")
-                    }
-                }
-            }
-            .padding(.horizontal, 28)
-            .padding(.bottom, 28)
-        }
     }
 
     private var batchView: some View {

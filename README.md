@@ -1,6 +1,6 @@
-# DimaSave
+# SaveStories
 
-`DimaSave` — десктопное приложение для выгрузки активных stories из Instagram через локальный `Playwright` worker.
+`SaveStories` — десктопное приложение для выгрузки активных stories из Instagram через локальный `Playwright` worker.
 
 Текущая версия проекта:
 
@@ -93,7 +93,7 @@ cd windows_app
 Основной артефакт:
 
 ```text
-dist/windows/DimaSave-Windows/DimaSave-Windows.exe
+dist/windows/SaveStories-Windows/SaveStories-Windows.exe
 ```
 
 Подробнее:
@@ -110,8 +110,8 @@ Workflow:
 
 Что публикуется в релиз:
 
-- `DimaSave-macOS-vX.Y.Z.dmg`
-- `DimaSave-Windows-vX.Y.Z.zip`
+- `SaveStories-macOS-vX.Y.Z.dmg`
+- `SaveStories-Windows-vX.Y.Z.zip`
 
 Как выпустить новую версию:
 

@@ -64,12 +64,12 @@ jobs:
           export DIMASAVE_VERSION="${RELEASE_TAG#v}"
           export DIMASAVE_BUILD="${GITHUB_RUN_NUMBER}"
           ./scripts/build_release_dmg.sh
-          cp dist/release/DimaSave.dmg "dist/release/DimaSave-macOS-${RELEASE_TAG}.dmg"
+          cp dist/release/DimaSave.dmg "dist/release/SaveStories-macOS-${RELEASE_TAG}.dmg"
 
       - name: Upload macOS asset to release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$RELEASE_TAG" "dist/release/DimaSave-macOS-${RELEASE_TAG}.dmg" --clobber
+        run: gh release upload "$RELEASE_TAG" "dist/release/SaveStories-macOS-${RELEASE_TAG}.dmg" --clobber
 
   build-windows:
     needs: create-release
@@ -98,14 +98,14 @@ jobs:
       - name: Pack Windows release asset
         shell: pwsh
         run: |
-          $archive = "dist/windows/DimaSave-Windows-$env:RELEASE_TAG.zip"
+          $archive = "dist/windows/SaveStories-Windows-$env:RELEASE_TAG.zip"
           if (Test-Path $archive) {
               Remove-Item $archive -Force
           }
-          Compress-Archive -Path "dist/windows/DimaSave-Windows" -DestinationPath $archive
+          Compress-Archive -Path "dist/windows/SaveStories-Windows" -DestinationPath $archive
 
       - name: Upload Windows asset to release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload $env:RELEASE_TAG "dist/windows/DimaSave-Windows-$env:RELEASE_TAG.zip" --clobber
+        run: gh release upload $env:RELEASE_TAG "dist/windows/SaveStories-Windows-$env:RELEASE_TAG.zip" --clobber

@@ -69,12 +69,12 @@ VSVersionInfo(
         StringTable(
           u'040904B0',
           [
-            StringStruct(u'CompanyName', u'DimaSave'),
-            StringStruct(u'FileDescription', u'DimaSave for Windows'),
+            StringStruct(u'CompanyName', u'SaveStories'),
+            StringStruct(u'FileDescription', u'SaveStories for Windows'),
             StringStruct(u'FileVersion', u'$version'),
-            StringStruct(u'InternalName', u'DimaSave-Windows'),
-            StringStruct(u'OriginalFilename', u'DimaSave-Windows.exe'),
-            StringStruct(u'ProductName', u'DimaSave'),
+            StringStruct(u'InternalName', u'SaveStories-Windows'),
+            StringStruct(u'OriginalFilename', u'SaveStories-Windows.exe'),
+            StringStruct(u'ProductName', u'SaveStories'),
             StringStruct(u'ProductVersion', u'$version')
           ]
         )
@@ -90,7 +90,7 @@ Push-Location $root
 & "$venv\\Scripts\\pyinstaller.exe" `
     --noconfirm `
     --windowed `
-    --name DimaSave-Windows `
+    --name SaveStories-Windows `
     --distpath $dist `
     --workpath (Join-Path $dist "build") `
     --specpath $dist `

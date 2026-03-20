@@ -24,8 +24,8 @@ else:
     from .worker_client import WorkerClient
 
 
-def iso_now() -> str:
-    return datetime.now().astimezone().isoformat(timespec="milliseconds")
+def display_now() -> str:
+    return datetime.now().astimezone().strftime("%d.%m.%Y %H:%M:%S")
 
 
 def crash_log_path() -> Path:
@@ -36,7 +36,7 @@ def write_crash_log(title: str, details: str) -> None:
     try:
         AppPaths.ensure_directories()
         with crash_log_path().open("a", encoding="utf-8") as handle:
-            handle.write(f"{iso_now()}  {title}\n{details.rstrip()}\n\n")
+            handle.write(f"{display_now()}  {title}\n{details.rstrip()}\n\n")
     except Exception:
         pass
 
@@ -226,7 +226,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.save_directory = Path(str(save_dir_value)) if save_dir_value else AppPaths.default_downloads()
         AppPaths.ensure_directories()
 
-        self.setWindowTitle("DimaSave for Windows")
+        self.setWindowTitle("SaveStories for Windows")
         self.resize(1360, 860)
         self._build_ui()
         self._apply_styles()
@@ -250,9 +250,8 @@ class MainWindow(QtWidgets.QMainWindow):
         root.addWidget(content_host, 1)
 
         self.stack = QtWidgets.QStackedWidget()
-        self.stack.addWidget(self._build_home_page())
-        self.stack.addWidget(self._build_following_page())
         self.stack.addWidget(self._build_batch_page())
+        self.stack.addWidget(self._build_home_page())
         content_layout.addWidget(self.stack, 3)
 
         content_layout.addWidget(self._build_activity_panel(), 2)
@@ -273,7 +272,7 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.setContentsMargins(16, 22, 16, 16)
         layout.setSpacing(14)
 
-        title = QtWidgets.QLabel("DimaSave")
+        title = QtWidgets.QLabel("SaveStories")
         title.setObjectName("sidebarTitle")
         subtitle = QtWidgets.QLabel("Stories downloader")
         subtitle.setObjectName("sidebarSubtitle")
@@ -285,9 +284,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         for index, (text, detail) in enumerate(
             [
-                ("Главная", "Текущий режим выгрузки"),
-                ("Following", "Будущий режим"),
                 ("Списочная", "Очередь профилей"),
+                ("Главная", "Текущий режим выгрузки"),
             ]
         ):
             button = QtWidgets.QPushButton(f"{text}\n{detail}")
@@ -313,24 +311,10 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(18)
 
-        layout.addWidget(self._hero("DimaSave", "Windows-клиент для выгрузки активных stories из Instagram по ссылке на профиль."))
+        layout.addWidget(self._hero("SaveStories", "Windows-клиент для выгрузки активных stories из Instagram по ссылке на профиль."))
         layout.addWidget(self._status_card())
         layout.addWidget(self._save_directory_card())
         layout.addWidget(self._profile_card())
-        layout.addStretch(1)
-        return page
-
-    def _build_following_page(self) -> QtWidgets.QWidget:
-        page = QtWidgets.QWidget()
-        layout = QtWidgets.QVBoxLayout(page)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(18)
-        layout.addWidget(self._hero("Following", "Этот режим появится в следующих версиях Windows-клиента."))
-
-        placeholder = QtWidgets.QGroupBox("Что будет дальше")
-        box = QtWidgets.QVBoxLayout(placeholder)
-        box.addWidget(QtWidgets.QLabel("• Умные подборки профилей.\n• Отдельная очередь избранных аккаунтов.\n• Повторная выгрузка новых stories."))
-        layout.addWidget(placeholder)
         layout.addStretch(1)
         return page
 
@@ -921,7 +905,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status_detail_label.setText(detail)
 
     def append_log(self, message: str) -> None:
-        self.logs_text.appendPlainText(f"{iso_now()}  {message}")
+        self.logs_text.appendPlainText(f"{display_now()}  {message}")
         scrollbar = self.logs_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
@@ -959,7 +943,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 def main() -> int:
     install_global_exception_hooks()
-    QtWidgets.QApplication.setApplicationName("DimaSave")
+    QtWidgets.QApplication.setApplicationName("SaveStories")
     QtWidgets.QApplication.setApplicationVersion(app_version())
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle("Fusion")
