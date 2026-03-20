@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -581,7 +582,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def refresh_environment(self, *, startup: bool = False) -> None:
         self.start_request(
-            WorkerRequest(command="environment"),
+            WorkerRequest(command="environment", urls=None),
             "Проверка среды воркера",
             callback=lambda response: self.handle_environment_response(response, startup=startup),
         )
@@ -637,14 +638,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def login(self) -> None:
         self.start_request(
-            WorkerRequest(command="login", outputDirectory=str(self.save_directory), headless=False),
+            WorkerRequest(command="login", urls=None, outputDirectory=str(self.save_directory), headless=False),
             "Открытие браузера для входа",
             callback=self.handle_session_response,
         )
 
     def check_session(self, *, startup: bool = False) -> None:
         self.start_request(
-            WorkerRequest(command="check_session", headless=True),
+            WorkerRequest(command="check_session", urls=None, headless=True),
             "Проверка сохранённой сессии",
             callback=lambda response: self.handle_session_response(response, startup=startup),
         )
@@ -681,6 +682,7 @@ class MainWindow(QtWidgets.QMainWindow):
             WorkerRequest(
                 command="download_profile_stories",
                 url=normalize_profile_link(profile),
+                urls=None,
                 outputDirectory=str(self.save_directory),
                 headless=self.current_headless(),
             ),
@@ -700,64 +702,78 @@ class MainWindow(QtWidgets.QMainWindow):
         self.batch_running = True
         self.batch_stop_requested = False
         self.batch_pending_indices = pending
-        self.batch_cursor = 0
+        self.batch_cursor = 1
         self.batch_found_total = 0
         self.batch_saved_total = 0
         self.batch_run_button.setEnabled(False)
         self.batch_stop_button.setEnabled(True)
-        self.run_next_batch()
-
-    def run_next_batch(self) -> None:
-        if self.batch_stop_requested or self.batch_cursor >= len(self.batch_pending_indices):
-            self.finish_batch()
-            return
-
-        index = self.batch_pending_indices[self.batch_cursor]
-        entry = self.batch_entries[index]
-        entry.status = "running"
-        entry.message = "Идёт выгрузка профиля."
-        self.refresh_batch_table()
-
-        current = self.batch_cursor + 1
         total = len(self.batch_pending_indices)
-        remaining = max(total - current, 0)
-        self.batch_progress_label.setText(f"Сейчас {current} из {total}, осталось {remaining}. Профиль: {entry.url}")
+        remaining = max(total - 1, 0)
+        self.batch_progress_label.setText(
+            f"Сейчас 1 из {total}, осталось {remaining}. Очередь выполняется в одном окне браузера."
+        )
+
+        for index in self.batch_pending_indices:
+            self.batch_entries[index].status = "running"
+            self.batch_entries[index].message = "Ожидает обработки в общем окне браузера."
+        self.refresh_batch_table()
 
         self.start_request(
             WorkerRequest(
-                command="download_profile_stories",
-                url=normalize_profile_link(entry.url),
+                command="download_profile_batch",
+                url=None,
+                urls=[normalize_profile_link(self.batch_entries[index].url) for index in self.batch_pending_indices],
                 outputDirectory=str(self.save_directory),
                 headless=self.current_headless(),
             ),
             "Пакетная выгрузка",
-            callback=lambda response, item_index=index: self.handle_batch_response(item_index, response),
+            callback=self.handle_batch_response,
         )
 
-    def handle_batch_response(self, index: int, response: WorkerResponse) -> None:
+    def handle_batch_response(self, response: WorkerResponse) -> None:
         self.apply_response(response)
-
-        entry = self.batch_entries[index]
         if response.status == "cancelled":
-            entry.status = "stopped"
-            entry.message = response.message
+            for index in self.batch_pending_indices:
+                self.batch_entries[index].status = "stopped"
+                self.batch_entries[index].message = "Пакетная выгрузка остановлена пользователем."
             self.batch_stop_requested = True
-        elif response.ok:
-            entry.status = "completed"
-            entry.message = response.message
         else:
-            entry.status = "failed"
-            entry.message = response.message
+            self.apply_batch_results(response)
 
-        self.batch_found_total += int(response.data.get("foundCount", str(len(response.items))) or 0)
-        self.batch_saved_total += int(response.data.get("savedCount", str(len(response.items))) or 0)
+        self.batch_found_total = int(response.data.get("foundCount", str(len(response.items))) or 0)
+        self.batch_saved_total = int(response.data.get("savedCount", str(len(response.items))) or 0)
         self.refresh_batch_table()
+        self.finish_batch()
 
-        self.batch_cursor += 1
-        QtCore.QTimer.singleShot(0, self.run_next_batch)
+    def apply_batch_results(self, response: WorkerResponse) -> None:
+        raw = response.data.get("batchResults", "")
+        if not raw:
+            for index in self.batch_pending_indices:
+                self.batch_entries[index].status = "completed" if response.ok else "failed"
+                self.batch_entries[index].message = response.message
+            return
+
+        try:
+            payload = json.loads(raw)
+        except Exception:
+            for index in self.batch_pending_indices:
+                self.batch_entries[index].status = "completed" if response.ok else "failed"
+                self.batch_entries[index].message = response.message
+            return
+
+        result_map = {normalize_profile_link(str(item.get("url", ""))): item for item in payload if isinstance(item, dict)}
+        for index in self.batch_pending_indices:
+            entry = self.batch_entries[index]
+            result = result_map.get(normalize_profile_link(entry.url))
+            if result is None:
+                entry.status = "failed"
+                entry.message = "Для профиля нет результата пакетной выгрузки."
+                continue
+            entry.status = "completed" if result.get("status") == "completed" else "failed"
+            entry.message = str(result.get("message", response.message))
 
     def finish_batch(self) -> None:
-        processed = self.batch_cursor
+        processed = len(self.batch_pending_indices)
         total = len(self.batch_pending_indices)
         if self.batch_stop_requested:
             self.set_status("Остановлено", f"Пакетная выгрузка остановлена. Обработано {processed} из {total}.")
