@@ -120,7 +120,6 @@ jobs:
     needs:
       - create-release
       - build-macos
-    if: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY != '' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -138,7 +137,19 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Check update signing key
+        id: signing-key
+        env:
+          UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -n "$UPDATE_SIGNING_PRIVATE_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Generate macOS appcast
+        if: steps.signing-key.outputs.present == 'true'
         env:
           UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY }}
         run: |
@@ -153,6 +164,7 @@ jobs:
             --output "${RUNNER_TEMP}/appcast-macos.xml"
 
       - name: Publish update feed branch
+        if: steps.signing-key.outputs.present == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -174,3 +186,7 @@ jobs:
             git commit -m "Update macOS appcast for ${RELEASE_TAG}"
             git push origin update-feed
           fi
+
+      - name: Skip update feed publish
+        if: steps.signing-key.outputs.present != 'true'
+        run: echo "UPDATE_SIGNING_PRIVATE_KEY is not configured. Skipping appcast publish."
