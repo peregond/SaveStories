@@ -122,13 +122,10 @@ async function launchContext(headless = false) {
   const { chromium } = await importPlaywright();
   const executablePath = chromium.executablePath();
   const options = {
-    headless: false,
+    headless: Boolean(headless),
     viewport: { width: 1440, height: 940 },
     acceptDownloads: true,
   };
-  if (headless) {
-    options.args = ["--window-position=-32000,-32000", "--window-size=1440,940"];
-  }
   if (executablePath) {
     options.executablePath = executablePath;
   }

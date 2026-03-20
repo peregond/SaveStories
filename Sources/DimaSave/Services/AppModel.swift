@@ -93,6 +93,7 @@ final class AppModel: ObservableObject {
     @Published var lastResult: String = "Действий пока не было."
     @Published var statusTitle: String = "Ожидание"
     @Published var statusDetail: String = "Приложение готово к работе."
+    @Published var currentStepLabel: String = "Ожидание команды."
     @Published var foundStoriesCount: Int = 0
     @Published var savedStoriesCount: Int = 0
     @Published var runtimeSummary: String = ""
@@ -148,6 +149,7 @@ final class AppModel: ObservableObject {
 
     func refreshEnvironment() async {
         await perform("Проверка среды воркера") {
+            self.currentStepLabel = "Проверяю состояние среды воркера."
             let response = await self.environmentResponse()
             self.applyEnvironment(response)
             self.append(response)
@@ -180,6 +182,7 @@ final class AppModel: ObservableObject {
     func login() async {
         showLoginPrompt = false
         await perform("Открытие видимого браузера для входа в Instagram") {
+            self.currentStepLabel = "Открываю браузер для входа в Instagram."
             let response = await self.worker.run(
                 WorkerRequest(command: "login", url: nil, urls: nil, outputDirectory: self.saveDirectory.path, headless: false)
             )
@@ -198,6 +201,7 @@ final class AppModel: ObservableObject {
 
     func checkSession() async {
         await perform("Проверка сохранённой сессии Instagram") {
+            self.currentStepLabel = "Проверяю сохранённую Instagram-сессию."
             let response = await self.worker.run(
                 WorkerRequest(command: "check_session", url: nil, urls: nil, outputDirectory: nil, headless: true)
             )
@@ -286,6 +290,7 @@ final class AppModel: ObservableObject {
             self.batchTotalCount = pendingItems.count
             self.batchRemainingCount = max(pendingItems.count - 1, 0)
             self.batchCurrentURL = "Пакетная выгрузка выполняется в одном окне браузера."
+            self.currentStepLabel = "Подготавливаю общую очередь профилей."
 
             for item in pendingItems {
                 self.updateBatchProfile(id: item.id, status: .running, message: "Ожидает обработки в общем окне браузера.")
@@ -312,6 +317,7 @@ final class AppModel: ObservableObject {
                 self.statusTitle = "Остановлено"
                 self.statusDetail = "Пакетная выгрузка остановлена пользователем."
                 self.lastResult = self.statusDetail
+                self.currentStepLabel = "Пакетная выгрузка остановлена."
                 self.batchRemainingCount = pendingItems.count
                 self.batchCurrentIndex = 0
                 self.batchCurrentURL = ""
@@ -331,6 +337,7 @@ final class AppModel: ObservableObject {
             self.statusTitle = failedCount == 0 ? "Готово" : "Завершено с ошибками"
             self.statusDetail = "Обработано \(processedCount) профилей. Сохранено файлов: \(self.savedStoriesCount)."
             self.lastResult = self.statusDetail
+            self.currentStepLabel = failedCount == 0 ? "Очередь обработана." : "Очередь завершилась с ошибками."
             self.batchRemainingCount = 0
             self.batchCurrentURL = ""
             self.batchCurrentIndex = 0
@@ -361,6 +368,7 @@ final class AppModel: ObservableObject {
         isBusy = true
         statusTitle = message
         statusDetail = "Выполняется..."
+        currentStepLabel = "Запускаю задачу."
         if message.contains("Скачивание") {
             foundStoriesCount = 0
             savedStoriesCount = 0
@@ -368,6 +376,11 @@ final class AppModel: ObservableObject {
         appendLog(message)
         await task()
         isBusy = false
+        if statusTitle == "Готово" {
+            currentStepLabel = "Операция завершена."
+        } else if statusTitle == "Ошибка" {
+            currentStepLabel = "Операция завершилась ошибкой."
+        }
         if !batchIsRunning {
             batchCurrentURL = ""
         }
@@ -409,9 +422,11 @@ final class AppModel: ObservableObject {
         }
         statusDetail = response.message
         lastResult = response.message
+        currentStepLabel = response.ok ? "Обработка завершена." : "Обработка завершилась ошибкой."
         appendLog("[\(response.status)] \(response.message)")
 
         for log in response.logs {
+            updateCurrentStep(from: log)
             appendLog(log)
         }
     }
@@ -439,6 +454,7 @@ final class AppModel: ObservableObject {
             statusTitle = "Нужен вход"
             statusDetail = "Для работы приложения сначала войди в Instagram через встроенный браузер."
             lastResult = statusDetail
+            currentStepLabel = "Ожидаю вход в Instagram."
         }
     }
 
@@ -547,5 +563,27 @@ final class AppModel: ObservableObject {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         logs.insert("\(formatter.string(from: Date()))  \(message)", at: 0)
+    }
+
+    private func updateCurrentStep(from log: String) {
+        let lowered = log.lowercased()
+
+        if lowered.contains("batch_concurrency=") {
+            currentStepLabel = "Распределяю очередь по активным слотам."
+        } else if lowered.contains("opened=") || lowered.contains("checked=") {
+            currentStepLabel = "Открываю страницу Instagram."
+        } else if lowered.contains("opened_active_story") || lowered.contains("story_viewer") {
+            currentStepLabel = "Открываю stories viewer."
+        } else if lowered.contains("storage_state_saved=") {
+            currentStepLabel = "Сохраняю браузерную сессию."
+        } else if lowered.contains("saved=") {
+            currentStepLabel = "Сохраняю файл на диск."
+        } else if lowered.contains("manifest=") {
+            currentStepLabel = "Записываю метаданные загрузки."
+        } else if lowered.contains("background_window") {
+            currentStepLabel = "Подготавливаю фоновый режим браузера."
+        } else if lowered.contains("playwright=") || lowered.contains("worker_runtime=") {
+            currentStepLabel = "Проверяю runtime и зависимости."
+        }
     }
 }

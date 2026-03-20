@@ -259,15 +259,10 @@ def launch_context(headless: bool = False):
     executable = str(executable_path) if executable_path is not None else None
     launch_options: dict[str, Any] = {
         "user_data_dir": str(BROWSER_PROFILE),
-        "headless": False,
+        "headless": bool(headless),
         "viewport": {"width": 1440, "height": 940},
         "accept_downloads": True,
     }
-    if headless:
-        launch_options["args"] = [
-            "--window-position=-32000,-32000",
-            "--window-size=1440,940",
-        ]
     if executable is not None:
         launch_options["executable_path"] = executable
 

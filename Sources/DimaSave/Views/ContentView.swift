@@ -46,6 +46,7 @@ struct ContentView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var showingSettings = false
     @State private var selectedSection: AppSection = .home
+    @State private var busyPulse = false
 
     private var isDark: Bool { colorScheme == .dark }
 
@@ -117,6 +118,12 @@ struct ContentView: View {
             }
         } message: {
             Text("Для первой выгрузки stories войди в Instagram через браузер приложения. Окно останется открытым, пока вход не будет завершён.")
+        }
+        .onAppear {
+            guard !busyPulse else { return }
+            withAnimation(.easeInOut(duration: 1.05).repeatForever(autoreverses: true)) {
+                busyPulse = true
+            }
         }
     }
 
@@ -402,6 +409,10 @@ struct ContentView: View {
     private var progressCard: some View {
         card("Статус загрузки") {
             VStack(alignment: .leading, spacing: 12) {
+                if model.isBusy {
+                    liveStatusBadge
+                }
+
                 HStack(spacing: 12) {
                     if model.isBusy {
                         ProgressView()
@@ -422,6 +433,9 @@ struct ContentView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
+
+                stepTracker
+                    .opacity(model.isBusy ? 1 : 0.82)
 
                 HStack(spacing: 12) {
                     statPill(title: "Найдено", value: model.foundStoriesCount, accent: Color.orange.opacity(0.78))
@@ -571,14 +585,33 @@ struct ContentView: View {
 
     private var activityHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Активность")
-                .font(.system(size: 24, weight: .semibold, design: .rounded))
-                .foregroundStyle(primaryText)
+            HStack(spacing: 10) {
+                Text("Активность")
+                    .font(.system(size: 24, weight: .semibold, design: .rounded))
+                    .foregroundStyle(primaryText)
+
+                if model.isBusy {
+                    liveIndicatorDot(size: 10)
+                }
+            }
 
             Text(model.lastResult)
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
+
+            if model.isBusy || !model.currentStepLabel.isEmpty {
+                HStack(spacing: 8) {
+                    if model.isBusy {
+                        liveIndicatorDot(size: 8)
+                    }
+
+                    Text(model.currentStepLabel)
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(tertiaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
     }
 
@@ -763,6 +796,73 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
                 .strokeBorder(cardStroke, lineWidth: 1)
         )
+    }
+
+    private var liveStatusBadge: some View {
+        HStack(spacing: 10) {
+            liveIndicatorDot(size: 12)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Выгрузка выполняется")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .textCase(.uppercase)
+                    .foregroundStyle(primaryText)
+
+                Text("Приложение работает, просто дождись завершения текущего шага.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
+                .fill(prominentButtonTint.opacity(isDark ? 0.22 : 0.12))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
+                .strokeBorder(prominentButtonTint.opacity(isDark ? 0.36 : 0.22), lineWidth: 1)
+        )
+    }
+
+    private var stepTracker: some View {
+        HStack(spacing: 10) {
+            Image(systemName: model.isBusy ? "point.3.connected.trianglepath.dotted" : "sparkle")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(model.isBusy ? prominentButtonTint : tertiaryText)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Текущий шаг")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .textCase(.uppercase)
+                    .foregroundStyle(quaternaryText)
+
+                Text(model.currentStepLabel)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
+                .fill(itemFill)
+        )
+    }
+
+    private func liveIndicatorDot(size: CGFloat) -> some View {
+        Circle()
+            .fill(Color.green.opacity(isDark ? 0.95 : 0.82))
+            .frame(width: size, height: size)
+            .scaleEffect(busyPulse ? 1.0 : 0.72)
+            .opacity(busyPulse ? 1.0 : 0.42)
+            .shadow(color: Color.green.opacity(isDark ? 0.55 : 0.28), radius: busyPulse ? 12 : 4)
     }
 
     private func statPill(title: String, value: Int, accent: Color) -> some View {
