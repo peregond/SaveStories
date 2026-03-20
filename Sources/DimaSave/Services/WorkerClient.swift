@@ -2,6 +2,40 @@ import Foundation
 
 @MainActor
 final class WorkerClient {
+    private final class PipeCollector: @unchecked Sendable {
+        private let fileHandle: FileHandle
+        private let lock = NSLock()
+        private let finished = DispatchSemaphore(value: 0)
+        private var collectedData = Data()
+        private var readerThread: Thread?
+
+        init(fileHandle: FileHandle) {
+            self.fileHandle = fileHandle
+        }
+
+        func start() {
+            guard readerThread == nil else { return }
+
+            let thread = Thread { [fileHandle] in
+                let data = fileHandle.readDataToEndOfFile()
+                self.lock.lock()
+                self.collectedData = data
+                self.lock.unlock()
+                self.finished.signal()
+            }
+            thread.name = "SaveStories.PipeCollector"
+            thread.start()
+            readerThread = thread
+        }
+
+        func finish(timeout: TimeInterval = 5.0) -> Data {
+            _ = finished.wait(timeout: .now() + timeout)
+            lock.lock()
+            defer { lock.unlock() }
+            return collectedData
+        }
+    }
+
     enum WorkerClientError: LocalizedError {
         case workerScriptNotFound
         case processLaunchFailed(String)
@@ -52,6 +86,8 @@ final class WorkerClient {
         let stdinPipe = Pipe()
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
+        let stdoutCollector = PipeCollector(fileHandle: stdoutPipe.fileHandleForReading)
+        let stderrCollector = PipeCollector(fileHandle: stderrPipe.fileHandleForReading)
 
         let launch = try workerLaunchConfiguration()
         process.executableURL = launch.executable
@@ -83,8 +119,8 @@ final class WorkerClient {
 
         let responseData: Data = try await withCheckedThrowingContinuation { continuation in
             process.terminationHandler = { process in
-                let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-                let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                let stdoutData = stdoutCollector.finish()
+                let stderrData = stderrCollector.finish()
 
                 Task { @MainActor in
                     self.currentProcess = nil
@@ -131,6 +167,8 @@ final class WorkerClient {
 
             do {
                 try process.run()
+                stdoutCollector.start()
+                stderrCollector.start()
             } catch {
                 continuation.resume(
                     throwing: WorkerClientError.processLaunchFailed("Failed to launch worker: \(error.localizedDescription)")

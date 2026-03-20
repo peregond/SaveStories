@@ -104,6 +104,8 @@ final class AppModel: ObservableObject {
     @Published var foundStoriesCount: Int = 0
     @Published var savedStoriesCount: Int = 0
     @Published var runtimeSummary: String = ""
+    @Published var updateSummary: String = "Автообновление ещё не настроено для этой сборки."
+    @Published var canCheckForUpdates = false
     @Published var downloadedItems: [WorkerItem] = []
     @Published var logs: [String] = []
     @Published var isBusy = false
@@ -119,8 +121,14 @@ final class AppModel: ObservableObject {
 
     private let worker = WorkerClient()
     private let bootstrapper = WorkerBootstrapper()
+    private let appUpdater = AppUpdater()
     private var hasPrepared = false
     var hasEmbeddedRuntime: Bool { AppPaths.hasEmbeddedRuntime }
+
+    init() {
+        updateSummary = appUpdater.summary
+        canCheckForUpdates = appUpdater.isAvailable
+    }
 
     func prepare() async {
         guard !hasPrepared else { return }
@@ -368,6 +376,20 @@ final class AppModel: ObservableObject {
 
     func openRuntimeDirectory() {
         NSWorkspace.shared.activateFileViewerSelecting([AppPaths.applicationSupport])
+    }
+
+    func copyLogs() {
+        let orderedLogs = logs.reversed().joined(separator: "\n")
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(orderedLogs, forType: .string)
+        appendLog("Логи скопированы в буфер обмена.")
+    }
+
+    func checkForUpdates() async {
+        let message = appUpdater.checkForUpdates()
+        updateSummary = appUpdater.summary
+        canCheckForUpdates = appUpdater.isAvailable
+        appendLog(message)
     }
 
     private func perform(_ message: String, task: @escaping @MainActor () async -> Void) async {

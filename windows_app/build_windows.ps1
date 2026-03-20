@@ -8,7 +8,7 @@ $runtimeBrowsers = Join-Path $runtime "ms-playwright"
 $runtimeNode = Join-Path $runtime "node"
 $versionFile = Join-Path $root "VERSION"
 $iconPath = Join-Path $root "packaging\\AppBundle\\DimaSave.ico"
-$version = if (Test-Path $versionFile) { (Get-Content $versionFile -Raw).Trim() } else { "0.2.7" }
+$version = if (Test-Path $versionFile) { (Get-Content $versionFile -Raw).Trim() } else { "0.3.2" }
 $nodeWorkerDir = Join-Path $root "node_worker"
 $versionParts = $version.Split(".")
 $major = if ($versionParts.Length -ge 1) { $versionParts[0] } else { "0" }
@@ -98,6 +98,7 @@ Push-Location $root
     --version-file $versionInfoPath `
     --add-binary "$($nodeCommand.Source);runtime\\node" `
     --add-data "$root\\node_worker;node_worker" `
+    --add-data "$root\\Sources\\DimaSave\\Resources\\update_config.json;." `
     --add-data "$root\\VERSION;." `
     --add-data "$runtimeBrowsers;runtime\\ms-playwright" `
     --add-data "$PSScriptRoot\\bootstrap_node_worker.ps1;windows_app" `

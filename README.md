@@ -4,7 +4,7 @@
 
 Текущая версия проекта:
 
-- `0.2.7`
+- `0.3.0`
 
 ## Что уже умеет
 
@@ -16,6 +16,8 @@
 - сохранение `manifest`-файла для каждого скачанного media
 - отдельная версия для `macOS`
 - отдельная версия для `Windows`
+- автообновление `macOS` через `Sparkle`
+- auto-update `Windows` через `GitHub Releases`
 
 ## Архитектура
 
@@ -112,6 +114,7 @@ Workflow:
 
 - `SaveStories-macOS-vX.Y.Z.dmg`
 - `SaveStories-Windows-vX.Y.Z.zip`
+- `appcast-macos.xml` в ветку `update-feed`
 
 Как выпустить новую версию:
 
@@ -123,11 +126,11 @@ Workflow:
 
 ```bash
 git add .
-git commit -m "Prepare v0.2.7 release"
+git commit -m "Prepare v0.3.0 release"
 git pull --rebase origin main
 git push origin main
-git tag v0.2.7
-git push origin v0.2.7
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
 После этого GitHub Actions:
@@ -137,7 +140,23 @@ git push origin v0.2.7
 - соберёт Windows `.zip`
 - прикрепит оба файла в раздел `Releases`
 
-Также workflow можно запускать вручную из GitHub Actions и передавать тег, например `v0.2.7`.
+Также workflow можно запускать вручную из GitHub Actions и передавать тег, например `v0.3.0`.
+
+## Автообновление
+
+`macOS` использует `Sparkle`, а `Windows` проверяет `GitHub Releases` и умеет поставить portable-обновление после перезапуска приложения.
+
+Для обновлений `macOS` нужен один локальный signing key и один GitHub secret:
+
+```bash
+./scripts/generate_update_keys.sh
+```
+
+После этого:
+
+1. Возьми содержимое файла `.update-signing/ed25519-private.pem`
+2. Добавь его в GitHub repository secret `UPDATE_SIGNING_PRIVATE_KEY`
+3. Следующий релиз автоматически обновит feed в ветке `update-feed`
 
 ## Релизная сборка macOS вручную
 
@@ -153,8 +172,8 @@ git push origin v0.2.7
 export APPLE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
 export APPLE_NOTARY_PROFILE="dimasave-notary"
 export DIMASAVE_BUNDLE_ID="com.example.dimasave"
-export DIMASAVE_VERSION="0.2.7"
-export DIMASAVE_BUILD="39"
+export DIMASAVE_VERSION="0.3.0"
+export DIMASAVE_BUILD="48"
 ./scripts/build_release_dmg.sh
 ```
 

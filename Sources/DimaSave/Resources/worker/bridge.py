@@ -13,6 +13,7 @@ import urllib.parse
 import urllib.request
 import uuid
 import base64
+import threading
 from datetime import datetime, timezone
 from hashlib import sha256
 from importlib import metadata
@@ -121,6 +122,8 @@ DEFAULT_DOWNLOADS = env_path(
     "DIMASAVE_DEFAULT_DOWNLOADS",
     default_downloads(APP_SUPPORT),
 )
+BATCH_VISIBLE_CHUNK_SIZE = 5
+BATCH_BACKGROUND_CHUNK_SIZE = 5
 
 
 def ensure_directories() -> None:
@@ -130,6 +133,47 @@ def ensure_directories() -> None:
     PLAYWRIGHT_BROWSERS.mkdir(parents=True, exist_ok=True)
     MANIFESTS_DIRECTORY.mkdir(parents=True, exist_ok=True)
     DEFAULT_DOWNLOADS.mkdir(parents=True, exist_ok=True)
+
+
+def chunked(values: list[str], size: int) -> list[list[str]]:
+    if size <= 0:
+        return [values]
+    return [values[index:index + size] for index in range(0, len(values), size)]
+
+
+def batch_failure_result(url: str, message: str) -> dict[str, Any]:
+    return {
+        "url": url,
+        "status": "failed",
+        "message": message,
+        "foundCount": 0,
+        "savedCount": 0,
+    }
+
+
+def close_session_with_timeout(session: "BrowserSession", logs: list[str] | None = None, timeout_seconds: float = 5.0) -> None:
+    if session is None:
+        return
+
+    error_holder: list[BaseException] = []
+
+    def worker() -> None:
+        try:
+            session.close()
+        except BaseException as exc:  # pragma: no cover - cleanup path
+            error_holder.append(exc)
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+    thread.join(timeout_seconds)
+
+    if thread.is_alive():
+        if logs is not None:
+            logs.append(f"session_close_timeout={timeout_seconds}")
+        return
+
+    if error_holder and logs is not None:
+        logs.append(f"session_close_error={error_holder[0]}")
 
 
 def import_playwright():
@@ -417,7 +461,7 @@ def login_command() -> None:
         emit(False, "login_error", str(exc), logs=logs)
     finally:
         if session:
-            session.close()
+            close_session_with_timeout(session)
 
 
 def check_session_command(headless: bool = True) -> None:
@@ -454,7 +498,7 @@ def check_session_command(headless: bool = True) -> None:
         emit(False, "session_error", str(exc), logs=logs)
     finally:
         if session:
-            session.close()
+            close_session_with_timeout(session)
 
 
 def sanitize_filename(value: str) -> str:
@@ -660,6 +704,9 @@ def should_skip_media_variant(url: str) -> bool:
         return "clips" in lowered or "reel" in lowered
 
     if is_audio_only_variant(url):
+        return True
+
+    if "dash_vp9-basic" in tag or "vp9-basic" in tag:
         return True
 
     if "clips" in tag or "reel" in tag:
@@ -881,6 +928,7 @@ def choose_best_video_url(item: dict[str, Any]) -> str | None:
     if not isinstance(video_versions, list):
         return None
 
+    preferred_urls: list[tuple[int, str]] = []
     best_url: str | None = None
     best_score = -10**9
     for candidate in video_versions:
@@ -898,6 +946,7 @@ def choose_best_video_url(item: dict[str, Any]) -> str | None:
         if not passes_story_shape_gate(url, width, height):
             continue
 
+        normalized_url = normalize_media_url(url)
         score = (
             media_variant_score(url, "video")
             + max(width * height, media_candidate_area(candidate)) // 5000
@@ -909,9 +958,20 @@ def choose_best_video_url(item: dict[str, Any]) -> str | None:
         if candidate_type == 102:
             score += 10
 
+        tag = media_variant_tag(url)
+        lowered = url.lower()
+        if any(token in tag for token in ["xpv_progressive", "progressive", "avc", "h264"]):
+            preferred_urls.append((score, normalized_url))
+        if any(token in lowered for token in ["xpv_progressive", "progressive"]) and "dash" not in lowered:
+            preferred_urls.append((score + 20, normalized_url))
+
         if score > best_score:
             best_score = score
-            best_url = normalize_media_url(url)
+            best_url = normalized_url
+
+    if preferred_urls:
+        preferred_urls.sort(key=lambda item: item[0], reverse=True)
+        return preferred_urls[0][1]
 
     return best_url
 
@@ -1302,8 +1362,9 @@ def click_next_story(page) -> None:
 def click_profile_story_ring(page, username: str, logs: list[str]) -> bool:
     candidate_selectors = [
         f'a[href="/stories/{username}/"]',
-        "header canvas",
-        "header img",
+        f'a[href="/stories/{username}"]',
+        f'header a[href="/stories/{username}/"]',
+        f'header a[href="/stories/{username}"]',
     ]
 
     for selector in candidate_selectors:
@@ -1318,6 +1379,11 @@ def click_profile_story_ring(page, username: str, logs: list[str]) -> bool:
                 return True
             if is_highlight_story_url(page.url):
                 logs.append(f"profile_story_rejected_highlight={selector}")
+                try:
+                    page.goto(f"https://www.instagram.com/{username}/", wait_until="domcontentloaded")
+                    page.wait_for_timeout(1200)
+                except Exception:
+                    pass
         except Exception:
             continue
 
@@ -1399,6 +1465,14 @@ def collect_story_sequence(
     persist_metadata_items: bool = True,
 ) -> tuple[list[dict[str, str]], list[str]]:
     logs: list[str] = []
+
+    if is_highlight_story_url(page.url):
+        logs.append(f"highlight_page_rejected={page.url}")
+        return [], logs
+
+    if not is_active_story_page(page.url, username):
+        logs.append(f"active_story_page_missing={page.url}")
+        return [], logs
 
     resolved_items = wait_for_metadata_story_items(
         page,
@@ -1608,7 +1682,7 @@ def story_url_command(url: str, output_directory: str | None) -> None:
         emit(False, "download_error", str(exc), logs=logs)
     finally:
         if session:
-            session.close()
+            close_session_with_timeout(session)
 
 
 def extract_username(value: str) -> str:
@@ -1641,7 +1715,7 @@ def profile_command(profile_url: str, output_directory: str | None, headless: bo
         )
     finally:
         if session:
-            session.close()
+            close_session_with_timeout(session)
 
 
 def download_profile_with_page(page, profile_url: str, output_directory: str | None) -> dict[str, Any]:
@@ -1672,8 +1746,6 @@ def download_profile_with_page(page, profile_url: str, output_directory: str | N
         persist_session_state(page.context, logs)
         page.wait_for_timeout(1500)
         logs.append(f"profile_download_directory={destination}")
-
-        story_capture_started_at = time.time()
         opened = click_profile_story_ring(page, username, logs)
         if not opened:
             fallback = f"https://www.instagram.com/stories/{username}/"
@@ -1683,6 +1755,34 @@ def download_profile_with_page(page, profile_url: str, output_directory: str | N
 
         click_story_gate_if_needed(page, logs)
         logs.append(f"opened={page.url}")
+
+        if is_highlight_story_url(page.url):
+            return {
+                "ok": False,
+                "status": "download_empty",
+                "message": f"Для профиля {username} нет активных stories. Открылись highlights, они пропущены.",
+                "data": {"foundCount": "0", "savedCount": "0"},
+                "items": [],
+                "logs": logs + [f"highlight_page_skipped={page.url}"],
+                "username": username,
+                "profileUrl": profile_url,
+            }
+
+        if not is_active_story_page(page.url, username):
+            return {
+                "ok": False,
+                "status": "download_empty",
+                "message": f"Для профиля {username} активные stories не найдены.",
+                "data": {"foundCount": "0", "savedCount": "0"},
+                "items": [],
+                "logs": logs + [f"active_story_page_missing_after_open={page.url}"],
+                "username": username,
+                "profileUrl": profile_url,
+            }
+
+        json_payloads.clear()
+        network_candidates.clear()
+        story_capture_started_at = time.time()
         items, sequence_logs = collect_story_sequence(
             page,
             destination,
@@ -1742,39 +1842,85 @@ def profile_batch_command(profile_urls: list[str], output_directory: str | None,
     total_found = 0
     total_saved = 0
     success_count = 0
+    chunk_size = BATCH_BACKGROUND_CHUNK_SIZE if headless else BATCH_VISIBLE_CHUNK_SIZE
+    normalized_profiles = [
+        entry if "instagram.com" in entry else f"https://www.instagram.com/{extract_username(entry)}/"
+        for entry in normalized_urls
+    ]
+    profile_chunks = chunked(normalized_profiles, chunk_size)
+    logs.append(f"batch_chunk_size={chunk_size}")
+    logs.append(f"batch_chunk_count={len(profile_chunks)}")
     session = None
+    page = None
 
     try:
         session = launch_context(headless=headless)
-        window_page = session.first_page()
-        prepare_background_window(session, window_page, logs)
+        page = session.first_page()
+        prepare_background_window(session, page, logs)
 
-        for raw_url in normalized_urls:
-            normalized_url = raw_url if "instagram.com" in raw_url else f"https://www.instagram.com/{extract_username(raw_url)}/"
-            page = session.context.new_page()
-            result = download_profile_with_page(page, normalized_url, output_directory)
-            try:
-                page.close()
-            except Exception:
-                pass
+        for chunk_index, profile_chunk in enumerate(profile_chunks, start=1):
+            logs.append(f"batch_chunk_{chunk_index}_start={len(profile_chunk)}")
 
-            found_count = int(result["data"].get("foundCount", "0") or 0)
-            saved_count = int(result["data"].get("savedCount", "0") or 0)
-            total_found += found_count
-            total_saved += saved_count
-            if result["ok"]:
-                success_count += 1
-            items.extend(result["items"])
-            logs.extend([f"[{result.get('username') or normalized_url}] {entry}" for entry in result["logs"]])
-            batch_results.append(
-                {
-                    "url": normalized_url,
-                    "status": "completed" if result["ok"] else "failed",
-                    "message": result["message"],
-                    "foundCount": found_count,
-                    "savedCount": saved_count,
-                }
-            )
+            if page is None or page.is_closed():
+                page = session.context.new_page()
+                prepare_background_window(session, page, logs)
+                logs.append(f"batch_page_recreated_chunk={chunk_index}")
+
+            if chunk_index > 1:
+                try:
+                    page.goto("about:blank")
+                    page.wait_for_timeout(700)
+                except Exception as exc:
+                    logs.append(f"batch_chunk_reset_error={chunk_index}:{exc}")
+
+            for normalized_url in profile_chunk:
+                logs.append(f"batch_profile_start={normalized_url}")
+
+                try:
+                    if page is None or page.is_closed():
+                        page = session.context.new_page()
+                        prepare_background_window(session, page, logs)
+                        logs.append(f"batch_page_recreated_profile={normalized_url}")
+
+                    result = download_profile_with_page(page, normalized_url, output_directory)
+                except Exception as exc:
+                    result = {
+                        "ok": False,
+                        "status": "download_error",
+                        "message": f"Пакетная выгрузка прервана на профиле {extract_username(normalized_url)}: {exc}",
+                        "data": {"foundCount": "0", "savedCount": "0"},
+                        "items": [],
+                        "logs": [f"batch_profile_exception={normalized_url}:{exc}"],
+                        "username": extract_username(normalized_url),
+                        "profileUrl": normalized_url,
+                    }
+
+                found_count = int(result["data"].get("foundCount", "0") or 0)
+                saved_count = int(result["data"].get("savedCount", "0") or 0)
+                total_found += found_count
+                total_saved += saved_count
+                if result["ok"]:
+                    success_count += 1
+                items.extend(result["items"])
+                logs.extend([f"[{result.get('username') or normalized_url}] {entry}" for entry in result["logs"]])
+                batch_results.append(
+                    {
+                        "url": normalized_url,
+                        "status": "completed" if result["ok"] else "failed",
+                        "message": result["message"],
+                        "foundCount": found_count,
+                        "savedCount": saved_count,
+                    }
+                )
+                logs.append(f"batch_profile_done={normalized_url}")
+
+                if headless:
+                    try:
+                        page.goto("about:blank")
+                    except Exception as exc:
+                        logs.append(f"batch_profile_reset_error={normalized_url}:{exc}")
+
+            logs.append(f"batch_chunk_{chunk_index}_done={len(profile_chunk)}")
 
         ok = success_count > 0
         status = "batch_complete" if ok else "batch_failed"
@@ -1797,6 +1943,10 @@ def profile_batch_command(profile_urls: list[str], output_directory: str | None,
             logs=logs,
         )
     except Exception as exc:
+        processed_urls = {entry["url"] for entry in batch_results}
+        for normalized_url in normalized_profiles:
+            if normalized_url not in processed_urls:
+                batch_results.append(batch_failure_result(normalized_url, f"Пакетная выгрузка прервана: {exc}"))
         emit(
             False,
             "download_error",
@@ -1812,7 +1962,7 @@ def profile_batch_command(profile_urls: list[str], output_directory: str | None,
         )
     finally:
         if session:
-            session.close()
+            close_session_with_timeout(session, logs)
 
 
 def main() -> None:

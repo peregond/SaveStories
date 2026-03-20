@@ -31,7 +31,32 @@ NPM_SOURCE_EXECUTABLE="${DIMASAVE_NPM_EXECUTABLE:-$(command -v npm || true)}"
 NODE_SOURCE_WORKER_DIR="$ROOT/node_worker"
 NODE_BUILD_RUNTIME_DIR="$BUILD_DIR/node-runtime"
 NODE_BUILD_PLAYWRIGHT_DIR="$NODE_BUILD_RUNTIME_DIR/ms-playwright"
+LEGACY_RELEASE_APP_CANDIDATES=(
+  "$ROOT/dist/release/SaveStories.app"
+  "$ROOT/dist/release/DimaSave.app"
+)
 VERSION_FILE="$ROOT/VERSION"
+UPDATE_CONFIG_PATH="$ROOT/Sources/DimaSave/Resources/update_config.json"
+
+read_update_config_value() {
+  local key="$1"
+  python3 - "$UPDATE_CONFIG_PATH" "$key" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+config_path = Path(sys.argv[1])
+key = sys.argv[2]
+
+if not config_path.exists():
+    sys.exit(0)
+
+payload = json.loads(config_path.read_text(encoding="utf-8"))
+value = payload.get(key, "")
+if isinstance(value, str):
+    sys.stdout.write(value)
+PY
+}
 
 if [ -f "$VERSION_FILE" ]; then
   DEFAULT_VERSION="$(tr -d '\n\r' < "$VERSION_FILE")"
@@ -43,6 +68,8 @@ SHORT_VERSION="${DIMASAVE_VERSION:-$DEFAULT_VERSION}"
 BUILD_NUMBER="${DIMASAVE_BUILD:-$DEFAULT_BUILD}"
 BUNDLE_ID="${DIMASAVE_BUNDLE_ID:-local.dimasave.release}"
 COPYRIGHT_TEXT="${DIMASAVE_COPYRIGHT:-Direct distribution build}"
+MACOS_UPDATE_FEED_URL="${DIMASAVE_MACOS_UPDATE_FEED_URL:-$(read_update_config_value macosFeedURL)}"
+UPDATE_PUBLIC_KEY="${DIMASAVE_UPDATE_PUBLIC_KEY:-$(read_update_config_value publicEDKey)}"
 SIGN_IDENTITY="${APPLE_SIGN_IDENTITY:-}"
 RESOURCE_BUNDLE_NAME="$EXECUTABLE_NAME"_DimaSave.bundle
 
@@ -71,6 +98,14 @@ cp "$SOURCE_PLIST" "$PLIST_PATH"
 "$PLIST_BUDDY" -c "Set :CFBundleShortVersionString $SHORT_VERSION" "$PLIST_PATH"
 "$PLIST_BUDDY" -c "Set :CFBundleVersion $BUILD_NUMBER" "$PLIST_PATH"
 "$PLIST_BUDDY" -c "Set :NSHumanReadableCopyright $COPYRIGHT_TEXT" "$PLIST_PATH"
+if [ -n "$MACOS_UPDATE_FEED_URL" ]; then
+  "$PLIST_BUDDY" -c "Delete :SUFeedURL" "$PLIST_PATH" >/dev/null 2>&1 || true
+  "$PLIST_BUDDY" -c "Add :SUFeedURL string $MACOS_UPDATE_FEED_URL" "$PLIST_PATH"
+fi
+if [ -n "$UPDATE_PUBLIC_KEY" ]; then
+  "$PLIST_BUDDY" -c "Delete :SUPublicEDKey" "$PLIST_PATH" >/dev/null 2>&1 || true
+  "$PLIST_BUDDY" -c "Add :SUPublicEDKey string $UPDATE_PUBLIC_KEY" "$PLIST_PATH"
+fi
 
 cp "$ROOT/.build/release/$EXECUTABLE_NAME" "$MACOS_DIR/$EXECUTABLE_NAME"
 cp "$ICON_PATH" "$RESOURCES_DIR/$ICON_BASENAME.icns"
@@ -80,14 +115,14 @@ if [ -n "$RESOURCE_BUNDLE_PATH" ] && [ -d "$RESOURCE_BUNDLE_PATH" ]; then
   cp -R "$RESOURCE_BUNDLE_PATH" "$RESOURCES_DIR/"
 fi
 
-if [ -z "$NODE_SOURCE_EXECUTABLE" ] || [ ! -x "$NODE_SOURCE_EXECUTABLE" ]; then
-  printf 'node executable not found. Install Node 24 LTS or set DIMASAVE_NODE_EXECUTABLE.\n' >&2
+SPARKLE_FRAMEWORK_PATH="$(find "$ROOT/.build" -type d -name 'Sparkle.framework' | head -n 1)"
+if [ -z "$SPARKLE_FRAMEWORK_PATH" ] || [ ! -d "$SPARKLE_FRAMEWORK_PATH" ]; then
+  printf 'Sparkle.framework not found in .build. The macOS updater bundle is incomplete.\n' >&2
   exit 1
 fi
-
-if [ -z "$NPM_SOURCE_EXECUTABLE" ] || [ ! -x "$NPM_SOURCE_EXECUTABLE" ]; then
-  printf 'npm executable not found. Install Node 24 LTS or set DIMASAVE_NPM_EXECUTABLE.\n' >&2
-  exit 1
+ditto "$SPARKLE_FRAMEWORK_PATH" "$FRAMEWORKS_DIR/Sparkle.framework"
+if ! otool -l "$MACOS_DIR/$EXECUTABLE_NAME" | grep -q '@executable_path/../Frameworks'; then
+  install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/$EXECUTABLE_NAME"
 fi
 
 if [ ! -f "$NODE_SOURCE_WORKER_DIR/package.json" ]; then
@@ -97,25 +132,48 @@ fi
 
 rm -rf "$EMBEDDED_RUNTIME_DIR" "$NODE_BUILD_RUNTIME_DIR"
 mkdir -p "$EMBEDDED_PLAYWRIGHT_DIR" "$EMBEDDED_NODE_BIN_DIR" "$NODE_BUILD_PLAYWRIGHT_DIR"
+USED_LEGACY_RUNTIME=0
+if [ -n "$NODE_SOURCE_EXECUTABLE" ] && [ -x "$NODE_SOURCE_EXECUTABLE" ] && [ -n "$NPM_SOURCE_EXECUTABLE" ] && [ -x "$NPM_SOURCE_EXECUTABLE" ]; then
+  (
+    cd "$NODE_SOURCE_WORKER_DIR"
+    PLAYWRIGHT_BROWSERS_PATH="$NODE_BUILD_PLAYWRIGHT_DIR" "$NPM_SOURCE_EXECUTABLE" install --no-fund --no-audit
+    PLAYWRIGHT_BROWSERS_PATH="$NODE_BUILD_PLAYWRIGHT_DIR" "$NODE_SOURCE_EXECUTABLE" ./node_modules/playwright/cli.js install chromium
+  )
 
-(
-  cd "$NODE_SOURCE_WORKER_DIR"
-  PLAYWRIGHT_BROWSERS_PATH="$NODE_BUILD_PLAYWRIGHT_DIR" "$NPM_SOURCE_EXECUTABLE" install --no-fund --no-audit
-  PLAYWRIGHT_BROWSERS_PATH="$NODE_BUILD_PLAYWRIGHT_DIR" "$NODE_SOURCE_EXECUTABLE" ./node_modules/playwright/cli.js install chromium
-)
+  rm -rf "$NODE_WORKER_DIR"
+  cp -R "$NODE_SOURCE_WORKER_DIR" "$NODE_WORKER_DIR"
+  cp -R "$NODE_BUILD_PLAYWRIGHT_DIR"/. "$EMBEDDED_PLAYWRIGHT_DIR/"
+  cp "$NODE_SOURCE_EXECUTABLE" "$EMBEDDED_NODE_BIN_DIR/node"
+  chmod +x "$EMBEDDED_NODE_BIN_DIR/node"
 
-rm -rf "$NODE_WORKER_DIR"
-cp -R "$NODE_SOURCE_WORKER_DIR" "$NODE_WORKER_DIR"
-cp -R "$NODE_BUILD_PLAYWRIGHT_DIR"/. "$EMBEDDED_PLAYWRIGHT_DIR/"
-cp "$NODE_SOURCE_EXECUTABLE" "$EMBEDDED_NODE_BIN_DIR/node"
-chmod +x "$EMBEDDED_NODE_BIN_DIR/node"
+  rm -rf "$EMBEDDED_PLAYWRIGHT_DIR"/chromium_headless_shell-*
+  find "$NODE_WORKER_DIR" -type d -name "__pycache__" -prune -exec rm -rf {} +
+  find "$NODE_WORKER_DIR" -type d -name ".bin" -prune -exec rm -rf {} +
+  rm -rf "$NODE_WORKER_DIR"/node_modules/playwright-core/.local-browsers \
+         "$NODE_WORKER_DIR"/node_modules/playwright/.cache \
+         "$NODE_WORKER_DIR"/node_modules/playwright-core/.cache
+else
+  LEGACY_RUNTIME_APP=""
+  for candidate in "${LEGACY_RELEASE_APP_CANDIDATES[@]}"; do
+    if [ -d "$candidate/Contents/Frameworks/Python.framework" ] && \
+       [ -d "$candidate/Contents/SharedSupport/runtime/site-packages" ] && \
+       [ -d "$candidate/Contents/SharedSupport/runtime/ms-playwright" ]; then
+      LEGACY_RUNTIME_APP="$candidate"
+      break
+    fi
+  done
 
-rm -rf "$EMBEDDED_PLAYWRIGHT_DIR"/chromium_headless_shell-*
-find "$NODE_WORKER_DIR" -type d -name "__pycache__" -prune -exec rm -rf {} +
-find "$NODE_WORKER_DIR" -type d -name ".bin" -prune -exec rm -rf {} +
-rm -rf "$NODE_WORKER_DIR"/node_modules/playwright-core/.local-browsers \
-       "$NODE_WORKER_DIR"/node_modules/playwright/.cache \
-       "$NODE_WORKER_DIR"/node_modules/playwright-core/.cache
+  if [ -z "$LEGACY_RUNTIME_APP" ]; then
+    printf 'Neither Node 24 runtime nor legacy embedded Python runtime was found. Install Node 24 LTS or provide an existing release app.\n' >&2
+    exit 1
+  fi
+
+  printf 'Node runtime not found. Reusing legacy embedded Python runtime from:\n%s\n' "$LEGACY_RUNTIME_APP"
+  USED_LEGACY_RUNTIME=1
+  cp -R "$LEGACY_RUNTIME_APP/Contents/Frameworks/Python.framework" "$FRAMEWORKS_DIR/"
+  cp -R "$LEGACY_RUNTIME_APP/Contents/SharedSupport/runtime/site-packages" "$EMBEDDED_RUNTIME_DIR/"
+  cp -R "$LEGACY_RUNTIME_APP/Contents/SharedSupport/runtime/ms-playwright" "$EMBEDDED_RUNTIME_DIR/"
+fi
 
 if [ -n "$SIGN_IDENTITY" ]; then
   codesign --force --deep --sign "$SIGN_IDENTITY" --timestamp --options runtime "$APP_DIR"
@@ -126,6 +184,11 @@ else
 fi
 
 printf '\nRelease app created at:\n%s\n' "$APP_DIR"
+if [ "$USED_LEGACY_RUNTIME" -eq 1 ]; then
+  printf 'Embedded runtime: legacy Python fallback\n'
+else
+  printf 'Embedded runtime: Node worker\n'
+fi
 if [ -n "$SIGN_IDENTITY" ]; then
   printf 'Signing identity: %s\n' "$SIGN_IDENTITY"
 else

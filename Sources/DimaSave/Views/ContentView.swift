@@ -246,6 +246,7 @@ struct ContentView: View {
                     .font(.system(size: 20, weight: .semibold, design: .rounded))
                     .foregroundStyle(primaryText)
 
+                updatesCard
                 statusCards
                 runtimeCard
                 sessionCard
@@ -635,7 +636,26 @@ struct ContentView: View {
     }
 
     private var logsCard: some View {
-        card("Логи", padding: 0) {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Text("Логи")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .textCase(.uppercase)
+                    .foregroundStyle(quaternaryText)
+
+                Spacer(minLength: 0)
+
+                Button {
+                    model.copyLogs()
+                } label: {
+                    Label("Скопировать логи", systemImage: "doc.on.doc")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 18)
+
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
                     ForEach(model.logs, id: \.self) { line in
@@ -646,10 +666,17 @@ struct ContentView: View {
                             .textSelection(.enabled)
                     }
                 }
-                .padding(18)
+                .padding(.horizontal, 18)
+                .padding(.bottom, 18)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .background(cardBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
+                .strokeBorder(cardStroke, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous))
     }
 
     private var runtimeCard: some View {
@@ -663,6 +690,22 @@ struct ContentView: View {
                 button("Открыть папку среды", systemImage: "internaldrive") {
                     model.openRuntimeDirectory()
                 }
+            }
+        }
+    }
+
+    private var updatesCard: some View {
+        card("Обновления") {
+            VStack(alignment: .leading, spacing: 12) {
+                statusInlineNote(
+                    title: "Автообновление",
+                    message: model.updateSummary
+                )
+
+                button("Проверить обновления", systemImage: "arrow.triangle.2.circlepath") {
+                    Task { await model.checkForUpdates() }
+                }
+                .disabled(!model.canCheckForUpdates)
             }
         }
     }

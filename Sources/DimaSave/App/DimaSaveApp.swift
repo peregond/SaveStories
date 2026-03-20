@@ -13,5 +13,13 @@ struct DimaSaveApp: App {
                     await model.prepare()
                 }
         }
+        .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Проверить обновления...") {
+                    Task { await model.checkForUpdates() }
+                }
+                .disabled(!model.canCheckForUpdates)
+            }
+        }
     }
 }

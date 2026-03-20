@@ -9,6 +9,8 @@
 - `Playwright` + `Chromium`
 - пакетная очередь профилей
 - логин в Instagram, проверка сессии и выгрузка активных stories
+- проверка новых версий через `GitHub Releases`
+- staged self-update для portable Windows-сборки
 
 Основной worker:
 

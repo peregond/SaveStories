@@ -1,0 +1,6 @@
+{
+  "repository": "peregond/SaveStories",
+  "macosFeedURL": "https://raw.githubusercontent.com/peregond/SaveStories/update-feed/appcast-macos.xml",
+  "windowsLatestReleaseAPI": "https://api.github.com/repos/peregond/SaveStories/releases/latest",
+  "publicEDKey": "hdrC44fepuPvHQ9UUuVNpqI1sYHKXobmX3woITvjB7I="
+}

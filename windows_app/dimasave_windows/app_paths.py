@@ -72,6 +72,10 @@ class AppPaths:
         return AppPaths.application_support() / "logs"
 
     @staticmethod
+    def updates_directory() -> Path:
+        return AppPaths.application_support() / "updates"
+
+    @staticmethod
     def playwright_browsers() -> Path:
         bundled = AppPaths.resource_root() / "runtime" / "ms-playwright"
         if bundled.exists():
@@ -106,6 +110,17 @@ class AppPaths:
         raise FileNotFoundError("Не удалось найти worker/bridge.py")
 
     @staticmethod
+    def update_config_path() -> Path:
+        candidates = [
+            AppPaths.resource_root() / "update_config.json",
+            AppPaths.project_root() / "Sources" / "DimaSave" / "Resources" / "update_config.json",
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        raise FileNotFoundError("Не удалось найти update_config.json")
+
+    @staticmethod
     def bootstrap_script() -> Path:
         candidates = [
             AppPaths.resource_root() / "windows_app" / "bootstrap_node_worker.ps1",
@@ -126,6 +141,7 @@ class AppPaths:
             AppPaths.browser_profile(),
             AppPaths.manifests_directory(),
             AppPaths.logs_directory(),
+            AppPaths.updates_directory(),
             AppPaths.playwright_browsers(),
             AppPaths.default_downloads(),
         ]:

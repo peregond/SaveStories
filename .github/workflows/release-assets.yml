@@ -71,6 +71,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$RELEASE_TAG" "dist/release/SaveStories-macOS-${RELEASE_TAG}.dmg" --clobber
 
+      - name: Upload macOS asset as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release-asset
+          path: dist/release/SaveStories-macOS-${{ env.RELEASE_TAG }}.dmg
+
   build-windows:
     needs: create-release
     runs-on: windows-latest
@@ -109,3 +115,62 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload $env:RELEASE_TAG "dist/windows/SaveStories-Windows-$env:RELEASE_TAG.zip" --clobber
+
+  publish-update-feed:
+    needs:
+      - create-release
+      - build-macos
+    if: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY != '' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download macOS release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-release-asset
+          path: dist/release
+
+      - name: Setup Node 24 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Generate macOS appcast
+        env:
+          UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY }}
+        run: |
+          node ./scripts/generate_appcast.mjs \
+            --asset "dist/release/SaveStories-macOS-${RELEASE_TAG}.dmg" \
+            --asset-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/SaveStories-macOS-${RELEASE_TAG}.dmg" \
+            --release-url "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_TAG}" \
+            --version "${RELEASE_TAG#v}" \
+            --build "${GITHUB_RUN_NUMBER}" \
+            --mime-type "application/x-apple-diskimage" \
+            --notes "GitHub release ${RELEASE_TAG} опубликован для SaveStories." \
+            --output "${RUNNER_TEMP}/appcast-macos.xml"
+
+      - name: Publish update feed branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin update-feed:update-feed >/dev/null 2>&1 || true
+          if git show-ref --quiet refs/heads/update-feed; then
+            git checkout update-feed
+          else
+            git checkout --orphan update-feed
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          cp "${RUNNER_TEMP}/appcast-macos.xml" ./appcast-macos.xml
+          printf '%s\n' "${RELEASE_TAG}" > latest-version.txt
+          git add appcast-macos.xml latest-version.txt
+          if git diff --cached --quiet; then
+            echo "Update feed is already current."
+          else
+            git commit -m "Update macOS appcast for ${RELEASE_TAG}"
+            git push origin update-feed
+          fi

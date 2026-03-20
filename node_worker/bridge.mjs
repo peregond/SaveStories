@@ -8,6 +8,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const APP_NAME = "DimaSave";
+const BATCH_JOB_TIMEOUT_MS = 120_000;
 
 function emit(ok, status, message, { data = {}, items = [], logs = [] } = {}) {
   process.stdout.write(
@@ -20,6 +21,45 @@ function emit(ok, status, message, { data = {}, items = [], logs = [] } = {}) {
       logs,
     }),
   );
+}
+
+function errorMessage(error) {
+  if (error instanceof Error) {
+    return error.message || String(error);
+  }
+  return String(error);
+}
+
+function isClosedTargetMessage(message) {
+  const lowered = String(message || "").toLowerCase();
+  return (
+    lowered.includes("target page, context or browser has been closed") ||
+    lowered.includes("browser has been closed") ||
+    lowered.includes("page has been closed") ||
+    lowered.includes("page closed") ||
+    lowered.includes("context closed") ||
+    lowered.includes("session closed")
+  );
+}
+
+function isClosedTargetError(error) {
+  return isClosedTargetMessage(errorMessage(error));
+}
+
+async function withTimeout(promise, timeoutMs, timeoutMessage) {
+  let timer = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
 }
 
 async function readRequest() {
@@ -1289,40 +1329,112 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
   let totalSaved = 0;
   let successCount = 0;
   let session = null;
+  let batchAbortMessage = null;
+  let contextClosed = false;
 
   try {
     session = await launchContext(headless);
     const windowPage = await session.firstPage();
     await prepareBackgroundWindow(session, windowPage, logs);
-    const concurrency = Math.min(headless ? 3 : 2, normalizedUrls.length);
+    session.context.on("close", () => {
+      contextClosed = true;
+      logs.push("batch_context_closed");
+    });
+    const concurrency = Math.min(headless ? 3 : 1, normalizedUrls.length);
     let cursor = 0;
     logs.push(`batch_concurrency=${concurrency}`);
 
+    const attachPageLogger = (page, slot) => {
+      page.on("close", () => {
+        logs.push(`batch_page_closed_slot_${slot}`);
+      });
+    };
+
+    const buildFailureResult = (url, message) => ({
+      url,
+      status: "failed",
+      message,
+      foundCount: 0,
+      savedCount: 0,
+    });
+
+    const fillMissingBatchResults = (message) => {
+      for (let index = 0; index < normalizedUrls.length; index += 1) {
+        if (!batchResults[index]) {
+          batchResults[index] = buildFailureResult(normalizedUrls[index], message);
+        }
+      }
+    };
+
+    const ensurePageForSlot = async (slot, page) => {
+      if (!page.isClosed()) {
+        return page;
+      }
+      if (contextClosed) {
+        throw new Error("Окно браузера было закрыто во время пакетной выгрузки.");
+      }
+      const replacement = await session.context.newPage();
+      attachPageLogger(replacement, slot);
+      logs.push(`batch_page_recreated_slot_${slot}`);
+      return replacement;
+    };
+
     const nextJob = () => {
+      if (batchAbortMessage) {
+        return null;
+      }
       if (cursor >= normalizedUrls.length) {
         return null;
       }
       const index = cursor;
-      const rawUrl = normalizedUrls[index];
       cursor += 1;
-      const normalizedUrl = rawUrl.includes("instagram.com")
-        ? rawUrl
-        : `https://www.instagram.com/${extractUsername(rawUrl)}/`;
-      return { index, normalizedUrl };
+      return { index, normalizedUrl: normalizedUrls[index] };
     };
 
-    const workerLoop = async (slot, page) => {
+    const workerLoop = async (slot, initialPage) => {
+      let page = initialPage;
       while (true) {
+        if (batchAbortMessage) {
+          return;
+        }
+
+        page = await ensurePageForSlot(slot, page);
         const job = nextJob();
         if (!job) {
           return;
         }
 
         logs.push(`batch_slot_${slot}_start=${job.normalizedUrl}`);
-        const result = await downloadProfileWithPage(page, job.normalizedUrl, outputDirectory);
+        let result = null;
         try {
-          await page.goto("about:blank");
-        } catch {}
+          result = await withTimeout(
+            downloadProfileWithPage(page, job.normalizedUrl, outputDirectory),
+            BATCH_JOB_TIMEOUT_MS,
+            `Выгрузка профиля ${job.normalizedUrl} превысила лимит ожидания.`,
+          );
+        } catch (error) {
+          const message = errorMessage(error);
+          batchResults[job.index] = buildFailureResult(job.normalizedUrl, message);
+          logs.push(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
+          if (contextClosed || isClosedTargetError(error)) {
+            batchAbortMessage ||= message;
+            return;
+          }
+          continue;
+        }
+
+        if (!result) {
+          const message = "Воркер не вернул результат пакетной выгрузки.";
+          batchResults[job.index] = buildFailureResult(job.normalizedUrl, message);
+          logs.push(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
+          continue;
+        }
+
+        if (headless) {
+          try {
+            await page.goto("about:blank");
+          } catch {}
+        }
 
         const foundCount = Number(result.data.foundCount || "0");
         const savedCount = Number(result.data.savedCount || "0");
@@ -1331,20 +1443,32 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
         if (result.ok) successCount += 1;
         items.push(...result.items);
         logs.push(...result.logs.map((entry) => `[${result.username || job.normalizedUrl}] ${entry}`));
+        const resultStatus = result.ok ? "completed" : "failed";
         batchResults[job.index] = {
           url: job.normalizedUrl,
-          status: result.ok ? "completed" : "failed",
+          status: resultStatus,
           message: result.message,
           foundCount,
           savedCount,
         };
+        if (contextClosed || isClosedTargetMessage(result.message)) {
+          const message = contextClosed
+            ? "Окно браузера было закрыто во время пакетной выгрузки."
+            : result.message;
+          logs.push(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
+          batchAbortMessage ||= message;
+          return;
+        }
         logs.push(`batch_slot_${slot}_done=${job.normalizedUrl}`);
       }
     };
 
     const pages = [windowPage];
+    attachPageLogger(windowPage, 1);
     for (let i = 1; i < concurrency; i += 1) {
-      pages.push(await session.context.newPage());
+      const page = await session.context.newPage();
+      attachPageLogger(page, i + 1);
+      pages.push(page);
     }
 
     await Promise.all(
@@ -1357,11 +1481,21 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
       } catch {}
     }
 
+    if (batchAbortMessage) {
+      fillMissingBatchResults(`Пакетная выгрузка прервана: ${batchAbortMessage}`);
+    } else {
+      fillMissingBatchResults("Для профиля нет результата пакетной выгрузки.");
+    }
+
     const ok = successCount > 0;
-    const status = ok ? "batch_complete" : "batch_failed";
-    const message = ok
-      ? `Пакетная выгрузка завершена. Обработано профилей: ${normalizedUrls.length}.`
-      : "Не удалось получить активные stories ни для одного профиля из очереди.";
+    const status = batchAbortMessage
+      ? (ok ? "batch_incomplete" : "batch_failed")
+      : (ok ? "batch_complete" : "batch_failed");
+    const message = batchAbortMessage
+      ? `Пакетная выгрузка прервана: ${batchAbortMessage}`
+      : ok
+        ? `Пакетная выгрузка завершена. Обработано профилей: ${normalizedUrls.length}.`
+        : "Не удалось получить активные stories ни для одного профиля из очереди.";
 
     emit(ok, status, message, {
       data: {
@@ -1378,8 +1512,16 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
       data: {
         foundCount: String(totalFound),
         savedCount: String(totalSaved),
-        processedCount: String(batchResults.length),
-        batchResults: JSON.stringify(batchResults),
+        processedCount: String(normalizedUrls.length),
+        batchResults: JSON.stringify(
+          batchResults.map((entry, index) => entry || {
+            url: normalizedUrls[index],
+            status: "failed",
+            message: `Пакетная выгрузка завершилась ошибкой: ${errorMessage(error)}`,
+            foundCount: 0,
+            savedCount: 0,
+          })
+        ),
       },
       items,
       logs,
