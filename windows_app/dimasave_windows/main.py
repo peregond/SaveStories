@@ -227,6 +227,7 @@ class MainWindow(QtWidgets.QMainWindow):
         AppPaths.ensure_directories()
 
         self.setWindowTitle("SaveStories for Windows")
+        self.setMinimumSize(1100, 720)
         self.resize(1360, 860)
         self._build_ui()
         self._apply_styles()
@@ -250,11 +251,11 @@ class MainWindow(QtWidgets.QMainWindow):
         root.addWidget(content_host, 1)
 
         self.stack = QtWidgets.QStackedWidget()
-        self.stack.addWidget(self._build_batch_page())
-        self.stack.addWidget(self._build_home_page())
+        self.stack.addWidget(self._wrap_scroll_area(self._build_batch_page()))
+        self.stack.addWidget(self._wrap_scroll_area(self._build_home_page()))
         content_layout.addWidget(self.stack, 3)
 
-        content_layout.addWidget(self._build_activity_panel(), 2)
+        content_layout.addWidget(self._wrap_scroll_area(self._build_activity_panel()), 2)
 
         self.settings_dialog = SettingsDialog(self)
         self.settings_dialog.refresh_requested.connect(self.refresh_environment)
@@ -304,6 +305,15 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(settings_button)
 
         return sidebar
+
+    def _wrap_scroll_area(self, widget: QtWidgets.QWidget) -> QtWidgets.QScrollArea:
+        area = QtWidgets.QScrollArea()
+        area.setWidgetResizable(True)
+        area.setFrameShape(QtWidgets.QFrame.NoFrame)
+        area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        area.setWidget(widget)
+        return area
 
     def _build_home_page(self) -> QtWidgets.QWidget:
         page = QtWidgets.QWidget()
@@ -559,13 +569,21 @@ class MainWindow(QtWidgets.QMainWindow):
             write_crash_log("MainWindow.prepare", "Startup UI prepare started.")
             self.append_log(f"Подготовлены папки приложения в {AppPaths.application_support()}.")
             self.set_status("Готово", "Приложение запущено. Проверку среды и вход можно выполнить вручную в настройках.")
-            self.activity_subtitle.setText("Приложение запущено. Воркер не проверяется автоматически на старте.")
-            write_crash_log("MainWindow.prepare", "Startup UI prepare finished without auto worker checks.")
+            self.activity_subtitle.setText("Приложение запущено. Готовлю безопасную проверку среды и сессии.")
+            QtCore.QTimer.singleShot(900, self.startup_probe)
+            write_crash_log("MainWindow.prepare", "Startup UI prepare finished. Delayed startup probe scheduled.")
         except Exception as error:
             details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
             write_crash_log("Startup prepare failure", details)
             self.set_status("Ошибка", f"Ошибка запуска: {error}")
             self.append_log(f"[startup_error] {error}")
+
+    def startup_probe(self) -> None:
+        if self.current_task is not None:
+            write_crash_log("startup_probe", "Skipped because another request is already active.")
+            return
+        self.append_log("Запускаю отложенную проверку среды и Instagram-сессии.")
+        self.refresh_environment(startup=True)
 
     def refresh_environment(self, *, startup: bool = False) -> None:
         self.start_request(
@@ -649,15 +667,10 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
         if startup and not self.session_ready:
-            message = QtWidgets.QMessageBox(self)
-            message.setWindowTitle("Нужен вход в Instagram")
-            message.setText("Для первой выгрузки войди в Instagram через встроенный браузер.")
-            message.setInformativeText("Окно браузера останется открытым, пока активная сессия не будет обнаружена.")
-            open_button = message.addButton("Открыть браузер", QtWidgets.QMessageBox.AcceptRole)
-            message.addButton("Позже", QtWidgets.QMessageBox.RejectRole)
-            message.exec()
-            if message.clickedButton() is open_button:
-                self.login()
+            self.set_status("Нужен вход", "Сессия Instagram не найдена. Открываю браузер для входа.")
+            self.activity_subtitle.setText("Сессия не найдена. Сейчас откроется браузер для авторизации.")
+            self.append_log("Сессия Instagram не найдена. Автоматически открываю браузер для входа.")
+            QtCore.QTimer.singleShot(250, self.login)
 
     def download_profile(self) -> None:
         profile = self.profile_input.text().strip()
