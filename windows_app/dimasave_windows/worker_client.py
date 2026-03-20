@@ -15,12 +15,44 @@ from .models import WorkerItem, WorkerRequest, WorkerResponse
 class WorkerClient:
     def __init__(self) -> None:
         self.current_process: subprocess.Popen[bytes] | None = None
+        self.login_process: subprocess.Popen[bytes] | None = None
 
     def stop_current_process(self) -> None:
         process = self.current_process
         if process is None or process.poll() is not None:
             return
         process.terminate()
+
+    def start_detached_login(self, request: WorkerRequest) -> None:
+        AppPaths.ensure_directories()
+        command, runtime = self.resolve_command()
+
+        environment = os.environ.copy()
+        environment["DIMASAVE_APP_SUPPORT"] = str(AppPaths.application_support())
+        environment["DIMASAVE_BROWSER_PROFILE"] = str(AppPaths.browser_profile())
+        environment["DIMASAVE_MANIFESTS"] = str(AppPaths.manifests_directory())
+        environment["DIMASAVE_PLAYWRIGHT_BROWSERS"] = str(AppPaths.playwright_browsers())
+        environment["DIMASAVE_DEFAULT_DOWNLOADS"] = str(AppPaths.default_downloads())
+        environment["DIMASAVE_WORKER_RUNTIME"] = runtime
+
+        creationflags = 0
+        if os.name == "nt":
+            creationflags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+
+        process = subprocess.Popen(
+            command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=environment,
+            creationflags=creationflags,
+            close_fds=True,
+        )
+        self.login_process = process
+        assert process.stdin is not None
+        process.stdin.write((json.dumps(asdict(request)) + "\n").encode("utf-8"))
+        process.stdin.flush()
+        process.stdin.close()
 
     def run(self, request: WorkerRequest) -> WorkerResponse:
         AppPaths.ensure_directories()

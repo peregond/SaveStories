@@ -17,10 +17,12 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from dimasave_windows.app_paths import AppPaths
     from dimasave_windows.models import BatchEntry, WorkerRequest, WorkerResponse
+    from dimasave_windows.updater import ReleaseInfo, WindowsUpdater, WindowsUpdaterError
     from dimasave_windows.worker_client import WorkerClient
 else:
     from .app_paths import AppPaths
     from .models import BatchEntry, WorkerRequest, WorkerResponse
+    from .updater import ReleaseInfo, WindowsUpdater, WindowsUpdaterError
     from .worker_client import WorkerClient
 
 
@@ -63,7 +65,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.2.7"
+    return "0.3.0"
 
 
 def normalize_profile_link(raw: str) -> str:
@@ -139,12 +141,49 @@ class BootstrapTask(QtCore.QThread):
             self.finished_output.emit(False, f"BootstrapTask failure:\n{error}")
 
 
+class UpdateCheckTask(QtCore.QThread):
+    finished_output = QtCore.Signal(bool, str, object)
+
+    def __init__(self, updater: WindowsUpdater, current_version: str) -> None:
+        super().__init__()
+        self.updater = updater
+        self.current_version = current_version
+
+    def run(self) -> None:
+        try:
+            status, release = self.updater.check_latest_release(self.current_version)
+            self.finished_output.emit(True, status, release)
+        except Exception as error:
+            details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+            write_crash_log("UpdateCheckTask failure", details)
+            self.finished_output.emit(False, str(error), None)
+
+
+class UpdateInstallTask(QtCore.QThread):
+    finished_output = QtCore.Signal(bool, str)
+
+    def __init__(self, updater: WindowsUpdater, release: ReleaseInfo) -> None:
+        super().__init__()
+        self.updater = updater
+        self.release = release
+
+    def run(self) -> None:
+        try:
+            message = self.updater.prepare_install(self.release)
+            self.finished_output.emit(True, message)
+        except Exception as error:
+            details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+            write_crash_log("UpdateInstallTask failure", details)
+            self.finished_output.emit(False, str(error))
+
+
 class SettingsDialog(QtWidgets.QDialog):
     refresh_requested = QtCore.Signal()
     bootstrap_requested = QtCore.Signal()
     login_requested = QtCore.Signal()
     session_check_requested = QtCore.Signal()
     open_runtime_requested = QtCore.Signal()
+    update_check_requested = QtCore.Signal()
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
@@ -164,10 +203,13 @@ class SettingsDialog(QtWidgets.QDialog):
         self.worker_label.setWordWrap(True)
         self.session_label = QtWidgets.QLabel("Состояние сессии неизвестно.")
         self.session_label.setWordWrap(True)
+        self.update_label = QtWidgets.QLabel("Автообновление ещё не инициализировано.")
+        self.update_label.setWordWrap(True)
         self.runtime_text = QtWidgets.QPlainTextEdit()
         self.runtime_text.setReadOnly(True)
         self.runtime_text.setMinimumHeight(170)
 
+        layout.addWidget(self._group("Обновления", self.update_label))
         layout.addWidget(self._group("Воркер", self.worker_label))
         layout.addWidget(self._group("Сессия", self.session_label))
         layout.addWidget(self._group("Среда", self.runtime_text), 1)
@@ -179,6 +221,7 @@ class SettingsDialog(QtWidgets.QDialog):
             ("Проверить среду", self.refresh_requested),
             ("Открыть браузер для входа", self.login_requested),
             ("Проверить сессию", self.session_check_requested),
+            ("Проверить обновления", self.update_check_requested),
             ("Открыть папку среды", self.open_runtime_requested),
         ]:
             button = QtWidgets.QPushButton(text)
@@ -193,7 +236,8 @@ class SettingsDialog(QtWidgets.QDialog):
         box_layout.addWidget(content)
         return box
 
-    def update_state(self, *, worker_summary: str, session_summary: str, runtime_summary: str) -> None:
+    def update_state(self, *, worker_summary: str, session_summary: str, runtime_summary: str, update_summary: str) -> None:
+        self.update_label.setText(update_summary)
         self.worker_label.setText(worker_summary)
         self.session_label.setText(session_summary)
         self.runtime_text.setPlainText(runtime_summary)
@@ -203,16 +247,26 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.worker = WorkerClient()
+        self.updater = WindowsUpdater()
         self.settings_store = QtCore.QSettings("DimaSave", "Windows")
         self.current_task: WorkerTask | None = None
         self.current_callback: Callable[[WorkerResponse], None] | None = None
         self.bootstrap_task: BootstrapTask | None = None
+        self.update_check_task: UpdateCheckTask | None = None
+        self.update_install_task: UpdateInstallTask | None = None
+        self.pending_release: ReleaseInfo | None = None
+        self.silent_update_check = False
+        self.login_poll_timer = QtCore.QTimer(self)
+        self.login_poll_timer.setInterval(3000)
+        self.login_poll_timer.timeout.connect(lambda: self.check_session(startup=False))
+        self.login_poll_active = False
 
         self.worker_ready = False
         self.session_ready = False
         self.worker_summary = "Воркер ещё не проверялся."
         self.session_summary = "Состояние сессии неизвестно."
         self.runtime_summary = ""
+        self.update_summary = self.updater.summary
         self.download_mode = self.settings_store.value("download_mode", "background")
         self.batch_entries: list[BatchEntry] = []
         self.batch_running = False
@@ -262,6 +316,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.settings_dialog.bootstrap_requested.connect(self.bootstrap_environment)
         self.settings_dialog.login_requested.connect(self.login)
         self.settings_dialog.session_check_requested.connect(self.check_session)
+        self.settings_dialog.update_check_requested.connect(lambda: self.check_for_updates(silent=False))
         self.settings_dialog.open_runtime_requested.connect(self.open_runtime_directory)
 
     def _build_sidebar(self) -> QtWidgets.QWidget:
@@ -571,12 +626,34 @@ class MainWindow(QtWidgets.QMainWindow):
             self.set_status("Готово", "Приложение запущено. Проверку среды и вход можно выполнить вручную в настройках.")
             self.activity_subtitle.setText("Приложение запущено. Готовлю безопасную проверку среды и сессии.")
             QtCore.QTimer.singleShot(900, self.startup_probe)
+            QtCore.QTimer.singleShot(4200, self.auto_check_for_updates)
             write_crash_log("MainWindow.prepare", "Startup UI prepare finished. Delayed startup probe scheduled.")
         except Exception as error:
             details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
             write_crash_log("Startup prepare failure", details)
             self.set_status("Ошибка", f"Ошибка запуска: {error}")
             self.append_log(f"[startup_error] {error}")
+
+    def auto_check_for_updates(self) -> None:
+        if not self.should_check_for_updates():
+            return
+        self.check_for_updates(silent=True)
+
+    def should_check_for_updates(self) -> bool:
+        if not self.updater.is_available:
+            return False
+
+        last_check = str(self.settings_store.value("last_update_check_at", "") or "").strip()
+        if not last_check:
+            return True
+
+        try:
+            previous = datetime.fromisoformat(last_check)
+        except ValueError:
+            return True
+
+        elapsed = datetime.now().astimezone() - previous
+        return elapsed.total_seconds() >= 12 * 60 * 60
 
     def startup_probe(self) -> None:
         if self.current_task is not None:
@@ -602,6 +679,7 @@ class MainWindow(QtWidgets.QMainWindow):
             worker_summary=self.worker_summary,
             session_summary=self.session_summary,
             runtime_summary=self.runtime_summary,
+            update_summary=self.update_summary,
         )
         if startup and response.ok:
             self.check_session(startup=True)
@@ -642,13 +720,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self.refresh_environment()
 
     def login(self) -> None:
-        self.start_request(
-            WorkerRequest(command="login", urls=None, outputDirectory=str(self.save_directory), headless=False),
-            "Открытие браузера для входа",
-            callback=self.handle_session_response,
-        )
+        try:
+            self.worker.start_detached_login(
+                WorkerRequest(command="login", urls=None, outputDirectory=str(self.save_directory), headless=False)
+            )
+            self.login_poll_active = True
+            if not self.login_poll_timer.isActive():
+                self.login_poll_timer.start()
+            self.set_status("Вход в Instagram", "Окно браузера открыто. Ожидаю появления сохранённой сессии.")
+            self.activity_subtitle.setText("Выполни вход в Instagram в открытом окне браузера. Приложение само обнаружит сохранённую сессию.")
+            self.append_log("Открыл отдельное окно браузера для входа в Instagram.")
+        except Exception as error:
+            details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+            write_crash_log("Detached login launch failure", details)
+            self.set_status("Ошибка", f"Не удалось открыть браузер для входа: {error}")
+            self.append_log(f"[login_launch_error] {error}")
 
     def check_session(self, *, startup: bool = False) -> None:
+        if self.current_task is not None:
+            return
         self.start_request(
             WorkerRequest(command="check_session", urls=None, headless=True),
             "Проверка сохранённой сессии",
@@ -664,13 +754,127 @@ class MainWindow(QtWidgets.QMainWindow):
             worker_summary=self.worker_summary,
             session_summary=self.session_summary,
             runtime_summary=self.runtime_summary,
+            update_summary=self.update_summary,
         )
+
+        if self.session_ready and self.login_poll_active:
+            self.login_poll_active = False
+            self.login_poll_timer.stop()
+            self.append_log("Сессия Instagram найдена. Окно входа можно закрыть.")
+            self.set_status("Готово", "Сессия Instagram успешно сохранена.")
+            self.activity_subtitle.setText("Сессия Instagram найдена. Приложение готово к выгрузке.")
+            return
 
         if startup and not self.session_ready:
             self.set_status("Нужен вход", "Сессия Instagram не найдена. Открываю браузер для входа.")
             self.activity_subtitle.setText("Сессия не найдена. Сейчас откроется браузер для авторизации.")
             self.append_log("Сессия Instagram не найдена. Автоматически открываю браузер для входа.")
             QtCore.QTimer.singleShot(250, self.login)
+        elif self.login_poll_active and not self.session_ready:
+            self.activity_subtitle.setText("Ожидаю завершения входа в Instagram в отдельном окне браузера.")
+
+    def check_for_updates(self, *, silent: bool) -> None:
+        if not self.updater.is_available:
+            if not silent:
+                self.append_log("Автообновление недоступно: не настроен источник release API.")
+            return
+
+        if self.update_check_task is not None and self.update_check_task.isRunning():
+            return
+
+        self.silent_update_check = silent
+        if not silent:
+            self.set_status("Проверка обновлений", "Запрашиваю latest release в GitHub.")
+        self.update_check_task = UpdateCheckTask(self.updater, app_version())
+        self.update_check_task.finished_output.connect(self.handle_update_check_result)
+        self.update_check_task.start()
+
+    def handle_update_check_result(self, ok: bool, status: str, release: object) -> None:
+        self.update_check_task = None
+        self.settings_store.setValue("last_update_check_at", datetime.now().astimezone().isoformat())
+
+        if not ok:
+            self.update_summary = f"Ошибка проверки обновлений: {status}"
+            self.settings_dialog.update_state(
+                worker_summary=self.worker_summary,
+                session_summary=self.session_summary,
+                runtime_summary=self.runtime_summary,
+                update_summary=self.update_summary,
+            )
+            if not self.silent_update_check:
+                self.set_status("Ошибка", status)
+                self.append_log(f"[update_error] {status}")
+            return
+
+        if status == "disabled":
+            self.update_summary = "Автообновление не настроено для этой Windows-сборки."
+            self.settings_dialog.update_state(
+                worker_summary=self.worker_summary,
+                session_summary=self.session_summary,
+                runtime_summary=self.runtime_summary,
+                update_summary=self.update_summary,
+            )
+            return
+
+        if status == "up_to_date":
+            self.update_summary = f"Уже установлена актуальная версия {app_version()}."
+            self.settings_dialog.update_state(
+                worker_summary=self.worker_summary,
+                session_summary=self.session_summary,
+                runtime_summary=self.runtime_summary,
+                update_summary=self.update_summary,
+            )
+            if not self.silent_update_check:
+                self.set_status("Готово", "Новая версия не найдена.")
+                self.append_log("Новая Windows-версия не найдена.")
+            return
+
+        if status == "update_available" and isinstance(release, ReleaseInfo):
+            self.pending_release = release
+            self.update_summary = f"Доступна версия {release.version}. Готова к установке поверх текущей сборки."
+            self.settings_dialog.update_state(
+                worker_summary=self.worker_summary,
+                session_summary=self.session_summary,
+                runtime_summary=self.runtime_summary,
+                update_summary=self.update_summary,
+            )
+            self.append_log(f"Найдена новая версия Windows: {release.version}.")
+            self.prompt_update_install(release)
+
+    def prompt_update_install(self, release: ReleaseInfo) -> None:
+        dialog = QtWidgets.QMessageBox(self)
+        dialog.setWindowTitle("Доступно обновление")
+        dialog.setIcon(QtWidgets.QMessageBox.Information)
+        dialog.setText(f"Доступна новая версия SaveStories {release.version}.")
+        details = release.notes.strip() or "GitHub release опубликован без release notes."
+        dialog.setInformativeText("Сейчас можно скачать обновление и перезапустить приложение.")
+        dialog.setDetailedText(details)
+        install_button = dialog.addButton("Установить", QtWidgets.QMessageBox.AcceptRole)
+        dialog.addButton("Позже", QtWidgets.QMessageBox.RejectRole)
+        dialog.exec()
+        if dialog.clickedButton() is install_button:
+            self.install_update(release)
+
+    def install_update(self, release: ReleaseInfo) -> None:
+        if self.update_install_task is not None and self.update_install_task.isRunning():
+            return
+
+        self.set_status("Обновление", f"Скачиваю SaveStories {release.version} и подготавливаю замену файлов.")
+        self.append_log(f"Начинаю установку обновления Windows: {release.version}.")
+        self.update_install_task = UpdateInstallTask(self.updater, release)
+        self.update_install_task.finished_output.connect(self.handle_update_install_result)
+        self.update_install_task.start()
+
+    def handle_update_install_result(self, ok: bool, message: str) -> None:
+        self.update_install_task = None
+        if not ok:
+            self.set_status("Ошибка", message)
+            self.append_log(f"[update_install_error] {message}")
+            return
+
+        self.set_status("Обновление", message)
+        self.append_log(message)
+        QtCore.QTimer.singleShot(400, QtWidgets.QApplication.instance().quit)
 
     def download_profile(self) -> None:
         profile = self.profile_input.text().strip()
@@ -927,6 +1131,7 @@ class MainWindow(QtWidgets.QMainWindow):
             worker_summary=self.worker_summary,
             session_summary=self.session_summary,
             runtime_summary=self.runtime_summary,
+            update_summary=self.update_summary,
         )
         self.settings_dialog.show()
         self.settings_dialog.raise_()
@@ -950,6 +1155,8 @@ class MainWindow(QtWidgets.QMainWindow):
         os.startfile(str(path))
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        if self.login_poll_timer.isActive():
+            self.login_poll_timer.stop()
         write_crash_log("MainWindow.closeEvent", "Window close requested.")
         super().closeEvent(event)
 
