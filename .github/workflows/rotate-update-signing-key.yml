@@ -8,6 +8,10 @@ on:
         required: true
         default: "main"
         type: string
+      admin_token:
+        description: "PAT with repo/workflows/actions/secrets write permissions"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -63,11 +67,12 @@ jobs:
 
       - name: Update GitHub secret UPDATE_SIGNING_PRIVATE_KEY
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          ADMIN_TOKEN: ${{ inputs.admin_token }}
           REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
+          echo "::add-mask::${ADMIN_TOKEN}"
           python3 - <<'PY'
           import base64
           import json
@@ -77,7 +82,7 @@ jobs:
           from nacl import public
           from nacl.encoding import RawEncoder
 
-          token = os.environ["GITHUB_TOKEN"]
+          token = os.environ["ADMIN_TOKEN"]
           repository = os.environ["REPOSITORY"]
           private_pem = open(".update-signing/ed25519-private.pem", "r", encoding="utf-8").read()
 
