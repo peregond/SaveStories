@@ -132,7 +132,14 @@ class BootstrapTask(QtCore.QThread):
             ]
             env = os.environ.copy()
             env["DIMASAVE_APP_SUPPORT"] = str(AppPaths.application_support())
-            process = subprocess.run(command, capture_output=True, text=True, env=env)
+            creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+            process = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                env=env,
+                creationflags=creationflags,
+            )
             output = (process.stdout or process.stderr or "").strip()
             self.finished_output.emit(process.returncode == 0, output)
         except Exception as error:
@@ -904,7 +911,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.set_status("Обновление", message)
         self.append_log(message)
-        QtCore.QTimer.singleShot(400, QtWidgets.QApplication.instance().quit)
+        self.append_log("Обновление подготовлено. Перезапусти приложение вручную, когда будет удобно.")
 
     def download_profile(self) -> None:
         profile = self.profile_input.text().strip()
