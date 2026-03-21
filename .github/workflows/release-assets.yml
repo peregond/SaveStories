@@ -101,6 +101,16 @@ jobs:
           Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
           ./windows_app/build_windows.ps1
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+          ./windows_app/build_windows_installer.ps1
+
       - name: Pack Windows release asset
         shell: pwsh
         run: |
@@ -114,7 +124,9 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload $env:RELEASE_TAG "dist/windows/SaveStories-Windows-$env:RELEASE_TAG.zip" --clobber
+        run: |
+          gh release upload $env:RELEASE_TAG "dist/windows/SaveStories-Windows-$env:RELEASE_TAG.zip" --clobber
+          gh release upload $env:RELEASE_TAG "dist/windows/SaveStories-Windows-Setup-$env:RELEASE_TAG.exe" --clobber
 
   publish-update-feed:
     needs:
