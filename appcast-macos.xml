@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>SaveStories Updates</title>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.0</link>
+    <description>Release feed for SaveStories macOS updates.</description>
+    <language>ru</language>
+    <item>
+      <title>SaveStories 0.4.0</title>
+      <pubDate>Sat, 21 Mar 2026 12:03:20 GMT</pubDate>
+      <sparkle:version>27</sparkle:version>
+      <sparkle:shortVersionString>0.4.0</sparkle:shortVersionString>
+      <description><![CDATA[GitHub release v0.4.0 опубликован для SaveStories.]]></description>
+      <enclosure
+        url="https://github.com/peregond/SaveStories/releases/download/v0.4.0/SaveStories-macOS-v0.4.0.dmg"
+        sparkle:os="macos"
+        length="224190735"
+        type="application/x-apple-diskimage"
+        sparkle:edSignature="HhB9+Mk7B7CzX1jZyRJY0wsxDpf3cvahbFiQegqNt6k7F0bTjK+QYoPnIYvMB9k8/e7Lbd1ytnNLTVA2M8w+Dg==" />
+    </item>
+  </channel>
+</rss>
