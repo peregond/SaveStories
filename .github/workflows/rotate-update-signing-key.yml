@@ -1,0 +1,123 @@
+name: Rotate Update Signing Key
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: "Branch to update (for example main or codex/windows11-ui-fix)"
+        required: true
+        default: "main"
+        type: string
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  rotate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout target ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_ref }}
+
+      - name: Generate new Ed25519 keypair
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .update-signing
+          openssl genpkey -algorithm ED25519 -out .update-signing/ed25519-private.pem
+
+      - name: Update publicEDKey in update_config.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import json
+          from pathlib import Path
+          import subprocess
+
+          private_key = Path(".update-signing/ed25519-private.pem")
+          config_path = Path("Sources/DimaSave/Resources/update_config.json")
+
+          der = subprocess.check_output(
+              ["openssl", "pkey", "-in", str(private_key), "-pubout", "-outform", "DER"]
+          )
+          prefix = bytes.fromhex("302a300506032b6570032100")
+          if not der.startswith(prefix):
+              raise RuntimeError("Unexpected DER prefix while extracting Ed25519 public key.")
+          public_key = base64.b64encode(der[len(prefix):]).decode("ascii")
+
+          payload = json.loads(config_path.read_text(encoding="utf-8"))
+          payload["publicEDKey"] = public_key
+          config_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+          print(f"Updated publicEDKey: {public_key}")
+          PY
+
+      - name: Install PyNaCl
+        run: python3 -m pip install --user pynacl
+
+      - name: Update GitHub secret UPDATE_SIGNING_PRIVATE_KEY
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import urllib.request
+
+          from nacl import public
+          from nacl.encoding import RawEncoder
+
+          token = os.environ["GITHUB_TOKEN"]
+          repository = os.environ["REPOSITORY"]
+          private_pem = open(".update-signing/ed25519-private.pem", "r", encoding="utf-8").read()
+
+          headers = {
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/vnd.github+json",
+              "User-Agent": "codex-rotate-update-signing-key",
+          }
+
+          key_url = f"https://api.github.com/repos/{repository}/actions/secrets/public-key"
+          key_req = urllib.request.Request(key_url, headers=headers)
+          with urllib.request.urlopen(key_req, timeout=30) as response:
+              key_payload = json.loads(response.read().decode("utf-8"))
+
+          key_id = key_payload["key_id"]
+          public_key_b64 = key_payload["key"]
+          public_key = public.PublicKey(base64.b64decode(public_key_b64), encoder=RawEncoder)
+          sealed_box = public.SealedBox(public_key)
+          encrypted_value = base64.b64encode(sealed_box.encrypt(private_pem.encode("utf-8"))).decode("ascii")
+
+          body = json.dumps({"encrypted_value": encrypted_value, "key_id": key_id}).encode("utf-8")
+          put_url = f"https://api.github.com/repos/{repository}/actions/secrets/UPDATE_SIGNING_PRIVATE_KEY"
+          put_req = urllib.request.Request(put_url, data=body, headers=headers, method="PUT")
+          with urllib.request.urlopen(put_req, timeout=30) as response:
+              status = response.status
+          if status not in (201, 204):
+              raise RuntimeError(f"Unexpected status while setting secret: {status}")
+          print("Repository secret UPDATE_SIGNING_PRIVATE_KEY has been updated.")
+          PY
+
+      - name: Commit updated public key
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Sources/DimaSave/Resources/update_config.json
+          if git diff --cached --quiet; then
+            echo "No public key change detected."
+            exit 0
+          fi
+          git commit -m "chore(security): rotate update signing key"
+          git push origin "HEAD:${{ inputs.target_ref }}"
