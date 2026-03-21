@@ -1,23 +1,27 @@
 # SaveStories
 
-`SaveStories` — десктопное приложение для выгрузки активных stories из Instagram через локальный `Playwright` worker.
+`SaveStories` — desktop-приложение для выгрузки активных Instagram Stories через локальный `Playwright` worker.
 
-Текущая версия проекта:
+Текущее состояние репозитория:
 
-- `0.3.0`
+- версия исходников: `0.4.5`
+- платформы: `macOS` и `Windows`
+- общий runtime: `Node 24 LTS + Playwright + Chromium`
 
 ## Что уже умеет
 
 - вход в Instagram через встроенный сценарий авторизации
-- проверка сохранённой сессии
-- выгрузка активных stories по ссылке на профиль или username
+- проверка и сохранение Instagram-сессии
+- выгрузка активных stories по ссылке на профиль или `username`
 - пакетная очередь профилей
 - отдельные подпапки для каждого профиля
-- сохранение `manifest`-файла для каждого скачанного media
-- отдельная версия для `macOS`
-- отдельная версия для `Windows`
+- сохранение `manifest`-файлов для скачанных media
+- экран `Главная 2.0` для более удобного пакетного сценария
+- сохранение недавних списков профилей для повторной выгрузки
+- статусная строка с текущим шагом и состоянием очереди
+- анимация завершения с конфетти и коротким звуком успеха
 - автообновление `macOS` через `Sparkle`
-- auto-update `Windows` через `GitHub Releases`
+- автообновление `Windows` через `GitHub Releases`
 
 ## Архитектура
 
@@ -29,16 +33,31 @@
 
 Основной worker:
 
-- [bridge.mjs](node_worker/bridge.mjs)
+- [node_worker/bridge.mjs](/Users/peregon/Documents/DimaSave/node_worker/bridge.mjs)
 
 ## Структура проекта
 
-- [Sources](Sources) — исходники macOS-приложения
-- [windows_app](windows_app) — Windows-клиент и сборочные скрипты
-- [scripts](scripts) — сборка и упаковка macOS
-- [packaging](packaging) — иконки, plist и упаковочные утилиты
-- [.github/workflows](.github/workflows) — GitHub Actions
-- [VERSION](VERSION) — единый номер версии проекта
+- [Sources](/Users/peregon/Documents/DimaSave/Sources) — исходники macOS-приложения
+- [windows_app](/Users/peregon/Documents/DimaSave/windows_app) — Windows-клиент и сборочные скрипты
+- [scripts](/Users/peregon/Documents/DimaSave/scripts) — сборка и упаковка macOS
+- [packaging](/Users/peregon/Documents/DimaSave/packaging) — иконки, plist, DMG background и упаковочные утилиты
+- [.github/workflows](/Users/peregon/Documents/DimaSave/.github/workflows) — GitHub Actions
+- [VERSION](/Users/peregon/Documents/DimaSave/VERSION) — единый номер версии проекта
+
+## Главная 2.0
+
+Новый сценарий `Главная 2.0` доступен и в `macOS`, и в `Windows`.
+
+Что в нём есть:
+
+- единая форма для пакетной вставки ссылок и usernames
+- выбор режима выгрузки
+- быстрый запуск очереди
+- компактная статусная строка
+- недавние наборы профилей
+- переиспользование уже сохранённых списков
+
+Этот экран предназначен как более понятный стартовый сценарий для новых пользователей.
 
 ## macOS
 
@@ -46,12 +65,12 @@ macOS-версия собирается как `.app` и пакуется в `.d
 
 Что внутри release-сборки:
 
-- встроенный `node`
-- встроенный `node_worker`
+- встроенный runtime worker
 - встроенный `Playwright`
 - встроенный `Chromium`
+- `Sparkle` для автообновлений
 
-То есть release-сборка рассчитана на автономный запуск без отдельной установки `Node.js`.
+То есть release-сборка рассчитана на автономный запуск без ручной установки зависимостей.
 
 Локальный запуск из исходников:
 
@@ -75,15 +94,17 @@ swift run DimaSave
 
 Windows-версия лежит в:
 
-- [windows_app](windows_app)
+- [windows_app](/Users/peregon/Documents/DimaSave/windows_app)
 
-Она использует тот же `Node 24 LTS` worker и сейчас поддерживает:
+Она использует тот же общий worker и поддерживает:
 
-- видимый вход в Instagram
+- вход в Instagram
 - проверку сессии
 - выгрузку одного профиля
 - пакетную очередь профилей
-- остановку текущего элемента очереди
+- `Главная 2.0`
+- повторное использование недавних списков
+- проверку и установку обновлений
 
 Сборка `.exe` на Windows:
 
@@ -92,28 +113,37 @@ cd windows_app
 ./build_windows.ps1
 ```
 
-Основной артефакт:
+Сборка установщика:
+
+```powershell
+cd windows_app
+./build_windows_installer.ps1
+```
+
+Основные результаты:
 
 ```text
 dist/windows/SaveStories-Windows/SaveStories-Windows.exe
+dist/windows/SaveStories-Windows-Setup-vX.Y.Z.exe
 ```
 
 Подробнее:
 
-- [windows_app/README.md](windows_app/README.md)
+- [windows_app/README.md](/Users/peregon/Documents/DimaSave/windows_app/README.md)
 
 ## GitHub Releases
 
-Проект умеет автоматически публиковать обе версии в `GitHub Releases`.
+Проект публикует обе платформы через `GitHub Releases`.
 
 Workflow:
 
-- [.github/workflows/release-assets.yml](.github/workflows/release-assets.yml)
+- [release-assets.yml](/Users/peregon/Documents/DimaSave/.github/workflows/release-assets.yml)
 
 Что публикуется в релиз:
 
 - `SaveStories-macOS-vX.Y.Z.dmg`
 - `SaveStories-Windows-vX.Y.Z.zip`
+- `SaveStories-Windows-Setup-vX.Y.Z.exe`
 - `appcast-macos.xml` в ветку `update-feed`
 
 Как выпустить новую версию:
@@ -126,11 +156,11 @@ Workflow:
 
 ```bash
 git add .
-git commit -m "Prepare v0.3.0 release"
+git commit -m "Prepare v0.4.6 release"
 git pull --rebase origin main
 git push origin main
-git tag v0.3.0
-git push origin v0.3.0
+git tag v0.4.6
+git push origin v0.4.6
 ```
 
 После этого GitHub Actions:
@@ -138,15 +168,15 @@ git push origin v0.3.0
 - создаст или обновит release
 - соберёт macOS `.dmg`
 - соберёт Windows `.zip`
-- прикрепит оба файла в раздел `Releases`
-
-Также workflow можно запускать вручную из GitHub Actions и передавать тег, например `v0.3.0`.
+- соберёт Windows installer `.exe`
+- прикрепит артефакты в `Releases`
+- обновит macOS appcast
 
 ## Автообновление
 
 `macOS` использует `Sparkle`, а `Windows` проверяет `GitHub Releases` и умеет поставить portable-обновление после перезапуска приложения.
 
-Для обновлений `macOS` нужен один локальный signing key и один GitHub secret:
+Для обновлений `macOS` нужен локальный signing key и GitHub secret:
 
 ```bash
 ./scripts/generate_update_keys.sh
@@ -170,10 +200,10 @@ git push origin v0.3.0
 
 ```bash
 export APPLE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
-export APPLE_NOTARY_PROFILE="dimasave-notary"
-export DIMASAVE_BUNDLE_ID="com.example.dimasave"
-export DIMASAVE_VERSION="0.3.0"
-export DIMASAVE_BUILD="48"
+export APPLE_NOTARY_PROFILE="savestories-notary"
+export DIMASAVE_BUNDLE_ID="com.example.savestories"
+export DIMASAVE_VERSION="0.4.5"
+export DIMASAVE_BUILD="61"
 ./scripts/build_release_dmg.sh
 ```
 
@@ -185,7 +215,7 @@ dist/release/SaveStories.dmg
 
 ## Локальная разработка
 
-Для запуска из исходников сейчас нужен `Node 24 LTS`, потому что downloader runtime уже переведён на `Node worker`.
+Для запуска из исходников нужен `Node 24 LTS`.
 
 Подготовить локальный worker:
 
@@ -204,10 +234,10 @@ dist/release/SaveStories.dmg
 - Worker хранит persistent browser profile в локальной папке приложения.
 - Для каждого media создаётся отдельный `manifest` с метаданными и `sha256`.
 - Приложение не пытается обходить challenge-экраны, антибот-защиту или приватные ограничения доступа.
-- На данный момент основной сценарий — выгрузка именно активных stories по профилю.
+- Основной сценарий проекта — выгрузка именно активных stories по профилю.
 
 ## Дополнительно
 
-- Windows README: [windows_app/README.md](windows_app/README.md)
-- Release workflow: [.github/workflows/release-assets.yml](.github/workflows/release-assets.yml)
-- Windows EXE workflow: [.github/workflows/windows-exe.yml](.github/workflows/windows-exe.yml)
+- Windows README: [windows_app/README.md](/Users/peregon/Documents/DimaSave/windows_app/README.md)
+- Release workflow: [.github/workflows/release-assets.yml](/Users/peregon/Documents/DimaSave/.github/workflows/release-assets.yml)
+- Windows EXE workflow: [.github/workflows/windows-exe.yml](/Users/peregon/Documents/DimaSave/.github/workflows/windows-exe.yml)
