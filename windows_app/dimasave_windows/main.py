@@ -631,10 +631,9 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             write_crash_log("MainWindow.prepare", "Startup UI prepare started.")
             self.append_log(f"Подготовлены папки приложения в {AppPaths.application_support()}.")
-            self.set_status("Готово", "Приложение запущено. Выполню безопасную проверку среды через пару секунд.")
-            self.activity_subtitle.setText("Приложение запущено. Жду стабилизации UI и затем проверю среду и сессию.")
-            QtCore.QTimer.singleShot(1800, self.startup_probe)
-            write_crash_log("MainWindow.prepare", "Startup UI prepare finished. Delayed startup probe scheduled.")
+            self.set_status("Готово", "Приложение запущено. Автоматические фоновые проверки отключены.")
+            self.activity_subtitle.setText("Приложение запущено. Проверки среды, сессии и обновлений доступны вручную в настройках.")
+            write_crash_log("MainWindow.prepare", "Startup UI prepare finished with startup background checks disabled.")
         except Exception as error:
             details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
             write_crash_log("Startup prepare failure", details)
