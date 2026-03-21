@@ -66,12 +66,17 @@ class WorkerClient:
         environment["DIMASAVE_DEFAULT_DOWNLOADS"] = str(AppPaths.default_downloads())
         environment["DIMASAVE_WORKER_RUNTIME"] = runtime
 
+        creationflags = 0
+        if os.name == "nt":
+            creationflags = subprocess.CREATE_NO_WINDOW
+
         process = subprocess.Popen(
             command,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=environment,
+            creationflags=creationflags,
         )
         self.current_process = process
         stdout_data, stderr_data = process.communicate((json.dumps(asdict(request)) + "\n").encode("utf-8"))
