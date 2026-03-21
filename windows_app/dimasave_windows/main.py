@@ -289,8 +289,13 @@ class MainWindow(QtWidgets.QMainWindow):
         AppPaths.ensure_directories()
 
         self.setWindowTitle("SaveStories for Windows")
-        self.setMinimumSize(1100, 720)
-        self.resize(1360, 860)
+        self.setMinimumSize(960, 620)
+        default_size = QtCore.QSize(1180, 740)
+        saved_geometry = self.settings_store.value("window_geometry")
+        if isinstance(saved_geometry, QtCore.QByteArray) and not saved_geometry.isEmpty():
+            self.restoreGeometry(saved_geometry)
+        else:
+            self.resize(default_size)
         self._build_ui()
         self._apply_styles()
 
@@ -1217,6 +1222,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         if self.login_poll_timer.isActive():
             self.login_poll_timer.stop()
+        self.settings_store.setValue("window_geometry", self.saveGeometry())
         write_crash_log("MainWindow.closeEvent", "Window close requested.")
         super().closeEvent(event)
 
@@ -1249,3 +1255,5 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     raise SystemExit(main())
+
+
