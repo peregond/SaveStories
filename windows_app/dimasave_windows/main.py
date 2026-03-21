@@ -820,7 +820,7 @@ class MainWindow(QtWidgets.QMainWindow):
         open_button = dialog.addButton("Открыть браузер", QtWidgets.QMessageBox.AcceptRole)
         dialog.addButton("Позже", QtWidgets.QMessageBox.RejectRole)
         dialog.exec()
-        if dialog.clickedButton() is open_button:
+        if dialog.clickedButton() == open_button:
             self.login()
         else:
             self.append_log("Вход в Instagram отложен пользователем.")
@@ -908,7 +908,7 @@ class MainWindow(QtWidgets.QMainWindow):
         install_button = dialog.addButton("Установить", QtWidgets.QMessageBox.AcceptRole)
         dialog.addButton("Позже", QtWidgets.QMessageBox.RejectRole)
         dialog.exec()
-        if dialog.clickedButton() is install_button:
+        if dialog.clickedButton() == install_button:
             self.install_update(release, initiated_by_user=True)
 
     def install_update(self, release: ReleaseInfo, *, initiated_by_user: bool = False) -> None:
