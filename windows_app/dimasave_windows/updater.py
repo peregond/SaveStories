@@ -130,7 +130,11 @@ class WindowsUpdater:
                 "-File",
                 str(script_path),
             ],
-            creationflags=0x00000008,
+            creationflags=(
+                subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+                if sys.platform == "win32"
+                else 0
+            ),
         )
 
         return f"Обновление {release.version} скачано. Перезапускаю приложение для установки."
