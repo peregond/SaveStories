@@ -29,10 +29,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          release_notes=$'Добавили новую Главную 2.0, чтобы протестировать.\n\nВ релиз также вошли улучшения UI и обновлённый сценарий работы со списками профилей.'
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG"
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG" --notes "$release_notes"
           else
-            gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --title "$RELEASE_TAG" --generate-notes
+            gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --title "$RELEASE_TAG" --notes "$release_notes"
           fi
 
   build-macos:
@@ -172,7 +173,7 @@ jobs:
             --version "${RELEASE_TAG#v}" \
             --build "${GITHUB_RUN_NUMBER}" \
             --mime-type "application/x-apple-diskimage" \
-            --notes "GitHub release ${RELEASE_TAG} опубликован для SaveStories." \
+            --notes "Добавили новую Главную 2.0, чтобы протестировать. В релиз также вошли улучшения UI и обновлённый сценарий списочной выгрузки." \
             --output "${RUNNER_TEMP}/appcast-macos.xml"
 
       - name: Publish update feed branch

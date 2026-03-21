@@ -4,6 +4,8 @@ import Foundation
 
 @MainActor
 final class AppModel: ObservableObject {
+    private static let recentBatchListsKey = "SaveStories.recentBatchLists"
+    private static let successSoundNames = ["Glass", "Hero", "Funk", "Pop"]
     private static let logDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ru_RU")
@@ -17,6 +19,24 @@ final class AppModel: ObservableObject {
         let message: String
         let foundCount: Int
         let savedCount: Int
+    }
+
+    struct RecentBatchList: Identifiable, Codable, Hashable {
+        let id: UUID
+        var title: String
+        var urls: [String]
+        var createdAt: Date
+
+        init(id: UUID = UUID(), title: String, urls: [String], createdAt: Date = Date()) {
+            self.id = id
+            self.title = title
+            self.urls = urls
+            self.createdAt = createdAt
+        }
+
+        var subtitle: String {
+            "\(urls.count) профилей"
+        }
     }
 
     struct BatchProfileItem: Identifiable, Hashable {
@@ -112,12 +132,14 @@ final class AppModel: ObservableObject {
     @Published var workerReady = false
     @Published var sessionReady = false
     @Published var showLoginPrompt = false
+    @Published var recentBatchLists: [RecentBatchList] = []
     @Published var batchIsRunning = false
     @Published var batchStopRequested = false
     @Published var batchCurrentIndex = 0
     @Published var batchTotalCount = 0
     @Published var batchRemainingCount = 0
     @Published var batchCurrentURL: String = ""
+    @Published var celebrationToken = 0
 
     private let worker = WorkerClient()
     private let bootstrapper = WorkerBootstrapper()
@@ -128,6 +150,7 @@ final class AppModel: ObservableObject {
     init() {
         updateSummary = appUpdater.summary
         canCheckForUpdates = appUpdater.isAvailable
+        loadRecentBatchLists()
     }
 
     func prepare() async {
@@ -291,6 +314,52 @@ final class AppModel: ObservableObject {
         appendLog("Очередь пакетной выгрузки очищена.")
     }
 
+    func rememberCurrentBatchList() {
+        let urls = batchQueue.map(\.url)
+        guard !urls.isEmpty else {
+            appendLog("Нечего запоминать: очередь профилей пока пуста.")
+            return
+        }
+
+        let title = suggestedRecentListTitle(for: urls)
+        storeRecentBatchList(title: title, urls: urls)
+        appendLog("Список профилей сохранён в недавние: \(title).")
+    }
+
+    func applyRecentBatchList(_ list: RecentBatchList) {
+        let existing = Set(batchQueue.map { normalizedProfileLink($0.url) })
+        var seen = existing
+        let newItems = list.urls
+            .map(normalizedProfileLink)
+            .filter { candidate in
+                guard !seen.contains(candidate) else { return false }
+                seen.insert(candidate)
+                return true
+            }
+            .map { BatchProfileItem(url: $0, message: "Добавлено из недавнего списка.") }
+
+        guard !newItems.isEmpty else {
+            appendLog("Все профили из списка «\(list.title)» уже есть в очереди.")
+            return
+        }
+
+        batchQueue.append(contentsOf: newItems)
+        appendLog("Из списка «\(list.title)» добавлено профилей: \(newItems.count).")
+    }
+
+    func replaceQueueWithRecentBatchList(_ list: RecentBatchList) {
+        guard !isBusy else { return }
+        batchQueue = list.urls.map { BatchProfileItem(url: normalizedProfileLink($0), message: "Загружено из недавнего списка.") }
+        resetBatchProgress()
+        appendLog("Очередь заменена списком «\(list.title)».")
+    }
+
+    func removeRecentBatchList(id: UUID) {
+        recentBatchLists.removeAll { $0.id == id }
+        persistRecentBatchLists()
+        appendLog("Недавний список удалён.")
+    }
+
     func runBatchDownloads() async {
         let pendingItems = batchQueue.filter { $0.status == .pending || $0.status == .failed }
         guard !pendingItems.isEmpty else {
@@ -299,6 +368,10 @@ final class AppModel: ObservableObject {
         }
 
         await perform("Пакетная выгрузка активных stories") {
+            self.storeRecentBatchList(
+                title: self.suggestedRecentListTitle(for: pendingItems.map(\.url)),
+                urls: pendingItems.map(\.url)
+            )
             self.batchIsRunning = true
             self.batchStopRequested = false
             self.batchCurrentIndex = 1
@@ -353,6 +426,9 @@ final class AppModel: ObservableObject {
             self.statusDetail = "Обработано \(processedCount) профилей. Сохранено файлов: \(self.savedStoriesCount)."
             self.lastResult = self.statusDetail
             self.currentStepLabel = failedCount == 0 ? "Очередь обработана." : "Очередь завершилась с ошибками."
+            if self.savedStoriesCount > 0 {
+                self.triggerCelebration()
+            }
             self.batchRemainingCount = 0
             self.batchCurrentURL = ""
             self.batchCurrentIndex = 0
@@ -452,6 +528,9 @@ final class AppModel: ObservableObject {
         statusDetail = response.message
         lastResult = response.message
         currentStepLabel = response.ok ? "Обработка завершена." : "Обработка завершилась ошибкой."
+        if response.ok && savedStoriesCount > 0 && response.status == "download_complete" {
+            triggerCelebration()
+        }
         appendLog("[\(response.status)] \(response.message)")
 
         for log in response.logs {
@@ -586,6 +665,61 @@ final class AppModel: ObservableObject {
         batchTotalCount = 0
         batchRemainingCount = 0
         batchCurrentURL = ""
+    }
+
+    private func triggerCelebration() {
+        celebrationToken += 1
+        playSuccessSound()
+    }
+
+    private func playSuccessSound() {
+        for name in Self.successSoundNames {
+            if let sound = NSSound(named: NSSound.Name(name)) {
+                sound.volume = 0.72
+                sound.play()
+                return
+            }
+        }
+    }
+
+    private func suggestedRecentListTitle(for urls: [String]) -> String {
+        let normalized = urls.map(normalizedProfileLink)
+        guard let first = normalized.first else { return "Недавний список" }
+        let username = first
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            .split(separator: "/")
+            .last
+            .map(String.init) ?? "profiles"
+        return normalized.count == 1 ? username : "\(username) +\(normalized.count - 1)"
+    }
+
+    private func loadRecentBatchLists() {
+        guard let data = UserDefaults.standard.data(forKey: Self.recentBatchListsKey),
+              let decoded = try? JSONDecoder().decode([RecentBatchList].self, from: data) else {
+            recentBatchLists = []
+            return
+        }
+        recentBatchLists = decoded
+    }
+
+    private func persistRecentBatchLists() {
+        guard let data = try? JSONEncoder().encode(recentBatchLists) else { return }
+        UserDefaults.standard.set(data, forKey: Self.recentBatchListsKey)
+    }
+
+    private func storeRecentBatchList(title: String, urls: [String]) {
+        let normalizedURLs = urls.map(normalizedProfileLink)
+        guard !normalizedURLs.isEmpty else { return }
+
+        recentBatchLists.removeAll { $0.urls.map(normalizedProfileLink) == normalizedURLs }
+        recentBatchLists.insert(
+            RecentBatchList(title: title, urls: normalizedURLs),
+            at: 0
+        )
+        if recentBatchLists.count > 8 {
+            recentBatchLists = Array(recentBatchLists.prefix(8))
+        }
+        persistRecentBatchLists()
     }
 
     private func appendLog(_ message: String) {
