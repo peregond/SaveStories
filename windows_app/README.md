@@ -63,6 +63,12 @@ cd windows_app
 dist/windows/SaveStories-Windows/SaveStories-Windows.exe
 ```
 
+Установщик Windows:
+
+```text
+dist/windows/SaveStories-Windows-Setup-vX.Y.Z.exe
+```
+
 Полная папка сборки:
 
 ```text
