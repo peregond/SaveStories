@@ -32,12 +32,27 @@ jobs:
           Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
           ./windows_app/build_windows.ps1
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+          ./windows_app/build_windows_installer.ps1
+
       - name: Validate executable
         shell: pwsh
         run: |
           $exePath = "dist/windows/SaveStories-Windows/SaveStories-Windows.exe"
           if (-not (Test-Path $exePath)) {
             throw "Missing expected executable: $exePath"
+          }
+          $version = (Get-Content VERSION -Raw).Trim()
+          $setupPath = "dist/windows/SaveStories-Windows-Setup-v$version.exe"
+          if (-not (Test-Path $setupPath)) {
+            throw "Missing expected installer: $setupPath"
           }
 
       - name: Package artifact
@@ -54,3 +69,5 @@ jobs:
             dist/windows/SaveStories-Windows
             dist/windows/SaveStories-Windows.zip
             dist/windows/SaveStories-Windows.sha256
+            dist/windows/SaveStories-Windows-Setup-v*.exe
+            dist/windows/SaveStories-Windows-Setup-v*.sha256
