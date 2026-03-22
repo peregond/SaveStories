@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import os
@@ -90,11 +90,11 @@ def parse_batch_links(raw: str) -> list[str]:
 
 def batch_status_title(value: str) -> str:
     mapping = {
-        "pending": "Р’ РѕС‡РµСЂРµРґРё",
-        "running": "РЎРєР°С‡РёРІР°РµС‚СЃСЏ",
-        "completed": "Р“РѕС‚РѕРІРѕ",
-        "failed": "РћС€РёР±РєР°",
-        "stopped": "РћСЃС‚Р°РЅРѕРІР»РµРЅРѕ",
+        "pending": "В очереди",
+        "running": "Скачивается",
+        "completed": "Готово",
+        "failed": "Ошибка",
+        "stopped": "Остановлено",
     }
     return mapping.get(value, value)
 
@@ -198,7 +198,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("РќР°СЃС‚СЂРѕР№РєРё")
+        self.setWindowTitle("Настройки")
         self.setModal(True)
         self.resize(560, 420)
 
@@ -206,34 +206,34 @@ class SettingsDialog(QtWidgets.QDialog):
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(14)
 
-        title = QtWidgets.QLabel("РЎР»СѓР¶РµР±РЅС‹Рµ РЅР°СЃС‚СЂРѕР№РєРё")
+        title = QtWidgets.QLabel("Служебные настройки")
         title.setObjectName("dialogTitle")
         layout.addWidget(title)
 
-        self.worker_label = QtWidgets.QLabel("Р’РѕСЂРєРµСЂ РµС‰С‘ РЅРµ РїСЂРѕРІРµСЂСЏР»СЃСЏ.")
+        self.worker_label = QtWidgets.QLabel("Воркер ещё не проверялся.")
         self.worker_label.setWordWrap(True)
-        self.session_label = QtWidgets.QLabel("РЎРѕСЃС‚РѕСЏРЅРёРµ СЃРµСЃСЃРёРё РЅРµРёР·РІРµСЃС‚РЅРѕ.")
+        self.session_label = QtWidgets.QLabel("Состояние сессии неизвестно.")
         self.session_label.setWordWrap(True)
-        self.update_label = QtWidgets.QLabel("РђРІС‚РѕРѕР±РЅРѕРІР»РµРЅРёРµ РµС‰С‘ РЅРµ РёРЅРёС†РёР°Р»РёР·РёСЂРѕРІР°РЅРѕ.")
+        self.update_label = QtWidgets.QLabel("Автообновление ещё не инициализировано.")
         self.update_label.setWordWrap(True)
         self.runtime_text = QtWidgets.QPlainTextEdit()
         self.runtime_text.setReadOnly(True)
         self.runtime_text.setMinimumHeight(170)
 
-        layout.addWidget(self._group("РћР±РЅРѕРІР»РµРЅРёСЏ", self.update_label))
-        layout.addWidget(self._group("Р’РѕСЂРєРµСЂ", self.worker_label))
-        layout.addWidget(self._group("РЎРµСЃСЃРёСЏ", self.session_label))
-        layout.addWidget(self._group("РЎСЂРµРґР°", self.runtime_text), 1)
+        layout.addWidget(self._group("Обновления", self.update_label))
+        layout.addWidget(self._group("Воркер", self.worker_label))
+        layout.addWidget(self._group("Сессия", self.session_label))
+        layout.addWidget(self._group("Среда", self.runtime_text), 1)
 
         button_row = QtWidgets.QHBoxLayout()
         button_row.setSpacing(10)
         for text, signal in [
-            ("РЈСЃС‚Р°РЅРѕРІРёС‚СЊ РґРІРёР¶РѕРє", self.bootstrap_requested),
-            ("РџСЂРѕРІРµСЂРёС‚СЊ СЃСЂРµРґСѓ", self.refresh_requested),
-            ("РћС‚РєСЂС‹С‚СЊ Р±СЂР°СѓР·РµСЂ РґР»СЏ РІС…РѕРґР°", self.login_requested),
-            ("РџСЂРѕРІРµСЂРёС‚СЊ СЃРµСЃСЃРёСЋ", self.session_check_requested),
-            ("РџСЂРѕРІРµСЂРёС‚СЊ РѕР±РЅРѕРІР»РµРЅРёСЏ", self.update_check_requested),
-            ("РћС‚РєСЂС‹С‚СЊ РїР°РїРєСѓ СЃСЂРµРґС‹", self.open_runtime_requested),
+            ("Установить движок", self.bootstrap_requested),
+            ("Проверить среду", self.refresh_requested),
+            ("Открыть браузер для входа", self.login_requested),
+            ("Проверить сессию", self.session_check_requested),
+            ("Проверить обновления", self.update_check_requested),
+            ("Открыть папку среды", self.open_runtime_requested),
         ]:
             button = QtWidgets.QPushButton(text)
             button.clicked.connect(signal)
@@ -275,8 +275,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.worker_ready = False
         self.session_ready = False
-        self.worker_summary = "Р’РѕСЂРєРµСЂ РµС‰С‘ РЅРµ РїСЂРѕРІРµСЂСЏР»СЃСЏ."
-        self.session_summary = "РЎРѕСЃС‚РѕСЏРЅРёРµ СЃРµСЃСЃРёРё РЅРµРёР·РІРµСЃС‚РЅРѕ."
+        self.worker_summary = "Воркер ещё не проверялся."
+        self.session_summary = "Состояние сессии неизвестно."
         self.runtime_summary = ""
         self.update_summary = self.updater.summary
         self.download_mode = self.settings_store.value("download_mode", "background")
@@ -360,8 +360,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         for index, (text, detail) in enumerate(
             [
-                ("РЎРїРёСЃРѕС‡РЅР°СЏ", "РћС‡РµСЂРµРґСЊ РїСЂРѕС„РёР»РµР№"),
-                ("Р“Р»Р°РІРЅР°СЏ", "РўРµРєСѓС‰РёР№ СЂРµР¶РёРј РІС‹РіСЂСѓР·РєРё"),
+                ("Списочная", "Очередь профилей"),
+                ("Главная", "Текущий режим выгрузки"),
             ]
         ):
             button = QtWidgets.QPushButton(f"{text}\n{detail}")
@@ -382,7 +382,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.apply_update_sidebar_button.clicked.connect(self.apply_prepared_update)
         layout.addWidget(self.apply_update_sidebar_button)
 
-        settings_button = QtWidgets.QPushButton("РќР°СЃС‚СЂРѕР№РєРё")
+        settings_button = QtWidgets.QPushButton("Настройки")
         settings_button.clicked.connect(self.open_settings)
         layout.addWidget(settings_button)
 
@@ -403,7 +403,7 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(18)
 
-        layout.addWidget(self._hero("SaveStories", "Windows-РєР»РёРµРЅС‚ РґР»СЏ РІС‹РіСЂСѓР·РєРё Р°РєС‚РёРІРЅС‹С… stories РёР· Instagram РїРѕ СЃСЃС‹Р»РєРµ РЅР° РїСЂРѕС„РёР»СЊ."))
+        layout.addWidget(self._hero("SaveStories", "Windows-клиент для выгрузки активных stories из Instagram по ссылке на профиль."))
         layout.addWidget(self._status_card())
         layout.addWidget(self._save_directory_card())
         layout.addWidget(self._profile_card())
@@ -416,32 +416,32 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(18)
 
-        layout.addWidget(self._hero("РЎРїРёСЃРѕС‡РЅР°СЏ РІС‹РіСЂСѓР·РєР°", "Р”РѕР±Р°РІСЊ СЃСЂР°Р·Сѓ РЅРµСЃРєРѕР»СЊРєРѕ СЃСЃС‹Р»РѕРє РёР»Рё usernames. РџСЂРёР»РѕР¶РµРЅРёРµ РѕР±СЂР°Р±РѕС‚Р°РµС‚ РїСЂРѕС„РёР»Рё РїРѕ РѕС‡РµСЂРµРґРё."))
+        layout.addWidget(self._hero("Списочная выгрузка", "Добавь сразу несколько ссылок или usernames. Приложение обработает профили по очереди."))
 
-        input_card = QtWidgets.QGroupBox("Р”РѕР±Р°РІРёС‚СЊ РїСЂРѕС„РёР»Рё")
+        input_card = QtWidgets.QGroupBox("Добавить профили")
         input_layout = QtWidgets.QVBoxLayout(input_card)
         self.batch_input = QtWidgets.QPlainTextEdit()
-        self.batch_input.setPlaceholderText("Р’СЃС‚Р°РІСЊ РїРѕ РѕРґРЅРѕР№ СЃСЃС‹Р»РєРµ РёР»Рё username РЅР° СЃС‚СЂРѕРєСѓ.\nРќР°РїСЂРёРјРµСЂ:\nhttps://www.instagram.com/dian.vegas1/\nmonetentony")
+        self.batch_input.setPlaceholderText("Вставь по одной ссылке или username на строку.\nНапример:\nhttps://www.instagram.com/dian.vegas1/\nmonetentony")
         self.batch_input.setFixedHeight(120)
         input_layout.addWidget(self.batch_input)
 
         input_buttons = QtWidgets.QHBoxLayout()
-        add_button = QtWidgets.QPushButton("Р”РѕР±Р°РІРёС‚СЊ РІ РѕС‡РµСЂРµРґСЊ")
+        add_button = QtWidgets.QPushButton("Добавить в очередь")
         add_button.clicked.connect(self.add_batch_profiles)
-        clear_input = QtWidgets.QPushButton("РћС‡РёСЃС‚РёС‚СЊ РїРѕР»Рµ")
+        clear_input = QtWidgets.QPushButton("Очистить поле")
         clear_input.clicked.connect(self.batch_input.clear)
         input_buttons.addWidget(add_button)
         input_buttons.addWidget(clear_input)
         input_layout.addLayout(input_buttons)
         layout.addWidget(input_card)
 
-        queue_card = QtWidgets.QGroupBox("РћС‡РµСЂРµРґСЊ РїСЂРѕС„РёР»РµР№")
+        queue_card = QtWidgets.QGroupBox("Очередь профилей")
         queue_layout = QtWidgets.QVBoxLayout(queue_card)
-        self.batch_progress_label = QtWidgets.QLabel("РћС‡РµСЂРµРґСЊ РїРѕРєР° РїСѓСЃС‚Р°.")
+        self.batch_progress_label = QtWidgets.QLabel("Очередь пока пуста.")
         queue_layout.addWidget(self.batch_progress_label)
 
         self.batch_table = QtWidgets.QTableWidget(0, 3)
-        self.batch_table.setHorizontalHeaderLabels(["РџСЂРѕС„РёР»СЊ", "РЎС‚Р°С‚СѓСЃ", "РЎРѕРѕР±С‰РµРЅРёРµ"])
+        self.batch_table.setHorizontalHeaderLabels(["Профиль", "Статус", "Сообщение"])
         self.batch_table.horizontalHeader().setStretchLastSection(True)
         self.batch_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
         self.batch_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
@@ -452,12 +452,12 @@ class MainWindow(QtWidgets.QMainWindow):
         queue_layout.addWidget(self.batch_table)
 
         queue_buttons = QtWidgets.QHBoxLayout()
-        self.batch_run_button = QtWidgets.QPushButton("РЎРєР°С‡Р°С‚СЊ РѕС‡РµСЂРµРґСЊ")
+        self.batch_run_button = QtWidgets.QPushButton("Скачать очередь")
         self.batch_run_button.clicked.connect(self.start_batch)
-        self.batch_stop_button = QtWidgets.QPushButton("РћСЃС‚Р°РЅРѕРІРёС‚СЊ")
+        self.batch_stop_button = QtWidgets.QPushButton("Остановить")
         self.batch_stop_button.clicked.connect(self.stop_batch)
         self.batch_stop_button.setEnabled(False)
-        clear_button = QtWidgets.QPushButton("РћС‡РёСЃС‚РёС‚СЊ РѕС‡РµСЂРµРґСЊ")
+        clear_button = QtWidgets.QPushButton("Очистить очередь")
         clear_button.clicked.connect(self.clear_batch)
         queue_buttons.addWidget(self.batch_run_button)
         queue_buttons.addWidget(self.batch_stop_button)
@@ -476,35 +476,35 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(18)
 
-        title = QtWidgets.QLabel("РђРєС‚РёРІРЅРѕСЃС‚СЊ")
+        title = QtWidgets.QLabel("Активность")
         title.setObjectName("panelTitle")
-        self.activity_subtitle = QtWidgets.QLabel("РџРѕРєР° РЅРµС‚ РґРµР№СЃС‚РІРёР№.")
+        self.activity_subtitle = QtWidgets.QLabel("Пока нет действий.")
         self.activity_subtitle.setWordWrap(True)
         layout.addWidget(title)
         layout.addWidget(self.activity_subtitle)
 
-        status_group = QtWidgets.QGroupBox("РЎС‚Р°С‚СѓСЃ Р·Р°РіСЂСѓР·РєРё")
+        status_group = QtWidgets.QGroupBox("Статус загрузки")
         status_layout = QtWidgets.QVBoxLayout(status_group)
-        self.status_title_label = QtWidgets.QLabel("РћР¶РёРґР°РЅРёРµ")
+        self.status_title_label = QtWidgets.QLabel("Ожидание")
         self.status_title_label.setObjectName("statusTitle")
-        self.status_detail_label = QtWidgets.QLabel("РџСЂРёР»РѕР¶РµРЅРёРµ РіРѕС‚РѕРІРѕ Рє СЂР°Р±РѕС‚Рµ.")
+        self.status_detail_label = QtWidgets.QLabel("Приложение готово к работе.")
         self.status_detail_label.setWordWrap(True)
-        self.found_label = QtWidgets.QLabel("РќР°Р№РґРµРЅРѕ: 0")
-        self.saved_label = QtWidgets.QLabel("РЎРѕС…СЂР°РЅРµРЅРѕ: 0")
+        self.found_label = QtWidgets.QLabel("Найдено: 0")
+        self.saved_label = QtWidgets.QLabel("Сохранено: 0")
         status_layout.addWidget(self.status_title_label)
         status_layout.addWidget(self.status_detail_label)
         status_layout.addWidget(self.found_label)
         status_layout.addWidget(self.saved_label)
         layout.addWidget(status_group)
 
-        downloads_group = QtWidgets.QGroupBox("РџРѕСЃР»РµРґРЅРёРµ Р·Р°РіСЂСѓР·РєРё")
+        downloads_group = QtWidgets.QGroupBox("Последние загрузки")
         downloads_layout = QtWidgets.QVBoxLayout(downloads_group)
         self.downloads_list = QtWidgets.QListWidget()
         self.downloads_list.itemDoubleClicked.connect(self.open_download_item)
         downloads_layout.addWidget(self.downloads_list)
         layout.addWidget(downloads_group, 1)
 
-        logs_group = QtWidgets.QGroupBox("Р›РѕРіРё")
+        logs_group = QtWidgets.QGroupBox("Логи")
         logs_layout = QtWidgets.QVBoxLayout(logs_group)
         self.logs_text = QtWidgets.QPlainTextEdit()
         self.logs_text.setReadOnly(True)
@@ -531,29 +531,29 @@ class MainWindow(QtWidgets.QMainWindow):
         return host
 
     def _status_card(self) -> QtWidgets.QWidget:
-        box = QtWidgets.QGroupBox("РЎРѕСЃС‚РѕСЏРЅРёРµ")
+        box = QtWidgets.QGroupBox("Состояние")
         layout = QtWidgets.QVBoxLayout(box)
         self.home_worker_summary = QtWidgets.QLabel(self.worker_summary)
         self.home_worker_summary.setWordWrap(True)
         self.home_session_summary = QtWidgets.QLabel(self.session_summary)
         self.home_session_summary.setWordWrap(True)
-        layout.addWidget(QtWidgets.QLabel("Р’РѕСЂРєРµСЂ"))
+        layout.addWidget(QtWidgets.QLabel("Воркер"))
         layout.addWidget(self.home_worker_summary)
-        layout.addWidget(QtWidgets.QLabel("РЎРµСЃСЃРёСЏ"))
+        layout.addWidget(QtWidgets.QLabel("Сессия"))
         layout.addWidget(self.home_session_summary)
         return box
 
     def _save_directory_card(self, *, batch_mode: bool = False) -> QtWidgets.QWidget:
-        box = QtWidgets.QGroupBox("РџР°РїРєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ")
+        box = QtWidgets.QGroupBox("Папка сохранения")
         layout = QtWidgets.QVBoxLayout(box)
         line_edit = QtWidgets.QLineEdit(str(self.save_directory))
         line_edit.setReadOnly(True)
         layout.addWidget(line_edit)
 
         button_row = QtWidgets.QHBoxLayout()
-        choose = QtWidgets.QPushButton("Р’С‹Р±СЂР°С‚СЊ РїР°РїРєСѓ")
+        choose = QtWidgets.QPushButton("Выбрать папку")
         choose.clicked.connect(lambda: self.choose_save_directory(line_edit))
-        show = QtWidgets.QPushButton("РџРѕРєР°Р·Р°С‚СЊ")
+        show = QtWidgets.QPushButton("Показать")
         show.clicked.connect(self.open_save_directory)
         button_row.addWidget(choose)
         button_row.addWidget(show)
@@ -566,7 +566,7 @@ class MainWindow(QtWidgets.QMainWindow):
         return box
 
     def _profile_card(self) -> QtWidgets.QWidget:
-        box = QtWidgets.QGroupBox("РЎСЃС‹Р»РєР° РЅР° РїСЂРѕС„РёР»СЊ")
+        box = QtWidgets.QGroupBox("Ссылка на профиль")
         layout = QtWidgets.QVBoxLayout(box)
 
         self.profile_input = QtWidgets.QLineEdit()
@@ -574,7 +574,7 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.profile_input)
         layout.addWidget(self._mode_card())
 
-        button = QtWidgets.QPushButton("РЎРєР°С‡Р°С‚СЊ Р°РєС‚РёРІРЅС‹Рµ stories")
+        button = QtWidgets.QPushButton("Скачать активные stories")
         button.clicked.connect(self.download_profile)
         layout.addWidget(button)
         return box
@@ -585,14 +585,14 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
-        label = QtWidgets.QLabel("Р РµР¶РёРј РІС‹РіСЂСѓР·РєРё")
+        label = QtWidgets.QLabel("Режим выгрузки")
         label.setObjectName("sectionLabel")
         combo = QtWidgets.QComboBox()
-        combo.addItem("Р’ С„РѕРЅРµ", "background")
-        combo.addItem("Р’РёРґРёРјРѕ", "visible")
+        combo.addItem("В фоне", "background")
+        combo.addItem("Видимо", "visible")
         combo.setCurrentIndex(0 if self.download_mode == "background" else 1)
         combo.currentIndexChanged.connect(self.on_mode_changed)
-        detail = QtWidgets.QLabel("Р’ С„РѕРЅРµ Р±СЂР°СѓР·РµСЂ РЅРµ РїРѕРєР°Р·С‹РІР°РµС‚СЃСЏ. Р’РёРґРёРјРѕ РѕС‚РєСЂС‹РІР°РµС‚ РѕРєРЅРѕ Chromium РІРѕ РІСЂРµРјСЏ РІС‹РіСЂСѓР·РєРё.")
+        detail = QtWidgets.QLabel("В фоне браузер не показывается. Видимо открывает окно Chromium во время выгрузки.")
         detail.setWordWrap(True)
 
         layout.addWidget(label)
@@ -731,14 +731,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def prepare(self) -> None:
         try:
             write_crash_log("MainWindow.prepare", "Startup UI prepare started.")
-            self.append_log(f"РџРѕРґРіРѕС‚РѕРІР»РµРЅС‹ РїР°РїРєРё РїСЂРёР»РѕР¶РµРЅРёСЏ РІ {AppPaths.application_support()}.")
-            self.set_status("Р“РѕС‚РѕРІРѕ", "РџСЂРёР»РѕР¶РµРЅРёРµ Р·Р°РїСѓС‰РµРЅРѕ. РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРёРµ С„РѕРЅРѕРІС‹Рµ РїСЂРѕРІРµСЂРєРё РѕС‚РєР»СЋС‡РµРЅС‹.")
-            self.activity_subtitle.setText("РџСЂРёР»РѕР¶РµРЅРёРµ Р·Р°РїСѓС‰РµРЅРѕ. РџСЂРѕРІРµСЂРєРё СЃСЂРµРґС‹, СЃРµСЃСЃРёРё Рё РѕР±РЅРѕРІР»РµРЅРёР№ РґРѕСЃС‚СѓРїРЅС‹ РІСЂСѓС‡РЅСѓСЋ РІ РЅР°СЃС‚СЂРѕР№РєР°С….")
+            self.append_log(f"Подготовлены папки приложения в {AppPaths.application_support()}.")
+            self.set_status("Готово", "Приложение запущено. Автоматические фоновые проверки отключены.")
+            self.activity_subtitle.setText("Приложение запущено. Проверки среды, сессии и обновлений доступны вручную в настройках.")
             write_crash_log("MainWindow.prepare", "Startup UI prepare finished with startup background checks disabled.")
         except Exception as error:
             details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
             write_crash_log("Startup prepare failure", details)
-            self.set_status("РћС€РёР±РєР°", f"РћС€РёР±РєР° Р·Р°РїСѓСЃРєР°: {error}")
+            self.set_status("Ошибка", f"Ошибка запуска: {error}")
             self.append_log(f"[startup_error] {error}")
 
     def auto_check_for_updates(self) -> None:
@@ -771,13 +771,13 @@ class MainWindow(QtWidgets.QMainWindow):
             write_crash_log("startup_probe", "Skipped because another request is already active.")
             QtCore.QTimer.singleShot(2000, self.startup_probe)
             return
-        self.append_log("Р—Р°РїСѓСЃРєР°СЋ РѕС‚Р»РѕР¶РµРЅРЅСѓСЋ РїСЂРѕРІРµСЂРєСѓ СЃСЂРµРґС‹ Рё Instagram-СЃРµСЃСЃРёРё.")
+        self.append_log("Запускаю отложенную проверку среды и Instagram-сессии.")
         self.refresh_environment(startup=True)
 
     def refresh_environment(self, *, startup: bool = False) -> None:
         self.start_request(
             WorkerRequest(command="environment", urls=None),
-            "РџСЂРѕРІРµСЂРєР° СЃСЂРµРґС‹ РІРѕСЂРєРµСЂР°",
+            "Проверка среды воркера",
             callback=lambda response: self.handle_environment_response(response, startup=startup),
         )
 
@@ -810,7 +810,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def bootstrap_environment(self) -> None:
         if AppPaths.has_embedded_runtime():
-            self.set_status("Р“РѕС‚РѕРІРѕ", "Р’ СЌС‚РѕР№ Windows-СЃР±РѕСЂРєРµ РґРІРёР¶РѕРє СѓР¶Рµ РІСЃС‚СЂРѕРµРЅ. Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅР°СЏ СѓСЃС‚Р°РЅРѕРІРєР° РЅРµ РЅСѓР¶РЅР°.")
+            self.set_status("Готово", "В этой Windows-сборке движок уже встроен. Дополнительная установка не нужна.")
             self.append_log("Bundled Windows runtime already available.")
             self.refresh_environment()
             return
@@ -818,7 +818,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.bootstrap_task is not None and self.bootstrap_task.isRunning():
             return
 
-        self.set_status("РџРѕРґРіРѕС‚РѕРІРєР° СЃСЂРµРґС‹ РІРѕСЂРєРµСЂР°", "РРґС‘С‚ СѓСЃС‚Р°РЅРѕРІРєР° Playwright Рё Chromium...")
+        self.set_status("Подготовка среды воркера", "Идёт установка Playwright и Chromium...")
         self.bootstrap_task = BootstrapTask()
         self.bootstrap_task.finished_output.connect(self.handle_bootstrap_finished)
         self.bootstrap_task.start()
@@ -828,7 +828,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if output:
             for line in output.splitlines():
                 self.append_log(line)
-        self.set_status("Р“РѕС‚РѕРІРѕ" if ok else "РћС€РёР±РєР°", output or ("РЎСЂРµРґР° РїРѕРґРіРѕС‚РѕРІР»РµРЅР°." if ok else "РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕРґРіРѕС‚РѕРІРёС‚СЊ СЃСЂРµРґСѓ."))
+        self.set_status("Готово" if ok else "Ошибка", output or ("Среда подготовлена." if ok else "Не удалось подготовить среду."))
         self.refresh_environment()
 
     def login(self) -> None:
@@ -839,13 +839,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self.login_poll_active = True
             if not self.login_poll_timer.isActive():
                 self.login_poll_timer.start()
-            self.set_status("Р’С…РѕРґ РІ Instagram", "РћРєРЅРѕ Р±СЂР°СѓР·РµСЂР° РѕС‚РєСЂС‹С‚Рѕ. РћР¶РёРґР°СЋ РїРѕСЏРІР»РµРЅРёСЏ СЃРѕС…СЂР°РЅС‘РЅРЅРѕР№ СЃРµСЃСЃРёРё.")
-            self.activity_subtitle.setText("Р’С‹РїРѕР»РЅРё РІС…РѕРґ РІ Instagram РІ РѕС‚РєСЂС‹С‚РѕРј РѕРєРЅРµ Р±СЂР°СѓР·РµСЂР°. РџСЂРёР»РѕР¶РµРЅРёРµ СЃР°РјРѕ РѕР±РЅР°СЂСѓР¶РёС‚ СЃРѕС…СЂР°РЅС‘РЅРЅСѓСЋ СЃРµСЃСЃРёСЋ.")
-            self.append_log("РћС‚РєСЂС‹Р» РѕС‚РґРµР»СЊРЅРѕРµ РѕРєРЅРѕ Р±СЂР°СѓР·РµСЂР° РґР»СЏ РІС…РѕРґР° РІ Instagram.")
+            self.set_status("Вход в Instagram", "Окно браузера открыто. Ожидаю появления сохранённой сессии.")
+            self.activity_subtitle.setText("Выполни вход в Instagram в открытом окне браузера. Приложение само обнаружит сохранённую сессию.")
+            self.append_log("Открыл отдельное окно браузера для входа в Instagram.")
         except Exception as error:
             details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
             write_crash_log("Detached login launch failure", details)
-            self.set_status("РћС€РёР±РєР°", f"РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ Р±СЂР°СѓР·РµСЂ РґР»СЏ РІС…РѕРґР°: {error}")
+            self.set_status("Ошибка", f"Не удалось открыть браузер для входа: {error}")
             self.append_log(f"[login_launch_error] {error}")
 
     def check_session(self, *, startup: bool = False) -> None:
@@ -853,7 +853,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         self.start_request(
             WorkerRequest(command="check_session", urls=None, headless=True),
-            "РџСЂРѕРІРµСЂРєР° СЃРѕС…СЂР°РЅС‘РЅРЅРѕР№ СЃРµСЃСЃРёРё",
+            "Проверка сохранённой сессии",
             callback=lambda response: self.handle_session_response(response, startup=startup),
         )
 
@@ -872,41 +872,41 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.session_ready and self.login_poll_active:
             self.login_poll_active = False
             self.login_poll_timer.stop()
-            self.append_log("РЎРµСЃСЃРёСЏ Instagram РЅР°Р№РґРµРЅР°. РћРєРЅРѕ РІС…РѕРґР° РјРѕР¶РЅРѕ Р·Р°РєСЂС‹С‚СЊ.")
-            self.set_status("Р“РѕС‚РѕРІРѕ", "РЎРµСЃСЃРёСЏ Instagram СѓСЃРїРµС€РЅРѕ СЃРѕС…СЂР°РЅРµРЅР°.")
-            self.activity_subtitle.setText("РЎРµСЃСЃРёСЏ Instagram РЅР°Р№РґРµРЅР°. РџСЂРёР»РѕР¶РµРЅРёРµ РіРѕС‚РѕРІРѕ Рє РІС‹РіСЂСѓР·РєРµ.")
+            self.append_log("Сессия Instagram найдена. Окно входа можно закрыть.")
+            self.set_status("Готово", "Сессия Instagram успешно сохранена.")
+            self.activity_subtitle.setText("Сессия Instagram найдена. Приложение готово к выгрузке.")
             return
 
         if startup and not self.session_ready:
-            self.set_status("РќСѓР¶РµРЅ РІС…РѕРґ", "РЎРµСЃСЃРёСЏ Instagram РЅРµ РЅР°Р№РґРµРЅР°. РњРѕР¶РЅРѕ РѕС‚РєСЂС‹С‚СЊ Р±СЂР°СѓР·РµСЂ РґР»СЏ РІС…РѕРґР°.")
-            self.activity_subtitle.setText("РЎРµСЃСЃРёСЏ РЅРµ РЅР°Р№РґРµРЅР°. РЎРµР№С‡Р°СЃ РїСЂРµРґР»РѕР¶Сѓ РѕС‚РєСЂС‹С‚СЊ Р±СЂР°СѓР·РµСЂ РґР»СЏ Р°РІС‚РѕСЂРёР·Р°С†РёРё.")
-            self.append_log("РЎРµСЃСЃРёСЏ Instagram РЅРµ РЅР°Р№РґРµРЅР°. РџРѕРєР°Р·С‹РІР°СЋ Р±РµР·РѕРїР°СЃРЅС‹Р№ prompt РґР»СЏ РІС…РѕРґР°.")
+            self.set_status("Нужен вход", "Сессия Instagram не найдена. Можно открыть браузер для входа.")
+            self.activity_subtitle.setText("Сессия не найдена. Сейчас предложу открыть браузер для авторизации.")
+            self.append_log("Сессия Instagram не найдена. Показываю безопасный prompt для входа.")
             if not self.startup_login_prompt_shown:
                 self.startup_login_prompt_shown = True
                 QtCore.QTimer.singleShot(350, self.prompt_startup_login)
         elif self.login_poll_active and not self.session_ready:
-            self.activity_subtitle.setText("РћР¶РёРґР°СЋ Р·Р°РІРµСЂС€РµРЅРёСЏ РІС…РѕРґР° РІ Instagram РІ РѕС‚РґРµР»СЊРЅРѕРј РѕРєРЅРµ Р±СЂР°СѓР·РµСЂР°.")
+            self.activity_subtitle.setText("Ожидаю завершения входа в Instagram в отдельном окне браузера.")
 
     def prompt_startup_login(self) -> None:
         write_crash_log("prompt_startup_login", "Showing startup login prompt.")
         dialog = QtWidgets.QMessageBox(self)
-        dialog.setWindowTitle("РќСѓР¶РµРЅ РІС…РѕРґ РІ Instagram")
+        dialog.setWindowTitle("Нужен вход в Instagram")
         dialog.setIcon(QtWidgets.QMessageBox.Information)
-        dialog.setText("РЎРѕС…СЂР°РЅС‘РЅРЅР°СЏ Instagram-СЃРµСЃСЃРёСЏ РЅРµ РЅР°Р№РґРµРЅР°.")
-        dialog.setInformativeText("РћС‚РєСЂС‹С‚СЊ РѕС‚РґРµР»СЊРЅРѕРµ РѕРєРЅРѕ Р±СЂР°СѓР·РµСЂР° РґР»СЏ РІС…РѕРґР° СЃРµР№С‡Р°СЃ?")
-        open_button = dialog.addButton("РћС‚РєСЂС‹С‚СЊ Р±СЂР°СѓР·РµСЂ", QtWidgets.QMessageBox.AcceptRole)
-        dialog.addButton("РџРѕР·Р¶Рµ", QtWidgets.QMessageBox.RejectRole)
+        dialog.setText("Сохранённая Instagram-сессия не найдена.")
+        dialog.setInformativeText("Открыть отдельное окно браузера для входа сейчас?")
+        open_button = dialog.addButton("Открыть браузер", QtWidgets.QMessageBox.AcceptRole)
+        dialog.addButton("Позже", QtWidgets.QMessageBox.RejectRole)
         dialog.exec()
         if dialog.clickedButton() == open_button:
             self.login()
         else:
-            self.append_log("Р’С…РѕРґ РІ Instagram РѕС‚Р»РѕР¶РµРЅ РїРѕР»СЊР·РѕРІР°С‚РµР»РµРј.")
-            self.activity_subtitle.setText("Р’С…РѕРґ РјРѕР¶РЅРѕ РІС‹РїРѕР»РЅРёС‚СЊ РїРѕР·Р¶Рµ С‡РµСЂРµР· РєРЅРѕРїРєСѓ РІ РЅР°СЃС‚СЂРѕР№РєР°С….")
+            self.append_log("Вход в Instagram отложен пользователем.")
+            self.activity_subtitle.setText("Вход можно выполнить позже через кнопку в настройках.")
 
     def check_for_updates(self, *, silent: bool) -> None:
         if not self.updater.is_available:
             if not silent:
-                self.append_log("РђРІС‚РѕРѕР±РЅРѕРІР»РµРЅРёРµ РЅРµРґРѕСЃС‚СѓРїРЅРѕ: РЅРµ РЅР°СЃС‚СЂРѕРµРЅ РёСЃС‚РѕС‡РЅРёРє release API.")
+                self.append_log("Автообновление недоступно: не настроен источник release API.")
             return
 
         if self.update_check_task is not None and self.update_check_task.isRunning():
@@ -914,7 +914,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.silent_update_check = silent
         if not silent:
-            self.set_status("РџСЂРѕРІРµСЂРєР° РѕР±РЅРѕРІР»РµРЅРёР№", "Р—Р°РїСЂР°С€РёРІР°СЋ latest release РІ GitHub.")
+            self.set_status("Проверка обновлений", "Запрашиваю latest release в GitHub.")
         self.update_check_task = UpdateCheckTask(self.updater, app_version())
         self.update_check_task.finished_output.connect(self.handle_update_check_result)
         self.update_check_task.start()
@@ -924,7 +924,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.settings_store.setValue("last_update_check_at", datetime.now().astimezone().isoformat())
 
         if not ok:
-            self.update_summary = f"РћС€РёР±РєР° РїСЂРѕРІРµСЂРєРё РѕР±РЅРѕРІР»РµРЅРёР№: {status}"
+            self.update_summary = f"Ошибка проверки обновлений: {status}"
             self.settings_dialog.update_state(
                 worker_summary=self.worker_summary,
                 session_summary=self.session_summary,
@@ -932,12 +932,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 update_summary=self.update_summary,
             )
             if not self.silent_update_check:
-                self.set_status("РћС€РёР±РєР°", status)
+                self.set_status("Ошибка", status)
                 self.append_log(f"[update_error] {status}")
             return
 
         if status == "disabled":
-            self.update_summary = "РђРІС‚РѕРѕР±РЅРѕРІР»РµРЅРёРµ РЅРµ РЅР°СЃС‚СЂРѕРµРЅРѕ РґР»СЏ СЌС‚РѕР№ Windows-СЃР±РѕСЂРєРё."
+            self.update_summary = "Автообновление не настроено для этой Windows-сборки."
             self.settings_dialog.update_state(
                 worker_summary=self.worker_summary,
                 session_summary=self.session_summary,
@@ -947,7 +947,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         if status == "up_to_date":
-            self.update_summary = f"РЈР¶Рµ СѓСЃС‚Р°РЅРѕРІР»РµРЅР° Р°РєС‚СѓР°Р»СЊРЅР°СЏ РІРµСЂСЃРёСЏ {app_version()}."
+            self.update_summary = f"Уже установлена актуальная версия {app_version()}."
             self.settings_dialog.update_state(
                 worker_summary=self.worker_summary,
                 session_summary=self.session_summary,
@@ -955,42 +955,42 @@ class MainWindow(QtWidgets.QMainWindow):
                 update_summary=self.update_summary,
             )
             if not self.silent_update_check:
-                self.set_status("Р“РѕС‚РѕРІРѕ", "РќРѕРІР°СЏ РІРµСЂСЃРёСЏ РЅРµ РЅР°Р№РґРµРЅР°.")
-                self.append_log("РќРѕРІР°СЏ Windows-РІРµСЂСЃРёСЏ РЅРµ РЅР°Р№РґРµРЅР°.")
+                self.set_status("Готово", "Новая версия не найдена.")
+                self.append_log("Новая Windows-версия не найдена.")
             return
 
         if status == "update_available" and isinstance(release, ReleaseInfo):
             self.pending_release = release
-            self.update_summary = f"Р”РѕСЃС‚СѓРїРЅР° РІРµСЂСЃРёСЏ {release.version}. Р“РѕС‚РѕРІР° Рє СѓСЃС‚Р°РЅРѕРІРєРµ РїРѕРІРµСЂС… С‚РµРєСѓС‰РµР№ СЃР±РѕСЂРєРё."
+            self.update_summary = f"Доступна версия {release.version}. Готова к установке поверх текущей сборки."
             self.settings_dialog.update_state(
                 worker_summary=self.worker_summary,
                 session_summary=self.session_summary,
                 runtime_summary=self.runtime_summary,
                 update_summary=self.update_summary,
             )
-            self.append_log(f"РќР°Р№РґРµРЅР° РЅРѕРІР°СЏ РІРµСЂСЃРёСЏ Windows: {release.version}.")
+            self.append_log(f"Найдена новая версия Windows: {release.version}.")
             if self.silent_update_check:
-                self.append_log("РђРІС‚РѕРїСЂРѕРІРµСЂРєР°: РѕР±РЅРѕРІР»РµРЅРёРµ РЅР°Р№РґРµРЅРѕ. РЈСЃС‚Р°РЅРѕРІРєР° РґРѕСЃС‚СѓРїРЅР° С‚РѕР»СЊРєРѕ РІСЂСѓС‡РЅСѓСЋ С‡РµСЂРµР· РЅР°СЃС‚СЂРѕР№РєРё.")
+                self.append_log("Автопроверка: обновление найдено. Установка доступна только вручную через настройки.")
                 return
             self.prompt_update_install(release)
 
     def prompt_update_install(self, release: ReleaseInfo) -> None:
         dialog = QtWidgets.QMessageBox(self)
-        dialog.setWindowTitle("Р”РѕСЃС‚СѓРїРЅРѕ РѕР±РЅРѕРІР»РµРЅРёРµ")
+        dialog.setWindowTitle("Доступно обновление")
         dialog.setIcon(QtWidgets.QMessageBox.Information)
-        dialog.setText(f"Р”РѕСЃС‚СѓРїРЅР° РЅРѕРІР°СЏ РІРµСЂСЃРёСЏ SaveStories {release.version}.")
-        details = release.notes.strip() or "GitHub release РѕРїСѓР±Р»РёРєРѕРІР°РЅ Р±РµР· release notes."
-        dialog.setInformativeText("РЎРµР№С‡Р°СЃ РјРѕР¶РЅРѕ СЃРєР°С‡Р°С‚СЊ РѕР±РЅРѕРІР»РµРЅРёРµ Рё РїРµСЂРµР·Р°РїСѓСЃС‚РёС‚СЊ РїСЂРёР»РѕР¶РµРЅРёРµ.")
+        dialog.setText(f"Доступна новая версия SaveStories {release.version}.")
+        details = release.notes.strip() or "GitHub release опубликован без release notes."
+        dialog.setInformativeText("Сейчас можно скачать обновление и перезапустить приложение.")
         dialog.setDetailedText(details)
-        install_button = dialog.addButton("РЈСЃС‚Р°РЅРѕРІРёС‚СЊ", QtWidgets.QMessageBox.AcceptRole)
-        dialog.addButton("РџРѕР·Р¶Рµ", QtWidgets.QMessageBox.RejectRole)
+        install_button = dialog.addButton("Установить", QtWidgets.QMessageBox.AcceptRole)
+        dialog.addButton("Позже", QtWidgets.QMessageBox.RejectRole)
         dialog.exec()
         if dialog.clickedButton() == install_button:
             self.install_update(release, initiated_by_user=True)
 
     def install_update(self, release: ReleaseInfo, *, initiated_by_user: bool = False) -> None:
         if not initiated_by_user:
-            self.append_log("Р—Р°РїСѓСЃРє СѓСЃС‚Р°РЅРѕРІРєРё РѕР±РЅРѕРІР»РµРЅРёСЏ Р±РµР· РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ.")
+            self.append_log("Запуск установки обновления без подтверждения пользователя заблокирован.")
             return
 
         if self.update_install_task is not None and self.update_install_task.isRunning():
@@ -999,8 +999,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.update_ready_to_apply = False
         self.apply_update_sidebar_button.setVisible(False)
         self.apply_update_sidebar_button.setEnabled(False)
-        self.set_status("РћР±РЅРѕРІР»РµРЅРёРµ", f"РЎРєР°С‡РёРІР°СЋ SaveStories {release.version} Рё РїРѕРґРіРѕС‚Р°РІР»РёРІР°СЋ Р·Р°РјРµРЅСѓ С„Р°Р№Р»РѕРІ.")
-        self.append_log(f"РќР°С‡РёРЅР°СЋ СѓСЃС‚Р°РЅРѕРІРєСѓ РѕР±РЅРѕРІР»РµРЅРёСЏ Windows: {release.version}.")
+        self.set_status("Обновление", f"Скачиваю SaveStories {release.version} и подготавливаю замену файлов.")
+        self.append_log(f"Начинаю установку обновления Windows: {release.version}.")
         self.update_download_progress = 0
         self.last_logged_update_progress = -1
         self.update_install_task = UpdateInstallTask(self.updater, release)
@@ -1010,7 +1010,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def handle_update_install_progress(self, percent: int, message: str) -> None:
         self.update_download_progress = percent
-        self.set_status("РћР±РЅРѕРІР»РµРЅРёРµ", message)
+        self.set_status("Обновление", message)
         if percent in {0, 100} or percent >= self.last_logged_update_progress + 10:
             self.last_logged_update_progress = percent
             self.append_log(message)
@@ -1018,17 +1018,17 @@ class MainWindow(QtWidgets.QMainWindow):
     def handle_update_install_result(self, ok: bool, message: str) -> None:
         self.update_install_task = None
         if not ok:
-            self.set_status("РћС€РёР±РєР°", message)
+            self.set_status("Ошибка", message)
             self.append_log(f"[update_install_error] {message}")
             return
 
         self.update_ready_to_apply = True
         self.apply_update_sidebar_button.setVisible(True)
         self.apply_update_sidebar_button.setEnabled(True)
-        self.set_status("РћР±РЅРѕРІР»РµРЅРёРµ", message)
+        self.set_status("Обновление", message)
         self.append_log(message)
         self.append_log("Кнопка «Установить обновление» появилась в левом меню над «Настройки».")
-        self.append_log("РћР±РЅРѕРІР»РµРЅРёРµ РїРѕРґРіРѕС‚РѕРІР»РµРЅРѕ. РџРµСЂРµР·Р°РїСѓСЃС‚Рё РїСЂРёР»РѕР¶РµРЅРёРµ РІСЂСѓС‡РЅСѓСЋ, РєРѕРіРґР° Р±СѓРґРµС‚ СѓРґРѕР±РЅРѕ.")
+        self.append_log("Обновление подготовлено. Перезапусти приложение вручную, когда будет удобно.")
 
     def apply_prepared_update(self) -> None:
         if not self.update_ready_to_apply:
@@ -1051,7 +1051,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def download_profile(self) -> None:
         profile = self.profile_input.text().strip()
         if not profile:
-            self.append_log("РЎСЃС‹Р»РєР° РЅР° РїСЂРѕС„РёР»СЊ РїСѓСЃС‚Р°СЏ.")
+            self.append_log("Ссылка на профиль пустая.")
             return
 
         self.start_request(
@@ -1062,7 +1062,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 outputDirectory=str(self.save_directory),
                 headless=self.current_headless(),
             ),
-            "РЎРєР°С‡РёРІР°РЅРёРµ Р°РєС‚РёРІРЅС‹С… stories",
+            "Скачивание активных stories",
             callback=self.handle_download_response,
         )
 
@@ -1072,7 +1072,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         pending = [index for index, item in enumerate(self.batch_entries) if item.status in {"pending", "failed"}]
         if not pending:
-            self.append_log("Р’ РѕС‡РµСЂРµРґРё РЅРµС‚ РїСЂРѕС„РёР»РµР№ РґР»СЏ РїР°РєРµС‚РЅРѕР№ РІС‹РіСЂСѓР·РєРё.")
+            self.append_log("В очереди нет профилей для пакетной выгрузки.")
             return
 
         self.batch_running = True
@@ -1086,12 +1086,12 @@ class MainWindow(QtWidgets.QMainWindow):
         total = len(self.batch_pending_indices)
         remaining = max(total - 1, 0)
         self.batch_progress_label.setText(
-            f"РЎРµР№С‡Р°СЃ 1 РёР· {total}, РѕСЃС‚Р°Р»РѕСЃСЊ {remaining}. РћС‡РµСЂРµРґСЊ РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ РІ РѕРґРЅРѕРј РѕРєРЅРµ Р±СЂР°СѓР·РµСЂР°."
+            f"Сейчас 1 из {total}, осталось {remaining}. Очередь выполняется в одном окне браузера."
         )
 
         for index in self.batch_pending_indices:
             self.batch_entries[index].status = "running"
-            self.batch_entries[index].message = "РћР¶РёРґР°РµС‚ РѕР±СЂР°Р±РѕС‚РєРё РІ РѕР±С‰РµРј РѕРєРЅРµ Р±СЂР°СѓР·РµСЂР°."
+            self.batch_entries[index].message = "Ожидает обработки в общем окне браузера."
         self.refresh_batch_table()
 
         self.start_request(
@@ -1102,7 +1102,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 outputDirectory=str(self.save_directory),
                 headless=self.current_headless(),
             ),
-            "РџР°РєРµС‚РЅР°СЏ РІС‹РіСЂСѓР·РєР°",
+            "Пакетная выгрузка",
             callback=self.handle_batch_response,
         )
 
@@ -1111,7 +1111,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if response.status == "cancelled":
             for index in self.batch_pending_indices:
                 self.batch_entries[index].status = "stopped"
-                self.batch_entries[index].message = "РџР°РєРµС‚РЅР°СЏ РІС‹РіСЂСѓР·РєР° РѕСЃС‚Р°РЅРѕРІР»РµРЅР° РїРѕР»СЊР·РѕРІР°С‚РµР»РµРј."
+                self.batch_entries[index].message = "Пакетная выгрузка остановлена пользователем."
             self.batch_stop_requested = True
         else:
             self.apply_batch_results(response)
@@ -1143,7 +1143,7 @@ class MainWindow(QtWidgets.QMainWindow):
             result = result_map.get(normalize_profile_link(entry.url))
             if result is None:
                 entry.status = "failed"
-                entry.message = "Р”Р»СЏ РїСЂРѕС„РёР»СЏ РЅРµС‚ СЂРµР·СѓР»СЊС‚Р°С‚Р° РїР°РєРµС‚РЅРѕР№ РІС‹РіСЂСѓР·РєРё."
+                entry.message = "Для профиля нет результата пакетной выгрузки."
                 continue
             entry.status = "completed" if result.get("status") == "completed" else "failed"
             entry.message = str(result.get("message", response.message))
@@ -1152,14 +1152,14 @@ class MainWindow(QtWidgets.QMainWindow):
         processed = len(self.batch_pending_indices)
         total = len(self.batch_pending_indices)
         if self.batch_stop_requested:
-            self.set_status("РћСЃС‚Р°РЅРѕРІР»РµРЅРѕ", f"РџР°РєРµС‚РЅР°СЏ РІС‹РіСЂСѓР·РєР° РѕСЃС‚Р°РЅРѕРІР»РµРЅР°. РћР±СЂР°Р±РѕС‚Р°РЅРѕ {processed} РёР· {total}.")
+            self.set_status("Остановлено", f"Пакетная выгрузка остановлена. Обработано {processed} из {total}.")
         else:
-            self.set_status("Р“РѕС‚РѕРІРѕ", f"РџР°РєРµС‚РЅР°СЏ РІС‹РіСЂСѓР·РєР° Р·Р°РІРµСЂС€РµРЅР°. РЎРѕС…СЂР°РЅРµРЅРѕ С„Р°Р№Р»РѕРІ: {self.batch_saved_total}.")
+            self.set_status("Готово", f"Пакетная выгрузка завершена. Сохранено файлов: {self.batch_saved_total}.")
         self.batch_running = False
         self.batch_stop_requested = False
         self.batch_pending_indices = []
         self.batch_cursor = 0
-        self.batch_progress_label.setText("РћС‡РµСЂРµРґСЊ РіРѕС‚РѕРІР°.")
+        self.batch_progress_label.setText("Очередь готова.")
         self.batch_run_button.setEnabled(True)
         self.batch_stop_button.setEnabled(False)
 
@@ -1168,13 +1168,13 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         self.batch_stop_requested = True
         self.worker.stop_current_process()
-        self.set_status("РћСЃС‚Р°РЅРѕРІРєР°", "РћСЃС‚Р°РЅР°РІР»РёРІР°СЋ С‚РµРєСѓС‰СѓСЋ РІС‹РіСЂСѓР·РєСѓ...")
-        self.append_log("Р—Р°РїСЂРѕС€РµРЅР° РѕСЃС‚Р°РЅРѕРІРєР° РїР°РєРµС‚РЅРѕР№ РІС‹РіСЂСѓР·РєРё.")
+        self.set_status("Остановка", "Останавливаю текущую выгрузку...")
+        self.append_log("Запрошена остановка пакетной выгрузки.")
 
     def add_batch_profiles(self) -> None:
         new_links = parse_batch_links(self.batch_input.toPlainText())
         if not new_links:
-            self.append_log("Р”Р»СЏ РѕС‡РµСЂРµРґРё РЅРµ РЅР°Р№РґРµРЅРѕ РЅРё РѕРґРЅРѕР№ СЃСЃС‹Р»РєРё РЅР° РїСЂРѕС„РёР»СЊ.")
+            self.append_log("Для очереди не найдено ни одной ссылки на профиль.")
             return
 
         existing = {item.url for item in self.batch_entries}
@@ -1188,16 +1188,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.batch_input.clear()
         self.refresh_batch_table()
-        self.batch_progress_label.setText(f"Р’ РѕС‡РµСЂРµРґРё РїСЂРѕС„РёР»РµР№: {len(self.batch_entries)}.")
-        self.append_log(f"Р’ РѕС‡РµСЂРµРґСЊ РґРѕР±Р°РІР»РµРЅРѕ РїСЂРѕС„РёР»РµР№: {added}.")
+        self.batch_progress_label.setText(f"В очереди профилей: {len(self.batch_entries)}.")
+        self.append_log(f"В очередь добавлено профилей: {added}.")
 
     def clear_batch(self) -> None:
         if self.batch_running:
             return
         self.batch_entries = []
         self.refresh_batch_table()
-        self.batch_progress_label.setText("РћС‡РµСЂРµРґСЊ РїРѕРєР° РїСѓСЃС‚Р°.")
-        self.append_log("РћС‡РµСЂРµРґСЊ РѕС‡РёС‰РµРЅР°.")
+        self.batch_progress_label.setText("Очередь пока пуста.")
+        self.append_log("Очередь очищена.")
 
     def refresh_batch_table(self) -> None:
         self.batch_table.setRowCount(len(self.batch_entries))
@@ -1207,7 +1207,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.batch_table.setItem(row, 2, QtWidgets.QTableWidgetItem(entry.message))
 
     def choose_save_directory(self, line_edit: QtWidgets.QLineEdit) -> None:
-        directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Р’С‹Р±СЂР°С‚СЊ РїР°РїРєСѓ", str(self.save_directory))
+        directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Выбрать папку", str(self.save_directory))
         if not directory:
             return
         self.save_directory = Path(directory)
@@ -1217,7 +1217,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.batch_directory_line.setText(str(self.save_directory))
         if hasattr(self, "directory_line"):
             self.directory_line.setText(str(self.save_directory))
-        self.append_log(f"РџР°РїРєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ РёР·РјРµРЅРµРЅР° РЅР° {self.save_directory}.")
+        self.append_log(f"Папка сохранения изменена на {self.save_directory}.")
 
     def on_mode_changed(self) -> None:
         combo = self.sender()
@@ -1243,7 +1243,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.current_task is not None:
             return
 
-        self.set_status(status_title, "Р’С‹РїРѕР»РЅСЏРµС‚СЃСЏ...")
+        self.set_status(status_title, "Выполняется...")
         self.current_callback = callback
         self.current_task = WorkerTask(self.worker, request)
         self.current_task.response_ready.connect(self.finish_request)
@@ -1262,23 +1262,23 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as error:
             details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
             write_crash_log("finish_request failure", details)
-            self.set_status("РћС€РёР±РєР°", f"РћС€РёР±РєР° UI-РѕР±СЂР°Р±РѕС‚РєРё: {error}")
+            self.set_status("Ошибка", f"Ошибка UI-обработки: {error}")
             self.append_log(f"[ui_error] {error}")
 
     def cleanup_request(self) -> None:
         self.current_task = None
 
     def apply_response(self, response: WorkerResponse) -> None:
-        self.set_status("Р“РѕС‚РѕРІРѕ" if response.ok else "РћС€РёР±РєР°", response.message)
+        self.set_status("Готово" if response.ok else "Ошибка", response.message)
         if "foundCount" in response.data:
-            self.found_label.setText(f"РќР°Р№РґРµРЅРѕ: {response.data['foundCount']}")
+            self.found_label.setText(f"Найдено: {response.data['foundCount']}")
         elif response.status.startswith("download"):
-            self.found_label.setText(f"РќР°Р№РґРµРЅРѕ: {len(response.items)}")
+            self.found_label.setText(f"Найдено: {len(response.items)}")
 
         if "savedCount" in response.data:
-            self.saved_label.setText(f"РЎРѕС…СЂР°РЅРµРЅРѕ: {response.data['savedCount']}")
+            self.saved_label.setText(f"Сохранено: {response.data['savedCount']}")
         elif response.status == "download_complete":
-            self.saved_label.setText(f"РЎРѕС…СЂР°РЅРµРЅРѕ: {len(response.items)}")
+            self.saved_label.setText(f"Сохранено: {len(response.items)}")
 
         self.activity_subtitle.setText(response.message)
         self.append_log(f"[{response.status}] {response.message}")
@@ -1355,11 +1355,13 @@ if __name__ == "__main__":
         worker_path = AppPaths.worker_script()
         spec = importlib.util.spec_from_file_location("dimasave_worker_bridge", worker_path)
         if spec is None or spec.loader is None:
-            raise SystemExit("РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РІСЃС‚СЂРѕРµРЅРЅС‹Р№ worker bridge.")
+            raise SystemExit("Не удалось загрузить встроенный worker bridge.")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         module.main()
         raise SystemExit(0)
 
     raise SystemExit(main())
+
+
 
