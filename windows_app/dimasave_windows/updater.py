@@ -143,14 +143,25 @@ class WindowsUpdater:
 
         source_dir = self._resolve_extracted_root(extracted_root)
         target_dir = Path(__file__).resolve()
+        current_executable_name = "SaveStories-Windows.exe"
         if getattr(sys, "frozen", False):
+            current_executable_name = Path(sys.executable).resolve().name
             target_dir = Path(sys.executable).resolve()
         target_dir = target_dir.parent
-        executable_name = target_dir.joinpath("SaveStories-Windows.exe").name
-        source_dir = self._resolve_payload_root(source_dir, executable_name)
-        if not source_dir.joinpath(executable_name).exists():
+
+        release_executable_name = "SaveStories-Windows.exe"
+        source_dir = self._resolve_payload_root(
+            source_dir,
+            (current_executable_name, release_executable_name),
+        )
+        launch_executable_name = self._select_launch_executable_name(
+            source_dir,
+            current_executable_name,
+            release_executable_name,
+        )
+        if launch_executable_name is None:
             raise WindowsUpdaterError(
-                f"В архиве обновления не найден {executable_name}. Лог: {update_root / 'apply_update.log'}"
+                f"В архиве обновления не найден исполняемый файл. Лог: {update_root / 'apply_update.log'}"
             )
 
         script_path = update_root / "apply_update.ps1"
@@ -160,7 +171,8 @@ class WindowsUpdater:
             self._update_script_text(
                 source_dir=source_dir,
                 target_dir=target_dir,
-                executable_name=executable_name,
+                current_executable_name=current_executable_name,
+                launch_executable_name=launch_executable_name,
                 log_path=log_path,
                 status_path=status_path,
             ),
@@ -266,20 +278,38 @@ class WindowsUpdater:
             return directories[0]
         return extracted_root
 
-    def _resolve_payload_root(self, root: Path, executable_name: str) -> Path:
-        if root.joinpath(executable_name).exists():
-            return root
-        for candidate in root.rglob(executable_name):
-            if candidate.is_file():
-                return candidate.parent
+    def _resolve_payload_root(self, root: Path, executable_names: tuple[str, ...]) -> Path:
+        for executable_name in executable_names:
+            if root.joinpath(executable_name).exists():
+                return root
+        for executable_name in executable_names:
+            for candidate in root.rglob(executable_name):
+                if candidate.is_file():
+                    return candidate.parent
         return root
+
+    def _select_launch_executable_name(
+        self,
+        source_dir: Path,
+        current_executable_name: str,
+        release_executable_name: str,
+    ) -> str | None:
+        if source_dir.joinpath(current_executable_name).exists():
+            return current_executable_name
+        if source_dir.joinpath(release_executable_name).exists():
+            return release_executable_name
+        for candidate in source_dir.glob("*.exe"):
+            if candidate.is_file():
+                return candidate.name
+        return None
 
     def _update_script_text(
         self,
         *,
         source_dir: Path,
         target_dir: Path,
-        executable_name: str,
+        current_executable_name: str,
+        launch_executable_name: str,
         log_path: Path,
         status_path: Path,
     ) -> str:
@@ -288,7 +318,8 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 $source = "{str(source_dir)}"
 $target = "{str(target_dir)}"
-$exe = Join-Path $target "{executable_name}"
+$currentExe = Join-Path $target "{current_executable_name}"
+$launchExe = Join-Path $target "{launch_executable_name}"
 $logPath = "{str(log_path)}"
 $statusPath = "{str(status_path)}"
 
@@ -303,12 +334,14 @@ try {{
     Write-Log "Update apply started"
     Write-Log "Source: $source"
     Write-Log "Target: $target"
+    Write-Log "Current exe: $currentExe"
+    Write-Log "Launch exe: $launchExe"
 
     if (-not (Test-Path $source)) {{
         throw "Update unpack folder not found: $source"
     }}
-    if (-not (Test-Path (Join-Path $source "{executable_name}"))) {{
-        throw "Executable {executable_name} not found in unpacked update: $source"
+    if (-not (Test-Path (Join-Path $source "{launch_executable_name}"))) {{
+        throw "Executable {launch_executable_name} not found in unpacked update: $source"
     }}
 
     for ($attempt = 1; $attempt -le 120; $attempt++) {{
@@ -317,9 +350,22 @@ try {{
         $code = $LASTEXITCODE
         Write-Log "Attempt #$attempt robocopy exit code: $code"
         if ($code -le 7) {{
-            Write-Log "Copy finished, starting executable: $exe"
+            if ($launchExe -ne $currentExe -and (Test-Path $launchExe)) {{
+                Copy-Item -Path $launchExe -Destination $currentExe -Force
+                Write-Log "Copied launch exe to current exe path for compatibility."
+            }}
+
+            $startExe = $currentExe
+            if (-not (Test-Path $startExe)) {{
+                $startExe = $launchExe
+            }}
+            if (-not (Test-Path $startExe)) {{
+                throw "No executable found to restart after copy."
+            }}
+
+            Write-Log "Copy finished, starting executable: $startExe"
             '{{"status":"ok","message":"copy_done"}}' | Set-Content -Path $statusPath -Encoding UTF8
-            Start-Process -FilePath $exe
+            Start-Process -FilePath $startExe
             exit 0
         }}
     }}
