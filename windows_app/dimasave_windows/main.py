@@ -65,7 +65,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.4.5"
+    return "0.3.4"
 
 
 def normalize_profile_link(raw: str) -> str:
@@ -90,22 +90,13 @@ def parse_batch_links(raw: str) -> list[str]:
 
 def batch_status_title(value: str) -> str:
     mapping = {
-        "pending": "В очереди",
-        "running": "Скачивается",
-        "completed": "Готово",
-        "failed": "Ошибка",
-        "stopped": "Остановлено",
+        "pending": "Р’ РѕС‡РµСЂРµРґРё",
+        "running": "РЎРєР°С‡РёРІР°РµС‚СЃСЏ",
+        "completed": "Р“РѕС‚РѕРІРѕ",
+        "failed": "РћС€РёР±РєР°",
+        "stopped": "РћСЃС‚Р°РЅРѕРІР»РµРЅРѕ",
     }
     return mapping.get(value, value)
-
-
-def suggested_recent_list_title(urls: list[str]) -> str:
-    if not urls:
-        return "Недавний список"
-    first = normalize_profile_link(urls[0]).rstrip("/").split("/")[-1] or "profiles"
-    if len(urls) == 1:
-        return first
-    return f"{first} +{len(urls) - 1}"
 
 
 class WorkerTask(QtCore.QThread):
@@ -203,7 +194,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Настройки")
+        self.setWindowTitle("РќР°СЃС‚СЂРѕР№РєРё")
         self.setModal(True)
         self.resize(560, 420)
 
@@ -211,34 +202,34 @@ class SettingsDialog(QtWidgets.QDialog):
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(14)
 
-        title = QtWidgets.QLabel("Служебные настройки")
+        title = QtWidgets.QLabel("РЎР»СѓР¶РµР±РЅС‹Рµ РЅР°СЃС‚СЂРѕР№РєРё")
         title.setObjectName("dialogTitle")
         layout.addWidget(title)
 
-        self.worker_label = QtWidgets.QLabel("Воркер ещё не проверялся.")
+        self.worker_label = QtWidgets.QLabel("Р’РѕСЂРєРµСЂ РµС‰С‘ РЅРµ РїСЂРѕРІРµСЂСЏР»СЃСЏ.")
         self.worker_label.setWordWrap(True)
-        self.session_label = QtWidgets.QLabel("Состояние сессии неизвестно.")
+        self.session_label = QtWidgets.QLabel("РЎРѕСЃС‚РѕСЏРЅРёРµ СЃРµСЃСЃРёРё РЅРµРёР·РІРµСЃС‚РЅРѕ.")
         self.session_label.setWordWrap(True)
-        self.update_label = QtWidgets.QLabel("Автообновление ещё не инициализировано.")
+        self.update_label = QtWidgets.QLabel("РђРІС‚РѕРѕР±РЅРѕРІР»РµРЅРёРµ РµС‰С‘ РЅРµ РёРЅРёС†РёР°Р»РёР·РёСЂРѕРІР°РЅРѕ.")
         self.update_label.setWordWrap(True)
         self.runtime_text = QtWidgets.QPlainTextEdit()
         self.runtime_text.setReadOnly(True)
         self.runtime_text.setMinimumHeight(170)
 
-        layout.addWidget(self._group("Обновления", self.update_label))
-        layout.addWidget(self._group("Воркер", self.worker_label))
-        layout.addWidget(self._group("Сессия", self.session_label))
-        layout.addWidget(self._group("Среда", self.runtime_text), 1)
+        layout.addWidget(self._group("РћР±РЅРѕРІР»РµРЅРёСЏ", self.update_label))
+        layout.addWidget(self._group("Р’РѕСЂРєРµСЂ", self.worker_label))
+        layout.addWidget(self._group("РЎРµСЃСЃРёСЏ", self.session_label))
+        layout.addWidget(self._group("РЎСЂРµРґР°", self.runtime_text), 1)
 
         button_row = QtWidgets.QHBoxLayout()
         button_row.setSpacing(10)
         for text, signal in [
-            ("Установить движок", self.bootstrap_requested),
-            ("Проверить среду", self.refresh_requested),
-            ("Открыть браузер для входа", self.login_requested),
-            ("Проверить сессию", self.session_check_requested),
-            ("Проверить обновления", self.update_check_requested),
-            ("Открыть папку среды", self.open_runtime_requested),
+            ("РЈСЃС‚Р°РЅРѕРІРёС‚СЊ РґРІРёР¶РѕРє", self.bootstrap_requested),
+            ("РџСЂРѕРІРµСЂРёС‚СЊ СЃСЂРµРґСѓ", self.refresh_requested),
+            ("РћС‚РєСЂС‹С‚СЊ Р±СЂР°СѓР·РµСЂ РґР»СЏ РІС…РѕРґР°", self.login_requested),
+            ("РџСЂРѕРІРµСЂРёС‚СЊ СЃРµСЃСЃРёСЋ", self.session_check_requested),
+            ("РџСЂРѕРІРµСЂРёС‚СЊ РѕР±РЅРѕРІР»РµРЅРёСЏ", self.update_check_requested),
+            ("РћС‚РєСЂС‹С‚СЊ РїР°РїРєСѓ СЃСЂРµРґС‹", self.open_runtime_requested),
         ]:
             button = QtWidgets.QPushButton(text)
             button.clicked.connect(signal)
@@ -280,8 +271,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.worker_ready = False
         self.session_ready = False
-        self.worker_summary = "Воркер ещё не проверялся."
-        self.session_summary = "Состояние сессии неизвестно."
+        self.worker_summary = "Р’РѕСЂРєРµСЂ РµС‰С‘ РЅРµ РїСЂРѕРІРµСЂСЏР»СЃСЏ."
+        self.session_summary = "РЎРѕСЃС‚РѕСЏРЅРёРµ СЃРµСЃСЃРёРё РЅРµРёР·РІРµСЃС‚РЅРѕ."
         self.runtime_summary = ""
         self.update_summary = self.updater.summary
         self.download_mode = self.settings_store.value("download_mode", "background")
@@ -292,8 +283,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.batch_cursor = 0
         self.batch_found_total = 0
         self.batch_saved_total = 0
-        self.current_step_label = "Ожидание команды."
-        self.recent_lists: list[dict[str, object]] = self.load_recent_lists()
 
         save_dir_value = self.settings_store.value("save_directory")
         self.save_directory = Path(str(save_dir_value)) if save_dir_value else AppPaths.default_downloads()
@@ -309,8 +298,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.resize(default_size)
         self._build_ui()
         self._apply_styles()
-        self.refresh_recent_lists_ui()
-        self.refresh_home2_status_strip()
 
         QtCore.QTimer.singleShot(0, self.prepare)
 
@@ -331,7 +318,6 @@ class MainWindow(QtWidgets.QMainWindow):
         root.addWidget(content_host, 1)
 
         self.stack = QtWidgets.QStackedWidget()
-        self.stack.addWidget(self._wrap_scroll_area(self._build_home_two_page()))
         self.stack.addWidget(self._wrap_scroll_area(self._build_batch_page()))
         self.stack.addWidget(self._wrap_scroll_area(self._build_home_page()))
         content_layout.addWidget(self.stack, 3)
@@ -367,9 +353,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         for index, (text, detail) in enumerate(
             [
-                ("Главная 2.0", "Новый стартовый сценарий"),
-                ("Списочная", "Очередь профилей"),
-                ("Главная", "Текущий режим выгрузки"),
+                ("РЎРїРёСЃРѕС‡РЅР°СЏ", "РћС‡РµСЂРµРґСЊ РїСЂРѕС„РёР»РµР№"),
+                ("Р“Р»Р°РІРЅР°СЏ", "РўРµРєСѓС‰РёР№ СЂРµР¶РёРј РІС‹РіСЂСѓР·РєРё"),
             ]
         ):
             button = QtWidgets.QPushButton(f"{text}\n{detail}")
@@ -383,7 +368,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         layout.addStretch(1)
 
-        settings_button = QtWidgets.QPushButton("Настройки")
+        settings_button = QtWidgets.QPushButton("РќР°СЃС‚СЂРѕР№РєРё")
         settings_button.clicked.connect(self.open_settings)
         layout.addWidget(settings_button)
 
@@ -404,50 +389,11 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(18)
 
-        layout.addWidget(self._hero("SaveStories", "Windows-клиент для выгрузки активных stories из Instagram по ссылке на профиль."))
+        layout.addWidget(self._hero("SaveStories", "Windows-РєР»РёРµРЅС‚ РґР»СЏ РІС‹РіСЂСѓР·РєРё Р°РєС‚РёРІРЅС‹С… stories РёР· Instagram РїРѕ СЃСЃС‹Р»РєРµ РЅР° РїСЂРѕС„РёР»СЊ."))
         layout.addWidget(self._status_card())
         layout.addWidget(self._save_directory_card())
         layout.addWidget(self._profile_card())
         layout.addStretch(1)
-        return page
-
-    def _build_home_two_page(self) -> QtWidgets.QWidget:
-        page = QtWidgets.QWidget()
-        layout = QtWidgets.QVBoxLayout(page)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(18)
-
-        layout.addWidget(
-            self._hero(
-                "Главная 2.0",
-                "Новый стартовый экран: добавляй список профилей, сохраняй его как недавний и запускай выгрузку без лишних переключений.",
-            )
-        )
-        layout.addWidget(self._home2_status_strip())
-
-        content_row = QtWidgets.QHBoxLayout()
-        content_row.setSpacing(18)
-
-        left_column = QtWidgets.QVBoxLayout()
-        left_column.setSpacing(18)
-        left_column.addWidget(self._home2_composer_card())
-        left_column.addWidget(self._home2_queue_card(), 1)
-
-        right_column = QtWidgets.QVBoxLayout()
-        right_column.setSpacing(18)
-        right_column.addWidget(self._home2_recent_lists_card())
-        right_column.addWidget(self._home2_compact_activity_card())
-        right_column.addStretch(1)
-
-        left_host = QtWidgets.QWidget()
-        left_host.setLayout(left_column)
-        right_host = QtWidgets.QWidget()
-        right_host.setLayout(right_column)
-        right_host.setFixedWidth(320)
-
-        content_row.addWidget(left_host, 1)
-        content_row.addWidget(right_host)
-        layout.addLayout(content_row, 1)
         return page
 
     def _build_batch_page(self) -> QtWidgets.QWidget:
@@ -456,32 +402,32 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(18)
 
-        layout.addWidget(self._hero("Списочная выгрузка", "Добавь сразу несколько ссылок или usernames. Приложение обработает профили по очереди."))
+        layout.addWidget(self._hero("РЎРїРёСЃРѕС‡РЅР°СЏ РІС‹РіСЂСѓР·РєР°", "Р”РѕР±Р°РІСЊ СЃСЂР°Р·Сѓ РЅРµСЃРєРѕР»СЊРєРѕ СЃСЃС‹Р»РѕРє РёР»Рё usernames. РџСЂРёР»РѕР¶РµРЅРёРµ РѕР±СЂР°Р±РѕС‚Р°РµС‚ РїСЂРѕС„РёР»Рё РїРѕ РѕС‡РµСЂРµРґРё."))
 
-        input_card = QtWidgets.QGroupBox("Добавить профили")
+        input_card = QtWidgets.QGroupBox("Р”РѕР±Р°РІРёС‚СЊ РїСЂРѕС„РёР»Рё")
         input_layout = QtWidgets.QVBoxLayout(input_card)
         self.batch_input = QtWidgets.QPlainTextEdit()
-        self.batch_input.setPlaceholderText("Вставь по одной ссылке или username на строку.\nНапример:\nhttps://www.instagram.com/dian.vegas1/\nmonetentony")
+        self.batch_input.setPlaceholderText("Р’СЃС‚Р°РІСЊ РїРѕ РѕРґРЅРѕР№ СЃСЃС‹Р»РєРµ РёР»Рё username РЅР° СЃС‚СЂРѕРєСѓ.\nРќР°РїСЂРёРјРµСЂ:\nhttps://www.instagram.com/dian.vegas1/\nmonetentony")
         self.batch_input.setFixedHeight(120)
         input_layout.addWidget(self.batch_input)
 
         input_buttons = QtWidgets.QHBoxLayout()
-        add_button = QtWidgets.QPushButton("Добавить в очередь")
+        add_button = QtWidgets.QPushButton("Р”РѕР±Р°РІРёС‚СЊ РІ РѕС‡РµСЂРµРґСЊ")
         add_button.clicked.connect(self.add_batch_profiles)
-        clear_input = QtWidgets.QPushButton("Очистить поле")
+        clear_input = QtWidgets.QPushButton("РћС‡РёСЃС‚РёС‚СЊ РїРѕР»Рµ")
         clear_input.clicked.connect(self.batch_input.clear)
         input_buttons.addWidget(add_button)
         input_buttons.addWidget(clear_input)
         input_layout.addLayout(input_buttons)
         layout.addWidget(input_card)
 
-        queue_card = QtWidgets.QGroupBox("Очередь профилей")
+        queue_card = QtWidgets.QGroupBox("РћС‡РµСЂРµРґСЊ РїСЂРѕС„РёР»РµР№")
         queue_layout = QtWidgets.QVBoxLayout(queue_card)
-        self.batch_progress_label = QtWidgets.QLabel("Очередь пока пуста.")
+        self.batch_progress_label = QtWidgets.QLabel("РћС‡РµСЂРµРґСЊ РїРѕРєР° РїСѓСЃС‚Р°.")
         queue_layout.addWidget(self.batch_progress_label)
 
         self.batch_table = QtWidgets.QTableWidget(0, 3)
-        self.batch_table.setHorizontalHeaderLabels(["Профиль", "Статус", "Сообщение"])
+        self.batch_table.setHorizontalHeaderLabels(["РџСЂРѕС„РёР»СЊ", "РЎС‚Р°С‚СѓСЃ", "РЎРѕРѕР±С‰РµРЅРёРµ"])
         self.batch_table.horizontalHeader().setStretchLastSection(True)
         self.batch_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
         self.batch_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
@@ -492,12 +438,12 @@ class MainWindow(QtWidgets.QMainWindow):
         queue_layout.addWidget(self.batch_table)
 
         queue_buttons = QtWidgets.QHBoxLayout()
-        self.batch_run_button = QtWidgets.QPushButton("Скачать очередь")
+        self.batch_run_button = QtWidgets.QPushButton("РЎРєР°С‡Р°С‚СЊ РѕС‡РµСЂРµРґСЊ")
         self.batch_run_button.clicked.connect(self.start_batch)
-        self.batch_stop_button = QtWidgets.QPushButton("Остановить")
+        self.batch_stop_button = QtWidgets.QPushButton("РћСЃС‚Р°РЅРѕРІРёС‚СЊ")
         self.batch_stop_button.clicked.connect(self.stop_batch)
         self.batch_stop_button.setEnabled(False)
-        clear_button = QtWidgets.QPushButton("Очистить очередь")
+        clear_button = QtWidgets.QPushButton("РћС‡РёСЃС‚РёС‚СЊ РѕС‡РµСЂРµРґСЊ")
         clear_button.clicked.connect(self.clear_batch)
         queue_buttons.addWidget(self.batch_run_button)
         queue_buttons.addWidget(self.batch_stop_button)
@@ -510,199 +456,41 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addStretch(1)
         return page
 
-    def _home2_status_strip(self) -> QtWidgets.QWidget:
-        host = QtWidgets.QWidget()
-        layout = QtWidgets.QHBoxLayout(host)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(12)
-
-        self.home2_status_label = QtWidgets.QLabel()
-        self.home2_step_label = QtWidgets.QLabel()
-        self.home2_result_label = QtWidgets.QLabel()
-
-        for widget in [
-            self._summary_pill("Состояние", self.home2_status_label),
-            self._summary_pill("Текущий шаг", self.home2_step_label),
-            self._summary_pill("Результат", self.home2_result_label),
-        ]:
-            layout.addWidget(widget, 1)
-
-        return host
-
-    def _home2_composer_card(self) -> QtWidgets.QWidget:
-        card = QtWidgets.QGroupBox("Быстрый старт")
-        layout = QtWidgets.QVBoxLayout(card)
-
-        note = QtWidgets.QLabel(
-            "Вставь usernames или ссылки, сохрани список в недавние и запускай очередь прямо отсюда. Этот экран собран как основной сценарий для новых пользователей."
-        )
-        note.setWordWrap(True)
-        layout.addWidget(note)
-
-        self.home2_batch_input = QtWidgets.QPlainTextEdit()
-        self.home2_batch_input.setPlaceholderText(
-            "По одной ссылке или username на строку.\nНапример:\ndian.vegas1\nhttps://www.instagram.com/stevensetu/\nleftlanepapi"
-        )
-        self.home2_batch_input.setFixedHeight(140)
-        layout.addWidget(self.home2_batch_input)
-
-        row = QtWidgets.QHBoxLayout()
-        add_button = QtWidgets.QPushButton("Добавить в очередь")
-        add_button.clicked.connect(self.add_batch_profiles_from_home2)
-        remember_button = QtWidgets.QPushButton("Запомнить список")
-        remember_button.clicked.connect(self.remember_current_batch_list)
-        clear_button = QtWidgets.QPushButton("Очистить поле")
-        clear_button.clicked.connect(self.clear_home2_input)
-        row.addWidget(add_button)
-        row.addWidget(remember_button)
-        row.addWidget(clear_button)
-        layout.addLayout(row)
-
-        lower = QtWidgets.QHBoxLayout()
-        lower.setSpacing(14)
-
-        left = QtWidgets.QVBoxLayout()
-        left.setSpacing(10)
-        left.addWidget(self._mode_card(home2_mode=True))
-        left.addWidget(self._save_directory_card(home2_mode=True))
-
-        right = QtWidgets.QVBoxLayout()
-        right.setSpacing(10)
-        tip = QtWidgets.QLabel("Для первых тестов используй «Видимо». Если всё стабильно, переключайся на фон.")
-        tip.setWordWrap(True)
-        right.addWidget(tip)
-        run_button = QtWidgets.QPushButton("Скачать очередь")
-        run_button.clicked.connect(self.start_batch)
-        self.home2_run_button = run_button
-        stop_button = QtWidgets.QPushButton("Остановить")
-        stop_button.clicked.connect(self.stop_batch)
-        stop_button.setEnabled(False)
-        self.home2_stop_button = stop_button
-        right.addWidget(run_button)
-        right.addWidget(stop_button)
-        right.addStretch(1)
-
-        left_host = QtWidgets.QWidget()
-        left_host.setLayout(left)
-        right_host = QtWidgets.QWidget()
-        right_host.setLayout(right)
-        right_host.setFixedWidth(220)
-
-        lower.addWidget(left_host, 1)
-        lower.addWidget(right_host)
-        layout.addLayout(lower)
-        return card
-
-    def _home2_queue_card(self) -> QtWidgets.QWidget:
-        card = QtWidgets.QGroupBox("Очередь и прогресс")
-        layout = QtWidgets.QVBoxLayout(card)
-
-        stats = QtWidgets.QHBoxLayout()
-        self.home2_queue_count = QtWidgets.QLabel("В очереди: 0")
-        self.home2_recent_count = QtWidgets.QLabel(f"Недавних наборов: {len(self.recent_lists)}")
-        self.home2_mode_label = QtWidgets.QLabel(f"Режим: {'В фоне' if self.download_mode == 'background' else 'Видимо'}")
-        stats.addWidget(self.home2_queue_count)
-        stats.addWidget(self.home2_recent_count)
-        stats.addWidget(self.home2_mode_label)
-        stats.addStretch(1)
-        layout.addLayout(stats)
-
-        self.home2_progress_label = QtWidgets.QLabel("Список пока пустой.")
-        self.home2_progress_label.setWordWrap(True)
-        layout.addWidget(self.home2_progress_label)
-
-        self.home2_batch_table = QtWidgets.QTableWidget(0, 3)
-        self.home2_batch_table.setHorizontalHeaderLabels(["Профиль", "Статус", "Сообщение"])
-        self.home2_batch_table.horizontalHeader().setStretchLastSection(True)
-        self.home2_batch_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
-        self.home2_batch_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
-        self.home2_batch_table.verticalHeader().setVisible(False)
-        self.home2_batch_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.home2_batch_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-        self.home2_batch_table.setMinimumHeight(240)
-        layout.addWidget(self.home2_batch_table)
-
-        row = QtWidgets.QHBoxLayout()
-        clear_button = QtWidgets.QPushButton("Очистить очередь")
-        clear_button.clicked.connect(self.clear_batch)
-        clear_button.setEnabled(False)
-        self.home2_clear_button = clear_button
-        row.addWidget(clear_button)
-        row.addStretch(1)
-        layout.addLayout(row)
-        return card
-
-    def _home2_recent_lists_card(self) -> QtWidgets.QWidget:
-        card = QtWidgets.QGroupBox("Недавние наборы")
-        layout = QtWidgets.QVBoxLayout(card)
-        self.home2_recent_lists_container = QtWidgets.QVBoxLayout()
-        self.home2_recent_lists_container.setSpacing(10)
-        layout.addLayout(self.home2_recent_lists_container)
-        return card
-
-    def _home2_compact_activity_card(self) -> QtWidgets.QWidget:
-        card = QtWidgets.QGroupBox("Что происходит")
-        layout = QtWidgets.QVBoxLayout(card)
-        self.home2_last_result = QtWidgets.QLabel("Пока нет действий.")
-        self.home2_last_result.setWordWrap(True)
-        self.home2_session_summary = QtWidgets.QLabel("Состояние сессии неизвестно.")
-        self.home2_session_summary.setWordWrap(True)
-        self.home2_worker_summary = QtWidgets.QLabel("Воркер ещё не проверялся.")
-        self.home2_worker_summary.setWordWrap(True)
-        layout.addWidget(self._group("Последнее событие", self.home2_last_result))
-        layout.addWidget(self._group("Сессия", self.home2_session_summary))
-        layout.addWidget(self._group("Воркер", self.home2_worker_summary))
-        return card
-
-    def _summary_pill(self, title: str, value_label: QtWidgets.QLabel) -> QtWidgets.QWidget:
-        host = QtWidgets.QGroupBox(title)
-        layout = QtWidgets.QVBoxLayout(host)
-        value_label.setWordWrap(True)
-        layout.addWidget(value_label)
-        return host
-
-    def _group(self, title: str, content: QtWidgets.QWidget) -> QtWidgets.QWidget:
-        box = QtWidgets.QGroupBox(title)
-        box_layout = QtWidgets.QVBoxLayout(box)
-        box_layout.setContentsMargins(12, 12, 12, 12)
-        box_layout.addWidget(content)
-        return box
-
     def _build_activity_panel(self) -> QtWidgets.QWidget:
         panel = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(18)
 
-        title = QtWidgets.QLabel("Активность")
+        title = QtWidgets.QLabel("РђРєС‚РёРІРЅРѕСЃС‚СЊ")
         title.setObjectName("panelTitle")
-        self.activity_subtitle = QtWidgets.QLabel("Пока нет действий.")
+        self.activity_subtitle = QtWidgets.QLabel("РџРѕРєР° РЅРµС‚ РґРµР№СЃС‚РІРёР№.")
         self.activity_subtitle.setWordWrap(True)
         layout.addWidget(title)
         layout.addWidget(self.activity_subtitle)
 
-        status_group = QtWidgets.QGroupBox("Статус загрузки")
+        status_group = QtWidgets.QGroupBox("РЎС‚Р°С‚СѓСЃ Р·Р°РіСЂСѓР·РєРё")
         status_layout = QtWidgets.QVBoxLayout(status_group)
-        self.status_title_label = QtWidgets.QLabel("Ожидание")
+        self.status_title_label = QtWidgets.QLabel("РћР¶РёРґР°РЅРёРµ")
         self.status_title_label.setObjectName("statusTitle")
-        self.status_detail_label = QtWidgets.QLabel("Приложение готово к работе.")
+        self.status_detail_label = QtWidgets.QLabel("РџСЂРёР»РѕР¶РµРЅРёРµ РіРѕС‚РѕРІРѕ Рє СЂР°Р±РѕС‚Рµ.")
         self.status_detail_label.setWordWrap(True)
-        self.found_label = QtWidgets.QLabel("Найдено: 0")
-        self.saved_label = QtWidgets.QLabel("Сохранено: 0")
+        self.found_label = QtWidgets.QLabel("РќР°Р№РґРµРЅРѕ: 0")
+        self.saved_label = QtWidgets.QLabel("РЎРѕС…СЂР°РЅРµРЅРѕ: 0")
         status_layout.addWidget(self.status_title_label)
         status_layout.addWidget(self.status_detail_label)
         status_layout.addWidget(self.found_label)
         status_layout.addWidget(self.saved_label)
         layout.addWidget(status_group)
 
-        downloads_group = QtWidgets.QGroupBox("Последние загрузки")
+        downloads_group = QtWidgets.QGroupBox("РџРѕСЃР»РµРґРЅРёРµ Р·Р°РіСЂСѓР·РєРё")
         downloads_layout = QtWidgets.QVBoxLayout(downloads_group)
         self.downloads_list = QtWidgets.QListWidget()
         self.downloads_list.itemDoubleClicked.connect(self.open_download_item)
         downloads_layout.addWidget(self.downloads_list)
         layout.addWidget(downloads_group, 1)
 
-        logs_group = QtWidgets.QGroupBox("Логи")
+        logs_group = QtWidgets.QGroupBox("Р›РѕРіРё")
         logs_layout = QtWidgets.QVBoxLayout(logs_group)
         self.logs_text = QtWidgets.QPlainTextEdit()
         self.logs_text.setReadOnly(True)
@@ -721,7 +509,7 @@ class MainWindow(QtWidgets.QMainWindow):
         subtitle_label = QtWidgets.QLabel(subtitle)
         subtitle_label.setWordWrap(True)
         subtitle_label.setObjectName("heroSubtitle")
-        version_label = QtWidgets.QLabel(f"Windows shell · {QtWidgets.QApplication.applicationVersion() or app_version()}")
+        version_label = QtWidgets.QLabel(f"Windows shell В· {QtWidgets.QApplication.applicationVersion() or app_version()}")
         version_label.setObjectName("heroVersion")
         layout.addWidget(title_label)
         layout.addWidget(subtitle_label)
@@ -729,44 +517,42 @@ class MainWindow(QtWidgets.QMainWindow):
         return host
 
     def _status_card(self) -> QtWidgets.QWidget:
-        box = QtWidgets.QGroupBox("Состояние")
+        box = QtWidgets.QGroupBox("РЎРѕСЃС‚РѕСЏРЅРёРµ")
         layout = QtWidgets.QVBoxLayout(box)
         self.home_worker_summary = QtWidgets.QLabel(self.worker_summary)
         self.home_worker_summary.setWordWrap(True)
         self.home_session_summary = QtWidgets.QLabel(self.session_summary)
         self.home_session_summary.setWordWrap(True)
-        layout.addWidget(QtWidgets.QLabel("Воркер"))
+        layout.addWidget(QtWidgets.QLabel("Р’РѕСЂРєРµСЂ"))
         layout.addWidget(self.home_worker_summary)
-        layout.addWidget(QtWidgets.QLabel("Сессия"))
+        layout.addWidget(QtWidgets.QLabel("РЎРµСЃСЃРёСЏ"))
         layout.addWidget(self.home_session_summary)
         return box
 
-    def _save_directory_card(self, *, batch_mode: bool = False, home2_mode: bool = False) -> QtWidgets.QWidget:
-        box = QtWidgets.QGroupBox("Папка сохранения")
+    def _save_directory_card(self, *, batch_mode: bool = False) -> QtWidgets.QWidget:
+        box = QtWidgets.QGroupBox("РџР°РїРєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ")
         layout = QtWidgets.QVBoxLayout(box)
         line_edit = QtWidgets.QLineEdit(str(self.save_directory))
         line_edit.setReadOnly(True)
         layout.addWidget(line_edit)
 
         button_row = QtWidgets.QHBoxLayout()
-        choose = QtWidgets.QPushButton("Выбрать папку")
+        choose = QtWidgets.QPushButton("Р’С‹Р±СЂР°С‚СЊ РїР°РїРєСѓ")
         choose.clicked.connect(lambda: self.choose_save_directory(line_edit))
-        show = QtWidgets.QPushButton("Показать")
+        show = QtWidgets.QPushButton("РџРѕРєР°Р·Р°С‚СЊ")
         show.clicked.connect(self.open_save_directory)
         button_row.addWidget(choose)
         button_row.addWidget(show)
         layout.addLayout(button_row)
 
-        if home2_mode:
-            self.home2_directory_line = line_edit
-        elif batch_mode:
+        if batch_mode:
             self.batch_directory_line = line_edit
         else:
             self.directory_line = line_edit
         return box
 
     def _profile_card(self) -> QtWidgets.QWidget:
-        box = QtWidgets.QGroupBox("Ссылка на профиль")
+        box = QtWidgets.QGroupBox("РЎСЃС‹Р»РєР° РЅР° РїСЂРѕС„РёР»СЊ")
         layout = QtWidgets.QVBoxLayout(box)
 
         self.profile_input = QtWidgets.QLineEdit()
@@ -774,34 +560,32 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.profile_input)
         layout.addWidget(self._mode_card())
 
-        button = QtWidgets.QPushButton("Скачать активные stories")
+        button = QtWidgets.QPushButton("РЎРєР°С‡Р°С‚СЊ Р°РєС‚РёРІРЅС‹Рµ stories")
         button.clicked.connect(self.download_profile)
         layout.addWidget(button)
         return box
 
-    def _mode_card(self, *, batch_mode: bool = False, home2_mode: bool = False) -> QtWidgets.QWidget:
+    def _mode_card(self, *, batch_mode: bool = False) -> QtWidgets.QWidget:
         host = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(host)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
-        label = QtWidgets.QLabel("Режим выгрузки")
+        label = QtWidgets.QLabel("Р РµР¶РёРј РІС‹РіСЂСѓР·РєРё")
         label.setObjectName("sectionLabel")
         combo = QtWidgets.QComboBox()
-        combo.addItem("В фоне", "background")
-        combo.addItem("Видимо", "visible")
+        combo.addItem("Р’ С„РѕРЅРµ", "background")
+        combo.addItem("Р’РёРґРёРјРѕ", "visible")
         combo.setCurrentIndex(0 if self.download_mode == "background" else 1)
         combo.currentIndexChanged.connect(self.on_mode_changed)
-        detail = QtWidgets.QLabel("В фоне браузер не показывается. Видимо открывает окно Chromium во время выгрузки.")
+        detail = QtWidgets.QLabel("Р’ С„РѕРЅРµ Р±СЂР°СѓР·РµСЂ РЅРµ РїРѕРєР°Р·С‹РІР°РµС‚СЃСЏ. Р’РёРґРёРјРѕ РѕС‚РєСЂС‹РІР°РµС‚ РѕРєРЅРѕ Chromium РІРѕ РІСЂРµРјСЏ РІС‹РіСЂСѓР·РєРё.")
         detail.setWordWrap(True)
 
         layout.addWidget(label)
         layout.addWidget(combo)
         layout.addWidget(detail)
 
-        if home2_mode:
-            self.home2_mode_combo = combo
-        elif batch_mode:
+        if batch_mode:
             self.batch_mode_combo = combo
         else:
             self.mode_combo = combo
@@ -811,63 +595,107 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setStyleSheet(
             """
             QMainWindow, QWidget {
-                background: #f5f7fb;
-                color: #162235;
+                background: #f3f3f3;
+                color: #1f1f1f;
+                font-family: "Segoe UI Variable Text", "Segoe UI", "Inter", sans-serif;
                 font-size: 14px;
             }
             QFrame#sidebar {
-                background: #eef2f8;
-                border-right: 1px solid #d7dfeb;
+                background: #fbfbfb;
+                border-right: 1px solid #e6e6e6;
             }
-            QLabel#sidebarTitle { font-size: 28px; font-weight: 700; color: #102844; }
-            QLabel#sidebarSubtitle { font-size: 11px; font-weight: 700; color: #5f7289; text-transform: uppercase; }
+            QLabel#sidebarTitle { font-size: 30px; font-weight: 700; color: #0f172a; }
+            QLabel#sidebarSubtitle { font-size: 11px; font-weight: 700; color: #667085; text-transform: uppercase; }
             QPushButton[nav="true"] {
                 text-align: left;
-                padding: 14px;
-                border-radius: 16px;
-                border: 1px solid transparent;
+                padding: 13px 14px;
+                border-radius: 12px;
+                border: 1px solid #00000000;
                 background: transparent;
-                color: #173454;
+                color: #1f2937;
                 font-size: 14px;
                 font-weight: 600;
             }
             QPushButton[nav="true"]:hover {
-                background: #e5edf8;
-                border-color: #d2def0;
+                background: #f3f6fc;
+                border-color: #d6e4ff;
             }
             QPushButton[nav="true"]:pressed {
-                background: #dce8f8;
+                background: #e8effc;
             }
             QPushButton[nav="true"]:checked {
-                background: #d7e8ff; border-color: #b8cff7; color: #0e3f7a;
+                background: #e7f1ff;
+                border-color: #c7ddff;
+                color: #0a4aa3;
             }
-            QLabel#heroTitle { font-size: 34px; font-weight: 700; color: #102844; }
-            QLabel#heroSubtitle { font-size: 16px; color: #4f6279; }
-            QLabel#heroVersion { font-size: 12px; color: #6f8096; }
-            QLabel#panelTitle { font-size: 28px; font-weight: 700; }
-            QLabel#statusTitle { font-size: 22px; font-weight: 700; }
-            QLabel#dialogTitle { font-size: 22px; font-weight: 700; }
-            QLabel#sectionLabel { font-size: 12px; font-weight: 700; color: #6c7d90; text-transform: uppercase; }
+            QLabel#heroTitle { font-size: 33px; font-weight: 700; color: #0f172a; }
+            QLabel#heroSubtitle { font-size: 16px; color: #475467; }
+            QLabel#heroVersion { font-size: 12px; color: #667085; }
+            QLabel#panelTitle { font-size: 30px; font-weight: 700; color: #101828; }
+            QLabel#statusTitle { font-size: 23px; font-weight: 700; color: #0f172a; }
+            QLabel#dialogTitle { font-size: 22px; font-weight: 700; color: #0f172a; }
+            QLabel#sectionLabel { font-size: 12px; font-weight: 700; color: #667085; text-transform: uppercase; }
             QGroupBox {
-                border: 1px solid #d9e2ee;
-                border-radius: 14px;
-                margin-top: 10px;
-                background: rgba(255, 255, 255, 0.92);
+                border: 1px solid #e4e7ec;
+                border-radius: 12px;
+                margin-top: 11px;
+                background: #fcfcfd;
                 font-weight: 700;
-                padding: 12px;
+                padding: 12px 12px 10px 12px;
             }
-            QGroupBox::title { subcontrol-origin: margin; left: 14px; padding: 0 4px; }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 14px;
+                padding: 0 4px;
+                color: #344054;
+            }
             QPushButton {
-                background: #176ec8; color: white; border: 1px solid #176ec8; border-radius: 12px; padding: 10px 14px;
+                background: #0f6cbd;
+                color: white;
+                border: 1px solid #0f6cbd;
+                border-radius: 10px;
+                padding: 10px 14px;
                 font-weight: 600;
             }
-            QPushButton:hover { background: #0f5ca9; border-color: #0f5ca9; }
-            QPushButton:disabled { background: #c3cedc; border-color: #c3cedc; color: #eef3f9; }
+            QPushButton:hover { background: #115ea3; border-color: #115ea3; }
+            QPushButton:pressed { background: #0f548c; border-color: #0f548c; }
+            QPushButton:disabled { background: #d0d5dd; border-color: #d0d5dd; color: #f2f4f7; }
             QLineEdit, QPlainTextEdit, QListWidget, QTableWidget, QComboBox {
-                background: white; border: 1px solid #dbe4ef; border-radius: 12px; padding: 10px;
+                background: #ffffff;
+                border: 1px solid #d0d5dd;
+                border-radius: 10px;
+                padding: 9px 10px;
+                selection-background-color: #dbeafe;
+                selection-color: #0f172a;
             }
+            QLineEdit:focus, QPlainTextEdit:focus, QListWidget:focus, QTableWidget:focus, QComboBox:focus {
+                border: 1px solid #60a5fa;
+            }
+            QComboBox::drop-down { border: none; width: 24px; }
             QHeaderView::section {
-                background: #edf2f8; border: none; border-bottom: 1px solid #dbe4ef; padding: 8px; font-weight: 700;
+                background: #f8fafc;
+                border: none;
+                border-bottom: 1px solid #e4e7ec;
+                padding: 8px;
+                font-weight: 700;
+                color: #344054;
+            }
+            QScrollBar:vertical {
+                background: #f3f3f3;
+                width: 12px;
+                margin: 2px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background: #c9d2dd;
+                min-height: 28px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical:hover { background: #b3bfcd; }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+                background: transparent;
+                border: none;
             }
             """
         )
@@ -875,14 +703,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def prepare(self) -> None:
         try:
             write_crash_log("MainWindow.prepare", "Startup UI prepare started.")
-            self.append_log(f"Подготовлены папки приложения в {AppPaths.application_support()}.")
-            self.set_status("Готово", "Приложение запущено. Автоматические фоновые проверки отключены.")
-            self.activity_subtitle.setText("Приложение запущено. Проверки среды, сессии и обновлений доступны вручную в настройках.")
+            self.append_log(f"РџРѕРґРіРѕС‚РѕРІР»РµРЅС‹ РїР°РїРєРё РїСЂРёР»РѕР¶РµРЅРёСЏ РІ {AppPaths.application_support()}.")
+            self.set_status("Р“РѕС‚РѕРІРѕ", "РџСЂРёР»РѕР¶РµРЅРёРµ Р·Р°РїСѓС‰РµРЅРѕ. РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРёРµ С„РѕРЅРѕРІС‹Рµ РїСЂРѕРІРµСЂРєРё РѕС‚РєР»СЋС‡РµРЅС‹.")
+            self.activity_subtitle.setText("РџСЂРёР»РѕР¶РµРЅРёРµ Р·Р°РїСѓС‰РµРЅРѕ. РџСЂРѕРІРµСЂРєРё СЃСЂРµРґС‹, СЃРµСЃСЃРёРё Рё РѕР±РЅРѕРІР»РµРЅРёР№ РґРѕСЃС‚СѓРїРЅС‹ РІСЂСѓС‡РЅСѓСЋ РІ РЅР°СЃС‚СЂРѕР№РєР°С….")
             write_crash_log("MainWindow.prepare", "Startup UI prepare finished with startup background checks disabled.")
         except Exception as error:
             details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
             write_crash_log("Startup prepare failure", details)
-            self.set_status("Ошибка", f"Ошибка запуска: {error}")
+            self.set_status("РћС€РёР±РєР°", f"РћС€РёР±РєР° Р·Р°РїСѓСЃРєР°: {error}")
             self.append_log(f"[startup_error] {error}")
 
     def auto_check_for_updates(self) -> None:
@@ -915,13 +743,13 @@ class MainWindow(QtWidgets.QMainWindow):
             write_crash_log("startup_probe", "Skipped because another request is already active.")
             QtCore.QTimer.singleShot(2000, self.startup_probe)
             return
-        self.append_log("Запускаю отложенную проверку среды и Instagram-сессии.")
+        self.append_log("Р—Р°РїСѓСЃРєР°СЋ РѕС‚Р»РѕР¶РµРЅРЅСѓСЋ РїСЂРѕРІРµСЂРєСѓ СЃСЂРµРґС‹ Рё Instagram-СЃРµСЃСЃРёРё.")
         self.refresh_environment(startup=True)
 
     def refresh_environment(self, *, startup: bool = False) -> None:
         self.start_request(
             WorkerRequest(command="environment", urls=None),
-            "Проверка среды воркера",
+            "РџСЂРѕРІРµСЂРєР° СЃСЂРµРґС‹ РІРѕСЂРєРµСЂР°",
             callback=lambda response: self.handle_environment_response(response, startup=startup),
         )
 
@@ -937,7 +765,6 @@ class MainWindow(QtWidgets.QMainWindow):
             runtime_summary=self.runtime_summary,
             update_summary=self.update_summary,
         )
-        self.refresh_home2_status_strip()
         if startup and response.ok:
             self.check_session(startup=True)
 
@@ -955,7 +782,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def bootstrap_environment(self) -> None:
         if AppPaths.has_embedded_runtime():
-            self.set_status("Готово", "В этой Windows-сборке движок уже встроен. Дополнительная установка не нужна.")
+            self.set_status("Р“РѕС‚РѕРІРѕ", "Р’ СЌС‚РѕР№ Windows-СЃР±РѕСЂРєРµ РґРІРёР¶РѕРє СѓР¶Рµ РІСЃС‚СЂРѕРµРЅ. Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅР°СЏ СѓСЃС‚Р°РЅРѕРІРєР° РЅРµ РЅСѓР¶РЅР°.")
             self.append_log("Bundled Windows runtime already available.")
             self.refresh_environment()
             return
@@ -963,7 +790,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.bootstrap_task is not None and self.bootstrap_task.isRunning():
             return
 
-        self.set_status("Подготовка среды воркера", "Идёт установка Playwright и Chromium...")
+        self.set_status("РџРѕРґРіРѕС‚РѕРІРєР° СЃСЂРµРґС‹ РІРѕСЂРєРµСЂР°", "РРґС‘С‚ СѓСЃС‚Р°РЅРѕРІРєР° Playwright Рё Chromium...")
         self.bootstrap_task = BootstrapTask()
         self.bootstrap_task.finished_output.connect(self.handle_bootstrap_finished)
         self.bootstrap_task.start()
@@ -973,7 +800,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if output:
             for line in output.splitlines():
                 self.append_log(line)
-        self.set_status("Готово" if ok else "Ошибка", output or ("Среда подготовлена." if ok else "Не удалось подготовить среду."))
+        self.set_status("Р“РѕС‚РѕРІРѕ" if ok else "РћС€РёР±РєР°", output or ("РЎСЂРµРґР° РїРѕРґРіРѕС‚РѕРІР»РµРЅР°." if ok else "РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕРґРіРѕС‚РѕРІРёС‚СЊ СЃСЂРµРґСѓ."))
         self.refresh_environment()
 
     def login(self) -> None:
@@ -984,13 +811,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self.login_poll_active = True
             if not self.login_poll_timer.isActive():
                 self.login_poll_timer.start()
-            self.set_status("Вход в Instagram", "Окно браузера открыто. Ожидаю появления сохранённой сессии.")
-            self.activity_subtitle.setText("Выполни вход в Instagram в открытом окне браузера. Приложение само обнаружит сохранённую сессию.")
-            self.append_log("Открыл отдельное окно браузера для входа в Instagram.")
+            self.set_status("Р’С…РѕРґ РІ Instagram", "РћРєРЅРѕ Р±СЂР°СѓР·РµСЂР° РѕС‚РєСЂС‹С‚Рѕ. РћР¶РёРґР°СЋ РїРѕСЏРІР»РµРЅРёСЏ СЃРѕС…СЂР°РЅС‘РЅРЅРѕР№ СЃРµСЃСЃРёРё.")
+            self.activity_subtitle.setText("Р’С‹РїРѕР»РЅРё РІС…РѕРґ РІ Instagram РІ РѕС‚РєСЂС‹С‚РѕРј РѕРєРЅРµ Р±СЂР°СѓР·РµСЂР°. РџСЂРёР»РѕР¶РµРЅРёРµ СЃР°РјРѕ РѕР±РЅР°СЂСѓР¶РёС‚ СЃРѕС…СЂР°РЅС‘РЅРЅСѓСЋ СЃРµСЃСЃРёСЋ.")
+            self.append_log("РћС‚РєСЂС‹Р» РѕС‚РґРµР»СЊРЅРѕРµ РѕРєРЅРѕ Р±СЂР°СѓР·РµСЂР° РґР»СЏ РІС…РѕРґР° РІ Instagram.")
         except Exception as error:
             details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
             write_crash_log("Detached login launch failure", details)
-            self.set_status("Ошибка", f"Не удалось открыть браузер для входа: {error}")
+            self.set_status("РћС€РёР±РєР°", f"РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ Р±СЂР°СѓР·РµСЂ РґР»СЏ РІС…РѕРґР°: {error}")
             self.append_log(f"[login_launch_error] {error}")
 
     def check_session(self, *, startup: bool = False) -> None:
@@ -998,7 +825,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         self.start_request(
             WorkerRequest(command="check_session", urls=None, headless=True),
-            "Проверка сохранённой сессии",
+            "РџСЂРѕРІРµСЂРєР° СЃРѕС…СЂР°РЅС‘РЅРЅРѕР№ СЃРµСЃСЃРёРё",
             callback=lambda response: self.handle_session_response(response, startup=startup),
         )
 
@@ -1013,46 +840,45 @@ class MainWindow(QtWidgets.QMainWindow):
             runtime_summary=self.runtime_summary,
             update_summary=self.update_summary,
         )
-        self.refresh_home2_status_strip()
 
         if self.session_ready and self.login_poll_active:
             self.login_poll_active = False
             self.login_poll_timer.stop()
-            self.append_log("Сессия Instagram найдена. Окно входа можно закрыть.")
-            self.set_status("Готово", "Сессия Instagram успешно сохранена.")
-            self.activity_subtitle.setText("Сессия Instagram найдена. Приложение готово к выгрузке.")
+            self.append_log("РЎРµСЃСЃРёСЏ Instagram РЅР°Р№РґРµРЅР°. РћРєРЅРѕ РІС…РѕРґР° РјРѕР¶РЅРѕ Р·Р°РєСЂС‹С‚СЊ.")
+            self.set_status("Р“РѕС‚РѕРІРѕ", "РЎРµСЃСЃРёСЏ Instagram СѓСЃРїРµС€РЅРѕ СЃРѕС…СЂР°РЅРµРЅР°.")
+            self.activity_subtitle.setText("РЎРµСЃСЃРёСЏ Instagram РЅР°Р№РґРµРЅР°. РџСЂРёР»РѕР¶РµРЅРёРµ РіРѕС‚РѕРІРѕ Рє РІС‹РіСЂСѓР·РєРµ.")
             return
 
         if startup and not self.session_ready:
-            self.set_status("Нужен вход", "Сессия Instagram не найдена. Можно открыть браузер для входа.")
-            self.activity_subtitle.setText("Сессия не найдена. Сейчас предложу открыть браузер для авторизации.")
-            self.append_log("Сессия Instagram не найдена. Показываю безопасный prompt для входа.")
+            self.set_status("РќСѓР¶РµРЅ РІС…РѕРґ", "РЎРµСЃСЃРёСЏ Instagram РЅРµ РЅР°Р№РґРµРЅР°. РњРѕР¶РЅРѕ РѕС‚РєСЂС‹С‚СЊ Р±СЂР°СѓР·РµСЂ РґР»СЏ РІС…РѕРґР°.")
+            self.activity_subtitle.setText("РЎРµСЃСЃРёСЏ РЅРµ РЅР°Р№РґРµРЅР°. РЎРµР№С‡Р°СЃ РїСЂРµРґР»РѕР¶Сѓ РѕС‚РєСЂС‹С‚СЊ Р±СЂР°СѓР·РµСЂ РґР»СЏ Р°РІС‚РѕСЂРёР·Р°С†РёРё.")
+            self.append_log("РЎРµСЃСЃРёСЏ Instagram РЅРµ РЅР°Р№РґРµРЅР°. РџРѕРєР°Р·С‹РІР°СЋ Р±РµР·РѕРїР°СЃРЅС‹Р№ prompt РґР»СЏ РІС…РѕРґР°.")
             if not self.startup_login_prompt_shown:
                 self.startup_login_prompt_shown = True
                 QtCore.QTimer.singleShot(350, self.prompt_startup_login)
         elif self.login_poll_active and not self.session_ready:
-            self.activity_subtitle.setText("Ожидаю завершения входа в Instagram в отдельном окне браузера.")
+            self.activity_subtitle.setText("РћР¶РёРґР°СЋ Р·Р°РІРµСЂС€РµРЅРёСЏ РІС…РѕРґР° РІ Instagram РІ РѕС‚РґРµР»СЊРЅРѕРј РѕРєРЅРµ Р±СЂР°СѓР·РµСЂР°.")
 
     def prompt_startup_login(self) -> None:
         write_crash_log("prompt_startup_login", "Showing startup login prompt.")
         dialog = QtWidgets.QMessageBox(self)
-        dialog.setWindowTitle("Нужен вход в Instagram")
+        dialog.setWindowTitle("РќСѓР¶РµРЅ РІС…РѕРґ РІ Instagram")
         dialog.setIcon(QtWidgets.QMessageBox.Information)
-        dialog.setText("Сохранённая Instagram-сессия не найдена.")
-        dialog.setInformativeText("Открыть отдельное окно браузера для входа сейчас?")
-        open_button = dialog.addButton("Открыть браузер", QtWidgets.QMessageBox.AcceptRole)
-        dialog.addButton("Позже", QtWidgets.QMessageBox.RejectRole)
+        dialog.setText("РЎРѕС…СЂР°РЅС‘РЅРЅР°СЏ Instagram-СЃРµСЃСЃРёСЏ РЅРµ РЅР°Р№РґРµРЅР°.")
+        dialog.setInformativeText("РћС‚РєСЂС‹С‚СЊ РѕС‚РґРµР»СЊРЅРѕРµ РѕРєРЅРѕ Р±СЂР°СѓР·РµСЂР° РґР»СЏ РІС…РѕРґР° СЃРµР№С‡Р°СЃ?")
+        open_button = dialog.addButton("РћС‚РєСЂС‹С‚СЊ Р±СЂР°СѓР·РµСЂ", QtWidgets.QMessageBox.AcceptRole)
+        dialog.addButton("РџРѕР·Р¶Рµ", QtWidgets.QMessageBox.RejectRole)
         dialog.exec()
         if dialog.clickedButton() == open_button:
             self.login()
         else:
-            self.append_log("Вход в Instagram отложен пользователем.")
-            self.activity_subtitle.setText("Вход можно выполнить позже через кнопку в настройках.")
+            self.append_log("Р’С…РѕРґ РІ Instagram РѕС‚Р»РѕР¶РµРЅ РїРѕР»СЊР·РѕРІР°С‚РµР»РµРј.")
+            self.activity_subtitle.setText("Р’С…РѕРґ РјРѕР¶РЅРѕ РІС‹РїРѕР»РЅРёС‚СЊ РїРѕР·Р¶Рµ С‡РµСЂРµР· РєРЅРѕРїРєСѓ РІ РЅР°СЃС‚СЂРѕР№РєР°С….")
 
     def check_for_updates(self, *, silent: bool) -> None:
         if not self.updater.is_available:
             if not silent:
-                self.append_log("Автообновление недоступно: не настроен источник release API.")
+                self.append_log("РђРІС‚РѕРѕР±РЅРѕРІР»РµРЅРёРµ РЅРµРґРѕСЃС‚СѓРїРЅРѕ: РЅРµ РЅР°СЃС‚СЂРѕРµРЅ РёСЃС‚РѕС‡РЅРёРє release API.")
             return
 
         if self.update_check_task is not None and self.update_check_task.isRunning():
@@ -1060,7 +886,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.silent_update_check = silent
         if not silent:
-            self.set_status("Проверка обновлений", "Запрашиваю latest release в GitHub.")
+            self.set_status("РџСЂРѕРІРµСЂРєР° РѕР±РЅРѕРІР»РµРЅРёР№", "Р—Р°РїСЂР°С€РёРІР°СЋ latest release РІ GitHub.")
         self.update_check_task = UpdateCheckTask(self.updater, app_version())
         self.update_check_task.finished_output.connect(self.handle_update_check_result)
         self.update_check_task.start()
@@ -1070,7 +896,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.settings_store.setValue("last_update_check_at", datetime.now().astimezone().isoformat())
 
         if not ok:
-            self.update_summary = f"Ошибка проверки обновлений: {status}"
+            self.update_summary = f"РћС€РёР±РєР° РїСЂРѕРІРµСЂРєРё РѕР±РЅРѕРІР»РµРЅРёР№: {status}"
             self.settings_dialog.update_state(
                 worker_summary=self.worker_summary,
                 session_summary=self.session_summary,
@@ -1078,12 +904,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 update_summary=self.update_summary,
             )
             if not self.silent_update_check:
-                self.set_status("Ошибка", status)
+                self.set_status("РћС€РёР±РєР°", status)
                 self.append_log(f"[update_error] {status}")
             return
 
         if status == "disabled":
-            self.update_summary = "Автообновление не настроено для этой Windows-сборки."
+            self.update_summary = "РђРІС‚РѕРѕР±РЅРѕРІР»РµРЅРёРµ РЅРµ РЅР°СЃС‚СЂРѕРµРЅРѕ РґР»СЏ СЌС‚РѕР№ Windows-СЃР±РѕСЂРєРё."
             self.settings_dialog.update_state(
                 worker_summary=self.worker_summary,
                 session_summary=self.session_summary,
@@ -1093,7 +919,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         if status == "up_to_date":
-            self.update_summary = f"Уже установлена актуальная версия {app_version()}."
+            self.update_summary = f"РЈР¶Рµ СѓСЃС‚Р°РЅРѕРІР»РµРЅР° Р°РєС‚СѓР°Р»СЊРЅР°СЏ РІРµСЂСЃРёСЏ {app_version()}."
             self.settings_dialog.update_state(
                 worker_summary=self.worker_summary,
                 session_summary=self.session_summary,
@@ -1101,49 +927,49 @@ class MainWindow(QtWidgets.QMainWindow):
                 update_summary=self.update_summary,
             )
             if not self.silent_update_check:
-                self.set_status("Готово", "Новая версия не найдена.")
-                self.append_log("Новая Windows-версия не найдена.")
+                self.set_status("Р“РѕС‚РѕРІРѕ", "РќРѕРІР°СЏ РІРµСЂСЃРёСЏ РЅРµ РЅР°Р№РґРµРЅР°.")
+                self.append_log("РќРѕРІР°СЏ Windows-РІРµСЂСЃРёСЏ РЅРµ РЅР°Р№РґРµРЅР°.")
             return
 
         if status == "update_available" and isinstance(release, ReleaseInfo):
             self.pending_release = release
-            self.update_summary = f"Доступна версия {release.version}. Готова к установке поверх текущей сборки."
+            self.update_summary = f"Р”РѕСЃС‚СѓРїРЅР° РІРµСЂСЃРёСЏ {release.version}. Р“РѕС‚РѕРІР° Рє СѓСЃС‚Р°РЅРѕРІРєРµ РїРѕРІРµСЂС… С‚РµРєСѓС‰РµР№ СЃР±РѕСЂРєРё."
             self.settings_dialog.update_state(
                 worker_summary=self.worker_summary,
                 session_summary=self.session_summary,
                 runtime_summary=self.runtime_summary,
                 update_summary=self.update_summary,
             )
-            self.append_log(f"Найдена новая версия Windows: {release.version}.")
+            self.append_log(f"РќР°Р№РґРµРЅР° РЅРѕРІР°СЏ РІРµСЂСЃРёСЏ Windows: {release.version}.")
             if self.silent_update_check:
-                self.append_log("Автопроверка: обновление найдено. Установка доступна только вручную через настройки.")
+                self.append_log("РђРІС‚РѕРїСЂРѕРІРµСЂРєР°: РѕР±РЅРѕРІР»РµРЅРёРµ РЅР°Р№РґРµРЅРѕ. РЈСЃС‚Р°РЅРѕРІРєР° РґРѕСЃС‚СѓРїРЅР° С‚РѕР»СЊРєРѕ РІСЂСѓС‡РЅСѓСЋ С‡РµСЂРµР· РЅР°СЃС‚СЂРѕР№РєРё.")
                 return
             self.prompt_update_install(release)
 
     def prompt_update_install(self, release: ReleaseInfo) -> None:
         dialog = QtWidgets.QMessageBox(self)
-        dialog.setWindowTitle("Доступно обновление")
+        dialog.setWindowTitle("Р”РѕСЃС‚СѓРїРЅРѕ РѕР±РЅРѕРІР»РµРЅРёРµ")
         dialog.setIcon(QtWidgets.QMessageBox.Information)
-        dialog.setText(f"Доступна новая версия SaveStories {release.version}.")
-        details = release.notes.strip() or "GitHub release опубликован без release notes."
-        dialog.setInformativeText("Сейчас можно скачать обновление и перезапустить приложение.")
+        dialog.setText(f"Р”РѕСЃС‚СѓРїРЅР° РЅРѕРІР°СЏ РІРµСЂСЃРёСЏ SaveStories {release.version}.")
+        details = release.notes.strip() or "GitHub release РѕРїСѓР±Р»РёРєРѕРІР°РЅ Р±РµР· release notes."
+        dialog.setInformativeText("РЎРµР№С‡Р°СЃ РјРѕР¶РЅРѕ СЃРєР°С‡Р°С‚СЊ РѕР±РЅРѕРІР»РµРЅРёРµ Рё РїРµСЂРµР·Р°РїСѓСЃС‚РёС‚СЊ РїСЂРёР»РѕР¶РµРЅРёРµ.")
         dialog.setDetailedText(details)
-        install_button = dialog.addButton("Установить", QtWidgets.QMessageBox.AcceptRole)
-        dialog.addButton("Позже", QtWidgets.QMessageBox.RejectRole)
+        install_button = dialog.addButton("РЈСЃС‚Р°РЅРѕРІРёС‚СЊ", QtWidgets.QMessageBox.AcceptRole)
+        dialog.addButton("РџРѕР·Р¶Рµ", QtWidgets.QMessageBox.RejectRole)
         dialog.exec()
         if dialog.clickedButton() == install_button:
             self.install_update(release, initiated_by_user=True)
 
     def install_update(self, release: ReleaseInfo, *, initiated_by_user: bool = False) -> None:
         if not initiated_by_user:
-            self.append_log("Запуск установки обновления без подтверждения пользователя заблокирован.")
+            self.append_log("Р—Р°РїСѓСЃРє СѓСЃС‚Р°РЅРѕРІРєРё РѕР±РЅРѕРІР»РµРЅРёСЏ Р±РµР· РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ.")
             return
 
         if self.update_install_task is not None and self.update_install_task.isRunning():
             return
 
-        self.set_status("Обновление", f"Скачиваю SaveStories {release.version} и подготавливаю замену файлов.")
-        self.append_log(f"Начинаю установку обновления Windows: {release.version}.")
+        self.set_status("РћР±РЅРѕРІР»РµРЅРёРµ", f"РЎРєР°С‡РёРІР°СЋ SaveStories {release.version} Рё РїРѕРґРіРѕС‚Р°РІР»РёРІР°СЋ Р·Р°РјРµРЅСѓ С„Р°Р№Р»РѕРІ.")
+        self.append_log(f"РќР°С‡РёРЅР°СЋ СѓСЃС‚Р°РЅРѕРІРєСѓ РѕР±РЅРѕРІР»РµРЅРёСЏ Windows: {release.version}.")
         self.update_install_task = UpdateInstallTask(self.updater, release)
         self.update_install_task.finished_output.connect(self.handle_update_install_result)
         self.update_install_task.start()
@@ -1151,39 +977,18 @@ class MainWindow(QtWidgets.QMainWindow):
     def handle_update_install_result(self, ok: bool, message: str) -> None:
         self.update_install_task = None
         if not ok:
-            self.set_status("Ошибка", message)
+            self.set_status("РћС€РёР±РєР°", message)
             self.append_log(f"[update_install_error] {message}")
             return
 
-        self.set_status("Обновление", message)
+        self.set_status("РћР±РЅРѕРІР»РµРЅРёРµ", message)
         self.append_log(message)
-        dialog = QtWidgets.QMessageBox(self)
-        dialog.setWindowTitle("Обновление подготовлено")
-        dialog.setIcon(QtWidgets.QMessageBox.Information)
-        dialog.setText("Файлы обновления скачаны.")
-        dialog.setInformativeText("Перезапустить приложение сейчас и применить обновление?")
-        restart_button = dialog.addButton("Перезапустить и установить", QtWidgets.QMessageBox.AcceptRole)
-        dialog.addButton("Позже", QtWidgets.QMessageBox.RejectRole)
-        dialog.exec()
-
-        if dialog.clickedButton() == restart_button:
-            try:
-                log_path = self.updater.launch_prepared_install()
-                self.append_log(f"Запуск установщика обновления. Лог: {log_path}")
-                self.set_status("Обновление", "Приложение закрывается для применения обновления...")
-                QtCore.QTimer.singleShot(150, QtWidgets.QApplication.instance().quit)
-            except Exception as error:
-                details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
-                write_crash_log("Update launch failure", details)
-                self.set_status("Ошибка", str(error))
-                self.append_log(f"[update_launch_error] {error}")
-        else:
-            self.append_log("Обновление подготовлено. Запусти установку позже через кнопку «Установить».")
+        self.append_log("РћР±РЅРѕРІР»РµРЅРёРµ РїРѕРґРіРѕС‚РѕРІР»РµРЅРѕ. РџРµСЂРµР·Р°РїСѓСЃС‚Рё РїСЂРёР»РѕР¶РµРЅРёРµ РІСЂСѓС‡РЅСѓСЋ, РєРѕРіРґР° Р±СѓРґРµС‚ СѓРґРѕР±РЅРѕ.")
 
     def download_profile(self) -> None:
         profile = self.profile_input.text().strip()
         if not profile:
-            self.append_log("Ссылка на профиль пустая.")
+            self.append_log("РЎСЃС‹Р»РєР° РЅР° РїСЂРѕС„РёР»СЊ РїСѓСЃС‚Р°СЏ.")
             return
 
         self.start_request(
@@ -1194,7 +999,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 outputDirectory=str(self.save_directory),
                 headless=self.current_headless(),
             ),
-            "Скачивание активных stories",
+            "РЎРєР°С‡РёРІР°РЅРёРµ Р°РєС‚РёРІРЅС‹С… stories",
             callback=self.handle_download_response,
         )
 
@@ -1204,7 +1009,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         pending = [index for index, item in enumerate(self.batch_entries) if item.status in {"pending", "failed"}]
         if not pending:
-            self.append_log("В очереди нет профилей для пакетной выгрузки.")
+            self.append_log("Р’ РѕС‡РµСЂРµРґРё РЅРµС‚ РїСЂРѕС„РёР»РµР№ РґР»СЏ РїР°РєРµС‚РЅРѕР№ РІС‹РіСЂСѓР·РєРё.")
             return
 
         self.batch_running = True
@@ -1215,25 +1020,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.batch_saved_total = 0
         self.batch_run_button.setEnabled(False)
         self.batch_stop_button.setEnabled(True)
-        if hasattr(self, "home2_run_button"):
-            self.home2_run_button.setEnabled(False)
-        if hasattr(self, "home2_stop_button"):
-            self.home2_stop_button.setEnabled(True)
         total = len(self.batch_pending_indices)
         remaining = max(total - 1, 0)
         self.batch_progress_label.setText(
-            f"Сейчас 1 из {total}, осталось {remaining}. Очередь выполняется в одном окне браузера."
+            f"РЎРµР№С‡Р°СЃ 1 РёР· {total}, РѕСЃС‚Р°Р»РѕСЃСЊ {remaining}. РћС‡РµСЂРµРґСЊ РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ РІ РѕРґРЅРѕРј РѕРєРЅРµ Р±СЂР°СѓР·РµСЂР°."
         )
-        if hasattr(self, "home2_progress_label"):
-            self.home2_progress_label.setText(
-                f"Сейчас 1 из {total}, осталось {remaining}. Очередь выполняется в одном окне браузера."
-            )
-        self.current_step_label = "Подготавливаю общую очередь профилей."
-        self.refresh_home2_status_strip()
 
         for index in self.batch_pending_indices:
             self.batch_entries[index].status = "running"
-            self.batch_entries[index].message = "Ожидает обработки в общем окне браузера."
+            self.batch_entries[index].message = "РћР¶РёРґР°РµС‚ РѕР±СЂР°Р±РѕС‚РєРё РІ РѕР±С‰РµРј РѕРєРЅРµ Р±СЂР°СѓР·РµСЂР°."
         self.refresh_batch_table()
 
         self.start_request(
@@ -1244,7 +1039,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 outputDirectory=str(self.save_directory),
                 headless=self.current_headless(),
             ),
-            "Пакетная выгрузка",
+            "РџР°РєРµС‚РЅР°СЏ РІС‹РіСЂСѓР·РєР°",
             callback=self.handle_batch_response,
         )
 
@@ -1253,7 +1048,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if response.status == "cancelled":
             for index in self.batch_pending_indices:
                 self.batch_entries[index].status = "stopped"
-                self.batch_entries[index].message = "Пакетная выгрузка остановлена пользователем."
+                self.batch_entries[index].message = "РџР°РєРµС‚РЅР°СЏ РІС‹РіСЂСѓР·РєР° РѕСЃС‚Р°РЅРѕРІР»РµРЅР° РїРѕР»СЊР·РѕРІР°С‚РµР»РµРј."
             self.batch_stop_requested = True
         else:
             self.apply_batch_results(response)
@@ -1285,7 +1080,7 @@ class MainWindow(QtWidgets.QMainWindow):
             result = result_map.get(normalize_profile_link(entry.url))
             if result is None:
                 entry.status = "failed"
-                entry.message = "Для профиля нет результата пакетной выгрузки."
+                entry.message = "Р”Р»СЏ РїСЂРѕС„РёР»СЏ РЅРµС‚ СЂРµР·СѓР»СЊС‚Р°С‚Р° РїР°РєРµС‚РЅРѕР№ РІС‹РіСЂСѓР·РєРё."
                 continue
             entry.status = "completed" if result.get("status") == "completed" else "failed"
             entry.message = str(result.get("message", response.message))
@@ -1294,39 +1089,29 @@ class MainWindow(QtWidgets.QMainWindow):
         processed = len(self.batch_pending_indices)
         total = len(self.batch_pending_indices)
         if self.batch_stop_requested:
-            self.set_status("Остановлено", f"Пакетная выгрузка остановлена. Обработано {processed} из {total}.")
+            self.set_status("РћСЃС‚Р°РЅРѕРІР»РµРЅРѕ", f"РџР°РєРµС‚РЅР°СЏ РІС‹РіСЂСѓР·РєР° РѕСЃС‚Р°РЅРѕРІР»РµРЅР°. РћР±СЂР°Р±РѕС‚Р°РЅРѕ {processed} РёР· {total}.")
         else:
-            self.set_status("Готово", f"Пакетная выгрузка завершена. Сохранено файлов: {self.batch_saved_total}.")
+            self.set_status("Р“РѕС‚РѕРІРѕ", f"РџР°РєРµС‚РЅР°СЏ РІС‹РіСЂСѓР·РєР° Р·Р°РІРµСЂС€РµРЅР°. РЎРѕС…СЂР°РЅРµРЅРѕ С„Р°Р№Р»РѕРІ: {self.batch_saved_total}.")
         self.batch_running = False
         self.batch_stop_requested = False
         self.batch_pending_indices = []
         self.batch_cursor = 0
-        self.batch_progress_label.setText("Очередь готова.")
+        self.batch_progress_label.setText("РћС‡РµСЂРµРґСЊ РіРѕС‚РѕРІР°.")
         self.batch_run_button.setEnabled(True)
         self.batch_stop_button.setEnabled(False)
-        if hasattr(self, "home2_progress_label"):
-            self.home2_progress_label.setText("Очередь готова.")
-        if hasattr(self, "home2_run_button"):
-            self.home2_run_button.setEnabled(True)
-        if hasattr(self, "home2_stop_button"):
-            self.home2_stop_button.setEnabled(False)
-        self.current_step_label = "Очередь обработана."
-        self.refresh_home2_status_strip()
 
     def stop_batch(self) -> None:
         if not self.batch_running:
             return
         self.batch_stop_requested = True
         self.worker.stop_current_process()
-        self.set_status("Остановка", "Останавливаю текущую выгрузку...")
-        self.current_step_label = "Останавливаю пакетную выгрузку."
-        self.refresh_home2_status_strip()
-        self.append_log("Запрошена остановка пакетной выгрузки.")
+        self.set_status("РћСЃС‚Р°РЅРѕРІРєР°", "РћСЃС‚Р°РЅР°РІР»РёРІР°СЋ С‚РµРєСѓС‰СѓСЋ РІС‹РіСЂСѓР·РєСѓ...")
+        self.append_log("Р—Р°РїСЂРѕС€РµРЅР° РѕСЃС‚Р°РЅРѕРІРєР° РїР°РєРµС‚РЅРѕР№ РІС‹РіСЂСѓР·РєРё.")
 
     def add_batch_profiles(self) -> None:
         new_links = parse_batch_links(self.batch_input.toPlainText())
         if not new_links:
-            self.append_log("Для очереди не найдено ни одной ссылки на профиль.")
+            self.append_log("Р”Р»СЏ РѕС‡РµСЂРµРґРё РЅРµ РЅР°Р№РґРµРЅРѕ РЅРё РѕРґРЅРѕР№ СЃСЃС‹Р»РєРё РЅР° РїСЂРѕС„РёР»СЊ.")
             return
 
         existing = {item.url for item in self.batch_entries}
@@ -1340,82 +1125,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.batch_input.clear()
         self.refresh_batch_table()
-        self.batch_progress_label.setText(f"В очереди профилей: {len(self.batch_entries)}.")
-        self.append_log(f"В очередь добавлено профилей: {added}.")
-
-    def add_batch_profiles_from_home2(self) -> None:
-        new_links = parse_batch_links(self.home2_batch_input.toPlainText())
-        if not new_links:
-            self.append_log("Для списка не найдено ни одной ссылки на профиль.")
-            return
-
-        existing = {item.url for item in self.batch_entries}
-        added = 0
-        for link in new_links:
-            if link in existing:
-                continue
-            existing.add(link)
-            self.batch_entries.append(BatchEntry(url=link))
-            added += 1
-
-        self.home2_batch_input.clear()
-        self.refresh_batch_table()
-        self.batch_progress_label.setText(f"В очереди профилей: {len(self.batch_entries)}.")
-        self.append_log(f"В очередь добавлено профилей: {added}.")
-
-    def clear_home2_input(self) -> None:
-        self.home2_batch_input.clear()
-
-    def remember_current_batch_list(self) -> None:
-        urls = [entry.url for entry in self.batch_entries]
-        if not urls:
-            self.append_log("Нечего запоминать: очередь профилей пока пуста.")
-            return
-        title = suggested_recent_list_title(urls)
-        normalized_urls = [normalize_profile_link(url) for url in urls]
-        self.recent_lists = [item for item in self.recent_lists if item.get("urls") != normalized_urls]
-        self.recent_lists.insert(0, {"title": title, "urls": normalized_urls})
-        self.recent_lists = self.recent_lists[:8]
-        self.persist_recent_lists()
-        self.refresh_recent_lists_ui()
-        self.append_log(f"Список профилей сохранён в недавние: {title}.")
-
-    def apply_recent_list(self, urls: list[str]) -> None:
-        existing = {item.url for item in self.batch_entries}
-        added = 0
-        for raw in urls:
-            link = normalize_profile_link(raw)
-            if link in existing:
-                continue
-            existing.add(link)
-            self.batch_entries.append(BatchEntry(url=link, message="Добавлено из недавнего списка."))
-            added += 1
-        self.refresh_batch_table()
-        self.append_log(f"Из недавнего списка добавлено профилей: {added}.")
-
-    def replace_with_recent_list(self, urls: list[str]) -> None:
-        if self.batch_running:
-            return
-        self.batch_entries = [BatchEntry(url=normalize_profile_link(url), message="Загружено из недавнего списка.") for url in urls]
-        self.refresh_batch_table()
-        self.batch_progress_label.setText(f"В очереди профилей: {len(self.batch_entries)}.")
-        self.append_log("Очередь заменена недавним списком.")
-
-    def remove_recent_list(self, index: int) -> None:
-        if index < 0 or index >= len(self.recent_lists):
-            return
-        self.recent_lists.pop(index)
-        self.persist_recent_lists()
-        self.refresh_recent_lists_ui()
-        self.append_log("Недавний список удалён.")
+        self.batch_progress_label.setText(f"Р’ РѕС‡РµСЂРµРґРё РїСЂРѕС„РёР»РµР№: {len(self.batch_entries)}.")
+        self.append_log(f"Р’ РѕС‡РµСЂРµРґСЊ РґРѕР±Р°РІР»РµРЅРѕ РїСЂРѕС„РёР»РµР№: {added}.")
 
     def clear_batch(self) -> None:
         if self.batch_running:
             return
         self.batch_entries = []
         self.refresh_batch_table()
-        self.batch_progress_label.setText("Очередь пока пуста.")
-        self.append_log("Очередь очищена.")
+        self.batch_progress_label.setText("РћС‡РµСЂРµРґСЊ РїРѕРєР° РїСѓСЃС‚Р°.")
+        self.append_log("РћС‡РµСЂРµРґСЊ РѕС‡РёС‰РµРЅР°.")
 
     def refresh_batch_table(self) -> None:
         self.batch_table.setRowCount(len(self.batch_entries))
@@ -1423,90 +1142,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.batch_table.setItem(row, 0, QtWidgets.QTableWidgetItem(entry.url))
             self.batch_table.setItem(row, 1, QtWidgets.QTableWidgetItem(batch_status_title(entry.status)))
             self.batch_table.setItem(row, 2, QtWidgets.QTableWidgetItem(entry.message))
-        if hasattr(self, "home2_batch_table"):
-            self.home2_batch_table.setRowCount(len(self.batch_entries))
-            for row, entry in enumerate(self.batch_entries):
-                self.home2_batch_table.setItem(row, 0, QtWidgets.QTableWidgetItem(entry.url))
-                self.home2_batch_table.setItem(row, 1, QtWidgets.QTableWidgetItem(batch_status_title(entry.status)))
-                self.home2_batch_table.setItem(row, 2, QtWidgets.QTableWidgetItem(entry.message))
-        if hasattr(self, "home2_run_button"):
-            self.home2_run_button.setEnabled(bool(self.batch_entries) and not self.current_task)
-        if hasattr(self, "home2_clear_button"):
-            self.home2_clear_button.setEnabled(bool(self.batch_entries) and not self.batch_running)
-        self.refresh_home2_status_strip()
-
-    def load_recent_lists(self) -> list[dict[str, object]]:
-        raw = str(self.settings_store.value("recent_batch_lists", "") or "").strip()
-        if not raw:
-            return []
-        try:
-            payload = json.loads(raw)
-        except Exception:
-            return []
-        if not isinstance(payload, list):
-            return []
-        result: list[dict[str, object]] = []
-        for item in payload:
-            if not isinstance(item, dict):
-                continue
-            title = str(item.get("title") or "Недавний список").strip()
-            urls = item.get("urls") or []
-            if not isinstance(urls, list):
-                continue
-            normalized_urls = [normalize_profile_link(str(url)) for url in urls if str(url).strip()]
-            if normalized_urls:
-                result.append({"title": title, "urls": normalized_urls})
-        return result[:8]
-
-    def persist_recent_lists(self) -> None:
-        self.settings_store.setValue("recent_batch_lists", json.dumps(self.recent_lists, ensure_ascii=False))
-
-    def refresh_recent_lists_ui(self) -> None:
-        if not hasattr(self, "home2_recent_lists_container"):
-            return
-
-        while self.home2_recent_lists_container.count():
-            item = self.home2_recent_lists_container.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
-
-        if not self.recent_lists:
-            label = QtWidgets.QLabel("Здесь будут появляться сохранённые и недавно запущенные списки профилей.")
-            label.setWordWrap(True)
-            self.home2_recent_lists_container.addWidget(label)
-            self.home2_recent_count.setText("Недавних наборов: 0")
-            return
-
-        for index, item in enumerate(self.recent_lists):
-            title = str(item.get("title") or "Недавний список")
-            urls = [str(url) for url in item.get("urls", [])]
-            card = QtWidgets.QGroupBox(title)
-            layout = QtWidgets.QVBoxLayout(card)
-            summary = QtWidgets.QLabel(f"{len(urls)} профилей")
-            summary.setObjectName("sidebarSubtitle")
-            preview = QtWidgets.QLabel("\n".join(urls[:3]))
-            preview.setWordWrap(True)
-            layout.addWidget(summary)
-            layout.addWidget(preview)
-            row = QtWidgets.QHBoxLayout()
-            add_button = QtWidgets.QPushButton("Добавить")
-            add_button.clicked.connect(lambda checked=False, batch_urls=urls: self.apply_recent_list(batch_urls))
-            replace_button = QtWidgets.QPushButton("Заменить")
-            replace_button.clicked.connect(lambda checked=False, batch_urls=urls: self.replace_with_recent_list(batch_urls))
-            remove_button = QtWidgets.QPushButton("Удалить")
-            remove_button.clicked.connect(lambda checked=False, item_index=index: self.remove_recent_list(item_index))
-            row.addWidget(add_button)
-            row.addWidget(replace_button)
-            row.addWidget(remove_button)
-            layout.addLayout(row)
-            self.home2_recent_lists_container.addWidget(card)
-
-        self.home2_recent_lists_container.addStretch(1)
-        self.home2_recent_count.setText(f"Недавних наборов: {len(self.recent_lists)}")
 
     def choose_save_directory(self, line_edit: QtWidgets.QLineEdit) -> None:
-        directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Выбрать папку", str(self.save_directory))
+        directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Р’С‹Р±СЂР°С‚СЊ РїР°РїРєСѓ", str(self.save_directory))
         if not directory:
             return
         self.save_directory = Path(directory)
@@ -1516,9 +1154,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.batch_directory_line.setText(str(self.save_directory))
         if hasattr(self, "directory_line"):
             self.directory_line.setText(str(self.save_directory))
-        if hasattr(self, "home2_directory_line"):
-            self.home2_directory_line.setText(str(self.save_directory))
-        self.append_log(f"Папка сохранения изменена на {self.save_directory}.")
+        self.append_log(f"РџР°РїРєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ РёР·РјРµРЅРµРЅР° РЅР° {self.save_directory}.")
 
     def on_mode_changed(self) -> None:
         combo = self.sender()
@@ -1530,10 +1166,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.mode_combo.setCurrentIndex(combo.currentIndex())
         if hasattr(self, "batch_mode_combo") and self.batch_mode_combo is not combo:
             self.batch_mode_combo.setCurrentIndex(combo.currentIndex())
-        if hasattr(self, "home2_mode_combo") and self.home2_mode_combo is not combo:
-            self.home2_mode_combo.setCurrentIndex(combo.currentIndex())
-        if hasattr(self, "home2_mode_label"):
-            self.home2_mode_label.setText(f"Режим: {'В фоне' if self.download_mode == 'background' else 'Видимо'}")
 
     def current_headless(self) -> bool:
         return self.download_mode == "background"
@@ -1548,9 +1180,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.current_task is not None:
             return
 
-        self.set_status(status_title, "Выполняется...")
-        self.current_step_label = "Запускаю задачу."
-        self.refresh_home2_status_strip()
+        self.set_status(status_title, "Р’С‹РїРѕР»РЅСЏРµС‚СЃСЏ...")
         self.current_callback = callback
         self.current_task = WorkerTask(self.worker, request)
         self.current_task.response_ready.connect(self.finish_request)
@@ -1569,30 +1199,27 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as error:
             details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
             write_crash_log("finish_request failure", details)
-            self.set_status("Ошибка", f"Ошибка UI-обработки: {error}")
+            self.set_status("РћС€РёР±РєР°", f"РћС€РёР±РєР° UI-РѕР±СЂР°Р±РѕС‚РєРё: {error}")
             self.append_log(f"[ui_error] {error}")
-        self.refresh_batch_table()
 
     def cleanup_request(self) -> None:
         self.current_task = None
-        self.refresh_batch_table()
 
     def apply_response(self, response: WorkerResponse) -> None:
-        self.set_status("Готово" if response.ok else "Ошибка", response.message)
+        self.set_status("Р“РѕС‚РѕРІРѕ" if response.ok else "РћС€РёР±РєР°", response.message)
         if "foundCount" in response.data:
-            self.found_label.setText(f"Найдено: {response.data['foundCount']}")
+            self.found_label.setText(f"РќР°Р№РґРµРЅРѕ: {response.data['foundCount']}")
         elif response.status.startswith("download"):
-            self.found_label.setText(f"Найдено: {len(response.items)}")
+            self.found_label.setText(f"РќР°Р№РґРµРЅРѕ: {len(response.items)}")
 
         if "savedCount" in response.data:
-            self.saved_label.setText(f"Сохранено: {response.data['savedCount']}")
+            self.saved_label.setText(f"РЎРѕС…СЂР°РЅРµРЅРѕ: {response.data['savedCount']}")
         elif response.status == "download_complete":
-            self.saved_label.setText(f"Сохранено: {len(response.items)}")
+            self.saved_label.setText(f"РЎРѕС…СЂР°РЅРµРЅРѕ: {len(response.items)}")
 
         self.activity_subtitle.setText(response.message)
         self.append_log(f"[{response.status}] {response.message}")
         for line in response.logs:
-            self.update_current_step_from_log(line)
             self.append_log(line)
         for item in reversed(response.items):
             list_item = QtWidgets.QListWidgetItem(f"{item.mediaType.upper()}  {item.localPath}")
@@ -1602,45 +1229,11 @@ class MainWindow(QtWidgets.QMainWindow):
     def set_status(self, title: str, detail: str) -> None:
         self.status_title_label.setText(title)
         self.status_detail_label.setText(detail)
-        self.refresh_home2_status_strip()
 
     def append_log(self, message: str) -> None:
         self.logs_text.appendPlainText(f"{display_now()}  {message}")
         scrollbar = self.logs_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
-
-    def refresh_home2_status_strip(self) -> None:
-        if not hasattr(self, "home2_status_label"):
-            return
-        self.home2_status_label.setText(f"{self.status_title_label.text()}\n{self.status_detail_label.text()}")
-        self.home2_step_label.setText(self.current_step_label)
-        self.home2_result_label.setText(f"{self.saved_label.text()}\n{self.found_label.text()}")
-        if hasattr(self, "home2_last_result"):
-            self.home2_last_result.setText(self.activity_subtitle.text())
-        if hasattr(self, "home2_session_summary"):
-            self.home2_session_summary.setText(self.session_summary)
-        if hasattr(self, "home2_worker_summary"):
-            self.home2_worker_summary.setText(self.worker_summary)
-        if hasattr(self, "home2_queue_count"):
-            self.home2_queue_count.setText(f"В очереди: {len(self.batch_entries)}")
-        if hasattr(self, "home2_recent_count"):
-            self.home2_recent_count.setText(f"Недавних наборов: {len(self.recent_lists)}")
-
-    def update_current_step_from_log(self, message: str) -> None:
-        lowered = message.lower()
-        if "opened=" in lowered or "checked=" in lowered:
-            self.current_step_label = "Открываю страницу Instagram."
-        elif "storage_state_saved=" in lowered:
-            self.current_step_label = "Сохраняю браузерную сессию."
-        elif "saved=" in lowered:
-            self.current_step_label = "Сохраняю файл на диск."
-        elif "manifest=" in lowered:
-            self.current_step_label = "Записываю метаданные загрузки."
-        elif "playwright=" in lowered or "worker_runtime=" in lowered:
-            self.current_step_label = "Проверяю runtime и зависимости."
-        elif "batch_chunk_" in lowered:
-            self.current_step_label = "Перехожу к следующей пачке профилей."
-        self.refresh_home2_status_strip()
 
     def open_settings(self) -> None:
         self.settings_dialog.update_state(
@@ -1699,14 +1292,10 @@ if __name__ == "__main__":
         worker_path = AppPaths.worker_script()
         spec = importlib.util.spec_from_file_location("dimasave_worker_bridge", worker_path)
         if spec is None or spec.loader is None:
-            raise SystemExit("Не удалось загрузить встроенный worker bridge.")
+            raise SystemExit("РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РІСЃС‚СЂРѕРµРЅРЅС‹Р№ worker bridge.")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         module.main()
         raise SystemExit(0)
 
     raise SystemExit(main())
-
-
-
-
