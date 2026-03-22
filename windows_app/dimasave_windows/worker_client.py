@@ -35,9 +35,7 @@ class WorkerClient:
         environment["DIMASAVE_DEFAULT_DOWNLOADS"] = str(AppPaths.default_downloads())
         environment["DIMASAVE_WORKER_RUNTIME"] = runtime
 
-        creationflags = 0
-        if os.name == "nt":
-            creationflags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        popen_options = self._windows_popen_options(detached=True)
 
         process = subprocess.Popen(
             command,
@@ -45,8 +43,8 @@ class WorkerClient:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             env=environment,
-            creationflags=creationflags,
             close_fds=True,
+            **popen_options,
         )
         self.login_process = process
         assert process.stdin is not None
@@ -66,12 +64,16 @@ class WorkerClient:
         environment["DIMASAVE_DEFAULT_DOWNLOADS"] = str(AppPaths.default_downloads())
         environment["DIMASAVE_WORKER_RUNTIME"] = runtime
 
+        popen_options = self._windows_popen_options(detached=False)
+
         process = subprocess.Popen(
             command,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=environment,
+            close_fds=True,
+            **popen_options,
         )
         self.current_process = process
         stdout_data, stderr_data = process.communicate((json.dumps(asdict(request)) + "\n").encode("utf-8"))
@@ -120,7 +122,7 @@ class WorkerClient:
             pass
 
         if getattr(sys, "frozen", False):
-            raise RuntimeError("Не удалось найти встроенный Node runtime. Переустанови приложение.")
+            raise RuntimeError("РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°Р№С‚Рё РІСЃС‚СЂРѕРµРЅРЅС‹Р№ Node runtime. РџРµСЂРµСѓСЃС‚Р°РЅРѕРІРё РїСЂРёР»РѕР¶РµРЅРёРµ.")
 
         script = AppPaths.worker_script()
         python_command = WorkerClient.resolve_python_command()
@@ -143,4 +145,21 @@ class WorkerClient:
         if python:
             return [python]
 
-        raise RuntimeError("Python 3 не найден. Установи Python 3.13+ и затем выполни настройку движка.")
+        raise RuntimeError("Python 3 РЅРµ РЅР°Р№РґРµРЅ. РЈСЃС‚Р°РЅРѕРІРё Python 3.13+ Рё Р·Р°С‚РµРј РІС‹РїРѕР»РЅРё РЅР°СЃС‚СЂРѕР№РєСѓ РґРІРёР¶РєР°.")
+
+    @staticmethod
+    def _windows_popen_options(*, detached: bool) -> dict:
+        if os.name != "nt":
+            return {}
+
+        creationflags = subprocess.CREATE_NO_WINDOW
+        if detached:
+            creationflags |= subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = 0
+        return {
+            "creationflags": creationflags,
+            "startupinfo": startupinfo,
+        }
