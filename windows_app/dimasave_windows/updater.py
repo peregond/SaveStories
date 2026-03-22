@@ -9,6 +9,7 @@ import urllib.request
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 from .app_paths import AppPaths
 
@@ -89,7 +90,11 @@ class WindowsUpdater:
         )
         return ("update_available", release)
 
-    def prepare_install(self, release: ReleaseInfo) -> str:
+    def prepare_install(
+        self,
+        release: ReleaseInfo,
+        progress_callback: Callable[[int, str], None] | None = None,
+    ) -> str:
         AppPaths.ensure_directories()
         update_root = AppPaths.updates_directory() / release.version
         if update_root.exists():
@@ -101,8 +106,33 @@ class WindowsUpdater:
             release.asset.url,
             headers={"User-Agent": "SaveStories-Updater"},
         )
+        self._emit_progress(progress_callback, 0, f"Скачивание обновления {release.version}: 0%")
         with urllib.request.urlopen(request, timeout=60) as response, archive_path.open("wb") as handle:
-            shutil.copyfileobj(response, handle)
+            content_length = response.headers.get("Content-Length")
+            total_bytes = int(content_length) if content_length and content_length.isdigit() else 0
+            if total_bytes <= 0:
+                total_bytes = int(release.asset.size or 0)
+
+            downloaded_bytes = 0
+            last_percent = -1
+            while True:
+                chunk = response.read(1024 * 256)
+                if not chunk:
+                    break
+                handle.write(chunk)
+                downloaded_bytes += len(chunk)
+                if total_bytes > 0:
+                    percent = int((downloaded_bytes * 100) / total_bytes)
+                    percent = max(0, min(100, percent))
+                    if percent != last_percent:
+                        last_percent = percent
+                        self._emit_progress(
+                            progress_callback,
+                            percent,
+                            f"Скачивание обновления {release.version}: {percent}%",
+                        )
+
+        self._emit_progress(progress_callback, 100, f"Скачивание обновления {release.version}: 100%")
 
         self._verify_digest(archive_path, release.asset.digest)
 
@@ -144,6 +174,16 @@ class WindowsUpdater:
             f"Обновление {release.version} подготовлено. "
             "Нажми «Перезапустить и установить», чтобы применить его сразу."
         )
+
+    def _emit_progress(
+        self,
+        callback: Callable[[int, str], None] | None,
+        percent: int,
+        message: str,
+    ) -> None:
+        if callback is None:
+            return
+        callback(percent, message)
 
     def launch_prepared_install(self) -> str:
         script_path = self.last_apply_script_path
@@ -288,5 +328,6 @@ try {{
     exit 1
 }}
 """.strip()
+
 
 
