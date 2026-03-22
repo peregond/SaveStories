@@ -1157,7 +1157,28 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.set_status("Обновление", message)
         self.append_log(message)
-        self.append_log("Обновление подготовлено. Перезапусти приложение вручную, когда будет удобно.")
+        dialog = QtWidgets.QMessageBox(self)
+        dialog.setWindowTitle("Обновление подготовлено")
+        dialog.setIcon(QtWidgets.QMessageBox.Information)
+        dialog.setText("Файлы обновления скачаны.")
+        dialog.setInformativeText("Перезапустить приложение сейчас и применить обновление?")
+        restart_button = dialog.addButton("Перезапустить и установить", QtWidgets.QMessageBox.AcceptRole)
+        dialog.addButton("Позже", QtWidgets.QMessageBox.RejectRole)
+        dialog.exec()
+
+        if dialog.clickedButton() == restart_button:
+            try:
+                log_path = self.updater.launch_prepared_install()
+                self.append_log(f"Запуск установщика обновления. Лог: {log_path}")
+                self.set_status("Обновление", "Приложение закрывается для применения обновления...")
+                QtCore.QTimer.singleShot(150, QtWidgets.QApplication.instance().quit)
+            except Exception as error:
+                details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+                write_crash_log("Update launch failure", details)
+                self.set_status("Ошибка", str(error))
+                self.append_log(f"[update_launch_error] {error}")
+        else:
+            self.append_log("Обновление подготовлено. Запусти установку позже через кнопку «Установить».")
 
     def download_profile(self) -> None:
         profile = self.profile_input.text().strip()
@@ -1685,6 +1706,7 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     raise SystemExit(main())
+
 
 
 
