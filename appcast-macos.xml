@@ -2,21 +2,21 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveStories Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.15</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.16</link>
     <description>Release feed for SaveStories macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveStories 0.4.15</title>
-      <pubDate>Sun, 22 Mar 2026 15:41:50 GMT</pubDate>
-      <sparkle:version>42</sparkle:version>
-      <sparkle:shortVersionString>0.4.15</sparkle:shortVersionString>
-      <description><![CDATA[GitHub release v0.4.15 РѕРїСѓР±Р»РёРєРѕРІР°РЅ РґР»СЏ SaveStories.]]></description>
+      <title>SaveStories 0.4.16</title>
+      <pubDate>Sun, 22 Mar 2026 15:49:49 GMT</pubDate>
+      <sparkle:version>43</sparkle:version>
+      <sparkle:shortVersionString>0.4.16</sparkle:shortVersionString>
+      <description><![CDATA[GitHub release v0.4.16 РѕРїСѓР±Р»РёРєРѕРІР°РЅ РґР»СЏ SaveStories.]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.4.15/SaveStories-macOS-v0.4.15.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.4.16/SaveStories-macOS-v0.4.16.dmg"
         sparkle:os="macos"
-        length="220129521"
+        length="220139671"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="q0m53NV435sHO+D1F9TrFUDPpaObMASf3afrnhsVTK2of1ouOboLa8IW6P919Ppf20p9g77YiVWSVBVfbMskAA==" />
+        sparkle:edSignature="jyFGetuIrSDvkKLSbpxDUn2ULnftWsPTADno/aPAaSMFuNA0I+o29zJa3dOC//8cEyZoZozdfHkZpd1+qIhqAA==" />
     </item>
   </channel>
 </rss>
