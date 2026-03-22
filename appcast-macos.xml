@@ -2,21 +2,21 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveStories Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.6</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.7</link>
     <description>Release feed for SaveStories macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveStories 0.4.6</title>
-      <pubDate>Sat, 21 Mar 2026 22:11:38 GMT</pubDate>
-      <sparkle:version>33</sparkle:version>
-      <sparkle:shortVersionString>0.4.6</sparkle:shortVersionString>
+      <title>SaveStories 0.4.7</title>
+      <pubDate>Sun, 22 Mar 2026 10:18:28 GMT</pubDate>
+      <sparkle:version>34</sparkle:version>
+      <sparkle:shortVersionString>0.4.7</sparkle:shortVersionString>
       <description><![CDATA[Добавили новую Главную 2.0, чтобы протестировать. Также обновили недавние списки, улучшили экран очереди и отполировали оформление установочного DMG.]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.4.6/SaveStories-macOS-v0.4.6.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.4.7/SaveStories-macOS-v0.4.7.dmg"
         sparkle:os="macos"
-        length="220140857"
+        length="220114152"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="tO7xTEp1luVAtGyuNxcHLdw1V6V+gOMLXvnZ6moCyXsjUZQzL8+vguKYINEc12B9F83yzgdyavR4TtT8XvQ4Bw==" />
+        sparkle:edSignature="vqSLJREXQUWt7myTxRvgfpcUPt8tnLi9MKH33cq/lDQbbmMv4XP1xQ+oxeIZsgBvtRi2Fk07ozLAfciQkTp7BA==" />
     </item>
   </channel>
 </rss>
