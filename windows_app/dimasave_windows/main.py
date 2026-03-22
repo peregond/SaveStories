@@ -287,6 +287,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.batch_cursor = 0
         self.batch_found_total = 0
         self.batch_saved_total = 0
+        self.update_ready_to_apply = False
         self.update_download_progress = -1
         self.last_logged_update_progress = -1
 
@@ -373,6 +374,13 @@ class MainWindow(QtWidgets.QMainWindow):
                 button.setChecked(True)
 
         layout.addStretch(1)
+
+        self.apply_update_sidebar_button = QtWidgets.QPushButton("Установить обновление")
+        self.apply_update_sidebar_button.setObjectName("applyUpdateButton")
+        self.apply_update_sidebar_button.setVisible(False)
+        self.apply_update_sidebar_button.setEnabled(False)
+        self.apply_update_sidebar_button.clicked.connect(self.apply_prepared_update)
+        layout.addWidget(self.apply_update_sidebar_button)
 
         settings_button = QtWidgets.QPushButton("РќР°СЃС‚СЂРѕР№РєРё")
         settings_button.clicked.connect(self.open_settings)
@@ -666,6 +674,20 @@ class MainWindow(QtWidgets.QMainWindow):
             QPushButton:hover { background: #115ea3; border-color: #115ea3; }
             QPushButton:pressed { background: #0f548c; border-color: #0f548c; }
             QPushButton:disabled { background: #d0d5dd; border-color: #d0d5dd; color: #f2f4f7; }
+            QPushButton#applyUpdateButton {
+                background: #f59e0b;
+                border-color: #f59e0b;
+                color: #ffffff;
+                font-weight: 700;
+            }
+            QPushButton#applyUpdateButton:hover {
+                background: #d97706;
+                border-color: #d97706;
+            }
+            QPushButton#applyUpdateButton:pressed {
+                background: #b45309;
+                border-color: #b45309;
+            }
             QLineEdit, QPlainTextEdit, QListWidget, QTableWidget, QComboBox {
                 background: #ffffff;
                 border: 1px solid #d0d5dd;
@@ -974,6 +996,9 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.update_install_task is not None and self.update_install_task.isRunning():
             return
 
+        self.update_ready_to_apply = False
+        self.apply_update_sidebar_button.setVisible(False)
+        self.apply_update_sidebar_button.setEnabled(False)
         self.set_status("РћР±РЅРѕРІР»РµРЅРёРµ", f"РЎРєР°С‡РёРІР°СЋ SaveStories {release.version} Рё РїРѕРґРіРѕС‚Р°РІР»РёРІР°СЋ Р·Р°РјРµРЅСѓ С„Р°Р№Р»РѕРІ.")
         self.append_log(f"РќР°С‡РёРЅР°СЋ СѓСЃС‚Р°РЅРѕРІРєСѓ РѕР±РЅРѕРІР»РµРЅРёСЏ Windows: {release.version}.")
         self.update_download_progress = 0
@@ -997,9 +1022,31 @@ class MainWindow(QtWidgets.QMainWindow):
             self.append_log(f"[update_install_error] {message}")
             return
 
+        self.update_ready_to_apply = True
+        self.apply_update_sidebar_button.setVisible(True)
+        self.apply_update_sidebar_button.setEnabled(True)
         self.set_status("РћР±РЅРѕРІР»РµРЅРёРµ", message)
         self.append_log(message)
+        self.append_log("Кнопка «Установить обновление» появилась в левом меню над «Настройки».")
         self.append_log("РћР±РЅРѕРІР»РµРЅРёРµ РїРѕРґРіРѕС‚РѕРІР»РµРЅРѕ. РџРµСЂРµР·Р°РїСѓСЃС‚Рё РїСЂРёР»РѕР¶РµРЅРёРµ РІСЂСѓС‡РЅСѓСЋ, РєРѕРіРґР° Р±СѓРґРµС‚ СѓРґРѕР±РЅРѕ.")
+
+    def apply_prepared_update(self) -> None:
+        if not self.update_ready_to_apply:
+            self.append_log("Обновление ещё не готово к установке.")
+            return
+
+        try:
+            log_path = self.updater.launch_prepared_install()
+        except Exception as error:
+            details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+            write_crash_log("apply_prepared_update failure", details)
+            self.set_status("Ошибка", str(error))
+            self.append_log(f"[update_launch_error] {error}")
+            return
+
+        self.set_status("Обновление", "Запускаю установку обновления...")
+        self.append_log(f"Запуск установки обновления. Лог: {log_path}")
+        QtCore.QTimer.singleShot(150, QtWidgets.QApplication.instance().quit)
 
     def download_profile(self) -> None:
         profile = self.profile_input.text().strip()
