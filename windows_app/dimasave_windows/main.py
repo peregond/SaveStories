@@ -65,7 +65,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.4.5"
+    return "0.4.19"
 
 
 def normalize_profile_link(raw: str) -> str:
