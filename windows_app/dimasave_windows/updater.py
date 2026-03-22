@@ -39,6 +39,8 @@ class ReleaseInfo:
 class WindowsUpdater:
     def __init__(self) -> None:
         self.config = self._load_config()
+        self.last_apply_script_path: Path | None = None
+        self.last_apply_log_path: Path | None = None
 
     @property
     def is_available(self) -> bool:
@@ -135,6 +137,22 @@ class WindowsUpdater:
             encoding="utf-8",
         )
 
+        self.last_apply_script_path = script_path
+        self.last_apply_log_path = log_path
+
+        return (
+            f"Обновление {release.version} подготовлено. "
+            "Нажми «Перезапустить и установить», чтобы применить его сразу."
+        )
+
+    def launch_prepared_install(self) -> str:
+        script_path = self.last_apply_script_path
+        log_path = self.last_apply_log_path
+        if script_path is None or log_path is None:
+            raise WindowsUpdaterError("Сначала подготовь обновление через кнопку «Установить».")
+        if not script_path.exists():
+            raise WindowsUpdaterError(f"Скрипт установки не найден: {script_path}")
+
         try:
             subprocess.Popen(
                 [
@@ -161,11 +179,7 @@ class WindowsUpdater:
             raise WindowsUpdaterError(
                 f"Не удалось запустить установщик обновления: {error}. Лог: {log_path}"
             ) from error
-
-        return (
-            f"Обновление {release.version} подготовлено. "
-            f"Если установка не стартует, открой лог: {log_path}"
-        )
+        return str(log_path)
 
     def _load_config(self) -> dict:
         config_path = AppPaths.update_config_path()
@@ -274,4 +288,5 @@ try {{
     exit 1
 }}
 """.strip()
+
 
