@@ -168,6 +168,7 @@ class UpdateCheckTask(QtCore.QThread):
 
 class UpdateInstallTask(QtCore.QThread):
     finished_output = QtCore.Signal(bool, str)
+    progress_output = QtCore.Signal(int, str)
 
     def __init__(self, updater: WindowsUpdater, release: ReleaseInfo) -> None:
         super().__init__()
@@ -176,12 +177,15 @@ class UpdateInstallTask(QtCore.QThread):
 
     def run(self) -> None:
         try:
-            message = self.updater.prepare_install(self.release)
+            message = self.updater.prepare_install(self.release, progress_callback=self.emit_progress)
             self.finished_output.emit(True, message)
         except Exception as error:
             details = "".join(traceback.format_exception(type(error), error, error.__traceback__))
             write_crash_log("UpdateInstallTask failure", details)
             self.finished_output.emit(False, str(error))
+
+    def emit_progress(self, percent: int, message: str) -> None:
+        self.progress_output.emit(percent, message)
 
 
 class SettingsDialog(QtWidgets.QDialog):
@@ -283,6 +287,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.batch_cursor = 0
         self.batch_found_total = 0
         self.batch_saved_total = 0
+        self.update_download_progress = -1
+        self.last_logged_update_progress = -1
 
         save_dir_value = self.settings_store.value("save_directory")
         self.save_directory = Path(str(save_dir_value)) if save_dir_value else AppPaths.default_downloads()
@@ -970,9 +976,19 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.set_status("РћР±РЅРѕРІР»РµРЅРёРµ", f"РЎРєР°С‡РёРІР°СЋ SaveStories {release.version} Рё РїРѕРґРіРѕС‚Р°РІР»РёРІР°СЋ Р·Р°РјРµРЅСѓ С„Р°Р№Р»РѕРІ.")
         self.append_log(f"РќР°С‡РёРЅР°СЋ СѓСЃС‚Р°РЅРѕРІРєСѓ РѕР±РЅРѕРІР»РµРЅРёСЏ Windows: {release.version}.")
+        self.update_download_progress = 0
+        self.last_logged_update_progress = -1
         self.update_install_task = UpdateInstallTask(self.updater, release)
+        self.update_install_task.progress_output.connect(self.handle_update_install_progress)
         self.update_install_task.finished_output.connect(self.handle_update_install_result)
         self.update_install_task.start()
+
+    def handle_update_install_progress(self, percent: int, message: str) -> None:
+        self.update_download_progress = percent
+        self.set_status("РћР±РЅРѕРІР»РµРЅРёРµ", message)
+        if percent in {0, 100} or percent >= self.last_logged_update_progress + 10:
+            self.last_logged_update_progress = percent
+            self.append_log(message)
 
     def handle_update_install_result(self, ok: bool, message: str) -> None:
         self.update_install_task = None
@@ -1299,3 +1315,4 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     raise SystemExit(main())
+
