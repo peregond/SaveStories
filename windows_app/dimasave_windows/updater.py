@@ -115,25 +115,57 @@ class WindowsUpdater:
             target_dir = Path(sys.executable).resolve()
         target_dir = target_dir.parent
         executable_name = target_dir.joinpath("SaveStories-Windows.exe").name
+        source_dir = self._resolve_payload_root(source_dir, executable_name)
+        if not source_dir.joinpath(executable_name).exists():
+            raise WindowsUpdaterError(
+                f"В архиве обновления не найден {executable_name}. Лог: {update_root / 'apply_update.log'}"
+            )
 
         script_path = update_root / "apply_update.ps1"
+        log_path = update_root / "apply_update.log"
+        status_path = update_root / "apply_update.status.json"
         script_path.write_text(
-            self._update_script_text(source_dir=source_dir, target_dir=target_dir, executable_name=executable_name),
+            self._update_script_text(
+                source_dir=source_dir,
+                target_dir=target_dir,
+                executable_name=executable_name,
+                log_path=log_path,
+                status_path=status_path,
+            ),
             encoding="utf-8",
         )
 
-        subprocess.Popen(
-            [
-                "powershell.exe",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                str(script_path),
-            ],
-            creationflags=0x00000008,
-        )
+        try:
+            subprocess.Popen(
+                [
+                    "powershell.exe",
+                    "-NoProfile",
+                    "-WindowStyle",
+                    "Hidden",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(script_path),
+                ],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=(
+                    subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+                    if sys.platform == "win32"
+                    else 0
+                ),
+                close_fds=True,
+            )
+        except Exception as error:
+            raise WindowsUpdaterError(
+                f"Не удалось запустить установщик обновления: {error}. Лог: {log_path}"
+            ) from error
 
-        return f"Обновление {release.version} скачано. Перезапускаю приложение для установки."
+        return (
+            f"Обновление {release.version} подготовлено. "
+            f"Если установка не стартует, открой лог: {log_path}"
+        )
 
     def _load_config(self) -> dict:
         config_path = AppPaths.update_config_path()
@@ -177,22 +209,69 @@ class WindowsUpdater:
             return directories[0]
         return extracted_root
 
-    def _update_script_text(self, *, source_dir: Path, target_dir: Path, executable_name: str) -> str:
+    def _resolve_payload_root(self, root: Path, executable_name: str) -> Path:
+        if root.joinpath(executable_name).exists():
+            return root
+        for candidate in root.rglob(executable_name):
+            if candidate.is_file():
+                return candidate.parent
+        return root
+
+    def _update_script_text(
+        self,
+        *,
+        source_dir: Path,
+        target_dir: Path,
+        executable_name: str,
+        log_path: Path,
+        status_path: Path,
+    ) -> str:
         return f"""
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 $source = "{str(source_dir)}"
 $target = "{str(target_dir)}"
 $exe = Join-Path $target "{executable_name}"
+$logPath = "{str(log_path)}"
+$statusPath = "{str(status_path)}"
 
-for ($attempt = 0; $attempt -lt 120; $attempt++) {{
-    Start-Sleep -Milliseconds 500
-    robocopy $source $target /E /R:2 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
-    if ($LASTEXITCODE -le 7) {{
-        Start-Process -FilePath $exe
-        exit 0
-    }}
+function Write-Log([string]$message) {{
+    Add-Content -Path $logPath -Value "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  $message" -Encoding UTF8
 }}
 
-exit 1
+try {{
+    if (Test-Path $logPath) {{
+        Remove-Item -Path $logPath -Force -ErrorAction SilentlyContinue
+    }}
+    Write-Log "Update apply started"
+    Write-Log "Source: $source"
+    Write-Log "Target: $target"
+
+    if (-not (Test-Path $source)) {{
+        throw "Папка распаковки не найдена: $source"
+    }}
+    if (-not (Test-Path (Join-Path $source "{executable_name}"))) {{
+        throw "В распакованном обновлении нет {executable_name}: $source"
+    }}
+
+    for ($attempt = 1; $attempt -le 120; $attempt++) {{
+        Start-Sleep -Milliseconds 500
+        robocopy $source $target /E /R:2 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+        $code = $LASTEXITCODE
+        Write-Log "Attempt #$attempt robocopy exit code: $code"
+        if ($code -le 7) {{
+            Write-Log "Copy finished, starting executable: $exe"
+            '{{"status":"ok","message":"copy_done"}}' | Set-Content -Path $statusPath -Encoding UTF8
+            Start-Process -FilePath $exe
+            exit 0
+        }}
+    }}
+    throw "Не удалось заменить файлы после 120 попыток (60 секунд)."
+}} catch {{
+    $msg = $_.Exception.Message
+    Write-Log "ERROR: $msg"
+    ('{{"status":"error","message":"' + $msg.Replace('"', "'") + '"}}') | Set-Content -Path $statusPath -Encoding UTF8
+    exit 1
+}}
 """.strip()
+
