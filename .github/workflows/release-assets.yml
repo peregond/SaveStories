@@ -29,11 +29,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          release_notes=$'Добавили новую Главную 2.0, чтобы протестировать.\n\nТакже обновили недавние списки, улучшили экран очереди и отполировали оформление установочного DMG.'
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG" --notes "$release_notes"
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG"
           else
-            gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --title "$RELEASE_TAG" --notes "$release_notes"
+            gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --title "$RELEASE_TAG" --generate-notes
           fi
 
   build-macos:
@@ -127,7 +126,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release upload $env:RELEASE_TAG "dist/windows/SaveStories-Windows-$env:RELEASE_TAG.zip" --clobber
-          gh release upload $env:RELEASE_TAG "dist/windows/SaveStories-Windows-Setup-$env:RELEASE_TAG.exe" --clobber
+          $setup = Get-ChildItem -Path "dist/windows" -Filter "SaveStories-Windows-Setup-*.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $setup) {
+            throw "Windows installer was not produced. Expected dist/windows/SaveStories-Windows-Setup-*.exe"
+          }
+          gh release upload $env:RELEASE_TAG $setup.FullName --clobber
 
   publish-update-feed:
     needs:
@@ -173,7 +176,7 @@ jobs:
             --version "${RELEASE_TAG#v}" \
             --build "${GITHUB_RUN_NUMBER}" \
             --mime-type "application/x-apple-diskimage" \
-            --notes "Добавили новую Главную 2.0, чтобы протестировать. Также обновили недавние списки, улучшили экран очереди и отполировали оформление установочного DMG." \
+            --notes "GitHub release ${RELEASE_TAG} РѕРїСѓР±Р»РёРєРѕРІР°РЅ РґР»СЏ SaveStories." \
             --output "${RUNNER_TEMP}/appcast-macos.xml"
 
       - name: Publish update feed branch
