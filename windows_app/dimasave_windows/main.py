@@ -661,6 +661,13 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(value_label)
         return host
 
+    def _group(self, title: str, content: QtWidgets.QWidget) -> QtWidgets.QWidget:
+        box = QtWidgets.QGroupBox(title)
+        box_layout = QtWidgets.QVBoxLayout(box)
+        box_layout.setContentsMargins(12, 12, 12, 12)
+        box_layout.addWidget(content)
+        return box
+
     def _build_activity_panel(self) -> QtWidgets.QWidget:
         panel = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(panel)
@@ -1678,5 +1685,6 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     raise SystemExit(main())
+
 
 
