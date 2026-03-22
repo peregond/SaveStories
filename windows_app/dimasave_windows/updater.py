@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import hashlib
 import json
@@ -164,7 +164,8 @@ class WindowsUpdater:
                 log_path=log_path,
                 status_path=status_path,
             ),
-            encoding="utf-8",
+            # PowerShell 5.1 reliably reads UTF-16 with BOM on all Windows setups.
+            encoding="utf-16",
         )
 
         self.last_apply_script_path = script_path
@@ -198,6 +199,7 @@ class WindowsUpdater:
                 [
                     "powershell.exe",
                     "-NoProfile",
+                    "-NonInteractive",
                     "-WindowStyle",
                     "Hidden",
                     "-ExecutionPolicy",
@@ -208,6 +210,7 @@ class WindowsUpdater:
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                cwd=str(script_path.parent),
                 creationflags=(
                     subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
                     if sys.platform == "win32"
@@ -302,10 +305,10 @@ try {{
     Write-Log "Target: $target"
 
     if (-not (Test-Path $source)) {{
-        throw "Папка распаковки не найдена: $source"
+        throw "Update unpack folder not found: $source"
     }}
     if (-not (Test-Path (Join-Path $source "{executable_name}"))) {{
-        throw "В распакованном обновлении нет {executable_name}: $source"
+        throw "Executable {executable_name} not found in unpacked update: $source"
     }}
 
     for ($attempt = 1; $attempt -le 120; $attempt++) {{
@@ -320,7 +323,7 @@ try {{
             exit 0
         }}
     }}
-    throw "Не удалось заменить файлы после 120 попыток (60 секунд)."
+    throw "Failed to replace files after 120 attempts (60 seconds)."
 }} catch {{
     $msg = $_.Exception.Message
     Write-Log "ERROR: $msg"
