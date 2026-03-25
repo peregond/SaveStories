@@ -7,7 +7,7 @@ import process from "node:process";
 import { createHash, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
-const APP_NAME = "DimaSave";
+const APP_NAME = "SaveStories";
 const BATCH_JOB_TIMEOUT_MS = 120_000;
 
 function emit(ok, status, message, { data = {}, items = [], logs = [] } = {}) {
@@ -131,15 +131,15 @@ async function defaultDownloads(appSupport) {
   return path.join(appSupport, "Downloads");
 }
 
-const APP_SUPPORT = process.env.DIMASAVE_APP_SUPPORT || (await defaultAppSupport());
+const APP_SUPPORT = process.env.SAVESTORIES_APP_SUPPORT || (await defaultAppSupport());
 const WORKER_ROOT = path.join(APP_SUPPORT, "worker");
-const BROWSER_PROFILE = process.env.DIMASAVE_BROWSER_PROFILE || path.join(WORKER_ROOT, "browser-profile");
+const BROWSER_PROFILE = process.env.SAVESTORIES_BROWSER_PROFILE || path.join(WORKER_ROOT, "browser-profile");
 const PLAYWRIGHT_BROWSERS =
-  process.env.DIMASAVE_PLAYWRIGHT_BROWSERS || path.join(WORKER_ROOT, "ms-playwright");
-const MANIFESTS_DIRECTORY = process.env.DIMASAVE_MANIFESTS || path.join(APP_SUPPORT, "manifests");
-const SESSION_STATE = process.env.DIMASAVE_SESSION_STATE || path.join(WORKER_ROOT, "storage-state.json");
+  process.env.SAVESTORIES_PLAYWRIGHT_BROWSERS || path.join(WORKER_ROOT, "ms-playwright");
+const MANIFESTS_DIRECTORY = process.env.SAVESTORIES_MANIFESTS || path.join(APP_SUPPORT, "manifests");
+const SESSION_STATE = process.env.SAVESTORIES_SESSION_STATE || path.join(WORKER_ROOT, "storage-state.json");
 const DEFAULT_DOWNLOADS =
-  process.env.DIMASAVE_DEFAULT_DOWNLOADS || (await defaultDownloads(APP_SUPPORT));
+  process.env.SAVESTORIES_DEFAULT_DOWNLOADS || (await defaultDownloads(APP_SUPPORT));
 
 async function ensureDirectories() {
   await Promise.all(

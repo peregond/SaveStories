@@ -28,12 +28,12 @@ class WorkerClient:
         command, runtime = self.resolve_command()
 
         environment = os.environ.copy()
-        environment["DIMASAVE_APP_SUPPORT"] = str(AppPaths.application_support())
-        environment["DIMASAVE_BROWSER_PROFILE"] = str(AppPaths.browser_profile())
-        environment["DIMASAVE_MANIFESTS"] = str(AppPaths.manifests_directory())
-        environment["DIMASAVE_PLAYWRIGHT_BROWSERS"] = str(AppPaths.playwright_browsers())
-        environment["DIMASAVE_DEFAULT_DOWNLOADS"] = str(AppPaths.default_downloads())
-        environment["DIMASAVE_WORKER_RUNTIME"] = runtime
+        environment["SAVESTORIES_APP_SUPPORT"] = str(AppPaths.application_support())
+        environment["SAVESTORIES_BROWSER_PROFILE"] = str(AppPaths.browser_profile())
+        environment["SAVESTORIES_MANIFESTS"] = str(AppPaths.manifests_directory())
+        environment["SAVESTORIES_PLAYWRIGHT_BROWSERS"] = str(AppPaths.playwright_browsers())
+        environment["SAVESTORIES_DEFAULT_DOWNLOADS"] = str(AppPaths.default_downloads())
+        environment["SAVESTORIES_WORKER_RUNTIME"] = runtime
 
         popen_options = self._windows_popen_options(detached=True)
 
@@ -57,12 +57,12 @@ class WorkerClient:
         command, runtime = self.resolve_command()
 
         environment = os.environ.copy()
-        environment["DIMASAVE_APP_SUPPORT"] = str(AppPaths.application_support())
-        environment["DIMASAVE_BROWSER_PROFILE"] = str(AppPaths.browser_profile())
-        environment["DIMASAVE_MANIFESTS"] = str(AppPaths.manifests_directory())
-        environment["DIMASAVE_PLAYWRIGHT_BROWSERS"] = str(AppPaths.playwright_browsers())
-        environment["DIMASAVE_DEFAULT_DOWNLOADS"] = str(AppPaths.default_downloads())
-        environment["DIMASAVE_WORKER_RUNTIME"] = runtime
+        environment["SAVESTORIES_APP_SUPPORT"] = str(AppPaths.application_support())
+        environment["SAVESTORIES_BROWSER_PROFILE"] = str(AppPaths.browser_profile())
+        environment["SAVESTORIES_MANIFESTS"] = str(AppPaths.manifests_directory())
+        environment["SAVESTORIES_PLAYWRIGHT_BROWSERS"] = str(AppPaths.playwright_browsers())
+        environment["SAVESTORIES_DEFAULT_DOWNLOADS"] = str(AppPaths.default_downloads())
+        environment["SAVESTORIES_WORKER_RUNTIME"] = runtime
 
         popen_options = self._windows_popen_options(detached=False)
 

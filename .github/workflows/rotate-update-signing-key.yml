@@ -45,7 +45,7 @@ jobs:
           import subprocess
 
           private_key = Path(".update-signing/ed25519-private.pem")
-          config_path = Path("Sources/DimaSave/Resources/update_config.json")
+          config_path = Path("Sources/SaveStories/Resources/update_config.json")
 
           der = subprocess.check_output(
               ["openssl", "pkey", "-in", str(private_key), "-pubout", "-outform", "DER"]
@@ -119,7 +119,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Sources/DimaSave/Resources/update_config.json
+          git add Sources/SaveStories/Resources/update_config.json
           if git diff --cached --quiet; then
             echo "No public key change detected."
             exit 0

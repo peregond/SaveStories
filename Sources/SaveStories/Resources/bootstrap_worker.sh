@@ -2,9 +2,9 @@
 
 set -euo pipefail
 
-APP_SUPPORT="${DIMASAVE_APP_SUPPORT:-$HOME/Library/Application Support/DimaSave}"
+APP_SUPPORT="${SAVESTORIES_APP_SUPPORT:-$HOME/Library/Application Support/SaveStories}"
 if ! mkdir -p "$APP_SUPPORT" 2>/dev/null; then
-  APP_SUPPORT="$(pwd)/.runtime/DimaSave"
+  APP_SUPPORT="$(pwd)/.runtime/SaveStories"
 fi
 
 WORKER_ROOT="$APP_SUPPORT/worker"

@@ -4,8 +4,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORKER_DIR="$ROOT/node_worker"
-APP_SUPPORT="${DIMASAVE_APP_SUPPORT:-$HOME/Library/Application Support/DimaSave}"
-BROWSERS="${DIMASAVE_PLAYWRIGHT_BROWSERS:-$APP_SUPPORT/worker/ms-playwright}"
+APP_SUPPORT="${SAVESTORIES_APP_SUPPORT:-$HOME/Library/Application Support/SaveStories}"
+BROWSERS="${SAVESTORIES_PLAYWRIGHT_BROWSERS:-$APP_SUPPORT/worker/ms-playwright}"
 
 if ! command -v node >/dev/null 2>&1; then
   printf 'node не найден. Установите Node 24 LTS и повторите попытку.\n' >&2

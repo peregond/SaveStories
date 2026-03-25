@@ -61,8 +61,8 @@ jobs:
 
       - name: Build macOS DMG
         run: |
-          export DIMASAVE_VERSION="${RELEASE_TAG#v}"
-          export DIMASAVE_BUILD="${GITHUB_RUN_NUMBER}"
+          export SAVESTORIES_VERSION="${RELEASE_TAG#v}"
+          export SAVESTORIES_BUILD="${GITHUB_RUN_NUMBER}"
           ./scripts/build_release_dmg.sh
           cp dist/release/SaveStories.dmg "dist/release/SaveStories-macOS-${RELEASE_TAG}.dmg"
 

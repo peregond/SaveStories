@@ -5,8 +5,8 @@ setopt null_glob
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUNDLE_NAME="SaveStories"
-EXECUTABLE_NAME="DimaSave"
-ICON_BASENAME="DimaSave"
+EXECUTABLE_NAME="SaveStories"
+ICON_BASENAME="SaveStories"
 BUILD_DIR="$ROOT/dist"
 RELEASE_DIR="$BUILD_DIR/release"
 APP_DIR="$RELEASE_DIR/$BUNDLE_NAME.app"
@@ -26,17 +26,17 @@ SOURCE_PLIST="$ROOT/packaging/AppBundle/Info.plist"
 STATIC_ICON_PATH="$ROOT/packaging/AppBundle/$ICON_BASENAME.icns"
 PLIST_PATH="$CONTENTS_DIR/Info.plist"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
-NODE_SOURCE_EXECUTABLE="${DIMASAVE_NODE_EXECUTABLE:-$(command -v node || true)}"
-NPM_SOURCE_EXECUTABLE="${DIMASAVE_NPM_EXECUTABLE:-$(command -v npm || true)}"
+NODE_SOURCE_EXECUTABLE="${SAVESTORIES_NODE_EXECUTABLE:-$(command -v node || true)}"
+NPM_SOURCE_EXECUTABLE="${SAVESTORIES_NPM_EXECUTABLE:-$(command -v npm || true)}"
 NODE_SOURCE_WORKER_DIR="$ROOT/node_worker"
 NODE_BUILD_RUNTIME_DIR="$BUILD_DIR/node-runtime"
 NODE_BUILD_PLAYWRIGHT_DIR="$NODE_BUILD_RUNTIME_DIR/ms-playwright"
 LEGACY_RELEASE_APP_CANDIDATES=(
   "$ROOT/dist/release/SaveStories.app"
-  "$ROOT/dist/release/DimaSave.app"
+  "/Applications/SaveStories.app"
 )
 VERSION_FILE="$ROOT/VERSION"
-UPDATE_CONFIG_PATH="$ROOT/Sources/DimaSave/Resources/update_config.json"
+UPDATE_CONFIG_PATH="$ROOT/Sources/SaveStories/Resources/update_config.json"
 
 read_update_config_value() {
   local key="$1"
@@ -64,14 +64,49 @@ else
   DEFAULT_VERSION="$("$PLIST_BUDDY" -c 'Print :CFBundleShortVersionString' "$SOURCE_PLIST")"
 fi
 DEFAULT_BUILD="$("$PLIST_BUDDY" -c 'Print :CFBundleVersion' "$SOURCE_PLIST")"
-SHORT_VERSION="${DIMASAVE_VERSION:-$DEFAULT_VERSION}"
-BUILD_NUMBER="${DIMASAVE_BUILD:-$DEFAULT_BUILD}"
-BUNDLE_ID="${DIMASAVE_BUNDLE_ID:-local.dimasave.release}"
-COPYRIGHT_TEXT="${DIMASAVE_COPYRIGHT:-Direct distribution build}"
-MACOS_UPDATE_FEED_URL="${DIMASAVE_MACOS_UPDATE_FEED_URL:-$(read_update_config_value macosFeedURL)}"
-UPDATE_PUBLIC_KEY="${DIMASAVE_UPDATE_PUBLIC_KEY:-$(read_update_config_value publicEDKey)}"
+SHORT_VERSION="${SAVESTORIES_VERSION:-$DEFAULT_VERSION}"
+BUILD_NUMBER="${SAVESTORIES_BUILD:-$DEFAULT_BUILD}"
+BUNDLE_ID="${SAVESTORIES_BUNDLE_ID:-local.savestories.release}"
+COPYRIGHT_TEXT="${SAVESTORIES_COPYRIGHT:-Direct distribution build}"
+MACOS_UPDATE_FEED_URL="${SAVESTORIES_MACOS_UPDATE_FEED_URL:-$(read_update_config_value macosFeedURL)}"
+UPDATE_PUBLIC_KEY="${SAVESTORIES_UPDATE_PUBLIC_KEY:-$(read_update_config_value publicEDKey)}"
 SIGN_IDENTITY="${APPLE_SIGN_IDENTITY:-}"
-RESOURCE_BUNDLE_NAME="$EXECUTABLE_NAME"_DimaSave.bundle
+RESOURCE_BUNDLE_NAME="$EXECUTABLE_NAME"_SaveStories.bundle
+
+node_runtime_is_bundleable() {
+  local executable="$1"
+  local prefix
+  local dependency
+  local deps
+  local major_version
+
+  if [ ! -x "$executable" ]; then
+    return 1
+  fi
+
+  major_version="$("$executable" -p 'process.versions.node.split(".")[0]' 2>/dev/null || true)"
+  if [ "$major_version" != "24" ]; then
+    return 1
+  fi
+
+  prefix="$(cd "$(dirname "$executable")/.." && pwd)"
+  deps="$(otool -L "$executable" 2>/dev/null | tail -n +2 | awk '{print $1}')"
+
+  while IFS= read -r dependency; do
+    [ -z "$dependency" ] && continue
+    case "$dependency" in
+      /System/*|/usr/lib/*|@rpath/*|@loader_path/*|@executable_path/*)
+        ;;
+      "$prefix"/*)
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+  done <<< "$deps"
+
+  return 0
+}
 
 mkdir -p "$BUILD_DIR" "$RELEASE_DIR"
 
@@ -133,7 +168,7 @@ fi
 rm -rf "$EMBEDDED_RUNTIME_DIR" "$NODE_BUILD_RUNTIME_DIR"
 mkdir -p "$EMBEDDED_PLAYWRIGHT_DIR" "$EMBEDDED_NODE_BIN_DIR" "$NODE_BUILD_PLAYWRIGHT_DIR"
 USED_LEGACY_RUNTIME=0
-if [ -n "$NODE_SOURCE_EXECUTABLE" ] && [ -x "$NODE_SOURCE_EXECUTABLE" ] && [ -n "$NPM_SOURCE_EXECUTABLE" ] && [ -x "$NPM_SOURCE_EXECUTABLE" ]; then
+if [ -n "$NODE_SOURCE_EXECUTABLE" ] && [ -x "$NODE_SOURCE_EXECUTABLE" ] && [ -n "$NPM_SOURCE_EXECUTABLE" ] && [ -x "$NPM_SOURCE_EXECUTABLE" ] && node_runtime_is_bundleable "$NODE_SOURCE_EXECUTABLE"; then
   (
     cd "$NODE_SOURCE_WORKER_DIR"
     PLAYWRIGHT_BROWSERS_PATH="$NODE_BUILD_PLAYWRIGHT_DIR" "$NPM_SOURCE_EXECUTABLE" install --no-fund --no-audit
@@ -153,6 +188,10 @@ if [ -n "$NODE_SOURCE_EXECUTABLE" ] && [ -x "$NODE_SOURCE_EXECUTABLE" ] && [ -n 
          "$NODE_WORKER_DIR"/node_modules/playwright/.cache \
          "$NODE_WORKER_DIR"/node_modules/playwright-core/.cache
 else
+  if [ -n "$NODE_SOURCE_EXECUTABLE" ] && [ -x "$NODE_SOURCE_EXECUTABLE" ] && ! node_runtime_is_bundleable "$NODE_SOURCE_EXECUTABLE"; then
+    printf 'Local Node runtime is not suitable for embedding in release builds:\n%s\nFalling back to legacy Python runtime.\n' "$NODE_SOURCE_EXECUTABLE"
+  fi
+
   LEGACY_RUNTIME_APP=""
   for candidate in "${LEGACY_RELEASE_APP_CANDIDATES[@]}"; do
     if [ -d "$candidate/Contents/Frameworks/Python.framework" ] && \

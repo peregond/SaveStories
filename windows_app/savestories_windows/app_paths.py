@@ -6,7 +6,8 @@ from pathlib import Path
 
 
 class AppPaths:
-    app_name = "DimaSave"
+    app_name = "SaveStories"
+    legacy_app_name = "DimaSave"
 
     @staticmethod
     def project_root() -> Path:
@@ -20,7 +21,7 @@ class AppPaths:
 
     @staticmethod
     def application_support() -> Path:
-        override = os.environ.get("DIMASAVE_APP_SUPPORT")
+        override = os.environ.get("SAVESTORIES_APP_SUPPORT")
         if override:
             return Path(override).expanduser()
 
@@ -102,7 +103,7 @@ class AppPaths:
     def worker_script() -> Path:
         candidates = [
             AppPaths.resource_root() / "worker" / "bridge.py",
-            AppPaths.project_root() / "Sources" / "DimaSave" / "Resources" / "worker" / "bridge.py",
+            AppPaths.project_root() / "Sources" / "SaveStories" / "Resources" / "worker" / "bridge.py",
         ]
         for candidate in candidates:
             if candidate.exists():
@@ -113,7 +114,7 @@ class AppPaths:
     def update_config_path() -> Path:
         candidates = [
             AppPaths.resource_root() / "update_config.json",
-            AppPaths.project_root() / "Sources" / "DimaSave" / "Resources" / "update_config.json",
+            AppPaths.project_root() / "Sources" / "SaveStories" / "Resources" / "update_config.json",
         ]
         for candidate in candidates:
             if candidate.exists():
@@ -135,6 +136,7 @@ class AppPaths:
 
     @staticmethod
     def ensure_directories() -> None:
+        AppPaths.migrate_legacy_application_support()
         for path in [
             AppPaths.application_support(),
             AppPaths.worker_root(),
@@ -146,3 +148,16 @@ class AppPaths:
             AppPaths.default_downloads(),
         ]:
             path.mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def migrate_legacy_application_support() -> None:
+        root = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+        if root:
+            root_path = Path(root)
+        else:
+            root_path = Path.home() / "AppData" / "Local"
+
+        legacy = root_path / AppPaths.legacy_app_name
+        current = root_path / AppPaths.app_name
+        if legacy.exists() and not current.exists():
+            legacy.rename(current)

@@ -2,42 +2,42 @@ import SwiftUI
 
 struct ContentView: View {
     enum AppSection: String, CaseIterable, Identifiable {
-        case home2
+        case main
         case batch
-        case home
+        case reels
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
-            case .home2:
-                "Главная 2.0"
+            case .main:
+                "Главная"
             case .batch:
                 "Списочная"
-            case .home:
-                "Главная"
+            case .reels:
+                "Reels"
             }
         }
 
         var subtitle: String {
             switch self {
-            case .home2:
+            case .main:
                 "Новый стартовый сценарий"
             case .batch:
                 "Очередь профилей"
-            case .home:
-                "Текущий режим выгрузки"
+            case .reels:
+                "Скоро появится"
             }
         }
 
         var systemImage: String {
             switch self {
-            case .home2:
+            case .main:
                 "wand.and.stars.inverse"
             case .batch:
                 "list.bullet.rectangle.portrait"
-            case .home:
-                "sparkles.rectangle.stack"
+            case .reels:
+                "play.rectangle.on.rectangle"
             }
         }
     }
@@ -45,7 +45,7 @@ struct ContentView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.colorScheme) private var colorScheme
     @State private var showingSettings = false
-    @State private var selectedSection: AppSection = .home2
+    @State private var selectedSection: AppSection = .main
     @State private var busyPulse = false
     @State private var showingConfetti = false
 
@@ -153,7 +153,7 @@ struct ContentView: View {
                     .font(.system(size: 24, weight: .semibold, design: .rounded))
                     .foregroundStyle(primaryText)
 
-                Text("Stories downloader")
+                Text("STORIES DOWNLOADER")
                     .font(.system(size: 12, weight: .bold, design: .rounded))
                     .foregroundStyle(tertiaryText)
                     .textCase(.uppercase)
@@ -286,12 +286,12 @@ struct ContentView: View {
     private var detailContent: some View {
         Group {
             switch selectedSection {
-            case .home2:
+            case .main:
                 homeTwoView
             case .batch:
                 batchView
-            case .home:
-                homeView
+            case .reels:
+                reelsView
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -324,28 +324,6 @@ struct ContentView: View {
         }
     }
 
-    private var homeView: some View {
-        HStack(spacing: 24) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    header(
-                        title: "SaveStories",
-                        subtitle: "macOS-приложение для выгрузки активных stories из Instagram по ссылке на профиль."
-                    )
-                    progressCard
-                    destinationCard
-                    profileCard
-                }
-                .padding(.vertical, 4)
-            }
-            .frame(maxWidth: 560, maxHeight: .infinity, alignment: .topLeading)
-
-            activityPanel
-        }
-        .padding(.horizontal, 28)
-        .padding(.bottom, 28)
-    }
-
     private var batchView: some View {
         HStack(spacing: 24) {
             ScrollView {
@@ -370,11 +348,45 @@ struct ContentView: View {
         .padding(.bottom, 28)
     }
 
+    private var reelsView: some View {
+        HStack(spacing: 24) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    detailHero(
+                        eyebrow: "Reels",
+                        title: "Выгрузка Reels появится позже",
+                        subtitle: "Здесь появится отдельный сценарий для выгрузки Reels. Пока это плейсхолдер под следующий этап развития приложения."
+                    )
+
+                    card("Что планируется") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            statusInlineNote(
+                                title: "На следующем этапе",
+                                message: "Добавим вставку ссылок на Reels, пакетную очередь, сохранение недавних наборов и отдельный прогресс именно под формат Reels."
+                            )
+
+                            statusInlineNote(
+                                title: "Что уже можно",
+                                message: "Для выгрузки актуальных stories продолжай использовать Главную и Списочную."
+                            )
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .frame(maxWidth: 560, maxHeight: .infinity, alignment: .topLeading)
+
+            activityPanel
+        }
+        .padding(.horizontal, 28)
+        .padding(.bottom, 28)
+    }
+
     private var homeTwoHero: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Главная 2.0")
+                    Text("Главная")
                         .font(.system(size: 34, weight: .semibold, design: .rounded))
                         .foregroundStyle(primaryText)
 
@@ -421,6 +433,13 @@ struct ContentView: View {
                 value: "\(model.savedStoriesCount) сохранено",
                 detail: "\(model.foundStoriesCount) найдено",
                 tint: Color.blue.opacity(0.72)
+            )
+
+            statusRailPill(
+                title: "В выбранной папке",
+                value: "\(model.liveDownloadedFileCount) файлов",
+                detail: "\(model.liveCreatedFolderCount) папок создано",
+                tint: Color.mint.opacity(0.72)
             )
         }
     }
@@ -777,6 +796,16 @@ struct ContentView: View {
                     statPill(title: "Найдено", value: model.foundStoriesCount, accent: Color.orange.opacity(0.78))
                     statPill(title: "Сохранено", value: model.savedStoriesCount, accent: Color.green.opacity(0.78))
                 }
+
+                HStack(spacing: 12) {
+                    statPill(title: "Файлов загружено", value: model.liveDownloadedFileCount, accent: Color.blue.opacity(0.78))
+                    statPill(title: "Папок создано", value: model.liveCreatedFolderCount, accent: Color.mint.opacity(0.78))
+                }
+
+                Text("Счётчики считаются по содержимому выбранной папки сохранения.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(quaternaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

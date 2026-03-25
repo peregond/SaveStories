@@ -98,12 +98,12 @@ final class WorkerClient {
         process.standardError = stderrPipe
 
         var environment = ProcessInfo.processInfo.environment
-        environment["DIMASAVE_APP_SUPPORT"] = AppPaths.applicationSupport.path
-        environment["DIMASAVE_BROWSER_PROFILE"] = AppPaths.browserProfile.path
-        environment["DIMASAVE_MANIFESTS"] = AppPaths.manifestsDirectory.path
-        environment["DIMASAVE_PLAYWRIGHT_BROWSERS"] = AppPaths.playwrightBrowsers.path
-        environment["DIMASAVE_DEFAULT_DOWNLOADS"] = AppPaths.defaultDownloads.path
-        environment["DIMASAVE_WORKER_RUNTIME"] = launch.runtime
+        environment["SAVESTORIES_APP_SUPPORT"] = AppPaths.applicationSupport.path
+        environment["SAVESTORIES_BROWSER_PROFILE"] = AppPaths.browserProfile.path
+        environment["SAVESTORIES_MANIFESTS"] = AppPaths.manifestsDirectory.path
+        environment["SAVESTORIES_PLAYWRIGHT_BROWSERS"] = AppPaths.playwrightBrowsers.path
+        environment["SAVESTORIES_DEFAULT_DOWNLOADS"] = AppPaths.defaultDownloads.path
+        environment["SAVESTORIES_WORKER_RUNTIME"] = launch.runtime
         if let bundledFrameworks = AppPaths.bundledFrameworksDirectory {
             environment["DYLD_FRAMEWORK_PATH"] = bundledFrameworks.path
         }
@@ -244,7 +244,7 @@ final class WorkerClient {
 
         let fallback = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
             .appendingPathComponent("Sources", isDirectory: true)
-            .appendingPathComponent("DimaSave", isDirectory: true)
+            .appendingPathComponent("SaveStories", isDirectory: true)
             .appendingPathComponent("Resources", isDirectory: true)
             .appendingPathComponent("worker", isDirectory: true)
             .appendingPathComponent("bridge.py", isDirectory: false)
@@ -272,12 +272,12 @@ final class WorkerClient {
         let fileManager = FileManager.default
         let candidates = [
             Bundle.main.resourceURL?
-                .appendingPathComponent("DimaSave_DimaSave.bundle", isDirectory: true)
+                .appendingPathComponent(AppPaths.resourceBundleName, isDirectory: true)
                 .appendingPathComponent(relativePath, isDirectory: false),
             Bundle.main.bundleURL
                 .appendingPathComponent("Contents", isDirectory: true)
                 .appendingPathComponent("Resources", isDirectory: true)
-                .appendingPathComponent("DimaSave_DimaSave.bundle", isDirectory: true)
+                .appendingPathComponent(AppPaths.resourceBundleName, isDirectory: true)
                 .appendingPathComponent(relativePath, isDirectory: false),
         ]
 

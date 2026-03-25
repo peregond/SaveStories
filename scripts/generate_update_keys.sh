@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PRIVATE_DIR="$ROOT/.update-signing"
 PRIVATE_KEY_PATH="$PRIVATE_DIR/ed25519-private.pem"
-CONFIG_PATH="$ROOT/Sources/DimaSave/Resources/update_config.json"
+CONFIG_PATH="$ROOT/Sources/SaveStories/Resources/update_config.json"
 
 mkdir -p "$PRIVATE_DIR"
 

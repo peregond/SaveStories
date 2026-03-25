@@ -15,10 +15,10 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from dimasave_windows.app_paths import AppPaths
-    from dimasave_windows.models import BatchEntry, WorkerRequest, WorkerResponse
-    from dimasave_windows.updater import ReleaseInfo, WindowsUpdater, WindowsUpdaterError
-    from dimasave_windows.worker_client import WorkerClient
+    from savestories_windows.app_paths import AppPaths
+    from savestories_windows.models import BatchEntry, WorkerRequest, WorkerResponse
+    from savestories_windows.updater import ReleaseInfo, WindowsUpdater, WindowsUpdaterError
+    from savestories_windows.worker_client import WorkerClient
 else:
     from .app_paths import AppPaths
     from .models import BatchEntry, WorkerRequest, WorkerResponse
@@ -140,7 +140,7 @@ class BootstrapTask(QtCore.QThread):
                 str(script),
             ]
             env = os.environ.copy()
-            env["DIMASAVE_APP_SUPPORT"] = str(AppPaths.application_support())
+            env["SAVESTORIES_APP_SUPPORT"] = str(AppPaths.application_support())
             creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
             process = subprocess.run(
                 command,
@@ -268,7 +268,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__()
         self.worker = WorkerClient()
         self.updater = WindowsUpdater()
-        self.settings_store = QtCore.QSettings("DimaSave", "Windows")
+        self.settings_store = QtCore.QSettings("SaveStories", "Windows")
         self.current_task: WorkerTask | None = None
         self.current_callback: Callable[[WorkerResponse], None] | None = None
         self.bootstrap_task: BootstrapTask | None = None
@@ -364,7 +364,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         title = QtWidgets.QLabel("SaveStories")
         title.setObjectName("sidebarTitle")
-        subtitle = QtWidgets.QLabel("Stories downloader")
+        subtitle = QtWidgets.QLabel("STORIES DOWNLOADER")
         subtitle.setObjectName("sidebarSubtitle")
         layout.addWidget(title)
         layout.addWidget(subtitle)
@@ -374,7 +374,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         for index, (text, detail) in enumerate(
             [
-                ("Главная 2.0", "Новый стартовый сценарий"),
+                ("Главная", "Новый стартовый сценарий"),
                 ("Списочная", "Очередь профилей"),
                 ("Главная", "Текущий режим выгрузки"),
             ]
@@ -433,7 +433,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         layout.addWidget(
             self._hero(
-                "Главная 2.0",
+                "Главная",
                 "Новый стартовый экран: добавляй список профилей, сохраняй его как недавний и запускай выгрузку без лишних переключений.",
             )
         )
@@ -1745,7 +1745,7 @@ def main() -> int:
 if __name__ == "__main__":
     if "--worker-bridge" in sys.argv:
         worker_path = AppPaths.worker_script()
-        spec = importlib.util.spec_from_file_location("dimasave_worker_bridge", worker_path)
+        spec = importlib.util.spec_from_file_location("savestories_worker_bridge", worker_path)
         if spec is None or spec.loader is None:
             raise SystemExit("Не удалось загрузить встроенный worker bridge.")
         module = importlib.util.module_from_spec(spec)
