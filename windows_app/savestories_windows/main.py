@@ -65,7 +65,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.4.20"
+    return "0.4.21"
 
 
 def normalize_profile_link(raw: str) -> str:
@@ -1153,7 +1153,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if status == "update_available" and isinstance(release, ReleaseInfo):
             self.pending_release = release
-            self.update_summary = f"Доступна версия {release.version}. Готова к установке поверх текущей сборки."
+            if self.updater.supports_auto_install:
+                self.update_summary = (
+                    f"Доступна версия {release.version}. "
+                    "Можно скачать установщик и применить обновление поверх текущей сборки."
+                )
+            else:
+                self.update_summary = (
+                    f"Доступна версия {release.version}. "
+                    "Автоустановка отключена для portable-сборки: скачай новый установщик вручную."
+                )
             self.settings_dialog.update_state(
                 worker_summary=self.worker_summary,
                 session_summary=self.session_summary,
@@ -1162,7 +1171,10 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             self.append_log(f"Найдена новая версия Windows: {release.version}.")
             if self.silent_update_check:
-                self.append_log("Автопроверка: обновление найдено. Установка доступна только вручную через настройки.")
+                if self.updater.supports_auto_install:
+                    self.append_log("Автопроверка: обновление найдено. Установка доступна вручную через приложение.")
+                else:
+                    self.append_log("Автопроверка: обновление найдено. Для portable-сборки нужен ручной запуск установщика.")
                 return
             self.prompt_update_install(release)
 
@@ -1172,13 +1184,20 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog.setIcon(QtWidgets.QMessageBox.Information)
         dialog.setText(f"Доступна новая версия SaveStories {release.version}.")
         details = release.notes.strip() or "GitHub release опубликован без release notes."
-        dialog.setInformativeText("Сейчас можно скачать обновление и перезапустить приложение.")
+        if self.updater.supports_auto_install:
+            dialog.setInformativeText("Сейчас можно скачать установщик обновления и затем применить его через кнопку в левом меню.")
+            install_button = dialog.addButton("Скачать обновление", QtWidgets.QMessageBox.AcceptRole)
+        else:
+            dialog.setInformativeText("Текущая Windows-сборка работает в portable-режиме. Для обновления открой установщик новой версии.")
+            install_button = dialog.addButton("Скачать установщик", QtWidgets.QMessageBox.AcceptRole)
         dialog.setDetailedText(details)
-        install_button = dialog.addButton("Установить", QtWidgets.QMessageBox.AcceptRole)
         dialog.addButton("Позже", QtWidgets.QMessageBox.RejectRole)
         dialog.exec()
         if dialog.clickedButton() == install_button:
-            self.install_update(release, initiated_by_user=True)
+            if self.updater.supports_auto_install:
+                self.install_update(release, initiated_by_user=True)
+            else:
+                self.open_release_asset(release)
 
     def install_update(self, release: ReleaseInfo, *, initiated_by_user: bool = False) -> None:
         if not initiated_by_user:
@@ -1188,11 +1207,15 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.update_install_task is not None and self.update_install_task.isRunning():
             return
 
+        if not self.updater.supports_auto_install:
+            self.open_release_asset(release)
+            return
+
         self.update_ready_to_apply = False
         self.apply_update_sidebar_button.setVisible(False)
         self.apply_update_sidebar_button.setEnabled(False)
-        self.set_status("Обновление", f"Скачиваю SaveStories {release.version} и подготавливаю замену файлов.")
-        self.append_log(f"Начинаю установку обновления Windows: {release.version}.")
+        self.set_status("Обновление", f"Скачиваю установщик SaveStories {release.version}.")
+        self.append_log(f"Начинаю скачивание установщика обновления Windows: {release.version}.")
         self.update_download_progress = 0
         self.last_logged_update_progress = -1
         self.update_install_task = UpdateInstallTask(self.updater, release)
@@ -1220,7 +1243,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.set_status("Обновление", message)
         self.append_log(message)
         self.append_log("Кнопка «Установить обновление» появилась в левом меню над «Настройки».")
-        self.append_log("Обновление подготовлено. Перезапусти приложение вручную, когда будет удобно.")
+        self.append_log("После нажатия кнопки будет запущен установщик Windows, а не замена файлов из zip.")
 
     def apply_prepared_update(self) -> None:
         if not self.update_ready_to_apply:
@@ -1239,6 +1262,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.set_status("Обновление", "Запускаю установку обновления...")
         self.append_log(f"Запуск установки обновления. Лог: {log_path}")
         QtCore.QTimer.singleShot(150, QtWidgets.QApplication.instance().quit)
+
+    def open_release_asset(self, release: ReleaseInfo) -> None:
+        url = release.asset.url or release.html_url
+        if not url:
+            self.append_log("У обновления нет ссылки для скачивания.")
+            return
+        opened = QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+        if opened:
+            self.append_log(f"Открыл ссылку на установщик обновления: {url}")
+            self.set_status("Обновление", "Открыл ссылку на установщик новой версии.")
+        else:
+            self.append_log(f"Не удалось открыть ссылку на обновление: {url}")
+            self.set_status("Ошибка", "Не удалось открыть страницу скачивания обновления.")
 
     def download_profile(self) -> None:
         profile = self.profile_input.text().strip()
