@@ -5,6 +5,7 @@ import json
 import shutil
 import subprocess
 import sys
+import ctypes
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -39,7 +40,7 @@ class ReleaseInfo:
 class WindowsUpdater:
     def __init__(self) -> None:
         self.config = self._load_config()
-        self.last_apply_script_path: Path | None = None
+        self.last_installer_path: Path | None = None
         self.last_apply_log_path: Path | None = None
 
     @property
@@ -153,33 +154,19 @@ class WindowsUpdater:
 
         self._verify_digest(installer_path, release.asset.digest)
 
-        current_executable = Path(sys.executable).resolve()
-        target_dir = current_executable.parent
-        current_executable_name = current_executable.name
-
         if not installer_path.exists():
             raise WindowsUpdaterError(
                 f"Не удалось скачать установщик обновления. Лог: {update_root / 'apply_update.log'}"
             )
 
-        script_path = update_root / "apply_update.ps1"
         log_path = update_root / "apply_update.log"
-        status_path = update_root / "apply_update.status.json"
         installer_log_path = update_root / "installer.log"
-        script_path.write_text(
-            self._update_script_text(
-                installer_path=installer_path,
-                target_dir=target_dir,
-                current_executable_path=current_executable,
-                log_path=log_path,
-                status_path=status_path,
-                installer_log_path=installer_log_path,
-            ),
-            # PowerShell 5.1 reliably reads UTF-16 with BOM on all Windows setups.
-            encoding="utf-16",
+        log_path.write_text(
+            f"Prepared installer: {installer_path}\nInstaller log: {installer_log_path}\n",
+            encoding="utf-8",
         )
 
-        self.last_apply_script_path = script_path
+        self.last_installer_path = installer_path
         self.last_apply_log_path = log_path
 
         return (
@@ -198,41 +185,47 @@ class WindowsUpdater:
         callback(percent, message)
 
     def launch_prepared_install(self) -> str:
-        script_path = self.last_apply_script_path
+        installer_path = self.last_installer_path
         log_path = self.last_apply_log_path
-        if script_path is None or log_path is None:
+        if installer_path is None or log_path is None:
             raise WindowsUpdaterError("Сначала подготовь обновление через кнопку «Установить».")
-        if not script_path.exists():
-            raise WindowsUpdaterError(f"Скрипт установки не найден: {script_path}")
+        if not installer_path.exists():
+            raise WindowsUpdaterError(f"Установщик обновления не найден: {installer_path}")
 
+        installer_log_path = installer_path.parent / "installer.log"
+        arguments = " ".join(
+            [
+                "/SP-",
+                "/CLOSEAPPLICATIONS",
+                "/FORCECLOSEAPPLICATIONS",
+                "/NORESTART",
+                f'/LOG="{installer_log_path}"',
+            ]
+        )
         try:
-            subprocess.Popen(
-                [
-                    "powershell.exe",
-                    "-NoProfile",
-                    "-NonInteractive",
-                    "-WindowStyle",
-                    "Hidden",
-                    "-ExecutionPolicy",
-                    "Bypass",
-                    "-File",
-                    str(script_path),
-                ],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                cwd=str(script_path.parent),
-                creationflags=(
-                    subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
-                    if sys.platform == "win32"
-                    else 0
-                ),
-                close_fds=True,
+            result = ctypes.windll.shell32.ShellExecuteW(
+                None,
+                "runas",
+                str(installer_path),
+                arguments,
+                str(installer_path.parent),
+                1,
             )
         except Exception as error:
             raise WindowsUpdaterError(
                 f"Не удалось запустить установщик обновления: {error}. Лог: {log_path}"
             ) from error
+        if result <= 32:
+            raise WindowsUpdaterError(
+                f"ShellExecuteW не смог запустить установщик (код {result}). Лог: {log_path}"
+            )
+
+        with log_path.open("a", encoding="utf-8") as handle:
+            handle.write(
+                f"Launched installer: {installer_path}\n"
+                f"Installer args: {arguments}\n"
+                f"Installer log: {installer_log_path}\n"
+            )
         return str(log_path)
 
     def _load_config(self) -> dict:
@@ -271,95 +264,6 @@ class WindowsUpdater:
         if actual != expected:
             raise WindowsUpdaterError("SHA256 release digest не совпал. Обновление остановлено.")
 
-    def _update_script_text(
-        self,
-        *,
-        installer_path: Path,
-        target_dir: Path,
-        current_executable_path: Path,
-        log_path: Path,
-        status_path: Path,
-        installer_log_path: Path,
-    ) -> str:
-        return f"""
-$ErrorActionPreference = "Stop"
-$ProgressPreference = "SilentlyContinue"
-$installer = "{str(installer_path)}"
-$target = "{str(target_dir)}"
-$currentExe = "{str(current_executable_path)}"
-$logPath = "{str(log_path)}"
-$statusPath = "{str(status_path)}"
-$installerLogPath = "{str(installer_log_path)}"
-
-function Write-Log([string]$message) {{
-    Add-Content -Path $logPath -Value "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  $message" -Encoding UTF8
-}}
-
-function Test-FileUnlocked([string]$path) {{
-    try {{
-        $stream = [System.IO.File]::Open($path, 'Open', 'ReadWrite', 'None')
-        $stream.Close()
-        return $true
-    }} catch {{
-        return $false
-    }}
-}}
-
-try {{
-    if (Test-Path $logPath) {{
-        Remove-Item -Path $logPath -Force -ErrorAction SilentlyContinue
-    }}
-    Write-Log "Update apply started"
-    Write-Log "Installer: $installer"
-    Write-Log "Target: $target"
-    Write-Log "Current exe: $currentExe"
-
-    if (-not (Test-Path $installer)) {{
-        throw "Installer file not found: $installer"
-    }}
-
-    for ($attempt = 1; $attempt -le 120; $attempt++) {{
-        if ((-not (Test-Path $currentExe)) -or (Test-FileUnlocked $currentExe)) {{
-            Write-Log "Executable is unlocked on attempt #$attempt"
-            break
-        }}
-        Start-Sleep -Milliseconds 500
-        if ($attempt -eq 120) {{
-            throw "Current executable is still locked after 60 seconds: $currentExe"
-        }}
-    }}
-
-    $arguments = @(
-        '/SP-',
-        '/VERYSILENT',
-        '/SUPPRESSMSGBOXES',
-        '/NORESTART',
-        '/CLOSEAPPLICATIONS',
-        '/FORCECLOSEAPPLICATIONS',
-        '/LOG="' + $installerLogPath + '"'
-    )
-    Write-Log "Starting installer with silent arguments."
-    $process = Start-Process -FilePath $installer -ArgumentList $arguments -Verb RunAs -Wait -PassThru
-    Write-Log "Installer exit code: $($process.ExitCode)"
-    if ($process.ExitCode -ne 0) {{
-        throw "Installer exited with code $($process.ExitCode). See $installerLogPath"
-    }}
-
-    if (-not (Test-Path $currentExe)) {{
-        throw "Updated executable not found after install: $currentExe"
-    }}
-
-    Write-Log "Installer finished, starting executable: $currentExe"
-    '{{"status":"ok","message":"install_done"}}' | Set-Content -Path $statusPath -Encoding UTF8
-    Start-Process -FilePath $currentExe
-    exit 0
-}} catch {{
-    $msg = $_.Exception.Message
-    Write-Log "ERROR: $msg"
-    ('{{"status":"error","message":"' + $msg.Replace('"', "'") + '"}}') | Set-Content -Path $statusPath -Encoding UTF8
-    exit 1
-}}
-""".strip()
 
 
 
