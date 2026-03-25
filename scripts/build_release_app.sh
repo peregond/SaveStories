@@ -75,7 +75,6 @@ RESOURCE_BUNDLE_NAME="$EXECUTABLE_NAME"_SaveStories.bundle
 
 node_runtime_is_bundleable() {
   local executable="$1"
-  local prefix
   local dependency
   local deps
   local major_version
@@ -89,15 +88,12 @@ node_runtime_is_bundleable() {
     return 1
   fi
 
-  prefix="$(cd "$(dirname "$executable")/.." && pwd)"
   deps="$(otool -L "$executable" 2>/dev/null | tail -n +2 | awk '{print $1}')"
 
   while IFS= read -r dependency; do
     [ -z "$dependency" ] && continue
     case "$dependency" in
-      /System/*|/usr/lib/*|@rpath/*|@loader_path/*|@executable_path/*)
-        ;;
-      "$prefix"/*)
+      /System/*|/usr/lib/*)
         ;;
       *)
         return 1
@@ -189,7 +185,7 @@ if [ -n "$NODE_SOURCE_EXECUTABLE" ] && [ -x "$NODE_SOURCE_EXECUTABLE" ] && [ -n 
          "$NODE_WORKER_DIR"/node_modules/playwright-core/.cache
 else
   if [ -n "$NODE_SOURCE_EXECUTABLE" ] && [ -x "$NODE_SOURCE_EXECUTABLE" ] && ! node_runtime_is_bundleable "$NODE_SOURCE_EXECUTABLE"; then
-    printf 'Local Node runtime is not suitable for embedding in release builds:\n%s\nFalling back to legacy Python runtime.\n' "$NODE_SOURCE_EXECUTABLE"
+    printf 'Local Node runtime is not a standalone binary suitable for embedding in release builds:\n%s\nOnly runtimes linked exclusively against system libraries are supported. Falling back to legacy Python runtime.\n' "$NODE_SOURCE_EXECUTABLE"
   fi
 
   LEGACY_RUNTIME_APP=""
