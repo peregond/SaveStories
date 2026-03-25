@@ -43,3 +43,4 @@ class BatchEntry:
     url: str
     status: str = "pending"
     message: str = "Ожидает запуска."
+
