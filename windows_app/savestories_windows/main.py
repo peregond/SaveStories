@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+﻿﻿from __future__ import annotations
 
 import json
 import math
@@ -71,7 +71,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.4.22"
+    return "0.4.23"
 
 
 def normalize_profile_link(raw: str) -> str:
@@ -421,7 +421,7 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.resize(default_size)
         self._build_ui()
-        self.confetti_overlay = ConfettiOverlay(central)
+        self.confetti_overlay = ConfettiOverlay(self.centralWidget())
         self._apply_styles()
         self.refresh_recent_lists_ui()
         self.refresh_home2_status_strip()
@@ -2074,6 +2074,7 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     raise SystemExit(main())
+
 
 
 
