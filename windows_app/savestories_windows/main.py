@@ -1,4 +1,4 @@
-﻿﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import math
@@ -71,7 +71,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.4.23"
+    return "0.4.24"
 
 
 def normalize_profile_link(raw: str) -> str:
@@ -1413,7 +1413,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.set_status("Обновление", message)
         self.append_log(message)
         self.append_log("Кнопка «Установить обновление» появилась в левом меню над «Настройки».")
-        self.append_log("После нажатия кнопки будет запущен установщик Windows, а не замена файлов из zip.")
+        self.append_log("После нажатия кнопки откроется установщик Windows с запросом прав администратора.")
 
     def apply_prepared_update(self) -> None:
         if not self.update_ready_to_apply:
@@ -1429,9 +1429,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.append_log(f"[update_launch_error] {error}")
             return
 
-        self.set_status("Обновление", "Запускаю установку обновления...")
+        self.set_status("Обновление", "Запускаю установщик обновления...")
         self.append_log(f"Запуск установки обновления. Лог: {log_path}")
-        QtCore.QTimer.singleShot(150, QtWidgets.QApplication.instance().quit)
+        self.append_log("Если Windows покажет запрос контроля учётных записей, подтверди его. После этого приложение закроется и начнётся обновление.")
+        QtCore.QTimer.singleShot(700, QtWidgets.QApplication.instance().quit)
 
     def open_release_asset(self, release: ReleaseInfo) -> None:
         url = release.asset.url or release.html_url
