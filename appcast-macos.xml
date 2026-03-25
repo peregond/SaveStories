@@ -2,21 +2,32 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveStories Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.21</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.22</link>
     <description>Release feed for SaveStories macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveStories 0.4.21</title>
-      <pubDate>Wed, 25 Mar 2026 18:08:21 GMT</pubDate>
-      <sparkle:version>48</sparkle:version>
-      <sparkle:shortVersionString>0.4.21</sparkle:shortVersionString>
-      <description><![CDATA[GitHub release v0.4.21 РѕРїСѓР±Р»РёРєРѕРІР°РЅ РґР»СЏ SaveStories.]]></description>
+      <title>SaveStories 0.4.22</title>
+      <pubDate>Wed, 25 Mar 2026 21:35:42 GMT</pubDate>
+      <sparkle:version>49</sparkle:version>
+      <sparkle:shortVersionString>0.4.22</sparkle:shortVersionString>
+      <description><![CDATA[Улучшения
+	•	Обновлён интерфейс: удалена старая главная страница
+	•	Главная 2.0 теперь используется как основная
+
+Новые функции
+	•	Добавлен раздел для скачивания Reels (появится в следующих версиях)
+	•	Возможность выбирать формат выгрузки: только видео или видео + фото
+	•	Добавлено отображение прогресса в реальном времени (количество скачанных папок и файлов)
+
+Известные проблемы
+	•	Отображение прогресса может работать нестабильно, но даёт общее понимание процесса
+]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.4.21/SaveStories-macOS-v0.4.21.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.4.22/SaveStories-macOS-v0.4.22.dmg"
         sparkle:os="macos"
-        length="220059635"
+        length="220108191"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="5OwPSbJOwNqYMk2GuFZCAlJUjjIiirYw8barg6zPlSPyFWnMAi8cZfd1SHHR03LNrWiZlhFj8PF2yV2hAsXVBQ==" />
+        sparkle:edSignature="eMQaD1bGfAHbgMJIFBqVtc3Fo/gTyrNLmb3+LkgHFkOjRl4ADPK/fCo3f93SCu0CTwdru5h7r6H4/gDrp9wlAg==" />
     </item>
   </channel>
 </rss>
