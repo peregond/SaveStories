@@ -6,7 +6,6 @@ import shutil
 import subprocess
 import sys
 import urllib.request
-import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -48,10 +47,22 @@ class WindowsUpdater:
         return bool(self.config.get("windowsLatestReleaseAPI"))
 
     @property
+    def supports_auto_install(self) -> bool:
+        if not getattr(sys, "frozen", False):
+            return False
+        executable = Path(sys.executable).resolve()
+        return executable.parent.joinpath("unins000.exe").exists()
+
+    @property
     def summary(self) -> str:
         api_url = str(self.config.get("windowsLatestReleaseAPI", "")).strip()
         if not api_url:
             return "Проверка обновлений отключена: не найден адрес latest release API."
+        if not self.supports_auto_install:
+            return (
+                "Обновления проверяются, но автоустановка отключена: "
+                "эта Windows-сборка запущена не из установленной версии."
+            )
         return f"Проверяю релизы через GitHub API: {api_url}"
 
     def check_latest_release(self, current_version: str) -> tuple[str, ReleaseInfo | None]:
@@ -95,19 +106,25 @@ class WindowsUpdater:
         release: ReleaseInfo,
         progress_callback: Callable[[int, str], None] | None = None,
     ) -> str:
+        if not self.supports_auto_install:
+            raise WindowsUpdaterError(
+                "Автоустановка доступна только для версии, установленной через инсталлятор. "
+                "Для portable-сборки скачай новый установщик вручную."
+            )
+
         AppPaths.ensure_directories()
         update_root = AppPaths.updates_directory() / release.version
         if update_root.exists():
             shutil.rmtree(update_root)
         update_root.mkdir(parents=True, exist_ok=True)
 
-        archive_path = update_root / release.asset.name
+        installer_path = update_root / release.asset.name
         request = urllib.request.Request(
             release.asset.url,
             headers={"User-Agent": "SaveStories-Updater"},
         )
         self._emit_progress(progress_callback, 0, f"Скачивание обновления {release.version}: 0%")
-        with urllib.request.urlopen(request, timeout=60) as response, archive_path.open("wb") as handle:
+        with urllib.request.urlopen(request, timeout=60) as response, installer_path.open("wb") as handle:
             content_length = response.headers.get("Content-Length")
             total_bytes = int(content_length) if content_length and content_length.isdigit() else 0
             if total_bytes <= 0:
@@ -134,47 +151,29 @@ class WindowsUpdater:
 
         self._emit_progress(progress_callback, 100, f"Скачивание обновления {release.version}: 100%")
 
-        self._verify_digest(archive_path, release.asset.digest)
+        self._verify_digest(installer_path, release.asset.digest)
 
-        extracted_root = update_root / "extracted"
-        extracted_root.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(archive_path) as archive:
-            archive.extractall(extracted_root)
+        current_executable = Path(sys.executable).resolve()
+        target_dir = current_executable.parent
+        current_executable_name = current_executable.name
 
-        source_dir = self._resolve_extracted_root(extracted_root)
-        target_dir = Path(__file__).resolve()
-        current_executable_name = "SaveStories-Windows.exe"
-        if getattr(sys, "frozen", False):
-            current_executable_name = Path(sys.executable).resolve().name
-            target_dir = Path(sys.executable).resolve()
-        target_dir = target_dir.parent
-
-        release_executable_name = "SaveStories-Windows.exe"
-        source_dir = self._resolve_payload_root(
-            source_dir,
-            (current_executable_name, release_executable_name),
-        )
-        launch_executable_name = self._select_launch_executable_name(
-            source_dir,
-            current_executable_name,
-            release_executable_name,
-        )
-        if launch_executable_name is None:
+        if not installer_path.exists():
             raise WindowsUpdaterError(
-                f"В архиве обновления не найден исполняемый файл. Лог: {update_root / 'apply_update.log'}"
+                f"Не удалось скачать установщик обновления. Лог: {update_root / 'apply_update.log'}"
             )
 
         script_path = update_root / "apply_update.ps1"
         log_path = update_root / "apply_update.log"
         status_path = update_root / "apply_update.status.json"
+        installer_log_path = update_root / "installer.log"
         script_path.write_text(
             self._update_script_text(
-                source_dir=source_dir,
+                installer_path=installer_path,
                 target_dir=target_dir,
-                current_executable_name=current_executable_name,
-                launch_executable_name=launch_executable_name,
+                current_executable_path=current_executable,
                 log_path=log_path,
                 status_path=status_path,
+                installer_log_path=installer_log_path,
             ),
             # PowerShell 5.1 reliably reads UTF-16 with BOM on all Windows setups.
             encoding="utf-16",
@@ -241,7 +240,7 @@ class WindowsUpdater:
         return json.loads(config_path.read_text(encoding="utf-8"))
 
     def _select_release_asset(self, assets: list[dict], latest_tag: str) -> ReleaseAsset:
-        expected_name = f"SaveStories-Windows-{latest_tag}.zip"
+        expected_name = f"SaveStories-Windows-Setup-{latest_tag}.exe"
         for asset in assets:
             name = str(asset.get("name") or "")
             if name != expected_name:
@@ -272,59 +271,38 @@ class WindowsUpdater:
         if actual != expected:
             raise WindowsUpdaterError("SHA256 release digest не совпал. Обновление остановлено.")
 
-    def _resolve_extracted_root(self, extracted_root: Path) -> Path:
-        directories = [entry for entry in extracted_root.iterdir() if entry.is_dir()]
-        if len(directories) == 1:
-            return directories[0]
-        return extracted_root
-
-    def _resolve_payload_root(self, root: Path, executable_names: tuple[str, ...]) -> Path:
-        for executable_name in executable_names:
-            if root.joinpath(executable_name).exists():
-                return root
-        for executable_name in executable_names:
-            for candidate in root.rglob(executable_name):
-                if candidate.is_file():
-                    return candidate.parent
-        return root
-
-    def _select_launch_executable_name(
-        self,
-        source_dir: Path,
-        current_executable_name: str,
-        release_executable_name: str,
-    ) -> str | None:
-        if source_dir.joinpath(current_executable_name).exists():
-            return current_executable_name
-        if source_dir.joinpath(release_executable_name).exists():
-            return release_executable_name
-        for candidate in source_dir.glob("*.exe"):
-            if candidate.is_file():
-                return candidate.name
-        return None
-
     def _update_script_text(
         self,
         *,
-        source_dir: Path,
+        installer_path: Path,
         target_dir: Path,
-        current_executable_name: str,
-        launch_executable_name: str,
+        current_executable_path: Path,
         log_path: Path,
         status_path: Path,
+        installer_log_path: Path,
     ) -> str:
         return f"""
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
-$source = "{str(source_dir)}"
+$installer = "{str(installer_path)}"
 $target = "{str(target_dir)}"
-$currentExe = Join-Path $target "{current_executable_name}"
-$launchExe = Join-Path $target "{launch_executable_name}"
+$currentExe = "{str(current_executable_path)}"
 $logPath = "{str(log_path)}"
 $statusPath = "{str(status_path)}"
+$installerLogPath = "{str(installer_log_path)}"
 
 function Write-Log([string]$message) {{
     Add-Content -Path $logPath -Value "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  $message" -Encoding UTF8
+}}
+
+function Test-FileUnlocked([string]$path) {{
+    try {{
+        $stream = [System.IO.File]::Open($path, 'Open', 'ReadWrite', 'None')
+        $stream.Close()
+        return $true
+    }} catch {{
+        return $false
+    }}
 }}
 
 try {{
@@ -332,44 +310,49 @@ try {{
         Remove-Item -Path $logPath -Force -ErrorAction SilentlyContinue
     }}
     Write-Log "Update apply started"
-    Write-Log "Source: $source"
+    Write-Log "Installer: $installer"
     Write-Log "Target: $target"
     Write-Log "Current exe: $currentExe"
-    Write-Log "Launch exe: $launchExe"
 
-    if (-not (Test-Path $source)) {{
-        throw "Update unpack folder not found: $source"
-    }}
-    if (-not (Test-Path (Join-Path $source "{launch_executable_name}"))) {{
-        throw "Executable {launch_executable_name} not found in unpacked update: $source"
+    if (-not (Test-Path $installer)) {{
+        throw "Installer file not found: $installer"
     }}
 
     for ($attempt = 1; $attempt -le 120; $attempt++) {{
+        if ((-not (Test-Path $currentExe)) -or (Test-FileUnlocked $currentExe)) {{
+            Write-Log "Executable is unlocked on attempt #$attempt"
+            break
+        }}
         Start-Sleep -Milliseconds 500
-        robocopy $source $target /E /R:2 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
-        $code = $LASTEXITCODE
-        Write-Log "Attempt #$attempt robocopy exit code: $code"
-        if ($code -le 7) {{
-            if ($launchExe -ne $currentExe -and (Test-Path $launchExe)) {{
-                Copy-Item -Path $launchExe -Destination $currentExe -Force
-                Write-Log "Copied launch exe to current exe path for compatibility."
-            }}
-
-            $startExe = $currentExe
-            if (-not (Test-Path $startExe)) {{
-                $startExe = $launchExe
-            }}
-            if (-not (Test-Path $startExe)) {{
-                throw "No executable found to restart after copy."
-            }}
-
-            Write-Log "Copy finished, starting executable: $startExe"
-            '{{"status":"ok","message":"copy_done"}}' | Set-Content -Path $statusPath -Encoding UTF8
-            Start-Process -FilePath $startExe
-            exit 0
+        if ($attempt -eq 120) {{
+            throw "Current executable is still locked after 60 seconds: $currentExe"
         }}
     }}
-    throw "Failed to replace files after 120 attempts (60 seconds)."
+
+    $arguments = @(
+        '/SP-',
+        '/VERYSILENT',
+        '/SUPPRESSMSGBOXES',
+        '/NORESTART',
+        '/CLOSEAPPLICATIONS',
+        '/FORCECLOSEAPPLICATIONS',
+        '/LOG="' + $installerLogPath + '"'
+    )
+    Write-Log "Starting installer with silent arguments."
+    $process = Start-Process -FilePath $installer -ArgumentList $arguments -Verb RunAs -Wait -PassThru
+    Write-Log "Installer exit code: $($process.ExitCode)"
+    if ($process.ExitCode -ne 0) {{
+        throw "Installer exited with code $($process.ExitCode). See $installerLogPath"
+    }}
+
+    if (-not (Test-Path $currentExe)) {{
+        throw "Updated executable not found after install: $currentExe"
+    }}
+
+    Write-Log "Installer finished, starting executable: $currentExe"
+    '{{"status":"ok","message":"install_done"}}' | Set-Content -Path $statusPath -Encoding UTF8
+    Start-Process -FilePath $currentExe
+    exit 0
 }} catch {{
     $msg = $_.Exception.Message
     Write-Log "ERROR: $msg"
