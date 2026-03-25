@@ -65,7 +65,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.4.19"
+    return "0.4.20"
 
 
 def normalize_profile_link(raw: str) -> str:
@@ -269,6 +269,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.worker = WorkerClient()
         self.updater = WindowsUpdater()
         self.settings_store = QtCore.QSettings("SaveStories", "Windows")
+        self.migrate_legacy_settings()
         self.current_task: WorkerTask | None = None
         self.current_callback: Callable[[WorkerResponse], None] | None = None
         self.bootstrap_task: BootstrapTask | None = None
@@ -320,6 +321,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.refresh_home2_status_strip()
 
         QtCore.QTimer.singleShot(0, self.prepare)
+
+    def migrate_legacy_settings(self) -> None:
+        legacy_settings = QtCore.QSettings("DimaSave", "Windows")
+        migrated = False
+        for key in legacy_settings.allKeys():
+            if self.settings_store.contains(key):
+                continue
+            self.settings_store.setValue(key, legacy_settings.value(key))
+            migrated = True
+        if migrated:
+            self.settings_store.sync()
 
     def _build_ui(self) -> None:
         central = QtWidgets.QWidget()
