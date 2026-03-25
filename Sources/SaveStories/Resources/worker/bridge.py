@@ -736,7 +736,7 @@ def media_variant_score(url: str, media_type: str) -> int:
     if "clips" in tag or "reel" in tag:
         score -= 200
     if "audio" in tag or "aac" in tag or "haac" in tag:
-        score -= 30
+        score += 150
     if "avc" in tag or "h264" in tag:
         score += 120
     if "hevc" in tag or "h265" in tag:
@@ -962,6 +962,8 @@ def choose_best_video_url(item: dict[str, Any]) -> str | None:
         lowered = url.lower()
         if any(token in tag for token in ["xpv_progressive", "progressive", "avc", "h264"]):
             preferred_urls.append((score, normalized_url))
+        if any(token in tag for token in ["audio", "aac", "haac"]) and not is_audio_only_variant(url):
+            preferred_urls.append((score + 40, normalized_url))
         if any(token in lowered for token in ["xpv_progressive", "progressive"]) and "dash" not in lowered:
             preferred_urls.append((score + 20, normalized_url))
 
@@ -1396,6 +1398,7 @@ def persist_story_items(
     username: str,
     *,
     browser_context: Any | None = None,
+    media_filter: str = "all",
 ) -> tuple[list[dict[str, str]], list[str]]:
     logs: list[str] = []
     items: list[dict[str, str]] = []
@@ -1404,6 +1407,9 @@ def persist_story_items(
     next_index = next_story_index(destination_dir, username)
 
     for resolved in resolved_items:
+        if media_filter == "video_only" and resolved.media_type != "video":
+            logs.append(f"skipped_by_media_filter={resolved.media_type}")
+            continue
         normalized_source = normalize_media_url(resolved.source_url)
         if normalized_source in seen_sources:
             logs.append(f"skipped_current_source={normalized_source}")
@@ -1463,6 +1469,7 @@ def collect_story_sequence(
     network_candidates: list[StoryMedia],
     metadata_captured_after: float | None = None,
     persist_metadata_items: bool = True,
+    media_filter: str = "all",
 ) -> tuple[list[dict[str, str]], list[str]]:
     logs: list[str] = []
 
@@ -1488,6 +1495,7 @@ def collect_story_sequence(
             destination_dir,
             username,
             browser_context=page.context,
+            media_filter=media_filter,
         )
         logs.extend(persist_logs)
         if saved_items:
@@ -1517,6 +1525,13 @@ def collect_story_sequence(
             seen_signatures.add(signature)
             logs.append(f"skipped_current_source={normalized_source}")
         else:
+            if media_filter == "video_only" and media.media_type != "video":
+                seen_signatures.add(signature)
+                seen_sources.add(normalized_source)
+                logs.append(f"skipped_by_media_filter={media.media_type}")
+                if not advance_to_next_story(page, network_candidates, seen_sources | {normalized_source}, signature, logs):
+                    break
+                continue
             local_path, final_source_url = download_media(
                 normalized_source,
                 destination_dir,
@@ -1696,7 +1711,7 @@ def extract_username(value: str) -> str:
     return sanitize_filename(value.strip().lstrip("@"))
 
 
-def profile_command(profile_url: str, output_directory: str | None, headless: bool = True) -> None:
+def profile_command(profile_url: str, output_directory: str | None, headless: bool = True, media_filter: str = "all") -> None:
     ensure_directories()
     session = None
 
@@ -1704,7 +1719,7 @@ def profile_command(profile_url: str, output_directory: str | None, headless: bo
         session = launch_context(headless=headless)
         page = session.first_page()
         prepare_background_window(session, page, [])
-        result = download_profile_with_page(page, profile_url, output_directory)
+        result = download_profile_with_page(page, profile_url, output_directory, media_filter=media_filter)
         emit(
             result["ok"],
             result["status"],
@@ -1718,7 +1733,7 @@ def profile_command(profile_url: str, output_directory: str | None, headless: bo
             close_session_with_timeout(session)
 
 
-def download_profile_with_page(page, profile_url: str, output_directory: str | None) -> dict[str, Any]:
+def download_profile_with_page(page, profile_url: str, output_directory: str | None, media_filter: str = "all") -> dict[str, Any]:
     username = extract_username(profile_url)
     if not username:
         return {
@@ -1790,9 +1805,10 @@ def download_profile_with_page(page, profile_url: str, output_directory: str | N
             json_payloads,
             network_candidates,
             metadata_captured_after=story_capture_started_at,
+            media_filter=media_filter,
         )
         logs.extend(sequence_logs)
-        found_count = extract_found_count(sequence_logs, len(items))
+        found_count = len(items) if media_filter == "video_only" else extract_found_count(sequence_logs, len(items))
 
         if not items:
             return {
@@ -1829,7 +1845,7 @@ def download_profile_with_page(page, profile_url: str, output_directory: str | N
         }
 
 
-def profile_batch_command(profile_urls: list[str], output_directory: str | None, headless: bool = True) -> None:
+def profile_batch_command(profile_urls: list[str], output_directory: str | None, headless: bool = True, media_filter: str = "all") -> None:
     ensure_directories()
     normalized_urls = [str(entry).strip() for entry in profile_urls if str(entry).strip()]
     if not normalized_urls:
@@ -1882,7 +1898,7 @@ def profile_batch_command(profile_urls: list[str], output_directory: str | None,
                         prepare_background_window(session, page, logs)
                         logs.append(f"batch_page_recreated_profile={normalized_url}")
 
-                    result = download_profile_with_page(page, normalized_url, output_directory)
+                    result = download_profile_with_page(page, normalized_url, output_directory, media_filter=media_filter)
                 except Exception as exc:
                     result = {
                         "ok": False,
@@ -1973,6 +1989,7 @@ def main() -> None:
         urls = request.get("urls") or []
         output_directory = request.get("outputDirectory")
         headless = request.get("headless")
+        media_filter = request.get("mediaFilter") or "all"
         if headless is None:
             headless = True
 
@@ -1991,9 +2008,9 @@ def main() -> None:
             if not url:
                 emit(False, "request_error", "Для download_profile_stories нужна ссылка на профиль или имя пользователя.")
                 return
-            profile_command(url, output_directory, headless=bool(headless))
+            profile_command(url, output_directory, headless=bool(headless), media_filter=str(media_filter))
         elif command == "download_profile_batch":
-            profile_batch_command(list(urls), output_directory, headless=bool(headless))
+            profile_batch_command(list(urls), output_directory, headless=bool(headless), media_filter=str(media_filter))
         else:
             emit(False, "request_error", f"Неподдерживаемая команда: {command}")
     except Exception as exc:

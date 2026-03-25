@@ -19,6 +19,13 @@ function requiredArg(name) {
   return value;
 }
 
+function readOptionalFile(path) {
+  if (!path) {
+    return "";
+  }
+  return readFileSync(path, "utf8");
+}
+
 function escapeXml(value) {
   return value
     .replaceAll("&", "&amp;")
@@ -41,7 +48,7 @@ const output = requiredArg("output");
 const title = readArg("title") || `SaveStories ${version}`;
 const mimeType = readArg("mime-type") || "application/octet-stream";
 const privateKeyPath = readArg("private-key-path");
-const notes = readArg("notes") || `Release ${version} опубликован в GitHub Releases.`;
+const notes = readOptionalFile(readArg("notes-file")) || readArg("notes") || `Release ${version} опубликован в GitHub Releases.`;
 
 const privateKeyPem = privateKeyPath
   ? readFileSync(privateKeyPath, "utf8")

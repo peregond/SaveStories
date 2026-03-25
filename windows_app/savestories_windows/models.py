@@ -10,6 +10,7 @@ class WorkerRequest:
     urls: list[str] | None = None
     outputDirectory: str | None = None
     headless: bool | None = None
+    mediaFilter: str | None = None
 
 
 @dataclass(slots=True)

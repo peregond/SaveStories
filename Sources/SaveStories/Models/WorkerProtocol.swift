@@ -6,6 +6,7 @@ struct WorkerRequest: Codable {
     let urls: [String]?
     let outputDirectory: String?
     let headless: Bool?
+    let mediaFilter: String?
 }
 
 struct WorkerItem: Codable, Identifiable, Hashable {

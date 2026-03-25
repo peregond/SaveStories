@@ -489,6 +489,7 @@ function shouldSkipMediaVariant(url) {
     return lowered.includes("clips") || lowered.includes("reel");
   }
   if (isAudioOnlyVariant(url)) return true;
+  if (tag.includes("dash_vp9-basic") || tag.includes("vp9-basic")) return true;
   return tag.includes("clips") || tag.includes("reel");
 }
 
@@ -505,7 +506,7 @@ function mediaVariantScore(url, mediaType) {
   if (tag.includes("xpv_progressive") || tag.includes("progressive")) score += 180;
   if (isAudioOnlyVariant(url)) score -= 500;
   if (tag.includes("clips") || tag.includes("reel")) score -= 200;
-  if (tag.includes("audio") || tag.includes("aac") || tag.includes("haac")) score -= 30;
+  if (tag.includes("audio") || tag.includes("aac") || tag.includes("haac")) score += 150;
   if (tag.includes("avc") || tag.includes("h264")) score += 120;
   if (tag.includes("hevc") || tag.includes("h265")) score += 60;
   if (tag.includes("vp9-basic")) score -= 180;
@@ -596,6 +597,7 @@ function chooseBestImageUrl(item) {
 
 function chooseBestVideoUrl(item) {
   const variants = Array.isArray(item.video_versions) ? item.video_versions : [];
+  const preferredUrls = [];
   let bestUrl = null;
   let bestScore = -1e9;
   for (const candidate of variants) {
@@ -603,13 +605,29 @@ function chooseBestVideoUrl(item) {
     if (typeof url !== "string" || !isStoryMediaUrl(url) || shouldSkipMediaVariant(url)) continue;
     const [width, height] = candidateDimensions(candidate, item);
     if (!passesStoryShapeGate(url, width, height)) continue;
+    const normalizedUrl = normalizeMediaUrl(url);
     let score = mediaVariantScore(url, "video") + Math.floor((width * height) / 5000) + storyRatioBonus(width, height);
     if (candidate.type === 101) score += 25;
     if (candidate.type === 102) score += 10;
+    const tag = mediaVariantTag(url);
+    const lowered = url.toLowerCase();
+    if (tag.includes("xpv_progressive") || tag.includes("progressive") || tag.includes("avc") || tag.includes("h264")) {
+      preferredUrls.push([score, normalizedUrl]);
+    }
+    if ((tag.includes("audio") || tag.includes("aac") || tag.includes("haac")) && !isAudioOnlyVariant(url)) {
+      preferredUrls.push([score + 40, normalizedUrl]);
+    }
+    if ((lowered.includes("xpv_progressive") || lowered.includes("progressive")) && !lowered.includes("dash")) {
+      preferredUrls.push([score + 20, normalizedUrl]);
+    }
     if (score > bestScore) {
       bestScore = score;
-      bestUrl = normalizeMediaUrl(url);
+      bestUrl = normalizedUrl;
     }
+  }
+  if (preferredUrls.length > 0) {
+    preferredUrls.sort((a, b) => b[0] - a[0]);
+    return preferredUrls[0][1];
   }
   return bestUrl;
 }
@@ -1066,7 +1084,14 @@ function extractFoundCount(logs, fallback) {
   return fallback;
 }
 
-async function persistStoryItems(resolvedItems, destinationDir, username, browserContext) {
+function shouldPersistMedia(mediaType, mediaFilter = "all") {
+  if (mediaFilter === "video_only") {
+    return mediaType === "video";
+  }
+  return true;
+}
+
+async function persistStoryItems(resolvedItems, destinationDir, username, browserContext, mediaFilter = "all") {
   const logs = [];
   const items = [];
   const seenSources = new Set();
@@ -1074,6 +1099,10 @@ async function persistStoryItems(resolvedItems, destinationDir, username, browse
   let nextIndexValue = await nextStoryIndex(destinationDir, username);
 
   for (const resolved of resolvedItems) {
+    if (!shouldPersistMedia(resolved.mediaType, mediaFilter)) {
+      logs.push(`skipped_by_media_filter=${resolved.mediaType}`);
+      continue;
+    }
     const normalizedSource = normalizeMediaUrl(resolved.sourceUrl);
     if (seenSources.has(normalizedSource)) {
       logs.push(`skipped_current_source=${normalizedSource}`);
@@ -1116,11 +1145,11 @@ async function persistStoryItems(resolvedItems, destinationDir, username, browse
   return { items, logs };
 }
 
-async function collectStorySequence(page, destinationDir, username, jsonPayloads, networkCandidates, metadataCapturedAfter = null, persistMetadataItems = true) {
+async function collectStorySequence(page, destinationDir, username, jsonPayloads, networkCandidates, metadataCapturedAfter = null, persistMetadataItems = true, mediaFilter = "all") {
   const logs = [];
   const resolvedItems = await waitForMetadataStoryItems(page, jsonPayloads, username, logs, 12, metadataCapturedAfter);
   if (resolvedItems.length > 0 && persistMetadataItems) {
-    const persisted = await persistStoryItems(resolvedItems, destinationDir, username, page.context());
+    const persisted = await persistStoryItems(resolvedItems, destinationDir, username, page.context(), mediaFilter);
     logs.push(...persisted.logs);
     if (persisted.items.length > 0) {
       return { items: persisted.items, logs };
@@ -1153,6 +1182,15 @@ async function collectStorySequence(page, destinationDir, username, jsonPayloads
       seenSignatures.add(signature);
       logs.push(`skipped_current_source=${normalizedSource}`);
     } else {
+      if (!shouldPersistMedia(media.mediaType, mediaFilter)) {
+        seenSignatures.add(signature);
+        seenSources.add(normalizedSource);
+        logs.push(`skipped_by_media_filter=${media.mediaType}`);
+        if (!(await advanceToNextStory(page, networkCandidates, new Set([...seenSources, normalizedSource]), signature, logs))) {
+          break;
+        }
+        continue;
+      }
       const { localPath, finalSourceUrl } = await downloadMedia(
         normalizedSource,
         destinationDir,
@@ -1201,7 +1239,7 @@ async function ensureLoggedIn(page) {
   throw new Error("Требуется вход в Instagram. Сначала откройте браузер для входа.");
 }
 
-async function downloadProfileWithPage(page, profileUrl, outputDirectory) {
+async function downloadProfileWithPage(page, profileUrl, outputDirectory, mediaFilter = "all") {
   const username = extractUsername(profileUrl);
   if (!username) {
     return {
@@ -1251,9 +1289,10 @@ async function downloadProfileWithPage(page, profileUrl, outputDirectory) {
       networkCandidates,
       storyCaptureStartedAt,
       true,
+      mediaFilter,
     );
     logs.push(...result.logs);
-    const foundCount = extractFoundCount(result.logs, result.items.length);
+    const foundCount = mediaFilter === "video_only" ? result.items.length : extractFoundCount(result.logs, result.items.length);
 
     if (result.items.length === 0) {
       return {
@@ -1292,7 +1331,7 @@ async function downloadProfileWithPage(page, profileUrl, outputDirectory) {
   }
 }
 
-async function profileCommand(profileUrl, outputDirectory, headless = true) {
+async function profileCommand(profileUrl, outputDirectory, headless = true, mediaFilter = "all") {
   await ensureDirectories();
   let session = null;
 
@@ -1300,7 +1339,7 @@ async function profileCommand(profileUrl, outputDirectory, headless = true) {
     session = await launchContext(headless);
     const page = await session.firstPage();
     await prepareBackgroundWindow(session, page, []);
-    const result = await downloadProfileWithPage(page, profileUrl, outputDirectory);
+    const result = await downloadProfileWithPage(page, profileUrl, outputDirectory, mediaFilter);
     emit(result.ok, result.status, result.message, {
       data: result.data,
       items: result.items,
@@ -1311,7 +1350,7 @@ async function profileCommand(profileUrl, outputDirectory, headless = true) {
   }
 }
 
-async function profileBatchCommand(profileUrls, outputDirectory, headless = true) {
+async function profileBatchCommand(profileUrls, outputDirectory, headless = true, mediaFilter = "all") {
   await ensureDirectories();
   const normalizedUrls = profileUrls
     .map((entry) => String(entry || "").trim())
@@ -1408,7 +1447,7 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
         let result = null;
         try {
           result = await withTimeout(
-            downloadProfileWithPage(page, job.normalizedUrl, outputDirectory),
+            downloadProfileWithPage(page, job.normalizedUrl, outputDirectory, mediaFilter),
             BATCH_JOB_TIMEOUT_MS,
             `Выгрузка профиля ${job.normalizedUrl} превысила лимит ожидания.`,
           );
@@ -1539,6 +1578,7 @@ async function main() {
     const urls = Array.isArray(request.urls) ? request.urls : [];
     const outputDirectory = request.outputDirectory;
     const headless = request.headless ?? true;
+    const mediaFilter = request.mediaFilter ?? "all";
 
     if (command === "environment") {
       await environmentCommand();
@@ -1551,9 +1591,9 @@ async function main() {
         emit(false, "request_error", "Для download_profile_stories нужна ссылка на профиль или имя пользователя.");
         return;
       }
-      await profileCommand(url, outputDirectory, Boolean(headless));
+      await profileCommand(url, outputDirectory, Boolean(headless), mediaFilter);
     } else if (command === "download_profile_batch") {
-      await profileBatchCommand(urls, outputDirectory, Boolean(headless));
+      await profileBatchCommand(urls, outputDirectory, Boolean(headless), mediaFilter);
     } else if (command === "download_story_url") {
       emit(false, "request_error", "download_story_url пока не перенесён в Node worker.");
     } else {

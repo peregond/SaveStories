@@ -5,6 +5,7 @@ import Foundation
 @MainActor
 final class AppModel: ObservableObject {
     private static let recentBatchListsKey = "SaveStories.recentBatchLists"
+    private static let mediaSelectionModeKey = "SaveStories.mediaSelectionMode"
     private static let successSoundNames = ["Glass", "Hero", "Funk", "Pop"]
     private static let logDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -110,10 +111,40 @@ final class AppModel: ObservableObject {
         }
     }
 
+    enum MediaSelectionMode: String, CaseIterable, Identifiable {
+        case all
+        case videoOnly = "video_only"
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .all:
+                "Фото и видео"
+            case .videoOnly:
+                "Только видео"
+            }
+        }
+
+        var detail: String {
+            switch self {
+            case .all:
+                "Сохраняет все найденные stories: и фото, и видео."
+            case .videoOnly:
+                "Сохраняет только видео-stories. Фото будут пропущены."
+            }
+        }
+    }
+
     @Published var profileURL: String = ""
     @Published var batchInput: String = ""
     @Published var batchQueue: [BatchProfileItem] = []
     @Published var downloadMode: DownloadMode = .background
+    @Published var mediaSelectionMode: MediaSelectionMode = .videoOnly {
+        didSet {
+            UserDefaults.standard.set(mediaSelectionMode.rawValue, forKey: Self.mediaSelectionModeKey)
+        }
+    }
     @Published var saveDirectory: URL = AppPaths.defaultDownloads
     @Published var workerSummary: String = "Воркер ещё не проверялся."
     @Published var sessionSummary: String = "Состояние сессии неизвестно."
@@ -155,6 +186,11 @@ final class AppModel: ObservableObject {
     init() {
         updateSummary = appUpdater.summary
         canCheckForUpdates = appUpdater.isAvailable
+        if let savedMediaMode = UserDefaults.standard.string(forKey: Self.mediaSelectionModeKey),
+           let mode = MediaSelectionMode(rawValue: savedMediaMode)
+        {
+            mediaSelectionMode = mode
+        }
         loadRecentBatchLists()
     }
 
@@ -229,7 +265,7 @@ final class AppModel: ObservableObject {
         await perform("Открытие видимого браузера для входа в Instagram") {
             self.currentStepLabel = "Открываю браузер для входа в Instagram."
             let response = await self.worker.run(
-                WorkerRequest(command: "login", url: nil, urls: nil, outputDirectory: self.saveDirectory.path, headless: false)
+                WorkerRequest(command: "login", url: nil, urls: nil, outputDirectory: self.saveDirectory.path, headless: false, mediaFilter: nil)
             )
             if response.ok {
                 self.sessionReady = response.data["loggedIn"] == "true"
@@ -248,7 +284,7 @@ final class AppModel: ObservableObject {
         await perform("Проверка сохранённой сессии Instagram") {
             self.currentStepLabel = "Проверяю сохранённую Instagram-сессию."
             let response = await self.worker.run(
-                WorkerRequest(command: "check_session", url: nil, urls: nil, outputDirectory: nil, headless: true)
+                WorkerRequest(command: "check_session", url: nil, urls: nil, outputDirectory: nil, headless: true, mediaFilter: nil)
             )
             if response.ok {
                 self.sessionReady = response.data["loggedIn"] == "true"
@@ -400,7 +436,8 @@ final class AppModel: ObservableObject {
                     url: nil,
                     urls: pendingItems.map { self.normalizedProfileLink($0.url) },
                     outputDirectory: self.saveDirectory.path,
-                    headless: self.downloadMode.usesHeadless
+                    headless: self.downloadMode.usesHeadless,
+                    mediaFilter: self.mediaSelectionMode.rawValue
                 )
             )
 
@@ -509,7 +546,8 @@ final class AppModel: ObservableObject {
                 url: normalizedProfileLink(url),
                 urls: nil,
                 outputDirectory: saveDirectory.path,
-                headless: downloadMode.usesHeadless
+                headless: downloadMode.usesHeadless,
+                mediaFilter: mediaSelectionMode.rawValue
             )
         )
     }
@@ -551,12 +589,12 @@ final class AppModel: ObservableObject {
     }
 
     private func environmentResponse() async -> WorkerResponse {
-        await worker.run(WorkerRequest(command: "environment", url: nil, urls: nil, outputDirectory: nil, headless: nil))
+        await worker.run(WorkerRequest(command: "environment", url: nil, urls: nil, outputDirectory: nil, headless: nil, mediaFilter: nil))
     }
 
     private func refreshStartupSession() async {
         let response = await worker.run(
-            WorkerRequest(command: "check_session", url: nil, urls: nil, outputDirectory: nil, headless: true)
+            WorkerRequest(command: "check_session", url: nil, urls: nil, outputDirectory: nil, headless: true, mediaFilter: nil)
         )
         if response.ok {
             sessionReady = response.data["loggedIn"] == "true"

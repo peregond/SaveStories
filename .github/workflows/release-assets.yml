@@ -30,9 +30,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG"
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file "./release_notes/latest.md"
           else
-            gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --title "$RELEASE_TAG" --generate-notes
+            gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --title "$RELEASE_TAG" --notes-file "./release_notes/latest.md"
           fi
 
   build-macos:
@@ -176,7 +176,7 @@ jobs:
             --version "${RELEASE_TAG#v}" \
             --build "${GITHUB_RUN_NUMBER}" \
             --mime-type "application/x-apple-diskimage" \
-            --notes "GitHub release ${RELEASE_TAG} РѕРїСѓР±Р»РёРєРѕРІР°РЅ РґР»СЏ SaveStories." \
+            --notes-file "./release_notes/latest.md" \
             --output "${RUNNER_TEMP}/appcast-macos.xml"
 
       - name: Publish update feed branch

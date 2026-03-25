@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import json
+import math
 import os
 import subprocess
 import sys
@@ -12,6 +13,11 @@ from pathlib import Path
 from typing import Callable
 
 from PySide6 import QtCore, QtGui, QtWidgets
+
+try:
+    import winsound
+except ImportError:
+    winsound = None
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -65,7 +71,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.4.21"
+    return "0.4.22"
 
 
 def normalize_profile_link(raw: str) -> str:
@@ -197,6 +203,96 @@ class UpdateInstallTask(QtCore.QThread):
         self.progress_output.emit(percent, message)
 
 
+class ConfettiOverlay(QtWidgets.QWidget):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
+        super().__init__(parent)
+        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, True)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
+        self.hide()
+        self._timer = QtCore.QTimer(self)
+        self._timer.setInterval(16)
+        self._timer.timeout.connect(self._tick)
+        self._particles: list[dict[str, float | QtGui.QColor]] = []
+        self._remaining_frames = 0
+
+    def launch(self) -> None:
+        parent = self.parentWidget()
+        if parent is None:
+            return
+        self.setGeometry(parent.rect())
+        self._particles = self._spawn_particles()
+        self._remaining_frames = 150
+        self.show()
+        self.raise_()
+        self._timer.start()
+        self.update()
+
+    def _spawn_particles(self) -> list[dict[str, float | QtGui.QColor]]:
+        colors = [
+            QtGui.QColor("#b9ff00"),
+            QtGui.QColor("#d7ff57"),
+            QtGui.QColor("#8cf59f"),
+            QtGui.QColor("#7fd3ff"),
+            QtGui.QColor("#ffffff"),
+        ]
+        origin_x = self.width() / 2
+        origin_y = self.height() * 0.2
+        particles: list[dict[str, float | QtGui.QColor]] = []
+        for index in range(90):
+            angle = (-1.15 + (2.3 * index / 89.0))
+            speed = 7.0 + (index % 7) * 0.55
+            particles.append(
+                {
+                    "x": origin_x,
+                    "y": origin_y,
+                    "vx": speed * math.cos(angle),
+                    "vy": -abs(speed * math.sin(angle)) - 2.0,
+                    "size": 6.0 + (index % 5) * 1.8,
+                    "rotation": float((index * 19) % 360),
+                    "rotation_speed": -8.0 + (index % 9) * 1.9,
+                    "life": 1.0,
+                    "color": colors[index % len(colors)],
+                }
+            )
+        return particles
+
+    def _tick(self) -> None:
+        gravity = 0.24
+        drag = 0.995
+        for particle in self._particles:
+            particle["x"] = float(particle["x"]) + float(particle["vx"])
+            particle["y"] = float(particle["y"]) + float(particle["vy"])
+            particle["vx"] = float(particle["vx"]) * drag
+            particle["vy"] = float(particle["vy"]) + gravity
+            particle["rotation"] = float(particle["rotation"]) + float(particle["rotation_speed"])
+            particle["life"] = max(0.0, float(particle["life"]) - 0.0065)
+        self._remaining_frames -= 1
+        self.update()
+        if self._remaining_frames <= 0 or not any(float(p["life"]) > 0.0 for p in self._particles):
+            self._timer.stop()
+            self.hide()
+
+    def paintEvent(self, event: QtGui.QPaintEvent) -> None:
+        del event
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
+        for particle in self._particles:
+            life = float(particle["life"])
+            if life <= 0.0:
+                continue
+            painter.save()
+            painter.setOpacity(min(1.0, life * 1.15))
+            painter.translate(float(particle["x"]), float(particle["y"]))
+            painter.rotate(float(particle["rotation"]))
+            color = QtGui.QColor(particle["color"])
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.setBrush(color)
+            size = float(particle["size"])
+            rect = QtCore.QRectF(-size / 2, -size / 3, size, size * 0.66)
+            painter.drawRoundedRect(rect, 2.2, 2.2)
+            painter.restore()
+
+
 class SettingsDialog(QtWidgets.QDialog):
     refresh_requested = QtCore.Signal()
     bootstrap_requested = QtCore.Signal()
@@ -290,6 +386,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.runtime_summary = ""
         self.update_summary = self.updater.summary
         self.download_mode = self.settings_store.value("download_mode", "background")
+        self.media_filter = self.settings_store.value("media_filter", "video_only")
         self.batch_entries: list[BatchEntry] = []
         self.batch_running = False
         self.batch_stop_requested = False
@@ -302,10 +399,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.last_logged_update_progress = -1
         self.current_step_label = "Ожидание команды."
         self.recent_lists: list[dict[str, object]] = self.load_recent_lists()
+        self.live_downloaded_file_count = 0
+        self.live_created_folder_count = 0
+        self._save_directory_baseline_files = 0
+        self._save_directory_baseline_folders = 0
+        self.live_tracking_timer = QtCore.QTimer(self)
+        self.live_tracking_timer.setInterval(2000)
+        self.live_tracking_timer.timeout.connect(self.refresh_live_download_tracking)
 
         save_dir_value = self.settings_store.value("save_directory")
         self.save_directory = Path(str(save_dir_value)) if save_dir_value else AppPaths.default_downloads()
         AppPaths.ensure_directories()
+        self.reset_live_download_tracking_baseline()
 
         self.setWindowTitle("SaveStories for Windows")
         self.setMinimumSize(960, 620)
@@ -316,6 +421,7 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.resize(default_size)
         self._build_ui()
+        self.confetti_overlay = ConfettiOverlay(central)
         self._apply_styles()
         self.refresh_recent_lists_ui()
         self.refresh_home2_status_strip()
@@ -352,7 +458,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.stack = QtWidgets.QStackedWidget()
         self.stack.addWidget(self._wrap_scroll_area(self._build_home_two_page()))
         self.stack.addWidget(self._wrap_scroll_area(self._build_batch_page()))
-        self.stack.addWidget(self._wrap_scroll_area(self._build_home_page()))
+        self.stack.addWidget(self._wrap_scroll_area(self._build_reels_page()))
         content_layout.addWidget(self.stack, 3)
 
         content_layout.addWidget(self._wrap_scroll_area(self._build_activity_panel()), 2)
@@ -386,9 +492,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         for index, (text, detail) in enumerate(
             [
-                ("Главная", "Новый стартовый сценарий"),
+                ("Главная", "Основной стартовый сценарий"),
                 ("Списочная", "Очередь профилей"),
-                ("Главная", "Текущий режим выгрузки"),
+                ("Reels", "Скоро появится"),
             ]
         ):
             button = QtWidgets.QPushButton(f"{text}\n{detail}")
@@ -437,6 +543,39 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addStretch(1)
         return page
 
+    def _build_reels_page(self) -> QtWidgets.QWidget:
+        page = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(18)
+
+        layout.addWidget(
+            self._hero(
+                "Reels",
+                "Отдельный сценарий для выгрузки Reels появится в следующих версиях.",
+            )
+        )
+
+        card = QtWidgets.QGroupBox("Что будет дальше")
+        card_layout = QtWidgets.QVBoxLayout(card)
+        text = QtWidgets.QLabel(
+            "Здесь появится отдельный поток работы с Reels: вставка ссылок, пакетная выгрузка и более точные фильтры контента."
+        )
+        text.setWordWrap(True)
+        card_layout.addWidget(text)
+        for line in [
+            "Отдельная очередь ссылок на Reels.",
+            "Пакетная выгрузка с понятным прогрессом.",
+            "Более точные фильтры под видео-контент.",
+        ]:
+            bullet = QtWidgets.QLabel(f"• {line}")
+            bullet.setWordWrap(True)
+            card_layout.addWidget(bullet)
+
+        layout.addWidget(card)
+        layout.addStretch(1)
+        return page
+
     def _build_home_two_page(self) -> QtWidgets.QWidget:
         page = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(page)
@@ -446,7 +585,7 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(
             self._hero(
                 "Главная",
-                "Новый стартовый экран: добавляй список профилей, сохраняй его как недавний и запускай выгрузку без лишних переключений.",
+                "Более удобный стартовый экран: собери список профилей, сохрани его как недавний и запускай выгрузку без лишних переключений.",
             )
         )
         layout.addWidget(self._home2_status_strip())
@@ -545,11 +684,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.home2_status_label = QtWidgets.QLabel()
         self.home2_step_label = QtWidgets.QLabel()
         self.home2_result_label = QtWidgets.QLabel()
+        self.home2_live_label = QtWidgets.QLabel()
 
         for widget in [
             self._summary_pill("Состояние", self.home2_status_label),
             self._summary_pill("Текущий шаг", self.home2_step_label),
             self._summary_pill("Результат", self.home2_result_label),
+            self._summary_pill("В выбранной папке", self.home2_live_label),
         ]:
             layout.addWidget(widget, 1)
 
@@ -584,39 +725,33 @@ class MainWindow(QtWidgets.QMainWindow):
         row.addWidget(clear_button)
         layout.addLayout(row)
 
+        layout.addWidget(self._mode_card(home2_mode=True))
+
         lower = QtWidgets.QHBoxLayout()
         lower.setSpacing(14)
+        lower.addWidget(self._save_directory_card(home2_mode=True), 1)
 
-        left = QtWidgets.QVBoxLayout()
-        left.setSpacing(10)
-        left.addWidget(self._mode_card(home2_mode=True))
-        left.addWidget(self._save_directory_card(home2_mode=True))
-
-        right = QtWidgets.QVBoxLayout()
-        right.setSpacing(10)
-        tip = QtWidgets.QLabel("Для первых тестов используй «Видимо». Если всё стабильно, переключайся на фон.")
+        tip_box = QtWidgets.QGroupBox("Совет")
+        tip_layout = QtWidgets.QVBoxLayout(tip_box)
+        tip = QtWidgets.QLabel("Для первых тестов используй режим «Видимо». Если всё стабильно, переключайся на фон.")
         tip.setWordWrap(True)
-        right.addWidget(tip)
+        tip_layout.addWidget(tip)
+        lower.addWidget(tip_box, 1)
+        layout.addLayout(lower)
+
+        actions = QtWidgets.QVBoxLayout()
+        actions.setSpacing(10)
         run_button = QtWidgets.QPushButton("Скачать очередь")
+        run_button.setObjectName("queueActionButton")
         run_button.clicked.connect(self.start_batch)
         self.home2_run_button = run_button
         stop_button = QtWidgets.QPushButton("Остановить")
         stop_button.clicked.connect(self.stop_batch)
         stop_button.setEnabled(False)
         self.home2_stop_button = stop_button
-        right.addWidget(run_button)
-        right.addWidget(stop_button)
-        right.addStretch(1)
-
-        left_host = QtWidgets.QWidget()
-        left_host.setLayout(left)
-        right_host = QtWidgets.QWidget()
-        right_host.setLayout(right)
-        right_host.setFixedWidth(220)
-
-        lower.addWidget(left_host, 1)
-        lower.addWidget(right_host)
-        layout.addLayout(lower)
+        actions.addWidget(run_button)
+        actions.addWidget(stop_button)
+        layout.addLayout(actions)
         return card
 
     def _home2_queue_card(self) -> QtWidgets.QWidget:
@@ -627,9 +762,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.home2_queue_count = QtWidgets.QLabel("В очереди: 0")
         self.home2_recent_count = QtWidgets.QLabel(f"Недавних наборов: {len(self.recent_lists)}")
         self.home2_mode_label = QtWidgets.QLabel(f"Режим: {'В фоне' if self.download_mode == 'background' else 'Видимо'}")
+        self.home2_media_label = QtWidgets.QLabel(f"Контент: {'Только видео' if self.media_filter == 'video_only' else 'Фото и видео'}")
         stats.addWidget(self.home2_queue_count)
         stats.addWidget(self.home2_recent_count)
         stats.addWidget(self.home2_mode_label)
+        stats.addWidget(self.home2_media_label)
         stats.addStretch(1)
         layout.addLayout(stats)
 
@@ -820,17 +957,32 @@ class MainWindow(QtWidgets.QMainWindow):
         combo.currentIndexChanged.connect(self.on_mode_changed)
         detail = QtWidgets.QLabel("В фоне браузер не показывается. Видимо открывает окно Chromium во время выгрузки.")
         detail.setWordWrap(True)
+        media_label = QtWidgets.QLabel("Что сохранять")
+        media_label.setObjectName("sectionLabel")
+        media_combo = QtWidgets.QComboBox()
+        media_combo.addItem("Фото и видео", "all")
+        media_combo.addItem("Только видео", "video_only")
+        media_combo.setCurrentIndex(0 if self.media_filter == "all" else 1)
+        media_combo.currentIndexChanged.connect(self.on_media_filter_changed)
+        media_detail = QtWidgets.QLabel("Можно сохранять все найденные stories или пропускать фото и оставлять только видео.")
+        media_detail.setWordWrap(True)
 
         layout.addWidget(label)
         layout.addWidget(combo)
         layout.addWidget(detail)
+        layout.addWidget(media_label)
+        layout.addWidget(media_combo)
+        layout.addWidget(media_detail)
 
         if home2_mode:
             self.home2_mode_combo = combo
+            self.home2_media_combo = media_combo
         elif batch_mode:
             self.batch_mode_combo = combo
+            self.batch_media_combo = media_combo
         else:
             self.mode_combo = combo
+            self.media_combo = media_combo
         return host
 
     def _apply_styles(self) -> None:
@@ -886,6 +1038,24 @@ class MainWindow(QtWidgets.QMainWindow):
                 background: #f0cda4;
                 color: #6c6c6c;
                 border-color: #d8b890;
+            }
+            QPushButton#queueActionButton {
+                background: #5c8d71;
+                color: white;
+                border: 1px solid #537f66;
+            }
+            QPushButton#queueActionButton:hover {
+                background: #527f65;
+                border-color: #496f59;
+            }
+            QPushButton#queueActionButton:pressed {
+                background: #476e57;
+                border-color: #3f624e;
+            }
+            QPushButton#queueActionButton:disabled {
+                background: #aec0b5;
+                color: #eef3f0;
+                border-color: #aec0b5;
             }
             QLabel#heroTitle { font-size: 34px; font-weight: 700; color: #102844; }
             QLabel#heroSubtitle { font-size: 16px; color: #4f6279; }
@@ -1289,6 +1459,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 urls=None,
                 outputDirectory=str(self.save_directory),
                 headless=self.current_headless(),
+                mediaFilter=self.current_media_filter(),
             ),
             "Скачивание активных stories",
             callback=self.handle_download_response,
@@ -1339,6 +1510,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 urls=[normalize_profile_link(self.batch_entries[index].url) for index in self.batch_pending_indices],
                 outputDirectory=str(self.save_directory),
                 headless=self.current_headless(),
+                mediaFilter=self.current_media_filter(),
             ),
             "Пакетная выгрузка",
             callback=self.handle_batch_response,
@@ -1393,6 +1565,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.set_status("Остановлено", f"Пакетная выгрузка остановлена. Обработано {processed} из {total}.")
         else:
             self.set_status("Готово", f"Пакетная выгрузка завершена. Сохранено файлов: {self.batch_saved_total}.")
+            if self.batch_saved_total > 0:
+                self.trigger_celebration()
         self.batch_running = False
         self.batch_stop_requested = False
         self.batch_pending_indices = []
@@ -1607,6 +1781,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         self.save_directory = Path(directory)
         self.settings_store.setValue("save_directory", str(self.save_directory))
+        self.reset_live_download_tracking_baseline()
         line_edit.setText(str(self.save_directory))
         if hasattr(self, "batch_directory_line"):
             self.batch_directory_line.setText(str(self.save_directory))
@@ -1631,8 +1806,28 @@ class MainWindow(QtWidgets.QMainWindow):
         if hasattr(self, "home2_mode_label"):
             self.home2_mode_label.setText(f"Режим: {'В фоне' if self.download_mode == 'background' else 'Видимо'}")
 
+    def on_media_filter_changed(self) -> None:
+        combo = self.sender()
+        if not isinstance(combo, QtWidgets.QComboBox):
+            return
+        self.media_filter = str(combo.currentData())
+        self.settings_store.setValue("media_filter", self.media_filter)
+        if hasattr(self, "media_combo") and self.media_combo is not combo:
+            self.media_combo.setCurrentIndex(combo.currentIndex())
+        if hasattr(self, "batch_media_combo") and self.batch_media_combo is not combo:
+            self.batch_media_combo.setCurrentIndex(combo.currentIndex())
+        if hasattr(self, "home2_media_combo") and self.home2_media_combo is not combo:
+            self.home2_media_combo.setCurrentIndex(combo.currentIndex())
+        if hasattr(self, "home2_media_label"):
+            self.home2_media_label.setText(
+                f"Контент: {'Только видео' if self.media_filter == 'video_only' else 'Фото и видео'}"
+            )
+
     def current_headless(self) -> bool:
         return self.download_mode == "background"
+
+    def current_media_filter(self) -> str:
+        return self.media_filter
 
     def start_request(
         self,
@@ -1646,6 +1841,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.set_status(status_title, "Выполняется...")
         self.current_step_label = "Запускаю задачу."
+        normalized_status = status_title.lower()
+        if "скачив" in normalized_status or "выгруз" in normalized_status:
+            self.begin_live_download_tracking()
         self.refresh_home2_status_strip()
         self.current_callback = callback
         self.current_task = WorkerTask(self.worker, request)
@@ -1667,6 +1865,8 @@ class MainWindow(QtWidgets.QMainWindow):
             write_crash_log("finish_request failure", details)
             self.set_status("Ошибка", f"Ошибка UI-обработки: {error}")
             self.append_log(f"[ui_error] {error}")
+        self.stop_live_download_tracking()
+        self.refresh_live_download_tracking()
         self.refresh_batch_table()
 
     def cleanup_request(self) -> None:
@@ -1694,6 +1894,8 @@ class MainWindow(QtWidgets.QMainWindow):
             list_item = QtWidgets.QListWidgetItem(f"{item.mediaType.upper()}  {item.localPath}")
             list_item.setData(QtCore.Qt.UserRole, item.localPath)
             self.downloads_list.insertItem(0, list_item)
+        if response.ok and self._response_saved_count(response) > 0 and response.status == "download_complete":
+            self.trigger_celebration()
 
     def set_status(self, title: str, detail: str) -> None:
         self.status_title_label.setText(title)
@@ -1711,6 +1913,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.home2_status_label.setText(f"{self.status_title_label.text()}\n{self.status_detail_label.text()}")
         self.home2_step_label.setText(self.current_step_label)
         self.home2_result_label.setText(f"{self.saved_label.text()}\n{self.found_label.text()}")
+        self.home2_live_label.setText(
+            f"{self.live_downloaded_file_count} файлов\n{self.live_created_folder_count} папок создано"
+        )
         if hasattr(self, "home2_last_result"):
             self.home2_last_result.setText(self.activity_subtitle.text())
         if hasattr(self, "home2_session_summary"):
@@ -1721,6 +1926,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.home2_queue_count.setText(f"В очереди: {len(self.batch_entries)}")
         if hasattr(self, "home2_recent_count"):
             self.home2_recent_count.setText(f"Недавних наборов: {len(self.recent_lists)}")
+        if hasattr(self, "home2_media_label"):
+            self.home2_media_label.setText(
+                f"Контент: {'Только видео' if self.media_filter == 'video_only' else 'Фото и видео'}"
+            )
 
     def update_current_step_from_log(self, message: str) -> None:
         lowered = message.lower()
@@ -1766,9 +1975,72 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         os.startfile(str(path))
 
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
+        super().resizeEvent(event)
+        if hasattr(self, "confetti_overlay"):
+            self.confetti_overlay.setGeometry(self.centralWidget().rect())
+
+    def begin_live_download_tracking(self) -> None:
+        self.refresh_live_download_tracking()
+        if not self.live_tracking_timer.isActive():
+            self.live_tracking_timer.start()
+
+    def stop_live_download_tracking(self) -> None:
+        if self.live_tracking_timer.isActive():
+            self.live_tracking_timer.stop()
+
+    def reset_live_download_tracking_baseline(self) -> None:
+        files, folders = self.snapshot_download_counts()
+        self._save_directory_baseline_files = files
+        self._save_directory_baseline_folders = folders
+        self.live_downloaded_file_count = 0
+        self.live_created_folder_count = 0
+
+    def refresh_live_download_tracking(self) -> None:
+        files, folders = self.snapshot_download_counts()
+        self.live_downloaded_file_count = max(0, files - self._save_directory_baseline_files)
+        self.live_created_folder_count = max(0, folders - self._save_directory_baseline_folders)
+        self.refresh_home2_status_strip()
+
+    def snapshot_download_counts(self) -> tuple[int, int]:
+        root = self.save_directory
+        if not root.exists():
+            return (0, 0)
+        file_count = 0
+        folder_count = 0
+        media_suffixes = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".m4v"}
+        try:
+            for current_root, directories, filenames in os.walk(root):
+                folder_count += len(directories)
+                file_count += sum(1 for name in filenames if Path(name).suffix.lower() in media_suffixes)
+        except Exception:
+            return (0, 0)
+        return (file_count, folder_count)
+
+    def _response_saved_count(self, response: WorkerResponse) -> int:
+        raw = str(response.data.get("savedCount", "")).strip()
+        if raw.isdigit():
+            return int(raw)
+        return len(response.items)
+
+    def trigger_celebration(self) -> None:
+        self.play_success_sound()
+        if hasattr(self, "confetti_overlay"):
+            self.confetti_overlay.launch()
+
+    def play_success_sound(self) -> None:
+        if winsound is not None:
+            try:
+                winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS | winsound.SND_ASYNC)
+                return
+            except Exception:
+                pass
+        QtWidgets.QApplication.beep()
+
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         if self.login_poll_timer.isActive():
             self.login_poll_timer.stop()
+        self.stop_live_download_tracking()
         self.settings_store.setValue("window_geometry", self.saveGeometry())
         write_crash_log("MainWindow.closeEvent", "Window close requested.")
         super().closeEvent(event)

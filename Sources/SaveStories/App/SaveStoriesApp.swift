@@ -8,7 +8,7 @@ struct SaveStoriesApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(model)
-                .frame(minWidth: 1120, minHeight: 760)
+                .frame(minWidth: 1180, minHeight: 760)
                 .task {
                     await model.prepare()
                 }

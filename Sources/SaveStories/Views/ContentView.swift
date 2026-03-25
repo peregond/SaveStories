@@ -51,7 +51,7 @@ struct ContentView: View {
 
     private var isDark: Bool { colorScheme == .dark }
 
-    private let sidebarWidth: CGFloat = 272
+    private let sidebarWidth: CGFloat = 296
     private let cardCornerRadius: CGFloat = 26
     private let controlCornerRadius: CGFloat = 18
     private let itemCornerRadius: CGFloat = 20
@@ -90,6 +90,9 @@ struct ContentView: View {
     private var secondaryButtonTint: Color { isDark ? Color.white.opacity(0.16) : Color.black.opacity(0.66) }
     private var prominentButtonTint: Color {
         isDark ? Color(red: 0.18, green: 0.45, blue: 0.62) : Color(red: 0.12, green: 0.37, blue: 0.52)
+    }
+    private var queueActionTint: Color {
+        isDark ? Color(red: 0.29, green: 0.50, blue: 0.40) : Color(red: 0.34, green: 0.58, blue: 0.46)
     }
     private var cardStroke: Color {
         isDark ? Color.white.opacity(0.06) : Color.white.opacity(0.38)
@@ -337,6 +340,7 @@ struct ContentView: View {
                     batchQueueCard
                     destinationCard
                     batchModeCard
+                    mediaFilterCard
                 }
                 .padding(.vertical, 4)
             }
@@ -474,28 +478,31 @@ struct ContentView: View {
                 }
 
                 HStack(alignment: .top, spacing: 14) {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 14) {
                         downloadModePicker
-                        destinationInlineCard
-                    }
+                        mediaSelectionPicker
+                        HStack(alignment: .top, spacing: 12) {
+                            destinationInlineCard
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        statusInlineNote(
-                            title: "Совет",
-                            message: "Для первых тестов используй режим «Видимо». Если всё стабильно, переключайся на фон."
-                        )
-
-                        button("Скачать очередь", systemImage: "play.fill", prominent: true) {
-                            Task { await model.runBatchDownloads() }
+                            statusInlineNote(
+                                title: "Совет",
+                                message: "Для первых тестов используй режим «Видимо». Если всё стабильно, переключайся на фон."
+                            )
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
                         }
-                        .disabled(model.batchQueue.isEmpty || model.isBusy)
-
-                        button("Остановить", systemImage: "stop.fill", allowWhileBusy: true) {
-                            model.stopBatchDownloads()
-                        }
-                        .disabled(!model.batchIsRunning)
                     }
-                    .frame(width: 220)
+                }
+
+                VStack(spacing: 10) {
+                    button("Скачать очередь", systemImage: "play.fill", prominent: true, tint: queueActionTint) {
+                        Task { await model.runBatchDownloads() }
+                    }
+                    .disabled(model.batchQueue.isEmpty || model.isBusy)
+
+                    button("Остановить", systemImage: "stop.fill", allowWhileBusy: true) {
+                        model.stopBatchDownloads()
+                    }
+                    .disabled(!model.batchIsRunning)
                 }
             }
         }
@@ -948,6 +955,12 @@ struct ContentView: View {
         }
     }
 
+    private var mediaFilterCard: some View {
+        card("Что сохранять") {
+            mediaSelectionPicker
+        }
+    }
+
     private var activityHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
@@ -1171,6 +1184,27 @@ struct ContentView: View {
         }
     }
 
+    private var mediaSelectionPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Что сохранять")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .textCase(.uppercase)
+                .foregroundStyle(tertiaryText)
+
+            Picker("Что сохранять", selection: $model.mediaSelectionMode) {
+                ForEach(AppModel.MediaSelectionMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(model.mediaSelectionMode.detail)
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     private func statusCard(title: String, message: String, accent: Color) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
@@ -1374,6 +1408,7 @@ struct ContentView: View {
         _ title: String,
         systemImage: String,
         prominent: Bool = false,
+        tint: Color? = nil,
         allowWhileBusy: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
@@ -1387,7 +1422,7 @@ struct ContentView: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
-        .tint(prominent ? prominentButtonTint : secondaryButtonTint)
+        .tint(tint ?? (prominent ? prominentButtonTint : secondaryButtonTint))
         .disabled(!allowWhileBusy && model.isBusy)
     }
 
