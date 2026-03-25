@@ -32,7 +32,7 @@ struct WorkerBootstrapper {
         process.standardError = stderrPipe
 
         var environment = ProcessInfo.processInfo.environment
-        environment["DIMASAVE_APP_SUPPORT"] = AppPaths.applicationSupport.path
+        environment["SAVESTORIES_APP_SUPPORT"] = AppPaths.applicationSupport.path
         process.environment = environment
 
         return try await withCheckedThrowingContinuation { continuation in
@@ -80,12 +80,12 @@ struct WorkerBootstrapper {
         let fileManager = FileManager.default
         let candidates = [
             Bundle.main.resourceURL?
-                .appendingPathComponent("DimaSave_DimaSave.bundle", isDirectory: true)
+                .appendingPathComponent(AppPaths.resourceBundleName, isDirectory: true)
                 .appendingPathComponent(relativePath, isDirectory: false),
             Bundle.main.bundleURL
                 .appendingPathComponent("Contents", isDirectory: true)
                 .appendingPathComponent("Resources", isDirectory: true)
-                .appendingPathComponent("DimaSave_DimaSave.bundle", isDirectory: true)
+                .appendingPathComponent(AppPaths.resourceBundleName, isDirectory: true)
                 .appendingPathComponent(relativePath, isDirectory: false),
         ]
 

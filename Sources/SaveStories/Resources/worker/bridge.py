@@ -65,13 +65,13 @@ def current_platform() -> str:
 def preferred_app_support_path() -> Path:
     system = current_platform()
     if system == "darwin":
-        return Path.home() / "Library" / "Application Support" / "DimaSave"
+        return Path.home() / "Library" / "Application Support" / "SaveStories"
     if system == "windows":
         root = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
         if root:
-            return Path(root) / "DimaSave"
-        return Path.home() / "AppData" / "Local" / "DimaSave"
-    return Path.home() / ".local" / "share" / "DimaSave"
+            return Path(root) / "SaveStories"
+        return Path.home() / "AppData" / "Local" / "SaveStories"
+    return Path.home() / ".local" / "share" / "SaveStories"
 
 
 def preferred_downloads_path() -> Path:
@@ -79,15 +79,15 @@ def preferred_downloads_path() -> Path:
     if system == "windows":
         root = os.environ.get("USERPROFILE")
         if root:
-            return Path(root) / "Downloads" / "DimaSave"
-    return Path.home() / "Downloads" / "DimaSave"
+            return Path(root) / "Downloads" / "SaveStories"
+    return Path.home() / "Downloads" / "SaveStories"
 
 
 def default_app_support() -> Path:
     preferred = preferred_app_support_path()
     if can_write(preferred.parent):
         return preferred
-    return Path.cwd() / ".runtime" / "DimaSave"
+    return Path.cwd() / ".runtime" / "SaveStories"
 
 
 def default_downloads(app_support: Path) -> Path:
@@ -98,28 +98,28 @@ def default_downloads(app_support: Path) -> Path:
 
 
 APP_SUPPORT = env_path(
-    "DIMASAVE_APP_SUPPORT",
+    "SAVESTORIES_APP_SUPPORT",
     default_app_support(),
 )
 WORKER_ROOT = APP_SUPPORT / "worker"
 BROWSER_PROFILE = env_path(
-    "DIMASAVE_BROWSER_PROFILE",
+    "SAVESTORIES_BROWSER_PROFILE",
     WORKER_ROOT / "browser-profile",
 )
 PLAYWRIGHT_BROWSERS = env_path(
-    "DIMASAVE_PLAYWRIGHT_BROWSERS",
+    "SAVESTORIES_PLAYWRIGHT_BROWSERS",
     WORKER_ROOT / "ms-playwright",
 )
 MANIFESTS_DIRECTORY = env_path(
-    "DIMASAVE_MANIFESTS",
+    "SAVESTORIES_MANIFESTS",
     APP_SUPPORT / "manifests",
 )
 SESSION_STATE = env_path(
-    "DIMASAVE_SESSION_STATE",
+    "SAVESTORIES_SESSION_STATE",
     WORKER_ROOT / "storage-state.json",
 )
 DEFAULT_DOWNLOADS = env_path(
-    "DIMASAVE_DEFAULT_DOWNLOADS",
+    "SAVESTORIES_DEFAULT_DOWNLOADS",
     default_downloads(APP_SUPPORT),
 )
 BATCH_VISIBLE_CHUNK_SIZE = 5

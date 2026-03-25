@@ -2,8 +2,8 @@ $ErrorActionPreference = "Stop"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $workerDir = Join-Path $root "node_worker"
-$appSupport = if ($env:DIMASAVE_APP_SUPPORT) { $env:DIMASAVE_APP_SUPPORT } else { Join-Path ($env:LOCALAPPDATA ?? $env:APPDATA) "DimaSave" }
-$browsers = if ($env:DIMASAVE_PLAYWRIGHT_BROWSERS) { $env:DIMASAVE_PLAYWRIGHT_BROWSERS } else { Join-Path $appSupport "worker\\ms-playwright" }
+$appSupport = if ($env:SAVESTORIES_APP_SUPPORT) { $env:SAVESTORIES_APP_SUPPORT } else { Join-Path ($env:LOCALAPPDATA ?? $env:APPDATA) "SaveStories" }
+$browsers = if ($env:SAVESTORIES_PLAYWRIGHT_BROWSERS) { $env:SAVESTORIES_PLAYWRIGHT_BROWSERS } else { Join-Path $appSupport "worker\\ms-playwright" }
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     throw "node не найден. Установи Node 24 LTS."

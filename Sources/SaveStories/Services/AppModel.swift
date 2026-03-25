@@ -140,11 +140,16 @@ final class AppModel: ObservableObject {
     @Published var batchRemainingCount = 0
     @Published var batchCurrentURL: String = ""
     @Published var celebrationToken = 0
+    @Published var liveDownloadedFileCount = 0
+    @Published var liveCreatedFolderCount = 0
 
     private let worker = WorkerClient()
     private let bootstrapper = WorkerBootstrapper()
     private let appUpdater = AppUpdater()
     private var hasPrepared = false
+    private var saveDirectoryBaselineFiles = 0
+    private var saveDirectoryBaselineFolders = 0
+    private var liveTrackingTask: Task<Void, Never>?
     var hasEmbeddedRuntime: Bool { AppPaths.hasEmbeddedRuntime }
 
     init() {
@@ -160,6 +165,7 @@ final class AppModel: ObservableObject {
         do {
             try AppPaths.ensureDirectories()
             saveDirectory = AppPaths.defaultDownloads
+            resetLiveDownloadTrackingBaseline()
             appendLog("Подготовлены папки приложения в \(AppPaths.applicationSupport.path).")
         } catch {
             appendLog("Не удалось подготовить папки: \(error.localizedDescription)")
@@ -181,6 +187,7 @@ final class AppModel: ObservableObject {
 
         if panel.runModal() == .OK, let url = panel.url {
             saveDirectory = url
+            resetLiveDownloadTrackingBaseline()
             appendLog("Папка сохранения изменена на \(url.path).")
         }
     }
@@ -474,13 +481,17 @@ final class AppModel: ObservableObject {
         statusTitle = message
         statusDetail = "Выполняется..."
         currentStepLabel = "Запускаю задачу."
-        if message.contains("Скачивание") {
+        let normalizedMessage = message.lowercased()
+        if normalizedMessage.contains("скачив") || normalizedMessage.contains("выгруз") {
             foundStoriesCount = 0
             savedStoriesCount = 0
+            beginLiveDownloadTracking()
         }
         appendLog(message)
         await task()
         isBusy = false
+        stopLiveDownloadTracking()
+        refreshLiveDownloadTracking()
         if statusTitle == "Готово" {
             currentStepLabel = "Операция завершена."
         } else if statusTitle == "Ошибка" {
@@ -746,5 +757,85 @@ final class AppModel: ObservableObject {
         } else if lowered.contains("playwright=") || lowered.contains("worker_runtime=") {
             currentStepLabel = "Проверяю runtime и зависимости."
         }
+
+        if lowered.contains("saved=") || lowered.contains("profile_download_directory=") {
+            refreshLiveDownloadTracking()
+        }
+    }
+
+    private func beginLiveDownloadTracking() {
+        resetLiveDownloadTrackingBaseline()
+        liveTrackingTask?.cancel()
+        liveTrackingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled else { break }
+                guard let self else { break }
+                let saveDirectory = self.saveDirectory
+                let baselineFiles = self.saveDirectoryBaselineFiles
+                let baselineFolders = self.saveDirectoryBaselineFolders
+                let snapshot = await Task.detached(priority: .utility) {
+                    Self.snapshot(of: saveDirectory)
+                }.value
+                await MainActor.run {
+                    self.liveDownloadedFileCount = max(snapshot.files - baselineFiles, 0)
+                    self.liveCreatedFolderCount = max(snapshot.folders - baselineFolders, 0)
+                }
+            }
+        }
+    }
+
+    private func refreshLiveDownloadTracking() {
+        let snapshot = Self.snapshot(of: saveDirectory)
+        liveDownloadedFileCount = max(snapshot.files - saveDirectoryBaselineFiles, 0)
+        liveCreatedFolderCount = max(snapshot.folders - saveDirectoryBaselineFolders, 0)
+    }
+
+    private func resetLiveDownloadTrackingBaseline() {
+        let snapshot = Self.snapshot(of: saveDirectory)
+        saveDirectoryBaselineFiles = snapshot.files
+        saveDirectoryBaselineFolders = snapshot.folders
+        liveDownloadedFileCount = 0
+        liveCreatedFolderCount = 0
+    }
+
+    private func stopLiveDownloadTracking() {
+        liveTrackingTask?.cancel()
+        liveTrackingTask = nil
+    }
+
+    nonisolated private static func snapshot(of directory: URL) -> (files: Int, folders: Int) {
+        let fileManager = FileManager.default
+        var fileCount = 0
+        var folderCount = 0
+        let supportedExtensions = Set(["jpg", "jpeg", "png", "webp", "mp4", "mov", "m4v"])
+
+        if let directChildren = try? fileManager.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) {
+            for child in directChildren {
+                let values = try? child.resourceValues(forKeys: [.isDirectoryKey])
+                if values?.isDirectory == true {
+                    folderCount += 1
+                }
+            }
+        }
+
+        if let enumerator = fileManager.enumerator(
+            at: directory,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) {
+            for case let url as URL in enumerator {
+                let values = try? url.resourceValues(forKeys: [.isDirectoryKey])
+                if values?.isDirectory == false && supportedExtensions.contains(url.pathExtension.lowercased()) {
+                    fileCount += 1
+                }
+            }
+        }
+
+        return (fileCount, folderCount)
     }
 }

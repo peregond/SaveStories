@@ -1,1 +1,0 @@
-"""Windows shell for DimaSave."""

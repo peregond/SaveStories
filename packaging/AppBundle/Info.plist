@@ -7,13 +7,13 @@
 	<key>CFBundleDisplayName</key>
 	<string>SaveStories</string>
 	<key>CFBundleExecutable</key>
-	<string>DimaSave</string>
+	<string>SaveStories</string>
 	<key>CFBundleIdentifier</key>
-	<string>local.dimasave.beta</string>
+	<string>local.savestories.beta</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleIconFile</key>
-	<string>DimaSave</string>
+	<string>SaveStories</string>
 	<key>CFBundleName</key>
 	<string>SaveStories</string>
 	<key>CFBundlePackageType</key>

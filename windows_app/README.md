@@ -47,7 +47,7 @@ cd windows_app
 После этого браузеры `Playwright` ставятся в:
 
 ```text
-%LOCALAPPDATA%\DimaSave\worker\ms-playwright
+%LOCALAPPDATA%\SaveStories\worker\ms-playwright
 ```
 
 ## Сборка `.exe`

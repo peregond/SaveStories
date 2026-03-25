@@ -4,7 +4,7 @@
 
 Текущее состояние репозитория:
 
-- версия исходников: `0.4.5`
+- версия исходников: `0.4.19`
 - платформы: `macOS` и `Windows`
 - общий runtime: `Node 24 LTS + Playwright + Chromium`
 
@@ -16,7 +16,7 @@
 - пакетная очередь профилей
 - отдельные подпапки для каждого профиля
 - сохранение `manifest`-файлов для скачанных media
-- экран `Главная 2.0` для более удобного пакетного сценария
+- экран `Главная` для более удобного пакетного сценария
 - сохранение недавних списков профилей для повторной выгрузки
 - статусная строка с текущим шагом и состоянием очереди
 - анимация завершения с конфетти и коротким звуком успеха
@@ -44,9 +44,9 @@
 - [.github/workflows](/Users/peregon/Documents/DimaSave/.github/workflows) — GitHub Actions
 - [VERSION](/Users/peregon/Documents/DimaSave/VERSION) — единый номер версии проекта
 
-## Главная 2.0
+## Главная
 
-Новый сценарий `Главная 2.0` доступен и в `macOS`, и в `Windows`.
+Новый сценарий `Главная` доступен и в `macOS`, и в `Windows`.
 
 Что в нём есть:
 
@@ -81,7 +81,7 @@ macOS-версия собирается как `.app` и пакуется в `.d
 Или напрямую:
 
 ```bash
-swift run DimaSave
+swift run SaveStories
 ```
 
 Локальная подготовка worker runtime:
@@ -102,7 +102,7 @@ Windows-версия лежит в:
 - проверку сессии
 - выгрузку одного профиля
 - пакетную очередь профилей
-- `Главная 2.0`
+- `Главная`
 - повторное использование недавних списков
 - проверку и установку обновлений
 
@@ -201,9 +201,9 @@ git push origin v0.4.6
 ```bash
 export APPLE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
 export APPLE_NOTARY_PROFILE="savestories-notary"
-export DIMASAVE_BUNDLE_ID="com.example.savestories"
-export DIMASAVE_VERSION="0.4.5"
-export DIMASAVE_BUILD="61"
+export SAVESTORIES_BUNDLE_ID="com.example.savestories"
+export SAVESTORIES_VERSION="0.4.19"
+export SAVESTORIES_BUILD="61"
 ./scripts/build_release_dmg.sh
 ```
 

@@ -7,7 +7,7 @@ $runtime = Join-Path $PSScriptRoot ".build\\runtime"
 $runtimeBrowsers = Join-Path $runtime "ms-playwright"
 $runtimeNode = Join-Path $runtime "node"
 $versionFile = Join-Path $root "VERSION"
-$iconPath = Join-Path $root "packaging\\AppBundle\\DimaSave.ico"
+$iconPath = Join-Path $root "packaging\\AppBundle\\SaveStories.ico"
 $version = if (Test-Path $versionFile) { (Get-Content $versionFile -Raw).Trim() } else { "0.4.5" }
 $nodeWorkerDir = Join-Path $root "node_worker"
 $versionParts = $version.Split(".")
@@ -98,10 +98,10 @@ Push-Location $root
     --version-file $versionInfoPath `
     --add-binary "$($nodeCommand.Source);runtime\\node" `
     --add-data "$root\\node_worker;node_worker" `
-    --add-data "$root\\Sources\\DimaSave\\Resources\\update_config.json;." `
+    --add-data "$root\\Sources\\SaveStories\\Resources\\update_config.json;." `
     --add-data "$root\\VERSION;." `
     --add-data "$runtimeBrowsers;runtime\\ms-playwright" `
     --add-data "$PSScriptRoot\\bootstrap_node_worker.ps1;windows_app" `
-    "$PSScriptRoot\\dimasave_windows\\main.py"
+    "$PSScriptRoot\\savestories_windows\\main.py"
 
 Pop-Location

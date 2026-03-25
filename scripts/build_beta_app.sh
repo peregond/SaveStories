@@ -4,8 +4,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUNDLE_NAME="SaveStories"
-EXECUTABLE_NAME="DimaSave"
-ICON_BASENAME="DimaSave"
+EXECUTABLE_NAME="SaveStories"
+ICON_BASENAME="SaveStories"
 BUILD_DIR="$ROOT/beta-build"
 RELEASE_DIR="$BUILD_DIR/release"
 APP_DIR="$RELEASE_DIR/$BUNDLE_NAME.app"
@@ -15,7 +15,7 @@ RESOURCES_DIR="$CONTENTS_DIR/Resources"
 ICONSET_DIR="$BUILD_DIR/$ICON_BASENAME.iconset"
 ICON_PATH="$BUILD_DIR/$ICON_BASENAME.icns"
 STATIC_ICON_PATH="$ROOT/packaging/AppBundle/$ICON_BASENAME.icns"
-RESOURCE_BUNDLE_NAME="$EXECUTABLE_NAME"_DimaSave.bundle
+RESOURCE_BUNDLE_NAME="$EXECUTABLE_NAME"_SaveStories.bundle
 
 mkdir -p "$BUILD_DIR" "$RELEASE_DIR"
 

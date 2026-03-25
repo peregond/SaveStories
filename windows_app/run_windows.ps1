@@ -17,4 +17,4 @@ if (-not (Test-Path $venv)) {
 & "$venv\\Scripts\\pip.exe" install -r (Join-Path $PSScriptRoot "requirements.txt")
 
 $env:PYTHONPATH = $root
-& "$venv\\Scripts\\python.exe" (Join-Path $PSScriptRoot "dimasave_windows\\main.py")
+& "$venv\\Scripts\\python.exe" (Join-Path $PSScriptRoot "savestories_windows\\main.py")

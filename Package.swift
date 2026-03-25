@@ -2,14 +2,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "DimaSave",
+    name: "SaveStories",
     platforms: [
         .macOS(.v14),
     ],
     products: [
         .executable(
-            name: "DimaSave",
-            targets: ["DimaSave"]
+            name: "SaveStories",
+            targets: ["SaveStories"]
         ),
     ],
     dependencies: [
@@ -17,7 +17,7 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "DimaSave",
+            name: "SaveStories",
             dependencies: [
                 .product(name: "Sparkle", package: "Sparkle"),
             ],

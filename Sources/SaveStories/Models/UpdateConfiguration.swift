@@ -22,16 +22,16 @@ struct UpdateConfiguration: Decodable {
         let fileManager = FileManager.default
         let candidates = [
             Bundle.main.resourceURL?
-                .appendingPathComponent("DimaSave_DimaSave.bundle", isDirectory: true)
+                .appendingPathComponent(AppPaths.resourceBundleName, isDirectory: true)
                 .appendingPathComponent("update_config.json", isDirectory: false),
             Bundle.main.bundleURL
                 .appendingPathComponent("Contents", isDirectory: true)
                 .appendingPathComponent("Resources", isDirectory: true)
-                .appendingPathComponent("DimaSave_DimaSave.bundle", isDirectory: true)
+                .appendingPathComponent(AppPaths.resourceBundleName, isDirectory: true)
                 .appendingPathComponent("update_config.json", isDirectory: false),
             URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
                 .appendingPathComponent("Sources", isDirectory: true)
-                .appendingPathComponent("DimaSave", isDirectory: true)
+                .appendingPathComponent("SaveStories", isDirectory: true)
                 .appendingPathComponent("Resources", isDirectory: true)
                 .appendingPathComponent("update_config.json", isDirectory: false),
         ]

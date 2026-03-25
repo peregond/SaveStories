@@ -1,9 +1,10 @@
 import Foundation
 
 enum AppPaths {
-    static let appName = "DimaSave"
+    static let appName = "SaveStories"
+    private static let legacyAppName = "DimaSave"
     private static let embeddedRuntimeDirectoryName = "runtime"
-    private static let resourceBundleName = "DimaSave_DimaSave.bundle"
+    static let resourceBundleName = "SaveStories_SaveStories.bundle"
 
     static var homeDirectory: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -38,7 +39,7 @@ enum AppPaths {
     }
 
     static var applicationSupport: URL {
-        if let override = ProcessInfo.processInfo.environment["DIMASAVE_APP_SUPPORT"] {
+        if let override = ProcessInfo.processInfo.environment["SAVESTORIES_APP_SUPPORT"] {
             return URL(fileURLWithPath: override, isDirectory: true)
         }
 
@@ -194,6 +195,7 @@ enum AppPaths {
 
     static func ensureDirectories() throws {
         let fileManager = FileManager.default
+        try migrateLegacyApplicationSupportIfNeeded(using: fileManager)
         try fileManager.createDirectory(at: applicationSupport, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: workerRoot, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: browserProfile, withIntermediateDirectories: true)
@@ -231,6 +233,25 @@ enum AppPaths {
         ]
 
         return candidates.compactMap(existingDirectory(at:)).first
+    }
+
+    private static var legacyApplicationSupport: URL {
+        homeDirectory
+            .appendingPathComponent("Library", isDirectory: true)
+            .appendingPathComponent("Application Support", isDirectory: true)
+            .appendingPathComponent(legacyAppName, isDirectory: true)
+    }
+
+    private static func migrateLegacyApplicationSupportIfNeeded(using fileManager: FileManager) throws {
+        guard applicationSupport.lastPathComponent == appName else { return }
+        guard fileManager.fileExists(atPath: legacyApplicationSupport.path) else { return }
+        guard !fileManager.fileExists(atPath: applicationSupport.path) else { return }
+
+        try fileManager.createDirectory(
+            at: applicationSupport.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try fileManager.moveItem(at: legacyApplicationSupport, to: applicationSupport)
     }
 
     private static func existingDirectory(at url: URL?) -> URL? {
