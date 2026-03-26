@@ -2,32 +2,52 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveStories Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.24</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.25</link>
     <description>Release feed for SaveStories macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveStories 0.4.24</title>
-      <pubDate>Wed, 25 Mar 2026 22:15:17 GMT</pubDate>
-      <sparkle:version>51</sparkle:version>
-      <sparkle:shortVersionString>0.4.24</sparkle:shortVersionString>
-      <description><![CDATA[Улучшения
-	•	Обновлён интерфейс: удалена старая главная страница
-	•	Главная 2.0 теперь используется как основная
+      <title>SaveStories 0.4.25</title>
+      <pubDate>Thu, 26 Mar 2026 09:39:06 GMT</pubDate>
+      <sparkle:version>52</sparkle:version>
+      <sparkle:shortVersionString>0.4.25</sparkle:shortVersionString>
+      <description><![CDATA[## SaveStories 0.4.25
 
-Новые функции
-	•	Добавлен раздел для скачивания Reels (появится в следующих версиях)
-	•	Возможность выбирать формат выгрузки: только видео или видео + фото
-	•	Добавлено отображение прогресса в реальном времени (количество скачанных папок и файлов)
+### Изменения с 0.4.20 по 0.4.25
 
-Известные проблемы
-	•	Отображение прогресса может работать нестабильно, но даёт общее понимание процесса
+#### 0.4.20
+
+- Добавлен выбор, что сохранять: только видео или фото и видео.
+- Добавлено отображение прогресса в реальном времени по файлам и папкам.
+- Улучшена пакетная выгрузка и общая стабильность worker runtime.
+
+#### 0.4.21
+
+- Новый экран `Главная` стал основным сценарием для пакетной выгрузки.
+- Добавлены недавние наборы профилей для повторного запуска.
+- Подготовлен отдельный раздел `Reels` как следующий этап развития интерфейса.
+
+#### 0.4.22
+
+- Улучшены release-сборки macOS: исправлена упаковка `Sparkle.framework` и fallback на встроенный Python runtime.
+- Исправлено сохранение пользовательской папки выгрузки между перезапусками.
+- Исправлены статусы пакетной очереди и корректный подсчёт обработанных профилей.
+- Для Windows сохранена совместимость настроек после переименования приложения.
+
+#### 0.4.25
+
+- Полностью переработан интерфейс `Главной` на macOS: блоки `Status`, `Result`, `Fast Start`, `Недавнее`, `Очередь` и `Логи` собраны в новый рабочий layout.
+- Улучшен узкий layout окна: экран дольше остаётся двухколоночным и аккуратнее перестраивается на маленькой ширине.
+- Блок `Недавнее` показывает последний набор и умеет раскрывать остальные через кнопку `ещё`.
+- В `Status` добавлены более живые индикаторы: светящаяся зелёная точка, анимация текущего шага и live-обновление шага по ходу пакетной выгрузки.
+- Обновлён звук запуска кнопки `Скачать`, а подписи и порядок действий в `Fast Start` стали компактнее и понятнее.
+- Версия синхронизирована для macOS и Windows, чтобы обе платформы можно было выпустить как единый релиз `0.4.25`.
 ]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.4.24/SaveStories-macOS-v0.4.24.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.4.25/SaveStories-macOS-v0.4.25.dmg"
         sparkle:os="macos"
-        length="220096003"
+        length="220261706"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="sqxoCUosrJmQ+XsVqQMSBB6R8bIX0EJhT7QF5+y6bHDkjfRcni7IOdiMEqLpnPUwtbD0sqZHBCIm5u0kX+hECg==" />
+        sparkle:edSignature="vRNdwqtec16t1UNPPiIU8YMgSXtKDMv54nYKMYgpM9khMmCmYLTK0rKz5OY1HWsscquRdf9gcvG9JBHKY5XJBw==" />
     </item>
   </channel>
 </rss>
