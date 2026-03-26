@@ -233,18 +233,44 @@ class WindowsUpdater:
         return json.loads(config_path.read_text(encoding="utf-8"))
 
     def _select_release_asset(self, assets: list[dict], latest_tag: str) -> ReleaseAsset:
-        expected_name = f"SaveStories-Windows-Setup-{latest_tag}.exe"
+        normalized_tag = latest_tag.strip()
+        normalized_version = normalized_tag.lstrip("vV")
+        expected_names = [
+            f"SaveStories-Windows-Setup-{normalized_tag}.exe",
+            f"SaveStories-Windows-Setup-v{normalized_version}.exe",
+            f"SaveStories-Windows-Setup-{normalized_version}.exe",
+        ]
+        fallback_asset: dict | None = None
         for asset in assets:
             name = str(asset.get("name") or "")
-            if name != expected_name:
-                continue
+            if name in expected_names:
+                return ReleaseAsset(
+                    name=name,
+                    url=str(asset.get("browser_download_url") or ""),
+                    size=int(asset.get("size") or 0),
+                    digest=str(asset.get("digest") or ""),
+                )
+            if (
+                fallback_asset is None
+                and name.startswith("SaveStories-Windows-Setup-")
+                and name.endswith(".exe")
+            ):
+                fallback_asset = asset
+
+        if fallback_asset is not None:
             return ReleaseAsset(
-                name=name,
-                url=str(asset.get("browser_download_url") or ""),
-                size=int(asset.get("size") or 0),
-                digest=str(asset.get("digest") or ""),
+                name=str(fallback_asset.get("name") or ""),
+                url=str(fallback_asset.get("browser_download_url") or ""),
+                size=int(fallback_asset.get("size") or 0),
+                digest=str(fallback_asset.get("digest") or ""),
             )
-        raise WindowsUpdaterError(f"Не удалось найти release asset {expected_name}.")
+
+        available = ", ".join(str(item.get("name") or "") for item in assets) or "пусто"
+        raise WindowsUpdaterError(
+            "Не удалось найти установщик Windows в assets релиза. "
+            f"Ожидались варианты: {', '.join(expected_names)}. "
+            f"Доступно: {available}."
+        )
 
     def _version_key(self, value: str) -> tuple[int, int, int]:
         numbers: list[int] = []

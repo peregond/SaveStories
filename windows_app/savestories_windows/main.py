@@ -71,7 +71,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.4.25"
+    return "0.4.26"
 
 
 def normalize_profile_link(raw: str) -> str:
@@ -399,13 +399,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.last_logged_update_progress = -1
         self.current_step_label = "Ожидание команды."
         self.recent_lists: list[dict[str, object]] = self.load_recent_lists()
+        self.home2_recent_expanded = False
         self.live_downloaded_file_count = 0
         self.live_created_folder_count = 0
+        self.status_pulse_active = False
         self._save_directory_baseline_files = 0
         self._save_directory_baseline_folders = 0
         self.live_tracking_timer = QtCore.QTimer(self)
         self.live_tracking_timer.setInterval(2000)
         self.live_tracking_timer.timeout.connect(self.refresh_live_download_tracking)
+        self.status_pulse_timer = QtCore.QTimer(self)
+        self.status_pulse_timer.setInterval(420)
+        self.status_pulse_timer.timeout.connect(self._tick_status_pulse)
 
         save_dir_value = self.settings_store.value("save_directory")
         self.save_directory = Path(str(save_dir_value)) if save_dir_value else AppPaths.default_downloads()
@@ -714,16 +719,30 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.home2_batch_input)
 
         row = QtWidgets.QHBoxLayout()
-        add_button = QtWidgets.QPushButton("Добавить в очередь")
+        add_button = QtWidgets.QPushButton("Добавить")
         add_button.clicked.connect(self.add_batch_profiles_from_home2)
-        remember_button = QtWidgets.QPushButton("Запомнить список")
+        remember_button = QtWidgets.QPushButton("Запомнить")
         remember_button.clicked.connect(self.remember_current_batch_list)
-        clear_button = QtWidgets.QPushButton("Очистить поле")
+        clear_button = QtWidgets.QPushButton("Очистить")
         clear_button.clicked.connect(self.clear_home2_input)
         row.addWidget(add_button)
         row.addWidget(remember_button)
         row.addWidget(clear_button)
         layout.addLayout(row)
+
+        actions = QtWidgets.QVBoxLayout()
+        actions.setSpacing(10)
+        run_button = QtWidgets.QPushButton("Скачать")
+        run_button.setObjectName("queueActionButton")
+        run_button.clicked.connect(self.start_batch)
+        self.home2_run_button = run_button
+        stop_button = QtWidgets.QPushButton("Остановить")
+        stop_button.clicked.connect(self.stop_batch)
+        stop_button.setEnabled(False)
+        self.home2_stop_button = stop_button
+        actions.addWidget(run_button)
+        actions.addWidget(stop_button)
+        layout.addLayout(actions)
 
         layout.addWidget(self._mode_card(home2_mode=True))
 
@@ -738,20 +757,6 @@ class MainWindow(QtWidgets.QMainWindow):
         tip_layout.addWidget(tip)
         lower.addWidget(tip_box, 1)
         layout.addLayout(lower)
-
-        actions = QtWidgets.QVBoxLayout()
-        actions.setSpacing(10)
-        run_button = QtWidgets.QPushButton("Скачать очередь")
-        run_button.setObjectName("queueActionButton")
-        run_button.clicked.connect(self.start_batch)
-        self.home2_run_button = run_button
-        stop_button = QtWidgets.QPushButton("Остановить")
-        stop_button.clicked.connect(self.stop_batch)
-        stop_button.setEnabled(False)
-        self.home2_stop_button = stop_button
-        actions.addWidget(run_button)
-        actions.addWidget(stop_button)
-        layout.addLayout(actions)
         return card
 
     def _home2_queue_card(self) -> QtWidgets.QWidget:
@@ -796,16 +801,24 @@ class MainWindow(QtWidgets.QMainWindow):
         return card
 
     def _home2_recent_lists_card(self) -> QtWidgets.QWidget:
-        card = QtWidgets.QGroupBox("Недавние наборы")
+        card = QtWidgets.QGroupBox("Недавнее")
         layout = QtWidgets.QVBoxLayout(card)
         self.home2_recent_lists_container = QtWidgets.QVBoxLayout()
         self.home2_recent_lists_container.setSpacing(10)
         layout.addLayout(self.home2_recent_lists_container)
+        self.home2_recent_toggle = QtWidgets.QPushButton("Ещё")
+        self.home2_recent_toggle.clicked.connect(self.toggle_home2_recent_lists)
+        self.home2_recent_toggle.setVisible(False)
+        layout.addWidget(self.home2_recent_toggle, 0, QtCore.Qt.AlignLeft)
         return card
 
     def _home2_compact_activity_card(self) -> QtWidgets.QWidget:
-        card = QtWidgets.QGroupBox("Что происходит")
+        card = QtWidgets.QGroupBox("Логи и активность")
         layout = QtWidgets.QVBoxLayout(card)
+        self.home2_logs_text = QtWidgets.QPlainTextEdit()
+        self.home2_logs_text.setReadOnly(True)
+        self.home2_logs_text.setFixedHeight(150)
+        layout.addWidget(self._group("Логи", self.home2_logs_text))
         self.home2_last_result = QtWidgets.QLabel("Пока нет действий.")
         self.home2_last_result.setWordWrap(True)
         self.home2_session_summary = QtWidgets.QLabel("Состояние сессии неизвестно.")
@@ -1758,9 +1771,13 @@ class MainWindow(QtWidgets.QMainWindow):
             label.setWordWrap(True)
             self.home2_recent_lists_container.addWidget(label)
             self.home2_recent_count.setText("Недавних наборов: 0")
+            if hasattr(self, "home2_recent_toggle"):
+                self.home2_recent_toggle.setVisible(False)
             return
 
-        for index, item in enumerate(self.recent_lists):
+        show_all = self.home2_recent_expanded
+        visible_items = self.recent_lists if show_all else self.recent_lists[:1]
+        for index, item in enumerate(visible_items):
             title = str(item.get("title") or "Недавний список")
             urls = [str(url) for url in item.get("urls", [])]
             card = QtWidgets.QGroupBox(title)
@@ -1786,6 +1803,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.home2_recent_lists_container.addStretch(1)
         self.home2_recent_count.setText(f"Недавних наборов: {len(self.recent_lists)}")
+        if hasattr(self, "home2_recent_toggle"):
+            has_more = len(self.recent_lists) > 1
+            self.home2_recent_toggle.setVisible(has_more)
+            self.home2_recent_toggle.setText("Свернуть" if show_all else "Ещё")
+
+    def toggle_home2_recent_lists(self) -> None:
+        self.home2_recent_expanded = not self.home2_recent_expanded
+        self.refresh_recent_lists_ui()
 
     def choose_save_directory(self, line_edit: QtWidgets.QLineEdit) -> None:
         directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Выбрать папку", str(self.save_directory))
@@ -1915,15 +1940,27 @@ class MainWindow(QtWidgets.QMainWindow):
         self.refresh_home2_status_strip()
 
     def append_log(self, message: str) -> None:
-        self.logs_text.appendPlainText(f"{display_now()}  {message}")
+        line = f"{display_now()}  {message}"
+        self.logs_text.appendPlainText(line)
         scrollbar = self.logs_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
+        if hasattr(self, "home2_logs_text"):
+            self.home2_logs_text.appendPlainText(line)
+            home2_scroll = self.home2_logs_text.verticalScrollBar()
+            home2_scroll.setValue(home2_scroll.maximum())
 
     def refresh_home2_status_strip(self) -> None:
         if not hasattr(self, "home2_status_label"):
             return
+        is_active = self.batch_running or (self.current_task is not None)
+        if is_active and not self.status_pulse_timer.isActive():
+            self.status_pulse_timer.start()
+        if not is_active and self.status_pulse_timer.isActive():
+            self.status_pulse_timer.stop()
+            self.status_pulse_active = False
+        live_dot = "🟢" if self.status_pulse_active else "🟩"
         self.home2_status_label.setText(f"{self.status_title_label.text()}\n{self.status_detail_label.text()}")
-        self.home2_step_label.setText(self.current_step_label)
+        self.home2_step_label.setText(f"{live_dot} {self.current_step_label}" if is_active else self.current_step_label)
         self.home2_result_label.setText(f"{self.saved_label.text()}\n{self.found_label.text()}")
         self.home2_live_label.setText(
             f"{self.live_downloaded_file_count} файлов\n{self.live_created_folder_count} папок создано"
@@ -1942,6 +1979,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.home2_media_label.setText(
                 f"Контент: {'Только видео' if self.media_filter == 'video_only' else 'Фото и видео'}"
             )
+
+    def _tick_status_pulse(self) -> None:
+        self.status_pulse_active = not self.status_pulse_active
+        self.refresh_home2_status_strip()
 
     def update_current_step_from_log(self, message: str) -> None:
         lowered = message.lower()
