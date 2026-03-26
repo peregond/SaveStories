@@ -12,6 +12,7 @@ APP_DIR="$RELEASE_DIR/$BUNDLE_NAME.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
+FRAMEWORKS_DIR="$CONTENTS_DIR/Frameworks"
 ICONSET_DIR="$BUILD_DIR/$ICON_BASENAME.iconset"
 ICON_PATH="$BUILD_DIR/$ICON_BASENAME.icns"
 STATIC_ICON_PATH="$ROOT/packaging/AppBundle/$ICON_BASENAME.icns"
@@ -32,7 +33,7 @@ export SWIFTPM_MODULECACHE_OVERRIDE="$BUILD_DIR/swiftpm-module-cache"
 swift build -c release --package-path "$ROOT"
 
 rm -rf "$APP_DIR"
-mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
+mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$FRAMEWORKS_DIR"
 
 cp "$ROOT/packaging/AppBundle/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$ROOT/.build/release/$EXECUTABLE_NAME" "$MACOS_DIR/$EXECUTABLE_NAME"
@@ -41,6 +42,16 @@ cp "$ICON_PATH" "$RESOURCES_DIR/$ICON_BASENAME.icns"
 RESOURCE_BUNDLE_PATH="$(find "$ROOT/.build" -maxdepth 4 -type d -name "$RESOURCE_BUNDLE_NAME" | head -n 1)"
 if [ -n "$RESOURCE_BUNDLE_PATH" ] && [ -d "$RESOURCE_BUNDLE_PATH" ]; then
   cp -R "$RESOURCE_BUNDLE_PATH" "$RESOURCES_DIR/"
+fi
+
+SPARKLE_FRAMEWORK_PATH="$(find "$ROOT/.build" -type d -name 'Sparkle.framework' | head -n 1)"
+if [ -z "$SPARKLE_FRAMEWORK_PATH" ] || [ ! -d "$SPARKLE_FRAMEWORK_PATH" ]; then
+  printf 'Sparkle.framework not found in .build. The beta app bundle is incomplete.\n' >&2
+  exit 1
+fi
+ditto "$SPARKLE_FRAMEWORK_PATH" "$FRAMEWORKS_DIR/Sparkle.framework"
+if ! otool -l "$MACOS_DIR/$EXECUTABLE_NAME" | grep -q '@executable_path/../Frameworks'; then
+  install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/$EXECUTABLE_NAME"
 fi
 
 printf '\nBeta app created at:\n%s\n' "$APP_DIR"

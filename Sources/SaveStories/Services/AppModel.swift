@@ -6,6 +6,8 @@ import Foundation
 final class AppModel: ObservableObject {
     private static let recentBatchListsKey = "SaveStories.recentBatchLists"
     private static let mediaSelectionModeKey = "SaveStories.mediaSelectionMode"
+    private static let saveDirectoryKey = "SaveStories.saveDirectory"
+    private static let actionSoundNames = ["Pop", "Tink", "Glass"]
     private static let successSoundNames = ["Glass", "Hero", "Funk", "Pop"]
     private static let logDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -186,6 +188,11 @@ final class AppModel: ObservableObject {
     init() {
         updateSummary = appUpdater.summary
         canCheckForUpdates = appUpdater.isAvailable
+        if let savedDirectory = UserDefaults.standard.string(forKey: Self.saveDirectoryKey),
+           !savedDirectory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            saveDirectory = URL(fileURLWithPath: savedDirectory, isDirectory: true)
+        }
         if let savedMediaMode = UserDefaults.standard.string(forKey: Self.mediaSelectionModeKey),
            let mode = MediaSelectionMode(rawValue: savedMediaMode)
         {
@@ -200,7 +207,7 @@ final class AppModel: ObservableObject {
 
         do {
             try AppPaths.ensureDirectories()
-            saveDirectory = AppPaths.defaultDownloads
+            try FileManager.default.createDirectory(at: saveDirectory, withIntermediateDirectories: true)
             resetLiveDownloadTrackingBaseline()
             appendLog("Подготовлены папки приложения в \(AppPaths.applicationSupport.path).")
         } catch {
@@ -223,6 +230,7 @@ final class AppModel: ObservableObject {
 
         if panel.runModal() == .OK, let url = panel.url {
             saveDirectory = url
+            UserDefaults.standard.set(url.path, forKey: Self.saveDirectoryKey)
             resetLiveDownloadTrackingBaseline()
             appendLog("Папка сохранения изменена на \(url.path).")
         }
@@ -410,6 +418,8 @@ final class AppModel: ObservableObject {
             return
         }
 
+        playActionSound()
+
         await perform("Пакетная выгрузка активных stories") {
             self.storeRecentBatchList(
                 title: self.suggestedRecentListTitle(for: pendingItems.map(\.url)),
@@ -438,7 +448,12 @@ final class AppModel: ObservableObject {
                     outputDirectory: self.saveDirectory.path,
                     headless: self.downloadMode.usesHeadless,
                     mediaFilter: self.mediaSelectionMode.rawValue
-                )
+                ),
+                onProgress: { [weak self] progressLine in
+                    Task { @MainActor in
+                        self?.handleWorkerProgress(progressLine)
+                    }
+                }
             )
 
             if response.status == "cancelled" {
@@ -721,6 +736,16 @@ final class AppModel: ObservableObject {
         playSuccessSound()
     }
 
+    private func playActionSound() {
+        for name in Self.actionSoundNames {
+            if let sound = NSSound(named: NSSound.Name(name)) {
+                sound.volume = 0.48
+                sound.play()
+                return
+            }
+        }
+    }
+
     private func playSuccessSound() {
         for name in Self.successSoundNames {
             if let sound = NSSound(named: NSSound.Name(name)) {
@@ -778,7 +803,23 @@ final class AppModel: ObservableObject {
     private func updateCurrentStep(from log: String) {
         let lowered = log.lowercased()
 
-        if lowered.contains("batch_concurrency=") {
+        if lowered.contains("batch_profile_start=") || lowered.contains("batch_slot_") && lowered.contains("_start=") {
+            let url = log.components(separatedBy: "=").dropFirst().joined(separator: "=")
+            let normalized = normalizedProfileLink(url)
+            let username = extractProgressDisplayName(from: normalized)
+            let completedCount = batchQueue.filter { item in
+                item.status == .completed || item.status == .failed || item.status == .stopped
+            }.count
+            batchCurrentIndex = min(completedCount + 1, max(batchTotalCount, 1))
+            batchRemainingCount = max(batchTotalCount - batchCurrentIndex, 0)
+            batchCurrentURL = normalized
+            currentStepLabel = "Открываю профиль \(username)."
+        } else if lowered.contains("batch_profile_done=") || lowered.contains("batch_slot_") && lowered.contains("_done=") {
+            let url = log.components(separatedBy: "=").dropFirst().joined(separator: "=")
+            let normalized = normalizedProfileLink(url)
+            let username = extractProgressDisplayName(from: normalized)
+            currentStepLabel = "Профиль \(username) обработан, переключаюсь дальше."
+        } else if lowered.contains("batch_concurrency=") {
             currentStepLabel = "Распределяю очередь по активным слотам."
         } else if lowered.contains("opened=") || lowered.contains("checked=") {
             currentStepLabel = "Открываю страницу Instagram."
@@ -799,6 +840,18 @@ final class AppModel: ObservableObject {
         if lowered.contains("saved=") || lowered.contains("profile_download_directory=") {
             refreshLiveDownloadTracking()
         }
+    }
+
+    private func handleWorkerProgress(_ line: String) {
+        updateCurrentStep(from: line)
+    }
+
+    private func extractProgressDisplayName(from normalizedURL: String) -> String {
+        normalizedURL
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            .split(separator: "/")
+            .last
+            .map(String.init) ?? normalizedURL
     }
 
     private func beginLiveDownloadTracking() {

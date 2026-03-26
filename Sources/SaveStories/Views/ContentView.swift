@@ -46,8 +46,8 @@ struct ContentView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var showingSettings = false
     @State private var selectedSection: AppSection = .main
-    @State private var busyPulse = false
     @State private var showingConfetti = false
+    @State private var showingAllRecentLists = false
 
     private var isDark: Bool { colorScheme == .dark }
 
@@ -57,6 +57,11 @@ struct ContentView: View {
     private let itemCornerRadius: CGFloat = 20
     private let innerCornerRadius: CGFloat = 16
     private let topContentInset: CGFloat = 30
+    private let homeSummaryCardHeight: CGFloat = 208
+
+    private func isCompactHomeLayout(for width: CGFloat) -> Bool {
+        width < 760
+    }
 
     private var backgroundGradient: [Color] {
         if isDark {
@@ -101,7 +106,7 @@ struct ContentView: View {
     private var versionLabel: String {
         let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
         let buildVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
-        return "Версия \(shortVersion) (\(buildVersion))"
+        return "\(shortVersion) (\(buildVersion))"
     }
 
     var body: some View {
@@ -129,12 +134,6 @@ struct ContentView: View {
             }
         } message: {
             Text("Для первой выгрузки stories войди в Instagram через браузер приложения. Окно останется открытым, пока вход не будет завершён.")
-        }
-        .onAppear {
-            guard !busyPulse else { return }
-            withAnimation(.easeInOut(duration: 1.05).repeatForever(autoreverses: true)) {
-                busyPulse = true
-            }
         }
         .onChange(of: model.celebrationToken) { _, newValue in
             guard newValue > 0 else { return }
@@ -302,28 +301,52 @@ struct ContentView: View {
     }
 
     private var homeTwoView: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                homeTwoHero
-                statusRail
+        GeometryReader { proxy in
+            let compact = isCompactHomeLayout(for: proxy.size.width)
 
-                HStack(alignment: .top, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 18) {
-                        homeTwoComposerCard
-                        homeTwoQueueCard
-                    }
-                    .frame(maxWidth: .infinity, alignment: .top)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    homeTwoHero(compact: compact)
 
-                    VStack(alignment: .leading, spacing: 18) {
-                        recentListsCard
-                        compactActivityCard
+                    if compact {
+                        VStack(alignment: .leading, spacing: 20) {
+                            homeStatusCard
+                                .frame(maxWidth: .infinity, minHeight: homeSummaryCardHeight, alignment: .topLeading)
+                            homeResultCard
+                                .frame(maxWidth: .infinity, minHeight: homeSummaryCardHeight, alignment: .topLeading)
+                            homeTwoComposerCard(compact: true)
+                            recentListsCard(compact: true)
+                            logsCard(maxHeight: 320)
+                            homeTwoQueueCard(compact: true)
+                        }
+                    } else {
+                        HStack(alignment: .top, spacing: 20) {
+                            homeStatusCard
+                                .frame(maxWidth: .infinity, minHeight: homeSummaryCardHeight, alignment: .topLeading)
+                            homeResultCard
+                                .frame(maxWidth: .infinity, minHeight: homeSummaryCardHeight, alignment: .topLeading)
+                        }
+
+                        HStack(alignment: .top, spacing: 20) {
+                            VStack(alignment: .leading, spacing: 20) {
+                                homeTwoComposerCard(compact: false)
+                                homeTwoQueueCard(compact: false)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .top)
+
+                            VStack(alignment: .leading, spacing: 20) {
+                                recentListsCard(compact: false)
+                                logsCard(maxHeight: 320)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .top)
+                        }
                     }
-                    .frame(width: 320, alignment: .top)
                 }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(.horizontal, 28)
+                .padding(.bottom, 28)
+                .padding(.top, 4)
             }
-            .padding(.horizontal, 28)
-            .padding(.bottom, 28)
-            .padding(.top, 4)
         }
     }
 
@@ -386,34 +409,101 @@ struct ContentView: View {
         .padding(.bottom, 28)
     }
 
-    private var homeTwoHero: some View {
+    private func homeTwoHero(compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 16) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Главная")
-                        .font(.system(size: 34, weight: .semibold, design: .rounded))
-                        .foregroundStyle(primaryText)
+            Group {
+                if compact {
+                    VStack(alignment: .leading, spacing: 14) {
+                        homeHeroTitleBlock
+                        homeHeroVersionBlock
+                    }
+                } else {
+                    HStack(alignment: .top, spacing: 16) {
+                        homeHeroTitleBlock
 
-                    Text("Более удобный стартовый экран для новых пользователей: собери список профилей, сохрани его как недавний и запускай выгрузку без лишних переключений.")
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
-                        .foregroundStyle(secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                        Spacer(minLength: 0)
 
-                Spacer(minLength: 0)
-
-                VStack(alignment: .trailing, spacing: 6) {
-                    Text(versionLabel)
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(tertiaryText)
-
-                    if model.batchIsRunning {
-                        liveStatusBadge
-                            .frame(maxWidth: 260)
+                        homeHeroVersionBlock
                     }
                 }
             }
         }
+    }
+
+    private var homeHeroTitleBlock: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Главная")
+                .font(.system(size: 34, weight: .semibold, design: .rounded))
+                .foregroundStyle(primaryText)
+
+            Text("Собери очередь, быстро проверь состояние выгрузки и при необходимости вернись к последнему сохранённому набору без переключений между экранами.")
+                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .foregroundStyle(secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var homeHeroVersionBlock: some View {
+        VStack(alignment: .trailing, spacing: 6) {
+            Text("Версия")
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .foregroundStyle(primaryText)
+
+            Text(versionLabel)
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundStyle(tertiaryText)
+
+            if model.batchIsRunning {
+                liveStatusBadge
+                    .frame(maxWidth: 260)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+    }
+
+    private var homeStatusCard: some View {
+        card("Status") {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 12) {
+                    if model.isBusy {
+                        liveIndicatorDot(size: 12)
+                    } else {
+                        Circle()
+                            .fill(Color.green.opacity(0.78))
+                            .frame(width: 12, height: 12)
+                    }
+
+                    Text(model.statusTitle)
+                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .foregroundStyle(primaryText)
+                }
+
+                Text(model.statusDetail)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                stepTracker
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var homeResultCard: some View {
+        card("Result") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    statPill(title: "Найдено", value: model.foundStoriesCount, accent: Color.orange.opacity(0.78))
+                    statPill(title: "Сохранено", value: model.savedStoriesCount, accent: Color.green.opacity(0.78))
+                }
+
+                HStack(spacing: 12) {
+                    statPill(title: "Файлов", value: model.liveDownloadedFileCount, accent: Color.blue.opacity(0.78))
+                    statPill(title: "Папок", value: model.liveCreatedFolderCount, accent: Color.mint.opacity(0.78))
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var statusRail: some View {
@@ -448,85 +538,141 @@ struct ContentView: View {
         }
     }
 
-    private var homeTwoComposerCard: some View {
-        card("Быстрый старт") {
+    private func homeTwoComposerCard(compact: Bool) -> some View {
+        card("Fast Start") {
             VStack(alignment: .leading, spacing: 14) {
-                statusInlineNote(
-                    title: "Что делать",
-                    message: "Вставь usernames или ссылки, сохрани список в недавние при необходимости и запускай очередь. Этот экран держит весь основной flow в одном месте."
-                )
-
                 textEditorCard(
                     text: $model.batchInput,
                     placeholder: "По одной ссылке или username на строку.\nНапример:\ndian.vegas1\nhttps://www.instagram.com/stevensetu/\nleftlanepapi"
                 )
-                .frame(height: 154)
+                .frame(height: 190)
 
-                HStack(spacing: 10) {
-                    button("Добавить в очередь", systemImage: "plus") {
-                        model.addBatchProfiles()
+                if compact {
+                    VStack(spacing: 10) {
+                        button("Добавить", systemImage: "plus") {
+                            model.addBatchProfiles()
+                        }
+
+                        button("Запомнить", systemImage: "bookmark") {
+                            model.rememberCurrentBatchList()
+                        }
+                        .disabled(model.batchQueue.isEmpty)
+
+                        button("Очистить", systemImage: "xmark") {
+                            model.batchInput = ""
+                        }
                     }
 
-                    button("Запомнить список", systemImage: "bookmark") {
-                        model.rememberCurrentBatchList()
-                    }
-                    .disabled(model.batchQueue.isEmpty)
+                    VStack(spacing: 10) {
+                        button("Скачать", systemImage: "play.fill", prominent: true, tint: queueActionTint) {
+                            Task { await model.runBatchDownloads() }
+                        }
+                        .disabled(model.batchQueue.isEmpty || model.isBusy)
 
-                    button("Очистить поле", systemImage: "xmark") {
-                        model.batchInput = ""
+                        button("Остановить", systemImage: "stop.fill", allowWhileBusy: true) {
+                            model.stopBatchDownloads()
+                        }
+                        .disabled(!model.batchIsRunning)
+                    }
+                } else {
+                    HStack(spacing: 10) {
+                        button("Добавить", systemImage: "plus") {
+                            model.addBatchProfiles()
+                        }
+
+                        button("Запомнить", systemImage: "bookmark") {
+                            model.rememberCurrentBatchList()
+                        }
+                        .disabled(model.batchQueue.isEmpty)
+
+                        button("Очистить", systemImage: "xmark") {
+                            model.batchInput = ""
+                        }
+                    }
+
+                    HStack(spacing: 10) {
+                        button("Скачать", systemImage: "play.fill", prominent: true, tint: queueActionTint) {
+                            Task { await model.runBatchDownloads() }
+                        }
+                        .disabled(model.batchQueue.isEmpty || model.isBusy)
+
+                        button("Остановить", systemImage: "stop.fill", allowWhileBusy: true) {
+                            model.stopBatchDownloads()
+                        }
+                        .disabled(!model.batchIsRunning)
                     }
                 }
 
-                HStack(alignment: .top, spacing: 14) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        downloadModePicker
-                        mediaSelectionPicker
-                        HStack(alignment: .top, spacing: 12) {
-                            destinationInlineCard
+                VStack(alignment: .leading, spacing: 14) {
+                    downloadModePicker
+                    mediaSelectionPicker
+                }
+
+                Group {
+                    if compact {
+                        VStack(alignment: .leading, spacing: 14) {
+                            destinationInlineCard(compact: true)
+                            statusInlineNote(
+                                title: "Быстрый сценарий",
+                                message: "Слева вставляешь профили, справа выбираешь режим и папку, затем запускаешь очередь одной кнопкой."
+                            )
+                        }
+                    } else {
+                        HStack(alignment: .top, spacing: 14) {
+                            destinationInlineCard(compact: false)
 
                             statusInlineNote(
-                                title: "Совет",
-                                message: "Для первых тестов используй режим «Видимо». Если всё стабильно, переключайся на фон."
+                                title: "Быстрый сценарий",
+                                message: "Слева вставляешь профили, справа выбираешь режим и папку, затем запускаешь очередь одной кнопкой."
                             )
                             .frame(maxWidth: .infinity, alignment: .topLeading)
                         }
                     }
                 }
 
-                VStack(spacing: 10) {
-                    button("Скачать очередь", systemImage: "play.fill", prominent: true, tint: queueActionTint) {
-                        Task { await model.runBatchDownloads() }
-                    }
-                    .disabled(model.batchQueue.isEmpty || model.isBusy)
-
-                    button("Остановить", systemImage: "stop.fill", allowWhileBusy: true) {
-                        model.stopBatchDownloads()
-                    }
-                    .disabled(!model.batchIsRunning)
-                }
             }
         }
     }
 
-    private var homeTwoQueueCard: some View {
-        card("Очередь и прогресс") {
+    private func homeTwoQueueCard(compact: Bool) -> some View {
+        card("Очередь") {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 10) {
-                    queueSummaryPill(
-                        title: "В очереди",
-                        value: "\(model.batchQueue.count)",
-                        tint: Color.white.opacity(isDark ? 0.10 : 0.62)
-                    )
-                    queueSummaryPill(
-                        title: "Недавних наборов",
-                        value: "\(model.recentBatchLists.count)",
-                        tint: Color.white.opacity(isDark ? 0.10 : 0.62)
-                    )
-                    queueSummaryPill(
-                        title: "Режим",
-                        value: model.downloadMode.title,
-                        tint: prominentButtonTint.opacity(isDark ? 0.20 : 0.14)
-                    )
+                if compact {
+                    VStack(spacing: 10) {
+                        queueSummaryPill(
+                            title: "В очереди",
+                            value: "\(model.batchQueue.count)",
+                            tint: Color.white.opacity(isDark ? 0.10 : 0.62)
+                        )
+                        queueSummaryPill(
+                            title: "Недавних наборов",
+                            value: "\(model.recentBatchLists.count)",
+                            tint: Color.white.opacity(isDark ? 0.10 : 0.62)
+                        )
+                        queueSummaryPill(
+                            title: "Режим",
+                            value: model.downloadMode.title,
+                            tint: prominentButtonTint.opacity(isDark ? 0.20 : 0.14)
+                        )
+                    }
+                } else {
+                    HStack(spacing: 10) {
+                        queueSummaryPill(
+                            title: "В очереди",
+                            value: "\(model.batchQueue.count)",
+                            tint: Color.white.opacity(isDark ? 0.10 : 0.62)
+                        )
+                        queueSummaryPill(
+                            title: "Недавних наборов",
+                            value: "\(model.recentBatchLists.count)",
+                            tint: Color.white.opacity(isDark ? 0.10 : 0.62)
+                        )
+                        queueSummaryPill(
+                            title: "Режим",
+                            value: model.downloadMode.title,
+                            tint: prominentButtonTint.opacity(isDark ? 0.20 : 0.14)
+                        )
+                    }
                 }
 
                 if model.batchQueue.isEmpty {
@@ -554,24 +700,37 @@ struct ContentView: View {
                     .frame(minHeight: 220, maxHeight: 340)
                 }
 
-                HStack(spacing: 10) {
-                    button("Очистить очередь", systemImage: "trash") {
-                        model.clearBatchQueue()
+                if compact {
+                    VStack(alignment: .leading, spacing: 10) {
+                        button("Очистить очередь", systemImage: "trash") {
+                            model.clearBatchQueue()
+                        }
+                        .disabled(model.batchQueue.isEmpty || model.isBusy)
+
+                        Text("После запуска текущий список появится в блоке «Недавние наборы».")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(tertiaryText)
                     }
-                    .disabled(model.batchQueue.isEmpty || model.isBusy)
+                } else {
+                    HStack(spacing: 10) {
+                        button("Очистить очередь", systemImage: "trash") {
+                            model.clearBatchQueue()
+                        }
+                        .disabled(model.batchQueue.isEmpty || model.isBusy)
 
-                    Spacer(minLength: 0)
+                        Spacer(minLength: 0)
 
-                    Text("После успешной выгрузки список останется в блоке «Недавние наборы».")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(tertiaryText)
+                        Text("После запуска текущий список появится в блоке «Недавние наборы».")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(tertiaryText)
+                    }
                 }
             }
         }
     }
 
-    private var recentListsCard: some View {
-        card("Недавние наборы") {
+    private func recentListsCard(compact: Bool) -> some View {
+        card("Недавнее") {
             VStack(alignment: .leading, spacing: 12) {
                 if model.recentBatchLists.isEmpty {
                     Text("Здесь будут появляться сохранённые и недавно запущенные списки профилей.")
@@ -585,72 +744,119 @@ struct ContentView: View {
                                 .fill(itemFill)
                         )
                 } else {
-                    ForEach(model.recentBatchLists) { list in
+                    ZStack(alignment: .topLeading) {
+                        if !showingAllRecentLists && model.recentBatchLists.count > 1 {
+                            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
+                                .fill(itemFill.opacity(0.68))
+                                .frame(height: 132)
+                                .offset(x: 8, y: 8)
+
+                            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
+                                .fill(itemFill.opacity(0.82))
+                                .frame(height: 132)
+                                .offset(x: 4, y: 4)
+                        }
+
                         VStack(alignment: .leading, spacing: 10) {
-                            HStack(alignment: .top, spacing: 10) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(list.title)
-                                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(primaryText)
-
-                                    Text(list.subtitle)
-                                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                                        .textCase(.uppercase)
-                                        .foregroundStyle(tertiaryText)
-                                }
-
-                                Spacer(minLength: 0)
-
-                                Button {
-                                    model.removeRecentBatchList(id: list.id)
-                                } label: {
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .frame(width: 22, height: 22)
-                                        .background(Circle().fill(Color.white.opacity(isDark ? 0.06 : 0.42)))
-                                }
-                                .buttonStyle(.plain)
-                            }
-
-                            Text(list.urls.prefix(3).joined(separator: "\n"))
-                                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                .foregroundStyle(secondaryText)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .lineLimit(3)
-
-                            HStack(spacing: 8) {
-                                button("Добавить", systemImage: "plus") {
-                                    model.applyRecentBatchList(list)
-                                }
-
-                                button("Заменить", systemImage: "arrow.triangle.swap") {
-                                    model.replaceQueueWithRecentBatchList(list)
-                                }
-                                .disabled(model.isBusy)
+                            ForEach(displayedRecentBatchLists) { list in
+                                recentListCard(list, compact: compact)
                             }
                         }
-                        .padding(14)
-                        .background(
-                            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                                .fill(itemFill)
-                        )
+                    }
+                    .padding(.bottom, !showingAllRecentLists && model.recentBatchLists.count > 1 ? 10 : 0)
+
+                    if model.recentBatchLists.count > 1 {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showingAllRecentLists.toggle()
+                            }
+                        } label: {
+                            Text(showingAllRecentLists ? "свернуть" : "ещё")
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .foregroundStyle(Color.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 9)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .fill(Color.black.opacity(isDark ? 0.72 : 0.86))
+                                )
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
         }
     }
 
-    private var compactActivityCard: some View {
-        card("Что происходит") {
-            VStack(alignment: .leading, spacing: 12) {
-                statusInlineNote(title: "Последнее событие", message: model.lastResult)
-                statusInlineNote(title: "Сессия", message: model.sessionSummary)
-                statusInlineNote(title: "Воркер", message: model.workerSummary)
-            }
-        }
+    private var displayedRecentBatchLists: [AppModel.RecentBatchList] {
+        showingAllRecentLists ? model.recentBatchLists : Array(model.recentBatchLists.prefix(1))
     }
 
-    private var destinationInlineCard: some View {
+    private func recentListCard(_ list: AppModel.RecentBatchList, compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(list.title)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(primaryText)
+
+                    Text(list.subtitle)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .textCase(.uppercase)
+                        .foregroundStyle(tertiaryText)
+                }
+
+                Spacer(minLength: 0)
+
+                Button {
+                    model.removeRecentBatchList(id: list.id)
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .frame(width: 22, height: 22)
+                        .background(Circle().fill(Color.white.opacity(isDark ? 0.06 : 0.42)))
+                }
+                .buttonStyle(.plain)
+            }
+
+            Text(list.urls.prefix(3).joined(separator: "\n"))
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(secondaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(3)
+
+            if compact {
+                VStack(spacing: 8) {
+                    button("Добавить", systemImage: "plus") {
+                        model.applyRecentBatchList(list)
+                    }
+
+                    button("Заменить", systemImage: "arrow.triangle.swap") {
+                        model.replaceQueueWithRecentBatchList(list)
+                    }
+                    .disabled(model.isBusy)
+                }
+            } else {
+                HStack(spacing: 8) {
+                    button("Добавить", systemImage: "plus") {
+                        model.applyRecentBatchList(list)
+                    }
+
+                    button("Заменить", systemImage: "arrow.triangle.swap") {
+                        model.replaceQueueWithRecentBatchList(list)
+                    }
+                    .disabled(model.isBusy)
+                }
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
+                .fill(itemFill)
+        )
+    }
+
+    private func destinationInlineCard(compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Папка сохранения")
                 .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -660,13 +866,25 @@ struct ContentView: View {
             horizontalMonospaceField(model.saveDirectory.path, fontSize: 12)
                 .frame(height: 52)
 
-            HStack(spacing: 8) {
-                button("Выбрать", systemImage: "folder") {
-                    model.chooseSaveDirectory()
-                }
+            if compact {
+                VStack(spacing: 8) {
+                    button("Выбрать", systemImage: "folder") {
+                        model.chooseSaveDirectory()
+                    }
 
-                button("Показать", systemImage: "arrow.up.forward.app") {
-                    model.openSaveDirectory()
+                    button("Показать", systemImage: "arrow.up.forward.app") {
+                        model.openSaveDirectory()
+                    }
+                }
+            } else {
+                HStack(spacing: 8) {
+                    button("Выбрать", systemImage: "folder") {
+                        model.chooseSaveDirectory()
+                    }
+
+                    button("Показать", systemImage: "arrow.up.forward.app") {
+                        model.openSaveDirectory()
+                    }
                 }
             }
         }
@@ -712,7 +930,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 18) {
             activityHeader
             downloadsCard
-            logsCard
+            logsCard()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -1043,7 +1261,7 @@ struct ContentView: View {
         }
     }
 
-    private var logsCard: some View {
+    private func logsCard(maxHeight: CGFloat? = nil) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 Text("Логи")
@@ -1077,7 +1295,7 @@ struct ContentView: View {
                 .padding(.horizontal, 18)
                 .padding(.bottom, 18)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, maxHeight: maxHeight ?? .infinity, alignment: .topLeading)
         }
         .background(cardBackground)
         .overlay(
@@ -1271,9 +1489,18 @@ struct ContentView: View {
 
     private var stepTracker: some View {
         HStack(spacing: 10) {
-            Image(systemName: model.isBusy ? "point.3.connected.trianglepath.dotted" : "sparkle")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(model.isBusy ? prominentButtonTint : tertiaryText)
+            ZStack {
+                Circle()
+                    .fill(model.isBusy ? prominentButtonTint.opacity(isDark ? 0.24 : 0.14) : Color.clear)
+                    .frame(width: 30, height: 30)
+                    .scaleEffect(model.isBusy ? 1.0 : 0.88)
+                    .opacity(model.isBusy ? 1 : 0)
+
+                Image(systemName: model.isBusy ? "point.3.connected.trianglepath.dotted" : "sparkle")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(model.isBusy ? prominentButtonTint : tertiaryText)
+                    .symbolEffect(.pulse.byLayer, options: .repeating, value: model.isBusy)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Текущий шаг")
@@ -1281,29 +1508,94 @@ struct ContentView: View {
                     .textCase(.uppercase)
                     .foregroundStyle(quaternaryText)
 
-                Text(model.currentStepLabel)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(primaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+                if model.isBusy {
+                    TimelineView(.periodic(from: .now, by: 0.6)) { context in
+                        Text(animatedBusyStepLabel(at: context.date))
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundStyle(primaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } else {
+                    Text(model.currentStepLabel)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(primaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             Spacer(minLength: 0)
+
+            if model.isBusy {
+                TimelineView(.periodic(from: .now, by: 0.24)) { context in
+                    busyStepActivityIndicator(at: context.date)
+                }
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
-                .fill(itemFill)
+                .fill(model.isBusy ? prominentButtonTint.opacity(isDark ? 0.18 : 0.10) : itemFill)
+        )
+    }
+
+    private func animatedBusyStepLabel(at date: Date) -> String {
+        let base = model.currentStepLabel.isEmpty ? "Идёт подготовка выгрузки" : model.currentStepLabel
+        let phase = Int(date.timeIntervalSinceReferenceDate / 0.6) % 4
+        return base + String(repeating: ".", count: phase)
+    }
+
+    private func busyStepActivityIndicator(at date: Date) -> some View {
+        let phase = Int(date.timeIntervalSinceReferenceDate / 0.24) % 3
+
+        return HStack(spacing: 6) {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(prominentButtonTint)
+                    .frame(width: 7, height: 7)
+                    .scaleEffect(index == phase ? 1.0 : 0.72)
+                    .opacity(index == phase ? 1.0 : 0.28)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            Capsule(style: .continuous)
+                .fill(prominentButtonTint.opacity(isDark ? 0.16 : 0.12))
         )
     }
 
     private func liveIndicatorDot(size: CGFloat) -> some View {
-        Circle()
-            .fill(Color.green.opacity(isDark ? 0.95 : 0.82))
-            .frame(width: size, height: size)
-            .scaleEffect(busyPulse ? 1.0 : 0.72)
-            .opacity(busyPulse ? 1.0 : 0.42)
-            .shadow(color: Color.green.opacity(isDark ? 0.55 : 0.28), radius: busyPulse ? 12 : 4)
+        TimelineView(.periodic(from: .now, by: 0.05)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            let phase = (sin(t * 4.8) + 1) / 2
+            let glowScale = 0.72 + (phase * 0.58)
+            let glowOpacity = 0.16 + (phase * 0.88)
+            let glowBlur = 0.4 + (phase * 3.8)
+            let coreScale = 0.80 + (phase * 0.34)
+            let coreOpacity = 0.52 + (phase * 0.48)
+            let shadowRadius = 3 + (phase * 18)
+
+            ZStack {
+                Circle()
+                    .fill(Color.green.opacity(isDark ? 0.44 : 0.34))
+                    .frame(width: size * 3.1, height: size * 3.1)
+                    .scaleEffect(glowScale)
+                    .opacity(glowOpacity)
+                    .blur(radius: glowBlur)
+
+                Circle()
+                    .fill(Color.green.opacity(1.0))
+                    .frame(width: size, height: size)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(isDark ? 0.30 : 0.62), lineWidth: 1)
+                    )
+                    .scaleEffect(coreScale)
+                    .opacity(coreOpacity)
+                    .shadow(color: Color.green.opacity(isDark ? 0.88 : 0.64), radius: shadowRadius)
+            }
+        }
     }
 
     private func statPill(title: String, value: Int, accent: Color) -> some View {

@@ -23,6 +23,10 @@ function emit(ok, status, message, { data = {}, items = [], logs = [] } = {}) {
   );
 }
 
+function emitProgress(message) {
+  process.stderr.write(`${message}\n`);
+}
+
 function errorMessage(error) {
   if (error instanceof Error) {
     return error.message || String(error);
@@ -1366,6 +1370,7 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
   const batchResults = new Array(normalizedUrls.length);
   let totalFound = 0;
   let totalSaved = 0;
+  let processedCount = 0;
   let successCount = 0;
   let session = null;
   let batchAbortMessage = null;
@@ -1444,6 +1449,7 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
         }
 
         logs.push(`batch_slot_${slot}_start=${job.normalizedUrl}`);
+        emitProgress(`batch_slot_${slot}_start=${job.normalizedUrl}`);
         let result = null;
         try {
           result = await withTimeout(
@@ -1454,6 +1460,7 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
         } catch (error) {
           const message = errorMessage(error);
           batchResults[job.index] = buildFailureResult(job.normalizedUrl, message);
+          processedCount += 1;
           logs.push(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
           if (contextClosed || isClosedTargetError(error)) {
             batchAbortMessage ||= message;
@@ -1465,6 +1472,7 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
         if (!result) {
           const message = "Воркер не вернул результат пакетной выгрузки.";
           batchResults[job.index] = buildFailureResult(job.normalizedUrl, message);
+          processedCount += 1;
           logs.push(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
           continue;
         }
@@ -1490,6 +1498,7 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
           foundCount,
           savedCount,
         };
+        processedCount += 1;
         if (contextClosed || isClosedTargetMessage(result.message)) {
           const message = contextClosed
             ? "Окно браузера было закрыто во время пакетной выгрузки."
@@ -1499,6 +1508,7 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
           return;
         }
         logs.push(`batch_slot_${slot}_done=${job.normalizedUrl}`);
+        emitProgress(`batch_slot_${slot}_done=${job.normalizedUrl}`);
       }
     };
 
@@ -1540,7 +1550,7 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
       data: {
         foundCount: String(totalFound),
         savedCount: String(totalSaved),
-        processedCount: String(normalizedUrls.length),
+        processedCount: String(processedCount),
         batchResults: JSON.stringify(batchResults),
       },
       items,
@@ -1551,7 +1561,7 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
       data: {
         foundCount: String(totalFound),
         savedCount: String(totalSaved),
-        processedCount: String(normalizedUrls.length),
+        processedCount: String(processedCount),
         batchResults: JSON.stringify(
           batchResults.map((entry, index) => entry || {
             url: normalizedUrls[index],

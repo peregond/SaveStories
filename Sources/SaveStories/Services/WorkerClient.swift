@@ -4,22 +4,57 @@ import Foundation
 final class WorkerClient {
     private final class PipeCollector: @unchecked Sendable {
         private let fileHandle: FileHandle
+        private let onLine: (@Sendable (String) -> Void)?
         private let lock = NSLock()
         private let finished = DispatchSemaphore(value: 0)
         private var collectedData = Data()
         private var readerThread: Thread?
 
-        init(fileHandle: FileHandle) {
+        init(fileHandle: FileHandle, onLine: (@Sendable (String) -> Void)? = nil) {
             self.fileHandle = fileHandle
+            self.onLine = onLine
         }
 
         func start() {
             guard readerThread == nil else { return }
 
-            let thread = Thread { [fileHandle] in
-                let data = fileHandle.readDataToEndOfFile()
+            let thread = Thread { [fileHandle, onLine] in
+                var completeData = Data()
+                var partialLine = Data()
+
+                while true {
+                    let chunk = fileHandle.availableData
+                    if chunk.isEmpty {
+                        break
+                    }
+
+                    completeData.append(chunk)
+
+                    guard let onLine else { continue }
+                    partialLine.append(chunk)
+
+                    while let newlineIndex = partialLine.firstIndex(of: 0x0A) {
+                        let lineData = partialLine.prefix(upTo: newlineIndex)
+                        partialLine.removeSubrange(...newlineIndex)
+                        if let line = String(data: lineData, encoding: .utf8)?
+                            .trimmingCharacters(in: .whitespacesAndNewlines),
+                           !line.isEmpty
+                        {
+                            onLine(line)
+                        }
+                    }
+                }
+
+                if let onLine,
+                   let trailing = String(data: partialLine, encoding: .utf8)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines),
+                   !trailing.isEmpty
+                {
+                    onLine(trailing)
+                }
+
                 self.lock.lock()
-                self.collectedData = data
+                self.collectedData = completeData
                 self.lock.unlock()
                 self.finished.signal()
             }
@@ -56,9 +91,9 @@ final class WorkerClient {
     private var currentProcess: Process?
     private var userInitiatedStop = false
 
-    func run(_ request: WorkerRequest) async -> WorkerResponse {
+    func run(_ request: WorkerRequest, onProgress: (@Sendable (String) -> Void)? = nil) async -> WorkerResponse {
         do {
-            let response = try await execute(request)
+            let response = try await execute(request, onProgress: onProgress)
             if userInitiatedStop {
                 userInitiatedStop = false
                 return .cancelled(message: "Загрузка остановлена пользователем.")
@@ -79,7 +114,7 @@ final class WorkerClient {
         currentProcess.terminate()
     }
 
-    private func execute(_ request: WorkerRequest) async throws -> WorkerResponse {
+    private func execute(_ request: WorkerRequest, onProgress: (@Sendable (String) -> Void)? = nil) async throws -> WorkerResponse {
         try AppPaths.ensureDirectories()
 
         let process = Process()
@@ -87,7 +122,7 @@ final class WorkerClient {
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
         let stdoutCollector = PipeCollector(fileHandle: stdoutPipe.fileHandleForReading)
-        let stderrCollector = PipeCollector(fileHandle: stderrPipe.fileHandleForReading)
+        let stderrCollector = PipeCollector(fileHandle: stderrPipe.fileHandleForReading, onLine: onProgress)
 
         let launch = try workerLaunchConfiguration()
         process.executableURL = launch.executable

@@ -71,7 +71,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.4.24"
+    return "0.4.25"
 
 
 def normalize_profile_link(raw: str) -> str:
@@ -1560,13 +1560,24 @@ class MainWindow(QtWidgets.QMainWindow):
             entry.message = str(result.get("message", response.message))
 
     def finish_batch(self) -> None:
-        processed = len(self.batch_pending_indices)
+        processed = sum(
+            1
+            for index in self.batch_pending_indices
+            if self.batch_entries[index].status in {"completed", "failed", "stopped"}
+        )
         total = len(self.batch_pending_indices)
+        failed = sum(1 for index in self.batch_pending_indices if self.batch_entries[index].status == "failed")
+        completed = sum(1 for index in self.batch_pending_indices if self.batch_entries[index].status == "completed")
         if self.batch_stop_requested:
             self.set_status("Остановлено", f"Пакетная выгрузка остановлена. Обработано {processed} из {total}.")
         else:
-            self.set_status("Готово", f"Пакетная выгрузка завершена. Сохранено файлов: {self.batch_saved_total}.")
-            if self.batch_saved_total > 0:
+            if failed > 0 and completed == 0:
+                self.set_status("Ошибка", f"Пакетная выгрузка завершилась ошибками. Обработано {processed} из {total}.")
+            elif failed > 0:
+                self.set_status("Завершено с ошибками", f"Пакетная выгрузка завершилась с ошибками. Обработано {processed} из {total}.")
+            else:
+                self.set_status("Готово", f"Пакетная выгрузка завершена. Сохранено файлов: {self.batch_saved_total}.")
+            if self.batch_saved_total > 0 and completed > 0:
                 self.trigger_celebration()
         self.batch_running = False
         self.batch_stop_requested = False

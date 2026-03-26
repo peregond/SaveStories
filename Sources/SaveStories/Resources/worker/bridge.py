@@ -35,6 +35,11 @@ def emit(ok: bool, status: str, message: str, *, data: dict[str, str] | None = N
     sys.stdout.flush()
 
 
+def emit_progress(message: str) -> None:
+    sys.stderr.write(f"{message}\n")
+    sys.stderr.flush()
+
+
 def read_request() -> dict[str, Any]:
     raw = sys.stdin.read().strip()
     if not raw:
@@ -1857,6 +1862,7 @@ def profile_batch_command(profile_urls: list[str], output_directory: str | None,
     batch_results: list[dict[str, Any]] = []
     total_found = 0
     total_saved = 0
+    processed_count = 0
     success_count = 0
     chunk_size = BATCH_BACKGROUND_CHUNK_SIZE if headless else BATCH_VISIBLE_CHUNK_SIZE
     normalized_profiles = [
@@ -1891,6 +1897,7 @@ def profile_batch_command(profile_urls: list[str], output_directory: str | None,
 
             for normalized_url in profile_chunk:
                 logs.append(f"batch_profile_start={normalized_url}")
+                emit_progress(f"batch_profile_start={normalized_url}")
 
                 try:
                     if page is None or page.is_closed():
@@ -1928,7 +1935,9 @@ def profile_batch_command(profile_urls: list[str], output_directory: str | None,
                         "savedCount": saved_count,
                     }
                 )
+                processed_count += 1
                 logs.append(f"batch_profile_done={normalized_url}")
+                emit_progress(f"batch_profile_done={normalized_url}")
 
                 if headless:
                     try:
@@ -1952,7 +1961,7 @@ def profile_batch_command(profile_urls: list[str], output_directory: str | None,
             data={
                 "foundCount": str(total_found),
                 "savedCount": str(total_saved),
-                "processedCount": str(len(normalized_urls)),
+                "processedCount": str(processed_count),
                 "batchResults": json.dumps(batch_results),
             },
             items=items,
@@ -1970,7 +1979,7 @@ def profile_batch_command(profile_urls: list[str], output_directory: str | None,
             data={
                 "foundCount": str(total_found),
                 "savedCount": str(total_saved),
-                "processedCount": str(len(batch_results)),
+                "processedCount": str(processed_count),
                 "batchResults": json.dumps(batch_results),
             },
             items=items,
