@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveStories Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.25</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.26</link>
     <description>Release feed for SaveStories macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveStories 0.4.25</title>
-      <pubDate>Thu, 26 Mar 2026 09:39:06 GMT</pubDate>
-      <sparkle:version>52</sparkle:version>
-      <sparkle:shortVersionString>0.4.25</sparkle:shortVersionString>
-      <description><![CDATA[## SaveStories 0.4.25
+      <title>SaveStories 0.4.26</title>
+      <pubDate>Thu, 26 Mar 2026 10:05:07 GMT</pubDate>
+      <sparkle:version>53</sparkle:version>
+      <sparkle:shortVersionString>0.4.26</sparkle:shortVersionString>
+      <description><![CDATA[## SaveStories 0.4.26
 
-### Изменения с 0.4.20 по 0.4.25
+### Изменения с 0.4.20 по 0.4.26
 
 #### 0.4.20
 
@@ -41,13 +41,20 @@
 - В `Status` добавлены более живые индикаторы: светящаяся зелёная точка, анимация текущего шага и live-обновление шага по ходу пакетной выгрузки.
 - Обновлён звук запуска кнопки `Скачать`, а подписи и порядок действий в `Fast Start` стали компактнее и понятнее.
 - Версия синхронизирована для macOS и Windows, чтобы обе платформы можно было выпустить как единый релиз `0.4.25`.
+
+#### 0.4.26
+
+- Подтянут UI-паритет `Главной` для Windows: в `Быстрый старт` теперь компактные действия `Добавить / Запомнить / Очистить` и основной запуск `Скачать`.
+- В правой колонке Windows добавлен блок `Недавнее` с режимом просмотра только последнего набора и кнопкой `Ещё` для раскрытия остальных.
+- В `Главной` Windows добавлен встроенный блок логов и синхронизация live-лога прямо на экране запуска.
+- Для Windows-апдейтера улучшен выбор release-установщика: поддерживаются варианты имён с/без `v`, добавлен fallback на `SaveStories-Windows-Setup-*.exe` и более подробные диагностические сообщения.
 ]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.4.25/SaveStories-macOS-v0.4.25.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.4.26/SaveStories-macOS-v0.4.26.dmg"
         sparkle:os="macos"
-        length="220261706"
+        length="220295533"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="vRNdwqtec16t1UNPPiIU8YMgSXtKDMv54nYKMYgpM9khMmCmYLTK0rKz5OY1HWsscquRdf9gcvG9JBHKY5XJBw==" />
+        sparkle:edSignature="TjlFrT6uYkOQXnZqv/BT+d34PEwsPfSJXnmNzlXmQ3Pe6oCuPo6Anw9+f0d42YPqpygmOfNOn0cnsw49zZH+BQ==" />
     </item>
   </channel>
 </rss>
