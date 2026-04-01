@@ -27,5 +27,11 @@ let package = Package(
                 .copy("Resources/worker"),
             ]
         ),
+        .testTarget(
+            name: "SaveStoriesTests",
+            dependencies: [
+                "SaveStories",
+            ]
+        ),
     ]
 )

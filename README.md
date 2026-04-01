@@ -4,7 +4,7 @@
 
 Текущее состояние репозитория:
 
-- версия исходников: `0.4.26`
+- версия исходников: `0.4.27`
 - платформы: `macOS` и `Windows`
 - общий runtime: `Node 24 LTS + Playwright + Chromium`
 
@@ -156,11 +156,11 @@ Workflow:
 
 ```bash
 git add .
-git commit -m "Prepare v0.4.26 release"
+git commit -m "Prepare v0.4.27 release"
 git pull --rebase origin main
 git push origin main
-git tag v0.4.26
-git push origin v0.4.26
+git tag v0.4.27
+git push origin v0.4.27
 ```
 
 После этого GitHub Actions:
@@ -174,7 +174,10 @@ git push origin v0.4.26
 
 ## Автообновление
 
-`macOS` использует `Sparkle`, а `Windows` проверяет `GitHub Releases` и умеет поставить portable-обновление после перезапуска приложения.
+`macOS` использует `Sparkle`, а `Windows` проверяет `GitHub Releases`.
+
+Для `Windows` автоустановка работает только у версии, установленной через `SaveStories-Windows-Setup-vX.Y.Z.exe`.
+Если приложение запущено из portable-папки или распакованного архива, оно сможет проверить наличие новой версии, но установщик нужно будет скачать и запустить вручную.
 
 Для обновлений `macOS` нужен локальный signing key и GitHub secret:
 
@@ -202,8 +205,8 @@ git push origin v0.4.26
 export APPLE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
 export APPLE_NOTARY_PROFILE="savestories-notary"
 export SAVESTORIES_BUNDLE_ID="com.example.savestories"
-export SAVESTORIES_VERSION="0.4.26"
-export SAVESTORIES_BUILD="66"
+export SAVESTORIES_VERSION="0.4.27"
+export SAVESTORIES_BUILD="67"
 ./scripts/build_release_dmg.sh
 ```
 

@@ -122,7 +122,7 @@ class WorkerClient:
             pass
 
         if getattr(sys, "frozen", False):
-            raise RuntimeError("РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°Р№С‚Рё РІСЃС‚СЂРѕРµРЅРЅС‹Р№ Node runtime. РџРµСЂРµСѓСЃС‚Р°РЅРѕРІРё РїСЂРёР»РѕР¶РµРЅРёРµ.")
+            raise RuntimeError("Не удалось найти встроенный Node runtime. Переустанови приложение.")
 
         script = AppPaths.worker_script()
         python_command = WorkerClient.resolve_python_command()
@@ -145,7 +145,7 @@ class WorkerClient:
         if python:
             return [python]
 
-        raise RuntimeError("Python 3 РЅРµ РЅР°Р№РґРµРЅ. РЈСЃС‚Р°РЅРѕРІРё Python 3.13+ Рё Р·Р°С‚РµРј РІС‹РїРѕР»РЅРё РЅР°СЃС‚СЂРѕР№РєСѓ РґРІРёР¶РєР°.")
+        raise RuntimeError("Python 3 не найден. Установи Python 3.13+ и затем выполни настройку движка.")
 
     @staticmethod
     def _windows_popen_options(*, detached: bool) -> dict:

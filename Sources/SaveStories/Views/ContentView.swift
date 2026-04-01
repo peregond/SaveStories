@@ -1,69 +1,28 @@
 import SwiftUI
 
 struct ContentView: View {
-    enum AppSection: String, CaseIterable, Identifiable {
-        case main
-        case batch
-        case reels
+    @EnvironmentObject var model: AppModel
+    @Environment(\.colorScheme) var colorScheme
+    @State var showingSettings = false
+    @State var selectedSection: AppSection = .main
+    @State var showingConfetti = false
+    @State var showingAllRecentLists = false
 
-        var id: String { rawValue }
+    var isDark: Bool { colorScheme == .dark }
 
-        var title: String {
-            switch self {
-            case .main:
-                "Главная"
-            case .batch:
-                "Списочная"
-            case .reels:
-                "Reels"
-            }
-        }
+    let sidebarWidth: CGFloat = 296
+    let cardCornerRadius: CGFloat = 26
+    let controlCornerRadius: CGFloat = 18
+    let itemCornerRadius: CGFloat = 20
+    let innerCornerRadius: CGFloat = 16
+    let topContentInset: CGFloat = 30
+    let homeSummaryCardHeight: CGFloat = 208
 
-        var subtitle: String {
-            switch self {
-            case .main:
-                "Новый стартовый сценарий"
-            case .batch:
-                "Очередь профилей"
-            case .reels:
-                "Скоро появится"
-            }
-        }
-
-        var systemImage: String {
-            switch self {
-            case .main:
-                "wand.and.stars.inverse"
-            case .batch:
-                "list.bullet.rectangle.portrait"
-            case .reels:
-                "play.rectangle.on.rectangle"
-            }
-        }
-    }
-
-    @EnvironmentObject private var model: AppModel
-    @Environment(\.colorScheme) private var colorScheme
-    @State private var showingSettings = false
-    @State private var selectedSection: AppSection = .main
-    @State private var showingConfetti = false
-    @State private var showingAllRecentLists = false
-
-    private var isDark: Bool { colorScheme == .dark }
-
-    private let sidebarWidth: CGFloat = 296
-    private let cardCornerRadius: CGFloat = 26
-    private let controlCornerRadius: CGFloat = 18
-    private let itemCornerRadius: CGFloat = 20
-    private let innerCornerRadius: CGFloat = 16
-    private let topContentInset: CGFloat = 30
-    private let homeSummaryCardHeight: CGFloat = 208
-
-    private func isCompactHomeLayout(for width: CGFloat) -> Bool {
+    func isCompactHomeLayout(for width: CGFloat) -> Bool {
         width < 760
     }
 
-    private var backgroundGradient: [Color] {
+    var backgroundGradient: [Color] {
         if isDark {
             return [
                 Color(red: 0.07, green: 0.09, blue: 0.12),
@@ -79,31 +38,31 @@ struct ContentView: View {
         ]
     }
 
-    private var glassTint: Color {
+    var glassTint: Color {
         isDark ? Color.white.opacity(0.06) : Color.white.opacity(0.38)
     }
 
-    private var primaryText: Color { isDark ? Color.white.opacity(0.94) : Color.black.opacity(0.84) }
-    private var secondaryText: Color { isDark ? Color.white.opacity(0.74) : Color.black.opacity(0.60) }
-    private var tertiaryText: Color { isDark ? Color.white.opacity(0.55) : Color.black.opacity(0.48) }
-    private var quaternaryText: Color { isDark ? Color.white.opacity(0.44) : Color.black.opacity(0.55) }
-    private var cardFill: Color { isDark ? Color.white.opacity(0.07) : Color.white.opacity(0.26) }
-    private var inputFill: Color { isDark ? Color.white.opacity(0.09) : Color.white.opacity(0.62) }
-    private var pillFill: Color { isDark ? Color.white.opacity(0.09) : Color.white.opacity(0.54) }
-    private var itemFill: Color { isDark ? Color.white.opacity(0.08) : Color.white.opacity(0.60) }
-    private var settingsIconColor: Color { isDark ? Color.white.opacity(0.84) : Color.black.opacity(0.76) }
-    private var secondaryButtonTint: Color { isDark ? Color.white.opacity(0.16) : Color.black.opacity(0.66) }
-    private var prominentButtonTint: Color {
+    var primaryText: Color { isDark ? Color.white.opacity(0.94) : Color.black.opacity(0.84) }
+    var secondaryText: Color { isDark ? Color.white.opacity(0.74) : Color.black.opacity(0.60) }
+    var tertiaryText: Color { isDark ? Color.white.opacity(0.55) : Color.black.opacity(0.48) }
+    var quaternaryText: Color { isDark ? Color.white.opacity(0.44) : Color.black.opacity(0.55) }
+    var cardFill: Color { isDark ? Color.white.opacity(0.07) : Color.white.opacity(0.26) }
+    var inputFill: Color { isDark ? Color.white.opacity(0.09) : Color.white.opacity(0.62) }
+    var pillFill: Color { isDark ? Color.white.opacity(0.09) : Color.white.opacity(0.54) }
+    var itemFill: Color { isDark ? Color.white.opacity(0.08) : Color.white.opacity(0.60) }
+    var settingsIconColor: Color { isDark ? Color.white.opacity(0.84) : Color.black.opacity(0.76) }
+    var secondaryButtonTint: Color { isDark ? Color.white.opacity(0.16) : Color.black.opacity(0.66) }
+    var prominentButtonTint: Color {
         isDark ? Color(red: 0.18, green: 0.45, blue: 0.62) : Color(red: 0.12, green: 0.37, blue: 0.52)
     }
-    private var queueActionTint: Color {
+    var queueActionTint: Color {
         isDark ? Color(red: 0.29, green: 0.50, blue: 0.40) : Color(red: 0.34, green: 0.58, blue: 0.46)
     }
-    private var cardStroke: Color {
+    var cardStroke: Color {
         isDark ? Color.white.opacity(0.06) : Color.white.opacity(0.38)
     }
 
-    private var versionLabel: String {
+    var versionLabel: String {
         let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
         let buildVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
         return "\(shortVersion) (\(buildVersion))"
@@ -148,397 +107,8 @@ struct ContentView: View {
         }
     }
 
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("SaveStories")
-                    .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    .foregroundStyle(primaryText)
 
-                Text("STORIES DOWNLOADER")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(tertiaryText)
-                    .textCase(.uppercase)
-            }
-            .padding(.horizontal, 18)
-
-            VStack(spacing: 10) {
-                ForEach(AppSection.allCases) { section in
-                    Button {
-                        selectedSection = section
-                    } label: {
-                        sidebarRow(for: section)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 12)
-
-            Spacer(minLength: 0)
-
-            settingsSidebarButton
-                .padding(.horizontal, 12)
-                .padding(.bottom, 14)
-        }
-        .frame(minWidth: sidebarWidth, idealWidth: sidebarWidth, maxWidth: sidebarWidth)
-        .padding(.top, topContentInset)
-        .background(sidebarBackground)
-        .overlay(alignment: .trailing) {
-            Rectangle()
-                .fill(Color.white.opacity(isDark ? 0.05 : 0.35))
-                .frame(width: 1)
-        }
-    }
-
-    private func sidebarRow(for section: AppSection) -> some View {
-        let isSelected = selectedSection == section
-
-        return HStack(spacing: 12) {
-            Image(systemName: section.systemImage)
-                .font(.system(size: 15, weight: .semibold))
-                .frame(width: 28, height: 28)
-                .background(
-                    Circle()
-                        .fill(isSelected ? prominentButtonTint.opacity(0.85) : Color.white.opacity(isDark ? 0.06 : 0.42))
-                )
-                .foregroundStyle(isSelected ? Color.white : primaryText)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(section.title)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(primaryText)
-
-                Text(section.subtitle)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(secondaryText)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(isSelected ? AnyShapeStyle(.thinMaterial) : AnyShapeStyle(Color.clear))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(isSelected ? prominentButtonTint.opacity(isDark ? 0.18 : 0.14) : Color.clear)
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(isSelected ? Color.white.opacity(isDark ? 0.08 : 0.34) : Color.clear, lineWidth: 1)
-        )
-    }
-
-    private var settingsSidebarButton: some View {
-        Button {
-            showingSettings = true
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Настройки")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    Text("Воркер, сессия и среда")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                }
-                Spacer()
-            }
-            .foregroundStyle(settingsIconColor)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(.thinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(glassTint)
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .strokeBorder(cardStroke, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .popover(isPresented: $showingSettings, arrowEdge: .bottom) {
-            settingsPopover
-        }
-    }
-
-    private var settingsPopover: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                Text("Служебные настройки")
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
-                    .foregroundStyle(primaryText)
-
-                updatesCard
-                statusCards
-                runtimeCard
-                sessionCard
-            }
-            .padding(20)
-        }
-        .frame(width: 520, height: 460)
-        .background(windowBackground)
-    }
-
-    private var detailContent: some View {
-        Group {
-            switch selectedSection {
-            case .main:
-                homeTwoView
-            case .batch:
-                batchView
-            case .reels:
-                reelsView
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(.top, topContentInset)
-    }
-
-    private var homeTwoView: some View {
-        GeometryReader { proxy in
-            let compact = isCompactHomeLayout(for: proxy.size.width)
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    homeTwoHero(compact: compact)
-
-                    if compact {
-                        VStack(alignment: .leading, spacing: 20) {
-                            homeStatusCard
-                                .frame(maxWidth: .infinity, minHeight: homeSummaryCardHeight, alignment: .topLeading)
-                            homeResultCard
-                                .frame(maxWidth: .infinity, minHeight: homeSummaryCardHeight, alignment: .topLeading)
-                            homeTwoComposerCard(compact: true)
-                            recentListsCard(compact: true)
-                            logsCard(maxHeight: 320)
-                            homeTwoQueueCard(compact: true)
-                        }
-                    } else {
-                        HStack(alignment: .top, spacing: 20) {
-                            homeStatusCard
-                                .frame(maxWidth: .infinity, minHeight: homeSummaryCardHeight, alignment: .topLeading)
-                            homeResultCard
-                                .frame(maxWidth: .infinity, minHeight: homeSummaryCardHeight, alignment: .topLeading)
-                        }
-
-                        HStack(alignment: .top, spacing: 20) {
-                            VStack(alignment: .leading, spacing: 20) {
-                                homeTwoComposerCard(compact: false)
-                                homeTwoQueueCard(compact: false)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .top)
-
-                            VStack(alignment: .leading, spacing: 20) {
-                                recentListsCard(compact: false)
-                                logsCard(maxHeight: 320)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .top)
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-                .padding(.horizontal, 28)
-                .padding(.bottom, 28)
-                .padding(.top, 4)
-            }
-        }
-    }
-
-    private var batchView: some View {
-        HStack(spacing: 24) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    detailHero(
-                        eyebrow: "Списочная выгрузка",
-                        title: "Пакетная очередь профилей",
-                        subtitle: "Добавь сразу несколько ссылок или usernames. Приложение последовательно выгрузит stories для каждого профиля."
-                    )
-                    batchInputCard
-                    batchQueueCard
-                    destinationCard
-                    batchModeCard
-                    mediaFilterCard
-                }
-                .padding(.vertical, 4)
-            }
-            .frame(maxWidth: 560, maxHeight: .infinity, alignment: .topLeading)
-
-            activityPanel
-        }
-        .padding(.horizontal, 28)
-        .padding(.bottom, 28)
-    }
-
-    private var reelsView: some View {
-        HStack(spacing: 24) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    detailHero(
-                        eyebrow: "Reels",
-                        title: "Выгрузка Reels появится позже",
-                        subtitle: "Здесь появится отдельный сценарий для выгрузки Reels. Пока это плейсхолдер под следующий этап развития приложения."
-                    )
-
-                    card("Что планируется") {
-                        VStack(alignment: .leading, spacing: 12) {
-                            statusInlineNote(
-                                title: "На следующем этапе",
-                                message: "Добавим вставку ссылок на Reels, пакетную очередь, сохранение недавних наборов и отдельный прогресс именно под формат Reels."
-                            )
-
-                            statusInlineNote(
-                                title: "Что уже можно",
-                                message: "Для выгрузки актуальных stories продолжай использовать Главную и Списочную."
-                            )
-                        }
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-            .frame(maxWidth: 560, maxHeight: .infinity, alignment: .topLeading)
-
-            activityPanel
-        }
-        .padding(.horizontal, 28)
-        .padding(.bottom, 28)
-    }
-
-    private func homeTwoHero(compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Group {
-                if compact {
-                    VStack(alignment: .leading, spacing: 14) {
-                        homeHeroTitleBlock
-                        homeHeroVersionBlock
-                    }
-                } else {
-                    HStack(alignment: .top, spacing: 16) {
-                        homeHeroTitleBlock
-
-                        Spacer(minLength: 0)
-
-                        homeHeroVersionBlock
-                    }
-                }
-            }
-        }
-    }
-
-    private var homeHeroTitleBlock: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Главная")
-                .font(.system(size: 34, weight: .semibold, design: .rounded))
-                .foregroundStyle(primaryText)
-
-            Text("Собери очередь, быстро проверь состояние выгрузки и при необходимости вернись к последнему сохранённому набору без переключений между экранами.")
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundStyle(secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private var homeHeroVersionBlock: some View {
-        VStack(alignment: .trailing, spacing: 6) {
-            Text("Версия")
-                .font(.system(size: 17, weight: .bold, design: .rounded))
-                .foregroundStyle(primaryText)
-
-            Text(versionLabel)
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                .foregroundStyle(tertiaryText)
-
-            if model.batchIsRunning {
-                liveStatusBadge
-                    .frame(maxWidth: 260)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .trailing)
-    }
-
-    private var homeStatusCard: some View {
-        card("Status") {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 12) {
-                    if model.isBusy {
-                        liveIndicatorDot(size: 12)
-                    } else {
-                        Circle()
-                            .fill(Color.green.opacity(0.78))
-                            .frame(width: 12, height: 12)
-                    }
-
-                    Text(model.statusTitle)
-                        .font(.system(size: 20, weight: .semibold, design: .rounded))
-                        .foregroundStyle(primaryText)
-                }
-
-                Text(model.statusDetail)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                stepTracker
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private var homeResultCard: some View {
-        card("Result") {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 12) {
-                    statPill(title: "Найдено", value: model.foundStoriesCount, accent: Color.orange.opacity(0.78))
-                    statPill(title: "Сохранено", value: model.savedStoriesCount, accent: Color.green.opacity(0.78))
-                }
-
-                HStack(spacing: 12) {
-                    statPill(title: "Файлов", value: model.liveDownloadedFileCount, accent: Color.blue.opacity(0.78))
-                    statPill(title: "Папок", value: model.liveCreatedFolderCount, accent: Color.mint.opacity(0.78))
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private var statusRail: some View {
-        HStack(spacing: 12) {
-            statusRailPill(
-                title: "Состояние",
-                value: model.statusTitle,
-                detail: model.statusDetail,
-                tint: model.isBusy ? prominentButtonTint : Color.green.opacity(0.75)
-            )
-
-            statusRailPill(
-                title: "Текущий шаг",
-                value: model.currentStepLabel,
-                detail: model.batchIsRunning ? "Сейчас \(max(model.batchCurrentIndex, 1)) из \(max(model.batchTotalCount, 1))" : "Готово к следующей выгрузке",
-                tint: Color.orange.opacity(0.75)
-            )
-
-            statusRailPill(
-                title: "Результат",
-                value: "\(model.savedStoriesCount) сохранено",
-                detail: "\(model.foundStoriesCount) найдено",
-                tint: Color.blue.opacity(0.72)
-            )
-
-            statusRailPill(
-                title: "В выбранной папке",
-                value: "\(model.liveDownloadedFileCount) файлов",
-                detail: "\(model.liveCreatedFolderCount) папок создано",
-                tint: Color.mint.opacity(0.72)
-            )
-        }
-    }
-
-    private func homeTwoComposerCard(compact: Bool) -> some View {
+    func homeTwoComposerCard(compact: Bool) -> some View {
         card("Fast Start") {
             VStack(alignment: .leading, spacing: 14) {
                 textEditorCard(
@@ -634,7 +204,7 @@ struct ContentView: View {
         }
     }
 
-    private func homeTwoQueueCard(compact: Bool) -> some View {
+    func homeTwoQueueCard(compact: Bool) -> some View {
         card("Очередь") {
             VStack(alignment: .leading, spacing: 14) {
                 if compact {
@@ -729,7 +299,7 @@ struct ContentView: View {
         }
     }
 
-    private func recentListsCard(compact: Bool) -> some View {
+    func recentListsCard(compact: Bool) -> some View {
         card("Недавнее") {
             VStack(alignment: .leading, spacing: 12) {
                 if model.recentBatchLists.isEmpty {
@@ -788,11 +358,11 @@ struct ContentView: View {
         }
     }
 
-    private var displayedRecentBatchLists: [AppModel.RecentBatchList] {
+    var displayedRecentBatchLists: [AppModel.RecentBatchList] {
         showingAllRecentLists ? model.recentBatchLists : Array(model.recentBatchLists.prefix(1))
     }
 
-    private func recentListCard(_ list: AppModel.RecentBatchList, compact: Bool) -> some View {
+    func recentListCard(_ list: AppModel.RecentBatchList, compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -856,7 +426,7 @@ struct ContentView: View {
         )
     }
 
-    private func destinationInlineCard(compact: Bool) -> some View {
+    func destinationInlineCard(compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Папка сохранения")
                 .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -895,7 +465,7 @@ struct ContentView: View {
         )
     }
 
-    private var batchProgressStripe: some View {
+    var batchProgressStripe: some View {
         HStack(alignment: .center, spacing: 12) {
             liveIndicatorDot(size: 10)
 
@@ -926,7 +496,7 @@ struct ContentView: View {
         )
     }
 
-    private var activityPanel: some View {
+    var activityPanel: some View {
         VStack(alignment: .leading, spacing: 18) {
             activityHeader
             downloadsCard
@@ -935,7 +505,7 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private func header(title: String, subtitle: String) -> some View {
+    func header(title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.system(size: 34, weight: .semibold, design: .rounded))
@@ -952,7 +522,7 @@ struct ContentView: View {
         }
     }
 
-    private func detailHero(eyebrow: String, title: String, subtitle: String) -> some View {
+    func detailHero(eyebrow: String, title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(eyebrow)
                 .font(.system(size: 12, weight: .bold, design: .rounded))
@@ -970,7 +540,7 @@ struct ContentView: View {
         }
     }
 
-    private var statusCards: some View {
+    var statusCards: some View {
         HStack(spacing: 12) {
             statusCard(
                 title: "Воркер",
@@ -986,7 +556,7 @@ struct ContentView: View {
         }
     }
 
-    private var progressCard: some View {
+    var progressCard: some View {
         card("Статус загрузки") {
             VStack(alignment: .leading, spacing: 12) {
                 if model.isBusy {
@@ -1035,7 +605,7 @@ struct ContentView: View {
         }
     }
 
-    private var destinationCard: some View {
+    var destinationCard: some View {
         card("Папка сохранения") {
             VStack(alignment: .leading, spacing: 12) {
                 horizontalMonospaceField(model.saveDirectory.path, fontSize: 13)
@@ -1053,7 +623,7 @@ struct ContentView: View {
         }
     }
 
-    private var profileCard: some View {
+    var profileCard: some View {
         card("Ссылка на профиль") {
             VStack(alignment: .leading, spacing: 12) {
                 TextField("https://www.instagram.com/username/", text: $model.profileURL)
@@ -1071,7 +641,7 @@ struct ContentView: View {
         }
     }
 
-    private var batchInputCard: some View {
+    var batchInputCard: some View {
         card("Добавить профили") {
             VStack(alignment: .leading, spacing: 12) {
                 textEditorCard(
@@ -1093,7 +663,7 @@ struct ContentView: View {
         }
     }
 
-    private var batchQueueCard: some View {
+    var batchQueueCard: some View {
         card("Очередь профилей") {
             VStack(alignment: .leading, spacing: 12) {
                 if model.batchTotalCount > 0 {
@@ -1160,7 +730,7 @@ struct ContentView: View {
         }
     }
 
-    private var batchModeCard: some View {
+    var batchModeCard: some View {
         card("Режим выгрузки") {
             VStack(alignment: .leading, spacing: 12) {
                 downloadModePicker
@@ -1173,13 +743,13 @@ struct ContentView: View {
         }
     }
 
-    private var mediaFilterCard: some View {
+    var mediaFilterCard: some View {
         card("Что сохранять") {
             mediaSelectionPicker
         }
     }
 
-    private var activityHeader: some View {
+    var activityHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
                 Text("Активность")
@@ -1211,7 +781,7 @@ struct ContentView: View {
         }
     }
 
-    private var downloadsCard: some View {
+    var downloadsCard: some View {
         card("Последние загрузки", padding: 0) {
             Group {
                 if model.downloadedItems.isEmpty {
@@ -1261,7 +831,7 @@ struct ContentView: View {
         }
     }
 
-    private func logsCard(maxHeight: CGFloat? = nil) -> some View {
+    func logsCard(maxHeight: CGFloat? = nil) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 Text("Логи")
@@ -1305,7 +875,7 @@ struct ContentView: View {
         .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous))
     }
 
-    private var runtimeCard: some View {
+    var runtimeCard: some View {
         card("Среда") {
             VStack(alignment: .leading, spacing: 12) {
                 horizontalMonospaceField(
@@ -1320,7 +890,7 @@ struct ContentView: View {
         }
     }
 
-    private var updatesCard: some View {
+    var updatesCard: some View {
         card("Обновления") {
             VStack(alignment: .leading, spacing: 12) {
                 statusInlineNote(
@@ -1336,7 +906,7 @@ struct ContentView: View {
         }
     }
 
-    private var sessionCard: some View {
+    var sessionCard: some View {
         card("Воркер и сессия") {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Если среда ещё не подготовлена, установи движок прямо отсюда. После этого можно открыть браузер для входа и проверить сессию.")
@@ -1381,7 +951,7 @@ struct ContentView: View {
         }
     }
 
-    private var downloadModePicker: some View {
+    var downloadModePicker: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Режим выгрузки")
                 .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -1402,7 +972,7 @@ struct ContentView: View {
         }
     }
 
-    private var mediaSelectionPicker: some View {
+    var mediaSelectionPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Что сохранять")
                 .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -1423,7 +993,7 @@ struct ContentView: View {
         }
     }
 
-    private func statusCard(title: String, message: String, accent: Color) -> some View {
+    func statusCard(title: String, message: String, accent: Color) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Circle()
@@ -1457,7 +1027,7 @@ struct ContentView: View {
         )
     }
 
-    private var liveStatusBadge: some View {
+    var liveStatusBadge: some View {
         HStack(spacing: 10) {
             liveIndicatorDot(size: 12)
 
@@ -1487,7 +1057,7 @@ struct ContentView: View {
         )
     }
 
-    private var stepTracker: some View {
+    var stepTracker: some View {
         HStack(spacing: 10) {
             ZStack {
                 Circle()
@@ -1539,13 +1109,13 @@ struct ContentView: View {
         )
     }
 
-    private func animatedBusyStepLabel(at date: Date) -> String {
+    func animatedBusyStepLabel(at date: Date) -> String {
         let base = model.currentStepLabel.isEmpty ? "Идёт подготовка выгрузки" : model.currentStepLabel
         let phase = Int(date.timeIntervalSinceReferenceDate / 0.6) % 4
         return base + String(repeating: ".", count: phase)
     }
 
-    private func busyStepActivityIndicator(at date: Date) -> some View {
+    func busyStepActivityIndicator(at date: Date) -> some View {
         let phase = Int(date.timeIntervalSinceReferenceDate / 0.24) % 3
 
         return HStack(spacing: 6) {
@@ -1565,7 +1135,7 @@ struct ContentView: View {
         )
     }
 
-    private func liveIndicatorDot(size: CGFloat) -> some View {
+    func liveIndicatorDot(size: CGFloat) -> some View {
         TimelineView(.periodic(from: .now, by: 0.05)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
             let phase = (sin(t * 4.8) + 1) / 2
@@ -1598,7 +1168,7 @@ struct ContentView: View {
         }
     }
 
-    private func statPill(title: String, value: Int, accent: Color) -> some View {
+    func statPill(title: String, value: Int, accent: Color) -> some View {
         HStack(spacing: 10) {
             Circle()
                 .fill(accent)
@@ -1623,7 +1193,7 @@ struct ContentView: View {
         )
     }
 
-    private func statusRailPill(title: String, value: String, detail: String, tint: Color) -> some View {
+    func statusRailPill(title: String, value: String, detail: String, tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -1656,7 +1226,7 @@ struct ContentView: View {
         )
     }
 
-    private func queueSummaryPill(title: String, value: String, tint: Color) -> some View {
+    func queueSummaryPill(title: String, value: String, tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.system(size: 10, weight: .bold, design: .rounded))
@@ -1674,7 +1244,7 @@ struct ContentView: View {
         )
     }
 
-    private func card<Content: View>(_ title: String, padding: CGFloat = 18, @ViewBuilder content: () -> Content) -> some View {
+    func card<Content: View>(_ title: String, padding: CGFloat = 18, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
                 .font(.system(size: 13, weight: .bold, design: .rounded))
@@ -1696,7 +1266,7 @@ struct ContentView: View {
         .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous))
     }
 
-    private func button(
+    func button(
         _ title: String,
         systemImage: String,
         prominent: Bool = false,
@@ -1718,7 +1288,7 @@ struct ContentView: View {
         .disabled(!allowWhileBusy && model.isBusy)
     }
 
-    private func horizontalMonospaceField(_ text: String, fontSize: CGFloat) -> some View {
+    func horizontalMonospaceField(_ text: String, fontSize: CGFloat) -> some View {
         ScrollView(.horizontal, showsIndicators: true) {
             Text(text)
                 .font(.system(size: fontSize, weight: .medium, design: .monospaced))
@@ -1730,7 +1300,7 @@ struct ContentView: View {
         .background(fieldBackground)
     }
 
-    private func textEditorCard(text: Binding<String>, placeholder: String) -> some View {
+    func textEditorCard(text: Binding<String>, placeholder: String) -> some View {
         ZStack(alignment: .topLeading) {
             TextEditor(text: text)
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
@@ -1751,7 +1321,7 @@ struct ContentView: View {
         .background(fieldBackground)
     }
 
-    private func batchQueueItem(_ item: AppModel.BatchProfileItem) -> some View {
+    func batchQueueItem(_ item: AppModel.BatchProfileItem) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Circle()
                 .fill(statusColor(for: item.status))
@@ -1805,7 +1375,7 @@ struct ContentView: View {
         )
     }
 
-    private func statusColor(for status: AppModel.BatchProfileItem.Status) -> Color {
+    func statusColor(for status: AppModel.BatchProfileItem.Status) -> Color {
         switch status {
         case .pending:
             return Color.orange.opacity(0.80)
@@ -1820,7 +1390,7 @@ struct ContentView: View {
         }
     }
 
-    private func placeholderBullet(_ text: String) -> some View {
+    func placeholderBullet(_ text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Circle()
                 .fill(prominentButtonTint.opacity(0.82))
@@ -1834,7 +1404,7 @@ struct ContentView: View {
         }
     }
 
-    private func statusInlineNote(title: String, message: String) -> some View {
+    func statusInlineNote(title: String, message: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.system(size: 12, weight: .bold, design: .rounded))
@@ -1854,12 +1424,12 @@ struct ContentView: View {
         )
     }
 
-    private var fieldBackground: some View {
+    var fieldBackground: some View {
         RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
             .fill(inputFill)
     }
 
-    private var cardBackground: some View {
+    var cardBackground: some View {
         ZStack {
             RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
                 .fill(.ultraThinMaterial)
@@ -1868,7 +1438,7 @@ struct ContentView: View {
         }
     }
 
-    private var sidebarBackground: some View {
+    var sidebarBackground: some View {
         ZStack {
             Rectangle()
                 .fill(.thinMaterial)
@@ -1877,7 +1447,7 @@ struct ContentView: View {
         }
     }
 
-    private var windowBackground: some View {
+    var windowBackground: some View {
         ZStack {
             LinearGradient(
                 colors: backgroundGradient,
@@ -1912,7 +1482,7 @@ private struct ConfettiOverlayView: View {
         let color: Color
     }
 
-    @State private var animate = false
+    @State var animate = false
 
     private let particles: [Particle] = (0..<34).map { index in
         let palette: [Color] = [

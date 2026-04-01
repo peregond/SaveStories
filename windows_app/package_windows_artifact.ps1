@@ -7,7 +7,7 @@ $zipPath = Join-Path $distRoot "SaveStories-Windows.zip"
 $shaPath = Join-Path $distRoot "SaveStories-Windows.sha256"
 $exePath = Join-Path $appDir "SaveStories-Windows.exe"
 $versionFile = Join-Path $root "VERSION"
-$version = if (Test-Path $versionFile) { (Get-Content $versionFile -Raw).Trim() } else { "0.4.26" }
+$version = if (Test-Path $versionFile) { (Get-Content $versionFile -Raw).Trim() } else { "0.4.27" }
 $setupPath = Join-Path $distRoot "SaveStories-Windows-Setup-v$version.exe"
 $setupShaPath = Join-Path $distRoot "SaveStories-Windows-Setup-v$version.sha256"
 
