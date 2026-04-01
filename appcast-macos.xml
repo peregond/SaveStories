@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveStories Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.28</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.29</link>
     <description>Release feed for SaveStories macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveStories 0.4.28</title>
-      <pubDate>Wed, 01 Apr 2026 18:58:40 GMT</pubDate>
-      <sparkle:version>55</sparkle:version>
-      <sparkle:shortVersionString>0.4.28</sparkle:shortVersionString>
-      <description><![CDATA[## SaveStories 0.4.28
+      <title>SaveStories 0.4.29</title>
+      <pubDate>Wed, 01 Apr 2026 20:00:42 GMT</pubDate>
+      <sparkle:version>56</sparkle:version>
+      <sparkle:shortVersionString>0.4.29</sparkle:shortVersionString>
+      <description><![CDATA[## SaveStories 0.4.29
 
-### Изменения с 0.4.20 по 0.4.28
+### Изменения с 0.4.20 по 0.4.29
 
 #### 0.4.20
 
@@ -60,13 +60,17 @@
 - В Windows `Главная` снова собрана в две колонки, без отдельной третьей панели `Активность`, чтобы совпадать с macOS.
 - Для Windows и Node добавлены первые unit-тесты, а `main.py` дополнительно разрезан по runtime/request flow.
 - В smoke CI добавлены Node tests, Windows Python tests и проверка согласованности версии между релизными файлами.
+
+#### 0.4.29
+
+- Исправлен hotfix для Node worker: выгрузка stories больше не падает с `ReferenceError: mediaVariantTag is not defined` на профилях с видео-story.
 ]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.4.28/SaveStories-macOS-v0.4.28.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.4.29/SaveStories-macOS-v0.4.29.dmg"
         sparkle:os="macos"
-        length="220335632"
+        length="220312612"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="pHanGsCtRND8Pdxjqum3gAQD7zIE4lJA+YmFGPFYYWpK9e1C73TI6lbRefEhYC0OgVSeVS0wS6l5ObPI9sdDAw==" />
+        sparkle:edSignature="efDWpCmLh2xKkzA0jFKBvU3tdBt2nkR3PCQNy1gzZjeJF1xOzrnZFV2j8QN3WXrHq7K7l40/VgGMRUz1Z7mLDQ==" />
     </item>
   </channel>
 </rss>
