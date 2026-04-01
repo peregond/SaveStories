@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveStories Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.29</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.31</link>
     <description>Release feed for SaveStories macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveStories 0.4.29</title>
-      <pubDate>Wed, 01 Apr 2026 20:00:42 GMT</pubDate>
-      <sparkle:version>56</sparkle:version>
-      <sparkle:shortVersionString>0.4.29</sparkle:shortVersionString>
-      <description><![CDATA[## SaveStories 0.4.29
+      <title>SaveStories 0.4.31</title>
+      <pubDate>Wed, 01 Apr 2026 20:10:52 GMT</pubDate>
+      <sparkle:version>58</sparkle:version>
+      <sparkle:shortVersionString>0.4.31</sparkle:shortVersionString>
+      <description><![CDATA[## SaveStories 0.4.31
 
-### Изменения с 0.4.20 по 0.4.29
+### Изменения с 0.4.20 по 0.4.31
 
 #### 0.4.20
 
@@ -64,13 +64,21 @@
 #### 0.4.29
 
 - Исправлен hotfix для Node worker: выгрузка stories больше не падает с `ReferenceError: mediaVariantTag is not defined` на профилях с видео-story.
+
+#### 0.4.30
+
+- Исправлен ещё один hotfix в Node worker: после выноса media-утилит восстановлен импорт `isAudioOnlyVariant`, чтобы избежать второго скрытого runtime-падения на видео-variants.
+
+#### 0.4.31
+
+- Усилена упаковка release-артефактов для скачивания: Windows portable теперь собирается ещё и в `.7z` с `LZMA2`, а macOS `dmg` переводится на более плотное сжатие.
 ]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.4.29/SaveStories-macOS-v0.4.29.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.4.31/SaveStories-macOS-v0.4.31.dmg"
         sparkle:os="macos"
-        length="220312612"
+        length="186883343"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="efDWpCmLh2xKkzA0jFKBvU3tdBt2nkR3PCQNy1gzZjeJF1xOzrnZFV2j8QN3WXrHq7K7l40/VgGMRUz1Z7mLDQ==" />
+        sparkle:edSignature="84dhSCx9GGJFLMVQpI2aLbguoV/u7hMmyd+26rEJFysFRXeAWD2De+4F4g7NNw2lNzD4qywqeOdrm0lv+K9RBw==" />
     </item>
   </channel>
 </rss>
