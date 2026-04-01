@@ -4,7 +4,7 @@
 
 Текущее состояние репозитория:
 
-- версия исходников: `0.4.30`
+- версия исходников: `0.4.31`
 - платформы: `macOS` и `Windows`
 - общий runtime: `Node 24 LTS + Playwright + Chromium`
 
@@ -142,6 +142,7 @@ Workflow:
 Что публикуется в релиз:
 
 - `SaveStories-macOS-vX.Y.Z.dmg`
+- `SaveStories-Windows-vX.Y.Z.7z`
 - `SaveStories-Windows-vX.Y.Z.zip`
 - `SaveStories-Windows-Setup-vX.Y.Z.exe`
 - `appcast-macos.xml` в ветку `update-feed`
@@ -156,11 +157,11 @@ Workflow:
 
 ```bash
 git add .
-git commit -m "Prepare v0.4.30 release"
+git commit -m "Prepare v0.4.31 release"
 git pull --rebase origin main
 git push origin main
-git tag v0.4.30
-git push origin v0.4.30
+git tag v0.4.31
+git push origin v0.4.31
 ```
 
 После этого GitHub Actions:
@@ -205,8 +206,8 @@ git push origin v0.4.30
 export APPLE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
 export APPLE_NOTARY_PROFILE="savestories-notary"
 export SAVESTORIES_BUNDLE_ID="com.example.savestories"
-export SAVESTORIES_VERSION="0.4.30"
-export SAVESTORIES_BUILD="70"
+export SAVESTORIES_VERSION="0.4.31"
+export SAVESTORIES_BUILD="71"
 ./scripts/build_release_dmg.sh
 ```
 

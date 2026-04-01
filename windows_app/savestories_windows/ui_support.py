@@ -63,7 +63,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.4.30"
+    return "0.4.31"
 
 
 class WorkerTask(QtCore.QThread):

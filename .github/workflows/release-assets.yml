@@ -115,17 +115,23 @@ jobs:
       - name: Pack Windows release asset
         shell: pwsh
         run: |
-          $archive = "dist/windows/SaveStories-Windows-$env:RELEASE_TAG.zip"
-          if (Test-Path $archive) {
-              Remove-Item $archive -Force
+          $archive7z = "dist/windows/SaveStories-Windows-$env:RELEASE_TAG.7z"
+          $archiveZip = "dist/windows/SaveStories-Windows-$env:RELEASE_TAG.zip"
+          if (Test-Path $archive7z) {
+              Remove-Item $archive7z -Force
           }
-          Compress-Archive -Path "dist/windows/SaveStories-Windows" -DestinationPath $archive
+          if (Test-Path $archiveZip) {
+              Remove-Item $archiveZip -Force
+          }
+          7z a -t7z -mx=9 -m0=lzma2 -mmt=on $archive7z ".\dist\windows\SaveStories-Windows\*" | Out-Null
+          Compress-Archive -Path "dist/windows/SaveStories-Windows" -DestinationPath $archiveZip
 
       - name: Upload Windows asset to release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          gh release upload $env:RELEASE_TAG "dist/windows/SaveStories-Windows-$env:RELEASE_TAG.7z" --clobber
           gh release upload $env:RELEASE_TAG "dist/windows/SaveStories-Windows-$env:RELEASE_TAG.zip" --clobber
           $setup = Get-ChildItem -Path "dist/windows" -Filter "SaveStories-Windows-Setup-*.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           if (-not $setup) {

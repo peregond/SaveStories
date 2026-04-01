@@ -97,7 +97,7 @@ if [ -n "$DEVICE" ]; then
 else
   hdiutil detach "$MOUNT_POINT" -force >/dev/null
 fi
-hdiutil convert "$RW_DMG_PATH" -format UDZO -o "$TEMP_DMG_PATH" >/dev/null
+hdiutil convert "$RW_DMG_PATH" -format UDBZ -o "$TEMP_DMG_PATH" >/dev/null
 rm -f "$RW_DMG_PATH"
 mv -f "$TEMP_DMG_PATH" "$DMG_PATH"
 
