@@ -5,6 +5,7 @@ import {
   extractUsername,
   isAudioOnlyVariant,
   isStoryMediaUrl,
+  mediaVariantTag,
   mediaVariantScore,
   normalizeMediaUrl,
   sanitizeFilename,
@@ -44,6 +45,7 @@ test("variant helpers detect audio-only and clips variants", () => {
   const storyUrl = `https://video.cdninstagram.com/story.mp4?efg=${storyTag}`;
 
   assert.equal(isAudioOnlyVariant(audioUrl), true);
+  assert.equal(mediaVariantTag(storyUrl), "iphone_xpv_story");
   assert.equal(shouldSkipMediaVariant(audioUrl), true);
   assert.equal(shouldSkipMediaVariant(clipsUrl), true);
   assert.equal(shouldSkipMediaVariant(storyUrl), false);

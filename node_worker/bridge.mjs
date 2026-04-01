@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import {
   extractUsername,
   isStoryMediaUrl,
+  mediaVariantTag,
   mediaVariantScore,
   normalizeMediaUrl,
   sanitizeFilename,

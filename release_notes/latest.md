@@ -1,6 +1,6 @@
-## SaveStories 0.4.28
+## SaveStories 0.4.29
 
-### Изменения с 0.4.20 по 0.4.28
+### Изменения с 0.4.20 по 0.4.29
 
 #### 0.4.20
 
@@ -48,3 +48,7 @@
 - В Windows `Главная` снова собрана в две колонки, без отдельной третьей панели `Активность`, чтобы совпадать с macOS.
 - Для Windows и Node добавлены первые unit-тесты, а `main.py` дополнительно разрезан по runtime/request flow.
 - В smoke CI добавлены Node tests, Windows Python tests и проверка согласованности версии между релизными файлами.
+
+#### 0.4.29
+
+- Исправлен hotfix для Node worker: выгрузка stories больше не падает с `ReferenceError: mediaVariantTag is not defined` на профилях с видео-story.

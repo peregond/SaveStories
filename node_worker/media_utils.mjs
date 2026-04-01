@@ -113,6 +113,7 @@ export {
   extractUsername,
   isAudioOnlyVariant,
   isStoryMediaUrl,
+  mediaVariantTag,
   mediaVariantScore,
   normalizeMediaUrl,
   sanitizeFilename,
