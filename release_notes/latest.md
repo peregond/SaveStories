@@ -1,6 +1,6 @@
-## SaveStories 0.4.29
+## SaveStories 0.4.30
 
-### Изменения с 0.4.20 по 0.4.29
+### Изменения с 0.4.20 по 0.4.30
 
 #### 0.4.20
 
@@ -52,3 +52,7 @@
 #### 0.4.29
 
 - Исправлен hotfix для Node worker: выгрузка stories больше не падает с `ReferenceError: mediaVariantTag is not defined` на профилях с видео-story.
+
+#### 0.4.30
+
+- Исправлен ещё один hotfix в Node worker: после выноса media-утилит восстановлен импорт `isAudioOnlyVariant`, чтобы избежать второго скрытого runtime-падения на видео-variants.

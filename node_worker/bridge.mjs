@@ -8,6 +8,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import {
   extractUsername,
+  isAudioOnlyVariant,
   isStoryMediaUrl,
   mediaVariantTag,
   mediaVariantScore,
