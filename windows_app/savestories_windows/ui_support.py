@@ -13,6 +13,12 @@ from typing import Callable
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from .app_paths import AppPaths
+from .common_utils import (
+    batch_status_title,
+    normalize_profile_link,
+    parse_batch_links,
+    suggested_recent_list_title,
+)
 from .models import WorkerRequest, WorkerResponse
 from .updater import ReleaseInfo, WindowsUpdater
 from .worker_client import WorkerClient
@@ -57,47 +63,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.4.27"
-
-
-def normalize_profile_link(raw: str) -> str:
-    trimmed = raw.strip()
-    if not trimmed:
-        return trimmed
-    if "instagram.com" in trimmed:
-        return trimmed
-    username = trimmed.strip("@/ ")
-    return f"https://www.instagram.com/{username}/"
-
-
-def parse_batch_links(raw: str) -> list[str]:
-    links: list[str] = []
-    for line in raw.splitlines():
-        for part in line.split(","):
-            value = part.strip()
-            if value:
-                links.append(normalize_profile_link(value))
-    return links
-
-
-def batch_status_title(value: str) -> str:
-    mapping = {
-        "pending": "В очереди",
-        "running": "Скачивается",
-        "completed": "Готово",
-        "failed": "Ошибка",
-        "stopped": "Остановлено",
-    }
-    return mapping.get(value, value)
-
-
-def suggested_recent_list_title(urls: list[str]) -> str:
-    if not urls:
-        return "Недавний список"
-    first = normalize_profile_link(urls[0]).rstrip("/").split("/")[-1] or "profiles"
-    if len(urls) == 1:
-        return first
-    return f"{first} +{len(urls) - 1}"
+    return "0.4.28"
 
 
 class WorkerTask(QtCore.QThread):

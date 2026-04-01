@@ -26,9 +26,7 @@ class MainWindowLayoutMixin:
         self.stack.addWidget(self._wrap_scroll_area(self._build_home_two_page()))
         self.stack.addWidget(self._wrap_scroll_area(self._build_batch_page()))
         self.stack.addWidget(self._wrap_scroll_area(self._build_reels_page()))
-        content_layout.addWidget(self.stack, 3)
-
-        content_layout.addWidget(self._wrap_scroll_area(self._build_activity_panel()), 2)
+        content_layout.addWidget(self.stack, 1)
 
         self.settings_dialog = SettingsDialog(self)
         self.settings_dialog.refresh_requested.connect(self.refresh_environment)
@@ -365,6 +363,7 @@ class MainWindowLayoutMixin:
     def _home2_recent_lists_card(self) -> QtWidgets.QWidget:
         card = QtWidgets.QGroupBox("Недавнее")
         layout = QtWidgets.QVBoxLayout(card)
+        layout.setSpacing(8)
         self.home2_recent_lists_container = QtWidgets.QVBoxLayout()
         self.home2_recent_lists_container.setSpacing(10)
         layout.addLayout(self.home2_recent_lists_container)
@@ -375,14 +374,29 @@ class MainWindowLayoutMixin:
         return card
 
     def _home2_compact_activity_card(self) -> QtWidgets.QWidget:
-        card = QtWidgets.QGroupBox("Логи и активность")
+        card = QtWidgets.QGroupBox("Журнал")
         layout = QtWidgets.QVBoxLayout(card)
+        layout.setSpacing(10)
+
+        self.status_title_label = QtWidgets.QLabel("Ожидание")
+        self.status_detail_label = QtWidgets.QLabel("Приложение готово к работе.")
+        self.found_label = QtWidgets.QLabel("Найдено: 0")
+        self.saved_label = QtWidgets.QLabel("Сохранено: 0")
+
+        self.downloads_list = QtWidgets.QListWidget()
+        self.downloads_list.itemDoubleClicked.connect(self.open_download_item)
+        self.downloads_list.setMinimumHeight(120)
+        layout.addWidget(self._group("Последние загрузки", self.downloads_list))
+
         self.home2_logs_text = QtWidgets.QPlainTextEdit()
         self.home2_logs_text.setReadOnly(True)
-        self.home2_logs_text.setFixedHeight(150)
+        self.home2_logs_text.setFixedHeight(120)
+        self.logs_text = self.home2_logs_text
         layout.addWidget(self._group("Логи", self.home2_logs_text))
+
         self.home2_last_result = QtWidgets.QLabel("Пока нет действий.")
         self.home2_last_result.setWordWrap(True)
+        self.activity_subtitle = self.home2_last_result
         self.home2_session_summary = QtWidgets.QLabel("Состояние сессии неизвестно.")
         self.home2_session_summary.setWordWrap(True)
         self.home2_worker_summary = QtWidgets.QLabel("Воркер ещё не проверялся.")
