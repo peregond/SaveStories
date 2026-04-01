@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveStories Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.27</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.28</link>
     <description>Release feed for SaveStories macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveStories 0.4.27</title>
-      <pubDate>Wed, 01 Apr 2026 18:28:02 GMT</pubDate>
-      <sparkle:version>54</sparkle:version>
-      <sparkle:shortVersionString>0.4.27</sparkle:shortVersionString>
-      <description><![CDATA[## SaveStories 0.4.27
+      <title>SaveStories 0.4.28</title>
+      <pubDate>Wed, 01 Apr 2026 18:58:40 GMT</pubDate>
+      <sparkle:version>55</sparkle:version>
+      <sparkle:shortVersionString>0.4.28</sparkle:shortVersionString>
+      <description><![CDATA[## SaveStories 0.4.28
 
-### Изменения с 0.4.20 по 0.4.27
+### Изменения с 0.4.20 по 0.4.28
 
 #### 0.4.20
 
@@ -54,13 +54,19 @@
 - Вынесены отдельные слои для `batch`, `update` и `runtime/session` логики на macOS и Windows, чтобы дальнейшие изменения было проще сопровождать и проверять.
 - Добавлен smoke CI для `swift build`, `swift test`, Node syntax-check и компиляции Windows Python-кода.
 - Добавлены первые Swift-тесты для `batch`, `runtime` и `AppPaths`, чтобы закрепить критичную логику перед следующими релизами.
+
+#### 0.4.28
+
+- В Windows `Главная` снова собрана в две колонки, без отдельной третьей панели `Активность`, чтобы совпадать с macOS.
+- Для Windows и Node добавлены первые unit-тесты, а `main.py` дополнительно разрезан по runtime/request flow.
+- В smoke CI добавлены Node tests, Windows Python tests и проверка согласованности версии между релизными файлами.
 ]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.4.27/SaveStories-macOS-v0.4.27.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.4.28/SaveStories-macOS-v0.4.28.dmg"
         sparkle:os="macos"
-        length="220308650"
+        length="220335632"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="xX9sdJ8O/3C34VCym+7TIWZgVPduiSWyV+xO23Ytlpu2j/hLwR2t19x39zK7gJazxUyy3rJ+ZVaJBotYh8zjBg==" />
+        sparkle:edSignature="pHanGsCtRND8Pdxjqum3gAQD7zIE4lJA+YmFGPFYYWpK9e1C73TI6lbRefEhYC0OgVSeVS0wS6l5ObPI9sdDAw==" />
     </item>
   </channel>
 </rss>
