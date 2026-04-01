@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveStories Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.26</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.4.27</link>
     <description>Release feed for SaveStories macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveStories 0.4.26</title>
-      <pubDate>Thu, 26 Mar 2026 10:05:07 GMT</pubDate>
-      <sparkle:version>53</sparkle:version>
-      <sparkle:shortVersionString>0.4.26</sparkle:shortVersionString>
-      <description><![CDATA[## SaveStories 0.4.26
+      <title>SaveStories 0.4.27</title>
+      <pubDate>Wed, 01 Apr 2026 18:28:02 GMT</pubDate>
+      <sparkle:version>54</sparkle:version>
+      <sparkle:shortVersionString>0.4.27</sparkle:shortVersionString>
+      <description><![CDATA[## SaveStories 0.4.27
 
-### Изменения с 0.4.20 по 0.4.26
+### Изменения с 0.4.20 по 0.4.27
 
 #### 0.4.20
 
@@ -48,13 +48,19 @@
 - В правой колонке Windows добавлен блок `Недавнее` с режимом просмотра только последнего набора и кнопкой `Ещё` для раскрытия остальных.
 - В `Главной` Windows добавлен встроенный блок логов и синхронизация live-лога прямо на экране запуска.
 - Для Windows-апдейтера улучшен выбор release-установщика: поддерживаются варианты имён с/без `v`, добавлен fallback на `SaveStories-Windows-Setup-*.exe` и более подробные диагностические сообщения.
+
+#### 0.4.27
+
+- Вынесены отдельные слои для `batch`, `update` и `runtime/session` логики на macOS и Windows, чтобы дальнейшие изменения было проще сопровождать и проверять.
+- Добавлен smoke CI для `swift build`, `swift test`, Node syntax-check и компиляции Windows Python-кода.
+- Добавлены первые Swift-тесты для `batch`, `runtime` и `AppPaths`, чтобы закрепить критичную логику перед следующими релизами.
 ]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.4.26/SaveStories-macOS-v0.4.26.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.4.27/SaveStories-macOS-v0.4.27.dmg"
         sparkle:os="macos"
-        length="220295533"
+        length="220308650"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="TjlFrT6uYkOQXnZqv/BT+d34PEwsPfSJXnmNzlXmQ3Pe6oCuPo6Anw9+f0d42YPqpygmOfNOn0cnsw49zZH+BQ==" />
+        sparkle:edSignature="xX9sdJ8O/3C34VCym+7TIWZgVPduiSWyV+xO23Ytlpu2j/hLwR2t19x39zK7gJazxUyy3rJ+ZVaJBotYh8zjBg==" />
     </item>
   </channel>
 </rss>
