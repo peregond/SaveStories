@@ -33,16 +33,16 @@
 
 Основной worker:
 
-- [node_worker/bridge.mjs](/Users/peregon/Documents/DimaSave/node_worker/bridge.mjs)
+- [node_worker/bridge.mjs](/Users/peregon/Documents/SaveStories/node_worker/bridge.mjs)
 
 ## Структура проекта
 
-- [Sources](/Users/peregon/Documents/DimaSave/Sources) — исходники macOS-приложения
-- [windows_app](/Users/peregon/Documents/DimaSave/windows_app) — Windows-клиент и сборочные скрипты
-- [scripts](/Users/peregon/Documents/DimaSave/scripts) — сборка и упаковка macOS
-- [packaging](/Users/peregon/Documents/DimaSave/packaging) — иконки, plist, DMG background и упаковочные утилиты
-- [.github/workflows](/Users/peregon/Documents/DimaSave/.github/workflows) — GitHub Actions
-- [VERSION](/Users/peregon/Documents/DimaSave/VERSION) — единый номер версии проекта
+- [Sources](/Users/peregon/Documents/SaveStories/Sources) — исходники macOS-приложения
+- [windows_app](/Users/peregon/Documents/SaveStories/windows_app) — Windows-клиент и сборочные скрипты
+- [scripts](/Users/peregon/Documents/SaveStories/scripts) — сборка и упаковка macOS
+- [packaging](/Users/peregon/Documents/SaveStories/packaging) — иконки, plist, DMG background и упаковочные утилиты
+- [.github/workflows](/Users/peregon/Documents/SaveStories/.github/workflows) — GitHub Actions
+- [VERSION](/Users/peregon/Documents/SaveStories/VERSION) — единый номер версии проекта
 
 ## Главная
 
@@ -94,7 +94,7 @@ swift run SaveStories
 
 Windows-версия лежит в:
 
-- [windows_app](/Users/peregon/Documents/DimaSave/windows_app)
+- [windows_app](/Users/peregon/Documents/SaveStories/windows_app)
 
 Она использует тот же общий worker и поддерживает:
 
@@ -129,7 +129,7 @@ dist/windows/SaveStories-Windows-Setup-vX.Y.Z.exe
 
 Подробнее:
 
-- [windows_app/README.md](/Users/peregon/Documents/DimaSave/windows_app/README.md)
+- [windows_app/README.md](/Users/peregon/Documents/SaveStories/windows_app/README.md)
 
 ## GitHub Releases
 
@@ -137,7 +137,7 @@ dist/windows/SaveStories-Windows-Setup-vX.Y.Z.exe
 
 Workflow:
 
-- [release-assets.yml](/Users/peregon/Documents/DimaSave/.github/workflows/release-assets.yml)
+- [release-assets.yml](/Users/peregon/Documents/SaveStories/.github/workflows/release-assets.yml)
 
 Что публикуется в релиз:
 
@@ -242,6 +242,6 @@ dist/release/SaveStories.dmg
 
 ## Дополнительно
 
-- Windows README: [windows_app/README.md](/Users/peregon/Documents/DimaSave/windows_app/README.md)
-- Release workflow: [.github/workflows/release-assets.yml](/Users/peregon/Documents/DimaSave/.github/workflows/release-assets.yml)
-- Windows EXE workflow: [.github/workflows/windows-exe.yml](/Users/peregon/Documents/DimaSave/.github/workflows/windows-exe.yml)
+- Windows README: [windows_app/README.md](/Users/peregon/Documents/SaveStories/windows_app/README.md)
+- Release workflow: [.github/workflows/release-assets.yml](/Users/peregon/Documents/SaveStories/.github/workflows/release-assets.yml)
+- Windows EXE workflow: [.github/workflows/windows-exe.yml](/Users/peregon/Documents/SaveStories/.github/workflows/windows-exe.yml)
