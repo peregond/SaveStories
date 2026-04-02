@@ -1,0 +1,39 @@
+<svg width="1440" height="1080" viewBox="0 0 1440 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1440" height="1080" fill="#F6F1E8"/>
+  <rect x="46" y="38" width="1348" height="1000" rx="34" fill="#FCF8F1" stroke="#171717" stroke-width="6"/>
+  <rect x="72" y="74" width="250" height="928" rx="28" fill="#EEE4D5" stroke="#171717" stroke-width="5"/>
+  <line x1="360.5" y1="50" x2="360.5" y2="1014" stroke="#171717" stroke-width="5"/>
+
+  <text x="142" y="540" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="64" font-weight="600" fill="#171717">меню</text>
+
+  <text x="410" y="112" font-family="Helvetica, Arial, sans-serif" font-size="68" font-weight="700" fill="#171717">Главная</text>
+  <text x="1206" y="112" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="48" font-weight="600" fill="#171717">version</text>
+  <line x1="412" y1="140" x2="600" y2="140" stroke="#171717" stroke-width="7" stroke-linecap="round"/>
+  <line x1="412" y1="182" x2="760" y2="182" stroke="#171717" stroke-width="5" stroke-linecap="round"/>
+  <line x1="412" y1="220" x2="742" y2="220" stroke="#171717" stroke-width="5" stroke-linecap="round"/>
+
+  <rect x="408" y="266" width="362" height="158" rx="24" fill="#FFFFFF" stroke="#171717" stroke-width="5"/>
+  <rect x="822" y="266" width="362" height="158" rx="24" fill="#FFFFFF" stroke="#171717" stroke-width="5"/>
+  <text x="589" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="52" font-weight="500" fill="#171717">status</text>
+  <text x="1003" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="52" font-weight="500" fill="#171717">result</text>
+
+  <rect x="408" y="468" width="396" height="300" rx="28" fill="#FFFFFF" stroke="#171717" stroke-width="5"/>
+  <text x="606" y="632" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="56" font-weight="500" fill="#171717">fast start</text>
+
+  <rect x="844" y="468" width="340" height="300" rx="28" fill="#FFFFFF" stroke="#171717" stroke-width="5"/>
+  <text x="1014" y="532" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="36" font-weight="600" fill="#171717">недавние</text>
+  <text x="1014" y="574" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="36" font-weight="600" fill="#171717">наборы</text>
+  <rect x="904" y="620" width="228" height="96" rx="18" fill="#E8DED0" stroke="#171717" stroke-width="4"/>
+  <rect x="896" y="612" width="236" height="100" rx="18" fill="#EFE7DB" stroke="#171717" stroke-width="4"/>
+  <rect x="888" y="604" width="244" height="104" rx="18" fill="#F6F1E8" stroke="#171717" stroke-width="5"/>
+  <line x1="924" y1="634" x2="1002" y2="634" stroke="#171717" stroke-width="6" stroke-linecap="round"/>
+  <line x1="924" y1="664" x2="1094" y2="664" stroke="#171717" stroke-width="6" stroke-linecap="round"/>
+  <line x1="924" y1="694" x2="1060" y2="694" stroke="#171717" stroke-width="6" stroke-linecap="round"/>
+  <rect x="962" y="724" width="106" height="34" rx="17" fill="#171717"/>
+  <text x="1015" y="748" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" font-weight="700" fill="#FCF8F1">ещё</text>
+
+  <rect x="408" y="814" width="396" height="176" rx="28" fill="#FFFFFF" stroke="#171717" stroke-width="5"/>
+  <rect x="844" y="814" width="340" height="176" rx="28" fill="#FFFFFF" stroke="#171717" stroke-width="5"/>
+  <text x="606" y="918" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="56" font-weight="500" fill="#171717">очередь</text>
+  <text x="1014" y="918" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="56" font-weight="500" fill="#171717">logs</text>
+</svg>
