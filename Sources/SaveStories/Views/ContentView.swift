@@ -3,10 +3,11 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.colorScheme) var colorScheme
-    @State var showingSettings = false
     @State var selectedSection: AppSection = .main
     @State var showingConfetti = false
     @State var showingAllRecentLists = false
+    @State var showingRuntimeDetails = false
+    @State var showingLogsCopiedFeedback = false
 
     var isDark: Bool { colorScheme == .dark }
 
@@ -68,6 +69,49 @@ struct ContentView: View {
         return "\(shortVersion) (\(buildVersion))"
     }
 
+    var reelsLinkCount: Int {
+        model.reelsInput
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .count
+    }
+
+    var batchProfileInputCount: Int {
+        model.batchInput
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .count
+    }
+
+    var isReelsDownloadInProgress: Bool {
+        let combined = "\(model.statusTitle) \(model.currentStepLabel)".lowercased()
+        return model.isBusy && combined.contains("reels")
+    }
+
+    var isStoriesDownloadInProgress: Bool {
+        model.batchIsRunning || (model.isBusy && !isReelsDownloadInProgress)
+    }
+
+    var selectedDownloadModeDescription: String {
+        switch model.downloadMode {
+        case .background:
+            return "Браузер скрыт, работает незаметно"
+        case .visible:
+            return "Открывается окно Chromium, можно наблюдать"
+        }
+    }
+
+    var selectedMediaSelectionDescription: String {
+        switch model.mediaSelectionMode {
+        case .all:
+            return "Скачиваются все сторис"
+        case .videoOnly:
+            return "Фото пропускаются"
+        }
+    }
+
     var body: some View {
         ZStack {
             windowBackground
@@ -109,99 +153,89 @@ struct ContentView: View {
 
 
     func homeTwoComposerCard(compact: Bool) -> some View {
-        card("Fast Start") {
+        card("Профили для скачивания") {
             VStack(alignment: .leading, spacing: 14) {
-                textEditorCard(
-                    text: $model.batchInput,
-                    placeholder: "По одной ссылке или username на строку.\nНапример:\ndian.vegas1\nhttps://www.instagram.com/stevensetu/\nleftlanepapi"
-                )
-                .frame(height: 190)
+                storiesInputEditor
 
                 if compact {
                     VStack(spacing: 10) {
-                        button("Добавить", systemImage: "plus") {
+                        ghostButton("Добавить", systemImage: "plus") {
                             model.addBatchProfiles()
                         }
 
-                        button("Запомнить", systemImage: "bookmark") {
+                        ghostButton("Запомнить", systemImage: "bookmark") {
                             model.rememberCurrentBatchList()
                         }
                         .disabled(model.batchQueue.isEmpty)
 
-                        button("Очистить", systemImage: "xmark") {
+                        ghostButton("Очистить", systemImage: "xmark") {
                             model.batchInput = ""
                         }
+                        .disabled(model.batchInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isBusy)
                     }
 
                     VStack(spacing: 10) {
-                        button("Скачать", systemImage: "play.fill", prominent: true, tint: queueActionTint) {
-                            Task { await model.runBatchDownloads() }
-                        }
-                        .disabled(model.batchQueue.isEmpty || model.isBusy)
-
-                        button("Остановить", systemImage: "stop.fill", allowWhileBusy: true) {
-                            model.stopBatchDownloads()
-                        }
-                        .disabled(!model.batchIsRunning)
+                        storiesDownloadButton
+                        storiesStopButton
                     }
                 } else {
                     HStack(spacing: 10) {
-                        button("Добавить", systemImage: "plus") {
+                        ghostButton("Добавить", systemImage: "plus") {
                             model.addBatchProfiles()
                         }
 
-                        button("Запомнить", systemImage: "bookmark") {
+                        ghostButton("Запомнить", systemImage: "bookmark") {
                             model.rememberCurrentBatchList()
                         }
                         .disabled(model.batchQueue.isEmpty)
 
-                        button("Очистить", systemImage: "xmark") {
+                        ghostButton("Очистить", systemImage: "xmark") {
                             model.batchInput = ""
                         }
+                        .disabled(model.batchInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isBusy)
                     }
 
                     HStack(spacing: 10) {
-                        button("Скачать", systemImage: "play.fill", prominent: true, tint: queueActionTint) {
-                            Task { await model.runBatchDownloads() }
-                        }
-                        .disabled(model.batchQueue.isEmpty || model.isBusy)
-
-                        button("Остановить", systemImage: "stop.fill", allowWhileBusy: true) {
-                            model.stopBatchDownloads()
-                        }
-                        .disabled(!model.batchIsRunning)
+                        storiesDownloadButton
+                        storiesStopButton
                     }
                 }
 
                 VStack(alignment: .leading, spacing: 14) {
-                    downloadModePicker
-                    mediaSelectionPicker
+                    storiesDownloadModePicker
+                    storiesMediaSelectionPicker
                 }
 
                 Group {
                     if compact {
                         VStack(alignment: .leading, spacing: 14) {
                             destinationInlineCard(compact: true)
-                            statusInlineNote(
-                                title: "Быстрый сценарий",
-                                message: "Слева вставляешь профили, справа выбираешь режим и папку, затем запускаешь очередь одной кнопкой."
-                            )
+                            Text("Вставь профили, выбери режим и папку — затем нажми «Скачать».")
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(quaternaryText)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     } else {
                         HStack(alignment: .top, spacing: 14) {
                             destinationInlineCard(compact: false)
 
-                            statusInlineNote(
-                                title: "Быстрый сценарий",
-                                message: "Слева вставляешь профили, справа выбираешь режим и папку, затем запускаешь очередь одной кнопкой."
-                            )
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            Text("Вставь профили, выбери режим и папку — затем нажми «Скачать».")
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(quaternaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(12)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                                .background(
+                                    RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
+                                        .fill(itemFill)
+                                )
                         }
                     }
                 }
 
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: model.isBusy)
     }
 
     func homeTwoQueueCard(compact: Bool) -> some View {
@@ -209,44 +243,20 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 14) {
                 if compact {
                     VStack(spacing: 10) {
-                        queueSummaryPill(
-                            title: "В очереди",
-                            value: "\(model.batchQueue.count)",
-                            tint: Color.white.opacity(isDark ? 0.10 : 0.62)
-                        )
-                        queueSummaryPill(
-                            title: "Недавних наборов",
-                            value: "\(model.recentBatchLists.count)",
-                            tint: Color.white.opacity(isDark ? 0.10 : 0.62)
-                        )
-                        queueSummaryPill(
-                            title: "Режим",
-                            value: model.downloadMode.title,
-                            tint: prominentButtonTint.opacity(isDark ? 0.20 : 0.14)
-                        )
+                        queueSummaryBadge(text: "В очереди \(model.batchQueue.count)", tint: Color.white.opacity(isDark ? 0.10 : 0.62))
+                        queueSummaryBadge(text: "Наборов \(model.recentBatchLists.count)", tint: Color.white.opacity(isDark ? 0.10 : 0.62))
+                        queueSummaryBadge(text: "Режим: \(model.downloadMode.title)", tint: prominentButtonTint.opacity(isDark ? 0.20 : 0.14))
                     }
                 } else {
                     HStack(spacing: 10) {
-                        queueSummaryPill(
-                            title: "В очереди",
-                            value: "\(model.batchQueue.count)",
-                            tint: Color.white.opacity(isDark ? 0.10 : 0.62)
-                        )
-                        queueSummaryPill(
-                            title: "Недавних наборов",
-                            value: "\(model.recentBatchLists.count)",
-                            tint: Color.white.opacity(isDark ? 0.10 : 0.62)
-                        )
-                        queueSummaryPill(
-                            title: "Режим",
-                            value: model.downloadMode.title,
-                            tint: prominentButtonTint.opacity(isDark ? 0.20 : 0.14)
-                        )
+                        queueSummaryBadge(text: "В очереди \(model.batchQueue.count)", tint: Color.white.opacity(isDark ? 0.10 : 0.62))
+                        queueSummaryBadge(text: "Наборов \(model.recentBatchLists.count)", tint: Color.white.opacity(isDark ? 0.10 : 0.62))
+                        queueSummaryBadge(text: "Режим: \(model.downloadMode.title)", tint: prominentButtonTint.opacity(isDark ? 0.20 : 0.14))
                     }
                 }
 
                 if model.batchQueue.isEmpty {
-                    Text("Список пока пустой. Добавь профили сверху или выбери один из недавних наборов справа.")
+                    Text("Пока пусто. Добавь профили выше или выбери недавний набор справа.")
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(secondaryText)
                         .padding(16)
@@ -258,6 +268,7 @@ struct ContentView: View {
                 } else {
                     if model.batchTotalCount > 0 {
                         batchProgressStripe
+                            .transition(.opacity)
                     }
 
                     ScrollView {
@@ -272,27 +283,27 @@ struct ContentView: View {
 
                 if compact {
                     VStack(alignment: .leading, spacing: 10) {
-                        button("Очистить очередь", systemImage: "trash") {
+                        ghostButton("Очистить очередь", systemImage: "trash", tint: Color.red.opacity(0.78)) {
                             model.clearBatchQueue()
                         }
                         .disabled(model.batchQueue.isEmpty || model.isBusy)
 
-                        Text("После запуска текущий список появится в блоке «Недавние наборы».")
+                        Text("После запуска список сохранится в «Недавних наборах».")
                             .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .foregroundStyle(tertiaryText)
+                            .foregroundStyle(quaternaryText)
                     }
                 } else {
                     HStack(spacing: 10) {
-                        button("Очистить очередь", systemImage: "trash") {
+                        ghostButton("Очистить очередь", systemImage: "trash", tint: Color.red.opacity(0.78)) {
                             model.clearBatchQueue()
                         }
                         .disabled(model.batchQueue.isEmpty || model.isBusy)
 
                         Spacer(minLength: 0)
 
-                        Text("После запуска текущий список появится в блоке «Недавние наборы».")
+                        Text("После запуска список сохранится в «Недавних наборах».")
                             .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .foregroundStyle(tertiaryText)
+                            .foregroundStyle(quaternaryText)
                     }
                 }
             }
@@ -300,10 +311,10 @@ struct ContentView: View {
     }
 
     func recentListsCard(compact: Bool) -> some View {
-        card("Недавнее") {
+        card("Недавние наборы") {
             VStack(alignment: .leading, spacing: 12) {
                 if model.recentBatchLists.isEmpty {
-                    Text("Здесь будут появляться сохранённые и недавно запущенные списки профилей.")
+                    Text("Здесь появятся сохранённые и недавно запущенные наборы профилей.")
                         .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -335,20 +346,20 @@ struct ContentView: View {
                     }
                     .padding(.bottom, !showingAllRecentLists && model.recentBatchLists.count > 1 ? 10 : 0)
 
-                    if model.recentBatchLists.count > 1 {
+                    if model.recentBatchLists.count > 3 {
                         Button {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 showingAllRecentLists.toggle()
                             }
                         } label: {
-                            Text(showingAllRecentLists ? "свернуть" : "ещё")
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
-                                .foregroundStyle(Color.white)
+                            Text(showingAllRecentLists ? "Свернуть ↑" : "Показать ещё ↓")
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundStyle(primaryText)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 9)
                                 .background(
                                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .fill(Color.black.opacity(isDark ? 0.72 : 0.86))
+                                        .fill(itemFill)
                                 )
                         }
                         .buttonStyle(.plain)
@@ -359,7 +370,7 @@ struct ContentView: View {
     }
 
     var displayedRecentBatchLists: [AppModel.RecentBatchList] {
-        showingAllRecentLists ? model.recentBatchLists : Array(model.recentBatchLists.prefix(1))
+        showingAllRecentLists ? model.recentBatchLists : Array(model.recentBatchLists.prefix(3))
     }
 
     func recentListCard(_ list: AppModel.RecentBatchList, compact: Bool) -> some View {
@@ -370,9 +381,12 @@ struct ContentView: View {
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(primaryText)
 
-                    Text(list.subtitle)
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .textCase(.uppercase)
+                    HStack(spacing: 6) {
+                        Text(list.subtitle)
+                        Text("·")
+                        Text(formattedRecentListDate(list.createdAt))
+                    }
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(tertiaryText)
                 }
 
@@ -397,22 +411,22 @@ struct ContentView: View {
 
             if compact {
                 VStack(spacing: 8) {
-                    button("Добавить", systemImage: "plus") {
+                    ghostButton("Добавить в очередь", systemImage: "plus") {
                         model.applyRecentBatchList(list)
                     }
 
-                    button("Заменить", systemImage: "arrow.triangle.swap") {
+                    ghostButton("Заменить очередь", systemImage: "arrow.triangle.swap") {
                         model.replaceQueueWithRecentBatchList(list)
                     }
                     .disabled(model.isBusy)
                 }
             } else {
                 HStack(spacing: 8) {
-                    button("Добавить", systemImage: "plus") {
+                    ghostButton("Добавить в очередь", systemImage: "plus") {
                         model.applyRecentBatchList(list)
                     }
 
-                    button("Заменить", systemImage: "arrow.triangle.swap") {
+                    ghostButton("Заменить очередь", systemImage: "arrow.triangle.swap") {
                         model.replaceQueueWithRecentBatchList(list)
                     }
                     .disabled(model.isBusy)
@@ -428,31 +442,41 @@ struct ContentView: View {
 
     func destinationInlineCard(compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Папка сохранения")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
+            Text("Папка для сохранения")
+                .font(.caption)
+                .tracking(1.2)
                 .textCase(.uppercase)
                 .foregroundStyle(tertiaryText)
 
-            horizontalMonospaceField(model.saveDirectory.path, fontSize: 12)
+            Text(model.saveDirectory.path)
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundStyle(primaryText)
+                .lineLimit(1)
+                .truncationMode(.head)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(fieldBackground)
+                .clipShape(RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous))
                 .frame(height: 52)
 
             if compact {
                 VStack(spacing: 8) {
-                    button("Выбрать", systemImage: "folder") {
+                    ghostButton("Выбрать папку", systemImage: "folder.badge.plus") {
                         model.chooseSaveDirectory()
                     }
 
-                    button("Показать", systemImage: "arrow.up.forward.app") {
+                    ghostButton("Показать в Finder", systemImage: "folder") {
                         model.openSaveDirectory()
                     }
                 }
             } else {
                 HStack(spacing: 8) {
-                    button("Выбрать", systemImage: "folder") {
+                    ghostButton("Выбрать папку", systemImage: "folder.badge.plus") {
                         model.chooseSaveDirectory()
                     }
 
-                    button("Показать", systemImage: "arrow.up.forward.app") {
+                    ghostButton("Показать в Finder", systemImage: "folder") {
                         model.openSaveDirectory()
                     }
                 }
@@ -466,24 +490,22 @@ struct ContentView: View {
     }
 
     var batchProgressStripe: some View {
-        HStack(alignment: .center, spacing: 12) {
-            liveIndicatorDot(size: 10)
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Скачиваю \(model.batchCurrentIndex) из \(model.batchTotalCount) — осталось \(model.batchRemainingCount)")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(primaryText)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Сейчас \(model.batchCurrentIndex) из \(model.batchTotalCount), осталось \(model.batchRemainingCount)")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(primaryText)
+            ProgressView(value: Double(model.batchCurrentIndex), total: Double(max(model.batchTotalCount, 1)))
+                .progressViewStyle(.linear)
+                .tint(prominentButtonTint)
 
-                if !model.batchCurrentURL.isEmpty {
-                    Text(model.batchCurrentURL)
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(secondaryText)
-                        .lineLimit(2)
-                        .textSelection(.enabled)
-                }
+            if !model.batchCurrentURL.isEmpty {
+                Text(model.batchCurrentURL)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(secondaryText)
+                    .lineLimit(2)
+                    .textSelection(.enabled)
             }
-
-            Spacer(minLength: 0)
         }
         .padding(12)
         .background(
@@ -500,7 +522,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 18) {
             activityHeader
             downloadsCard
-            logsCard()
+            homeLogsCard()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -525,7 +547,8 @@ struct ContentView: View {
     func detailHero(eyebrow: String, title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(eyebrow)
-                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .font(.caption)
+                .tracking(1.3)
                 .textCase(.uppercase)
                 .foregroundStyle(tertiaryText)
 
@@ -542,17 +565,8 @@ struct ContentView: View {
 
     var statusCards: some View {
         HStack(spacing: 12) {
-            statusCard(
-                title: "Воркер",
-                message: model.workerSummary,
-                accent: model.workerReady ? Color.green.opacity(0.78) : Color.orange.opacity(0.78)
-            )
-
-            statusCard(
-                title: "Сессия",
-                message: model.sessionSummary,
-                accent: model.sessionReady ? Color.blue.opacity(0.78) : Color.gray.opacity(0.65)
-            )
+            statusCard(title: "Воркер", presentation: workerStatusPresentation)
+            statusCard(title: "Сессия", presentation: sessionStatusPresentation)
         }
     }
 
@@ -752,13 +766,12 @@ struct ContentView: View {
     var activityHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
-                Text("Активность")
+                Text("Состояние")
                     .font(.system(size: 24, weight: .semibold, design: .rounded))
                     .foregroundStyle(primaryText)
 
-                if model.isBusy {
-                    liveIndicatorDot(size: 10)
-                }
+                homeStatusBadge
+                    .transition(.opacity)
             }
 
             Text(model.lastResult)
@@ -779,6 +792,48 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    var homeStatusBadge: some View {
+        let isError = model.statusTitle.lowercased().contains("ошиб")
+        let isDone = model.statusTitle.lowercased().contains("готов")
+        let title: String
+        let tint: Color
+
+        if isStoriesDownloadInProgress {
+            title = "Идёт загрузка"
+            tint = Color.blue.opacity(0.82)
+        } else if isError {
+            title = "Ошибка"
+            tint = Color.red.opacity(0.82)
+        } else if isDone {
+            title = "Готово"
+            tint = Color.green.opacity(0.82)
+        } else {
+            title = "Ожидание"
+            tint = Color.gray.opacity(0.78)
+        }
+
+        return HStack(spacing: 8) {
+            if isStoriesDownloadInProgress {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Circle()
+                    .fill(tint)
+                    .frame(width: 8, height: 8)
+            }
+
+            Text(title)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            Capsule(style: .continuous)
+                .fill(tint.opacity(isDark ? 0.14 : 0.10))
+        )
     }
 
     var downloadsCard: some View {
@@ -875,13 +930,76 @@ struct ContentView: View {
         .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous))
     }
 
-    var runtimeCard: some View {
-        card("Среда") {
+    func homeLogsCard(maxHeight: CGFloat? = nil) -> some View {
+        card("Логи", padding: 0) {
             VStack(alignment: .leading, spacing: 12) {
-                horizontalMonospaceField(
-                    model.runtimeSummary.isEmpty ? "Информация о среде появится после проверки воркера." : model.runtimeSummary,
-                    fontSize: 12
-                )
+                HStack(spacing: 12) {
+                    Spacer(minLength: 0)
+
+                    Button {
+                        model.copyLogs()
+                        showingLogsCopiedFeedback = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+                            showingLogsCopiedFeedback = false
+                        }
+                    } label: {
+                        Label(showingLogsCopiedFeedback ? "Скопировано ✓" : "Скопировать", systemImage: showingLogsCopiedFeedback ? "checkmark" : "doc.on.doc")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                .padding(.horizontal, 18)
+
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 10) {
+                            ForEach(Array(model.logs.reversed().enumerated()), id: \.offset) { index, line in
+                                Text(cleanedLogLine(line))
+                                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(logTint(for: line))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .textSelection(.enabled)
+                                    .id(index)
+                            }
+                        }
+                        .padding(.horizontal, 18)
+                        .padding(.bottom, 18)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: maxHeight ?? 320, alignment: .topLeading)
+                    .onAppear {
+                        if !model.logs.isEmpty {
+                            proxy.scrollTo(model.logs.count - 1, anchor: .bottom)
+                        }
+                    }
+                    .onChange(of: model.logs.count) { _, newCount in
+                        guard newCount > 0 else { return }
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            proxy.scrollTo(newCount - 1, anchor: .bottom)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    var runtimeCard: some View {
+        settingsCard("Техническая информация") {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(runtimeSummaryHeadline)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                DisclosureGroup("Показать детали", isExpanded: $showingRuntimeDetails) {
+                    horizontalMonospaceField(
+                        model.runtimeSummary.isEmpty ? "Информация о среде появится после проверки воркера." : model.runtimeSummary,
+                        fontSize: 12
+                    )
+                    .padding(.top, 8)
+                    .transition(.opacity)
+                }
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .tint(prominentButtonTint)
 
                 button("Открыть папку среды", systemImage: "internaldrive") {
                     model.openRuntimeDirectory()
@@ -891,25 +1009,75 @@ struct ContentView: View {
     }
 
     var updatesCard: some View {
-        card("Обновления") {
+        settingsCard("Обновления") {
             VStack(alignment: .leading, spacing: 12) {
                 statusInlineNote(
                     title: "Автообновление",
                     message: model.updateSummary
                 )
 
-                button("Проверить обновления", systemImage: "arrow.triangle.2.circlepath") {
-                    Task { await model.checkForUpdates() }
+                if model.canCheckForUpdates {
+                    Button {
+                        Task { await model.checkForUpdates() }
+                    } label: {
+                        HStack(spacing: 8) {
+                            if model.isCheckingForUpdates {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                            }
+
+                            Text("Проверить обновления")
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.82)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(secondaryButtonTint)
+                    .disabled(model.isCheckingForUpdates)
+                } else {
+                    Text("Обновления пока недоступны в этой сборке")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(quaternaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .disabled(!model.canCheckForUpdates)
+            }
+        }
+    }
+
+    var powerCard: some View {
+        settingsCard("Во время выгрузки") {
+            VStack(alignment: .leading, spacing: 12) {
+                Toggle(isOn: $model.preventSleepDuringDownloads) {
+                    HStack(alignment: .center, spacing: 10) {
+                        Image(systemName: "moon.zzz.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(model.preventSleepDuringDownloads ? prominentButtonTint : secondaryText)
+
+                        Text("Не давать Mac засыпать")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(primaryText)
+                    }
+                }
+                .toggleStyle(.switch)
+
+                if !model.preventSleepDuringDownloads {
+                    statusInlineNote(
+                        title: "Внимание",
+                        message: "Если Mac уснёт во время длинной выгрузки, скачивание stories или Reels может прерваться."
+                    )
+                    .transition(.opacity)
+                }
             }
         }
     }
 
     var sessionCard: some View {
-        card("Воркер и сессия") {
+        settingsCard("Подключение к Instagram") {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Если среда ещё не подготовлена, установи движок прямо отсюда. После этого можно открыть браузер для входа и проверить сессию.")
+                Text("Если среда ещё не подготовлена, установи компоненты прямо отсюда. После этого можно открыть браузер для входа и проверить сессию.")
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -919,32 +1087,43 @@ struct ContentView: View {
                     message: "Браузер для входа держится открытым, пока Instagram не выдаст активную сессию или пока не истечёт таймаут."
                 )
 
-                VStack(spacing: 10) {
-                    if model.hasEmbeddedRuntime {
-                        statusInlineNote(
-                            title: "Движок уже встроен",
-                            message: "В этой release-сборке Python, Playwright и Chromium уже лежат внутри приложения. Отдельная установка не нужна."
-                        )
-                    } else {
-                        HStack(spacing: 10) {
-                            button("Установить движок", systemImage: "arrow.down.circle") {
-                                Task { await model.bootstrapEnvironment() }
-                            }
+                if model.hasEmbeddedRuntime {
+                    HStack(spacing: 10) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color.green.opacity(0.86))
 
-                            button("Проверить среду", systemImage: "bolt.horizontal.circle") {
-                                Task { await model.refreshEnvironment() }
-                            }
+                        Text("Всё встроено — дополнительная установка не нужна")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(primaryText)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .cardBackground(
+                        cornerRadius: controlCornerRadius,
+                        fill: cardFill,
+                        stroke: cardStroke,
+                        tint: Color.green.opacity(isDark ? 0.16 : 0.10)
+                    )
+                }
+
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    if !model.hasEmbeddedRuntime {
+                        button("Установить компоненты", systemImage: "arrow.down.circle") {
+                            Task { await model.bootstrapEnvironment() }
+                        }
+
+                        button("Проверить готовность", systemImage: "bolt.horizontal.circle") {
+                            Task { await model.refreshEnvironment() }
                         }
                     }
 
-                    HStack(spacing: 10) {
-                        button("Открыть браузер для входа", systemImage: "person.crop.circle.badge.checkmark") {
-                            Task { await model.login() }
-                        }
+                    button("Войти в Instagram", systemImage: "person.crop.circle.badge.checkmark", prominent: true) {
+                        Task { await model.login() }
+                    }
 
-                        button("Проверить сессию", systemImage: "checkmark.shield") {
-                            Task { await model.checkSession() }
-                        }
+                    button("Проверить сессию", systemImage: "checkmark.shield") {
+                        Task { await model.checkSession() }
                     }
                 }
             }
@@ -972,6 +1151,54 @@ struct ContentView: View {
         }
     }
 
+    var storiesDownloadModePicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Режим браузера")
+                .font(.caption)
+                .tracking(1.2)
+                .textCase(.uppercase)
+                .foregroundStyle(tertiaryText)
+
+            Picker("Режим браузера", selection: $model.downloadMode) {
+                ForEach(AppModel.DownloadMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(selectedDownloadModeDescription)
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .transition(.opacity)
+        }
+        .animation(.easeInOut(duration: 0.2), value: model.downloadMode)
+    }
+
+    var storiesMediaSelectionPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Что сохранять")
+                .font(.caption)
+                .tracking(1.2)
+                .textCase(.uppercase)
+                .foregroundStyle(tertiaryText)
+
+            Picker("Что сохранять", selection: $model.mediaSelectionMode) {
+                ForEach(AppModel.MediaSelectionMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(selectedMediaSelectionDescription)
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .transition(.opacity)
+        }
+        .animation(.easeInOut(duration: 0.2), value: model.mediaSelectionMode)
+    }
+
     var mediaSelectionPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Что сохранять")
@@ -993,38 +1220,641 @@ struct ContentView: View {
         }
     }
 
-    func statusCard(title: String, message: String, accent: Color) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(accent)
-                    .frame(width: 10, height: 10)
+    var reelsComposerCard: some View {
+        reelsCard("Ссылки на Reels") {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Вставь одну или несколько ссылок — каждую с новой строки. Приложение обработает их по очереди.")
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                Text(title)
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .textCase(.uppercase)
+                reelsInputEditor
+
+                HStack(spacing: 10) {
+                    Button {
+                        Task { await model.downloadReels() }
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isReelsDownloadInProgress {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text("Загружаю...")
+                            } else {
+                                Image(systemName: "arrow.down.circle.fill")
+                                Text("Скачать")
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(prominentButtonTint)
+                    .disabled(reelsLinkCount == 0 || model.isBusy)
+
+                    Button {
+                        model.reelsInput = ""
+                    } label: {
+                        Label("Очистить", systemImage: "xmark")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(secondaryButtonTint)
+                    .disabled(model.isBusy || model.reelsInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+
+                Text("Reels скачиваются отдельным потоком и не зависят от сценария сторис.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(quaternaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: model.isBusy)
+    }
+
+    var reelsInputEditor: some View {
+        ZStack(alignment: .topLeading) {
+            TextEditor(text: $model.reelsInput)
+                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .scrollContentBackground(.hidden)
+                .foregroundStyle(primaryText)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 12)
+                .background(Color.clear)
+                .frame(minHeight: 160)
+
+            if model.reelsInput.isEmpty {
+                Text("Например:\nhttps://www.instagram.com/reel/DMabc123/\nhttps://www.instagram.com/reel/DMxyz456/")
+                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .foregroundStyle(tertiaryText)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 18)
+                    .allowsHitTesting(false)
             }
 
-            Text(message)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(primaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
-                .fill(.thinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
-                        .fill(cardFill)
+            if !model.reelsInput.isEmpty {
+                Button {
+                    model.reelsInput = ""
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(secondaryText)
+                        .frame(width: 24, height: 24)
+                        .background(
+                            Circle()
+                                .fill(Color.white.opacity(isDark ? 0.08 : 0.78))
+                        )
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 12)
+                .padding(.trailing, 12)
+                .frame(maxWidth: .infinity, alignment: .topTrailing)
+                .transition(.opacity)
+            }
+
+            Text("\(reelsLinkCount) \(reelsLinkCount == 1 ? "ссылка" : reelsLinkCount < 5 ? "ссылки" : "ссылок")")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(quaternaryText)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(Color.white.opacity(isDark ? 0.08 : 0.72))
                 )
-        )
+                .padding(.trailing, 12)
+                .padding(.bottom, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        }
+        .background(fieldBackground)
         .overlay(
             RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
                 .strokeBorder(cardStroke, lineWidth: 1)
         )
+        .clipShape(RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous))
+        .animation(.easeInOut(duration: 0.2), value: reelsLinkCount)
+    }
+
+    var reelsDestinationCard: some View {
+        reelsCard("Куда сохранять") {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(model.saveDirectory.path)
+                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .foregroundStyle(primaryText)
+                    .lineLimit(1)
+                    .truncationMode(.head)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(fieldBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous))
+
+                HStack(spacing: 10) {
+                    Button {
+                        model.chooseSaveDirectory()
+                    } label: {
+                        Label("Выбрать папку", systemImage: "folder.badge.plus")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(secondaryButtonTint)
+
+                    Button {
+                        model.openSaveDirectory()
+                    } label: {
+                        Label("Показать в Finder", systemImage: "folder")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(secondaryButtonTint)
+                }
+            }
+        }
+    }
+
+    var reelsActivityPanel: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            reelsActivityHeader
+            reelsDownloadsCard
+            reelsLogsCard()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .animation(.easeInOut(duration: 0.2), value: model.isBusy)
+    }
+
+    var reelsActivityHeader: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 12) {
+                Text("Активность")
+                    .font(.system(size: 24, weight: .semibold, design: .rounded))
+                    .foregroundStyle(primaryText)
+
+                Spacer(minLength: 0)
+
+                reelsSessionBadge
+                    .transition(.opacity)
+            }
+
+            Text(model.lastResult)
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if model.isBusy || !model.currentStepLabel.isEmpty {
+                HStack(spacing: 8) {
+                    if model.isBusy {
+                        liveIndicatorDot(size: 8)
+                    }
+
+                    Text(model.currentStepLabel)
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(tertiaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .transition(.opacity)
+            }
+        }
+    }
+
+    var reelsSessionBadge: some View {
+        let ready = model.sessionReady
+        return HStack(spacing: 6) {
+            Image(systemName: ready ? "person.crop.circle.badge.checkmark" : "person.crop.circle.badge.exclamationmark")
+                .font(.system(size: 11, weight: .semibold))
+
+            Text(ready ? "Сессия активна" : "Нет сессии")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+        }
+        .foregroundStyle(ready ? Color.green.opacity(0.88) : Color.red.opacity(0.82))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            Capsule(style: .continuous)
+                .fill((ready ? Color.green : Color.red).opacity(isDark ? 0.16 : 0.10))
+        )
+    }
+
+    var reelsDownloadsCard: some View {
+        reelsCard("Последние загрузки", padding: 0) {
+            Group {
+                if model.downloadedItems.isEmpty {
+                    VStack(spacing: 10) {
+                        Image(systemName: "tray")
+                            .font(.system(size: 24, weight: .regular))
+                            .foregroundStyle(tertiaryText)
+
+                        Text("Пока ничего нет")
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(secondaryText)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 180)
+                } else {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 10) {
+                            ForEach(model.downloadedItems.prefix(20)) { item in
+                                reelsDownloadRow(item)
+                            }
+                        }
+                        .padding(18)
+                    }
+                    .frame(maxHeight: 260)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .transition(.opacity)
+        }
+    }
+
+    func reelsDownloadRow(_ item: WorkerItem) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(URL(fileURLWithPath: item.localPath).lastPathComponent)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(primaryText)
+                        .lineLimit(1)
+
+                    Text(item.localPath)
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(tertiaryText)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                Spacer(minLength: 0)
+
+                Button {
+                    model.revealDownloadedItem(at: item.localPath)
+                } label: {
+                    Image(systemName: "folder")
+                        .font(.system(size: 12, weight: .semibold))
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.bordered)
+                .tint(secondaryButtonTint)
+                .help("Показать в Finder")
+            }
+
+            HStack(spacing: 8) {
+                Text(formattedFileSize(for: item.localPath))
+                Text("·")
+                Text(formattedDownloadTime(item.createdAt))
+            }
+            .font(.system(size: 11, weight: .medium, design: .rounded))
+            .foregroundStyle(secondaryText)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
+                .fill(itemFill)
+        )
+    }
+
+    func reelsLogsCard(maxHeight: CGFloat? = nil) -> some View {
+        reelsCard("Логи", padding: 0) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    Spacer(minLength: 0)
+
+                    Button {
+                        model.copyLogs()
+                        showingLogsCopiedFeedback = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+                            showingLogsCopiedFeedback = false
+                        }
+                    } label: {
+                        Label(showingLogsCopiedFeedback ? "Скопировано ✓" : "Скопировать логи", systemImage: showingLogsCopiedFeedback ? "checkmark" : "doc.on.doc")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                .padding(.horizontal, 18)
+
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 10) {
+                            ForEach(Array(model.logs.reversed().enumerated()), id: \.offset) { index, line in
+                                Text(line)
+                                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(logTint(for: line))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .textSelection(.enabled)
+                                    .id(index)
+                            }
+                        }
+                        .padding(.horizontal, 18)
+                        .padding(.bottom, 18)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: maxHeight ?? 280, alignment: .topLeading)
+                    .onAppear {
+                        if !model.logs.isEmpty {
+                            proxy.scrollTo(model.logs.count - 1, anchor: .bottom)
+                        }
+                    }
+                    .onChange(of: model.logs.count) { _, newCount in
+                        guard newCount > 0 else { return }
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            proxy.scrollTo(newCount - 1, anchor: .bottom)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    func logTint(for line: String) -> Color {
+        let normalized = line.lowercased()
+        if normalized.contains("error") || normalized.contains("failed") {
+            return Color.red.opacity(0.84)
+        }
+        if normalized.contains("ready") || normalized.contains("saved") {
+            return Color.green.opacity(0.84)
+        }
+        return secondaryText
+    }
+
+    func formattedFileSize(for path: String) -> String {
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+              let fileSize = attributes[.size] as? NSNumber
+        else {
+            return "Размер неизвестен"
+        }
+
+        return ByteCountFormatter.string(fromByteCount: fileSize.int64Value, countStyle: .file)
+    }
+
+    func formattedDownloadTime(_ raw: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        guard let date = formatter.date(from: raw) else {
+            return raw
+        }
+
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+
+    func formattedRecentListDate(_ date: Date) -> String {
+        date.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    func cleanedLogLine(_ line: String) -> String {
+        let pattern = #"/[^\s]+"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return line
+        }
+
+        let range = NSRange(line.startIndex..<line.endIndex, in: line)
+        var result = line
+        let matches = regex.matches(in: line, range: range).reversed()
+        for match in matches {
+            guard let swiftRange = Range(match.range, in: result) else { continue }
+            let path = String(result[swiftRange])
+            result.replaceSubrange(swiftRange, with: URL(fileURLWithPath: path).lastPathComponent)
+        }
+        return result
+    }
+
+    var storiesInputEditor: some View {
+        ZStack(alignment: .topLeading) {
+            TextEditor(text: $model.batchInput)
+                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .scrollContentBackground(.hidden)
+                .foregroundStyle(primaryText)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 12)
+                .background(Color.clear)
+                .frame(minHeight: 180)
+
+            if model.batchInput.isEmpty {
+                Text("По одной ссылке или username на строку.\nНапример:\ndian.vegas1\nhttps://www.instagram.com/stevensetu/\nleftlanepapi")
+                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .foregroundStyle(tertiaryText)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 18)
+                    .allowsHitTesting(false)
+            }
+
+            if !model.batchInput.isEmpty {
+                Button {
+                    model.batchInput = ""
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(secondaryText)
+                        .frame(width: 24, height: 24)
+                        .background(
+                            Circle()
+                                .fill(Color.white.opacity(isDark ? 0.08 : 0.78))
+                        )
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 12)
+                .padding(.trailing, 12)
+                .frame(maxWidth: .infinity, alignment: .topTrailing)
+                .transition(.opacity)
+            }
+
+            Text("\(batchProfileInputCount) \(batchProfileInputCount == 1 ? "профиль" : batchProfileInputCount < 5 ? "профиля" : "профилей")")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(quaternaryText)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(Color.white.opacity(isDark ? 0.08 : 0.72))
+                )
+                .padding(.trailing, 12)
+                .padding(.bottom, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        }
+        .background(fieldBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
+                .strokeBorder(cardStroke, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous))
+        .animation(.easeInOut(duration: 0.2), value: batchProfileInputCount)
+    }
+
+    var storiesDownloadButton: some View {
+        Button {
+            Task { await model.runBatchDownloads() }
+        } label: {
+            HStack(spacing: 8) {
+                if isStoriesDownloadInProgress {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Загружаю...")
+                } else {
+                    Image(systemName: "arrow.down.circle.fill")
+                    Text("Скачать")
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(queueActionTint)
+        .disabled(model.batchQueue.isEmpty || model.isBusy)
+    }
+
+    var storiesStopButton: some View {
+        Button {
+            model.stopBatchDownloads()
+        } label: {
+            Label("Остановить", systemImage: "stop.circle")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .tint(Color.red.opacity(0.82))
+        .disabled(!model.batchIsRunning)
+    }
+
+    func ghostButton(_ title: String, systemImage: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .tint(tint ?? secondaryButtonTint)
+        .disabled(model.isBusy)
+    }
+
+    func queueSummaryBadge(text: String, tint: Color) -> some View {
+        Text(text)
+            .font(.system(size: 12, weight: .semibold, design: .rounded))
+            .foregroundStyle(primaryText)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(tint)
+            )
+    }
+
+    func reelsCard<Content: View>(_ title: String, padding: CGFloat = 18, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title)
+                .font(.caption)
+                .tracking(1.2)
+                .textCase(.uppercase)
+                .foregroundStyle(quaternaryText)
+                .padding(.horizontal, 18)
+                .padding(.top, 18)
+
+            content()
+                .padding(.horizontal, padding)
+                .padding(.bottom, padding == 0 ? 18 : padding)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardBackground(cornerRadius: cardCornerRadius, fill: cardFill, stroke: cardStroke)
+    }
+
+    struct SettingsStatusPresentation {
+        let symbol: String
+        let status: String
+        let accent: Color
+        let backgroundTint: Color
+    }
+
+    var workerStatusPresentation: SettingsStatusPresentation {
+        let summary = model.workerSummary.lowercased()
+        if model.workerReady {
+            return SettingsStatusPresentation(
+                symbol: "bolt.fill",
+                status: "Готов",
+                accent: Color.green.opacity(0.86),
+                backgroundTint: Color.green.opacity(isDark ? 0.16 : 0.10)
+            )
+        }
+
+        let isError = summary.contains("ошиб") || summary.contains("не удалось") || summary.contains("process") || summary.contains("error")
+        return SettingsStatusPresentation(
+            symbol: "bolt.fill",
+            status: "Ошибка",
+            accent: isError ? Color.red.opacity(0.82) : Color.gray.opacity(0.78),
+            backgroundTint: isError ? Color.red.opacity(isDark ? 0.14 : 0.08) : Color.gray.opacity(isDark ? 0.12 : 0.07)
+        )
+    }
+
+    var sessionStatusPresentation: SettingsStatusPresentation {
+        let summary = model.sessionSummary.lowercased()
+        if model.sessionReady {
+            return SettingsStatusPresentation(
+                symbol: "person.crop.circle.badge.checkmark",
+                status: "Готов",
+                accent: Color.green.opacity(0.86),
+                backgroundTint: Color.green.opacity(isDark ? 0.16 : 0.10)
+            )
+        }
+
+        let isError = summary.contains("ошиб") || summary.contains("timeout") || summary.contains("error")
+        return SettingsStatusPresentation(
+            symbol: "person.crop.circle.badge.checkmark",
+            status: isError ? "Ошибка" : "Нет сессии",
+            accent: isError ? Color.red.opacity(0.82) : Color.gray.opacity(0.78),
+            backgroundTint: isError ? Color.red.opacity(isDark ? 0.14 : 0.08) : Color.gray.opacity(isDark ? 0.12 : 0.07)
+        )
+    }
+
+    var runtimeSummaryHeadline: String {
+        guard !model.runtimeSummary.isEmpty else {
+            return "Данные о runtime появятся после проверки воркера."
+        }
+
+        var fields: [String: String] = [:]
+        for line in model.runtimeSummary.split(separator: "\n") {
+            let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
+            if parts.count == 2 {
+                fields[parts[0]] = parts[1]
+            }
+        }
+
+        let runtimeKind = (fields["worker_runtime"] ?? "node").lowercased() == "python" ? "Python" : "Node"
+        let browserLabel = (fields["browsers"] ?? "").contains("ms-playwright") ? "ms-chromium" : "browser runtime"
+        return "\(runtimeKind) · Playwright · \(browserLabel)"
+    }
+
+    func statusCard(title: String, presentation: SettingsStatusPresentation) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: presentation.symbol)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(presentation.accent)
+                    .frame(width: 30, height: 30)
+                    .background(
+                        Circle()
+                            .fill(presentation.accent.opacity(isDark ? 0.18 : 0.12))
+                    )
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title)
+                        .font(.caption)
+                        .tracking(1.2)
+                        .textCase(.uppercase)
+                        .foregroundStyle(quaternaryText)
+
+                    Text(presentation.status)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(primaryText)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(presentation.accent.opacity(isDark ? 0.18 : 0.12))
+                        )
+                        .contentTransition(.opacity)
+                        .transition(.opacity)
+                }
+
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .cardBackground(
+            cornerRadius: controlCornerRadius,
+            fill: cardFill,
+            stroke: cardStroke,
+            tint: presentation.backgroundTint
+        )
+        .animation(.easeInOut(duration: 0.2), value: presentation.status)
     }
 
     var liveStatusBadge: some View {
@@ -1244,6 +2074,24 @@ struct ContentView: View {
         )
     }
 
+    func settingsCard<Content: View>(_ title: String, padding: CGFloat = 18, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title)
+                .font(.caption)
+                .tracking(1.2)
+                .textCase(.uppercase)
+                .foregroundStyle(quaternaryText)
+                .padding(.horizontal, 18)
+                .padding(.top, 18)
+
+            content()
+                .padding(.horizontal, padding)
+                .padding(.bottom, padding == 0 ? 18 : padding)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardBackground(cornerRadius: cardCornerRadius, fill: cardFill, stroke: cardStroke)
+    }
+
     func card<Content: View>(_ title: String, padding: CGFloat = 18, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
@@ -1407,7 +2255,8 @@ struct ContentView: View {
     func statusInlineNote(title: String, message: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .font(.caption)
+                .tracking(1.2)
                 .textCase(.uppercase)
                 .foregroundStyle(tertiaryText)
 
@@ -1468,6 +2317,40 @@ struct ContentView: View {
                 .blur(radius: 90)
                 .offset(x: 460, y: 260)
         }
+    }
+}
+
+private struct CardBackgroundModifier: ViewModifier {
+    let cornerRadius: CGFloat
+    let fill: Color
+    let stroke: Color
+    let tint: Color?
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                ZStack {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(fill)
+                    if let tint {
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .fill(tint)
+                    }
+                }
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(stroke, lineWidth: 1)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+}
+
+private extension View {
+    func cardBackground(cornerRadius: CGFloat, fill: Color, stroke: Color, tint: Color? = nil) -> some View {
+        modifier(CardBackgroundModifier(cornerRadius: cornerRadius, fill: fill, stroke: stroke, tint: tint))
     }
 }
 

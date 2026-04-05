@@ -194,6 +194,10 @@ extension AppModel {
         NSWorkspace.shared.activateFileViewerSelecting([saveDirectory])
     }
 
+    func revealDownloadedItem(at path: String) {
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+    }
+
     func openRuntimeDirectory() {
         NSWorkspace.shared.activateFileViewerSelecting([AppPaths.applicationSupport])
     }

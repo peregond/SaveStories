@@ -16,7 +16,7 @@ extension ContentView {
             .padding(.horizontal, 18)
 
             VStack(spacing: 10) {
-                ForEach(AppSection.allCases) { section in
+                ForEach([AppSection.main, AppSection.batch, AppSection.reels]) { section in
                     Button {
                         selectedSection = section
                     } label: {
@@ -29,9 +29,14 @@ extension ContentView {
 
             Spacer(minLength: 0)
 
-            settingsSidebarButton
-                .padding(.horizontal, 12)
-                .padding(.bottom, 14)
+            Button {
+                selectedSection = .settings
+            } label: {
+                sidebarRow(for: .settings)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 14)
         }
         .frame(minWidth: sidebarWidth, idealWidth: sidebarWidth, maxWidth: sidebarWidth)
         .padding(.top, topContentInset)
@@ -62,8 +67,8 @@ extension ContentView {
                     .foregroundStyle(primaryText)
 
                 Text(section.subtitle)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(secondaryText)
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(quaternaryText)
             }
 
             Spacer(minLength: 0)
@@ -83,61 +88,6 @@ extension ContentView {
         )
     }
 
-    var settingsSidebarButton: some View {
-        Button {
-            showingSettings = true
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Настройки")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    Text("Воркер, сессия и среда")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                }
-                Spacer()
-            }
-            .foregroundStyle(settingsIconColor)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(.thinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(glassTint)
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .strokeBorder(cardStroke, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .popover(isPresented: $showingSettings, arrowEdge: .bottom) {
-            settingsPopover
-        }
-    }
-
-    var settingsPopover: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                Text("Служебные настройки")
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
-                    .foregroundStyle(primaryText)
-
-                updatesCard
-                statusCards
-                runtimeCard
-                sessionCard
-            }
-            .padding(20)
-        }
-        .frame(width: 520, height: 460)
-        .background(windowBackground)
-    }
-
     var detailContent: some View {
         Group {
             switch selectedSection {
@@ -147,6 +97,8 @@ extension ContentView {
                 batchView
             case .reels:
                 reelsView
+            case .settings:
+                settingsView
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

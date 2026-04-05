@@ -16,6 +16,7 @@ import {
   sanitizeFilename,
   shouldSkipMediaVariant,
 } from "./media_utils.mjs";
+import { downloadReelsCommand } from "./reels_downloader.mjs";
 
 const APP_NAME = "SaveStories";
 const BATCH_JOB_TIMEOUT_MS = 120_000;
@@ -1503,6 +1504,21 @@ async function main() {
       await profileCommand(url, outputDirectory, Boolean(headless), mediaFilter);
     } else if (command === "download_profile_batch") {
       await profileBatchCommand(urls, outputDirectory, Boolean(headless), mediaFilter);
+    } else if (command === "download_reels_urls") {
+      const result = await downloadReelsCommand(urls.length > 0 ? urls : (url ? [url] : []), outputDirectory, Boolean(headless), {
+        defaultDownloads: DEFAULT_DOWNLOADS,
+        manifestsDirectory: MANIFESTS_DIRECTORY,
+        launchContext,
+        prepareBackgroundWindow,
+        ensureLoggedIn,
+        persistSessionState,
+        installJsonCapture,
+      });
+      emit(result.ok, result.status, result.message, {
+        data: result.data,
+        items: result.items,
+        logs: result.logs,
+      });
     } else if (command === "download_story_url") {
       emit(false, "request_error", "download_story_url пока не перенесён в Node worker.");
     } else {

@@ -24,6 +24,37 @@ def parse_batch_links(raw: str) -> list[str]:
     return links
 
 
+def normalize_reel_link(raw: str) -> str:
+    trimmed = raw.strip()
+    if not trimmed or "instagram.com" not in trimmed:
+        return ""
+    try:
+        from urllib.parse import urlsplit, urlunsplit
+
+        parsed = urlsplit(trimmed)
+    except Exception:
+        return ""
+
+    parts = [part for part in parsed.path.split("/") if part]
+    if len(parts) < 2:
+        return ""
+    kind = parts[0].lower()
+    if kind not in {"reel", "reels", "p"}:
+        return ""
+    normalized_path = f"/{kind}/{parts[1]}/"
+    return urlunsplit((parsed.scheme or "https", parsed.netloc, normalized_path, parsed.query, ""))
+
+
+def parse_reel_links(raw: str) -> list[str]:
+    links: list[str] = []
+    for line in raw.splitlines():
+        for part in line.split(","):
+            value = normalize_reel_link(part)
+            if value:
+                links.append(value)
+    return links
+
+
 def batch_status_title(value: str) -> str:
     mapping = {
         "pending": "В очереди",

@@ -67,7 +67,7 @@ jobs:
         run: node --check node_worker/bridge.mjs
 
       - name: Run Node worker tests
-        run: node --test node_worker/media_utils.test.mjs
+        run: node --test node_worker/*.test.mjs
 
       - name: Compile Windows Python sources
         run: python -m compileall windows_app/savestories_windows

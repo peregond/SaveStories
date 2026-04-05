@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ctypes
 import math
 import os
 import subprocess
@@ -63,7 +64,27 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.4.31"
+    return "0.5.0"
+
+
+def prevent_system_sleep() -> bool:
+    if os.name != "nt":
+        return False
+    try:
+        result = ctypes.windll.kernel32.SetThreadExecutionState(0x80000000 | 0x00000001)
+    except Exception:
+        return False
+    return bool(result)
+
+
+def restore_system_sleep() -> bool:
+    if os.name != "nt":
+        return False
+    try:
+        result = ctypes.windll.kernel32.SetThreadExecutionState(0x80000000)
+    except Exception:
+        return False
+    return bool(result)
 
 
 class WorkerTask(QtCore.QThread):
@@ -252,6 +273,7 @@ class SettingsDialog(QtWidgets.QDialog):
     session_check_requested = QtCore.Signal()
     open_runtime_requested = QtCore.Signal()
     update_check_requested = QtCore.Signal()
+    prevent_sleep_toggled = QtCore.Signal(bool)
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
@@ -276,8 +298,17 @@ class SettingsDialog(QtWidgets.QDialog):
         self.runtime_text = QtWidgets.QPlainTextEdit()
         self.runtime_text.setReadOnly(True)
         self.runtime_text.setMinimumHeight(170)
+        self.prevent_sleep_checkbox = QtWidgets.QCheckBox("Не давать ноутбуку засыпать во время выгрузки")
+        self.prevent_sleep_checkbox.setChecked(True)
+        self.prevent_sleep_checkbox.toggled.connect(self.prevent_sleep_toggled)
+        self.prevent_sleep_hint = QtWidgets.QLabel(
+            "Во время скачивания stories или Reels приложение будет удерживать Windows в активном состоянии. "
+            "Проверки среды, вход и обновления эту настройку не используют."
+        )
+        self.prevent_sleep_hint.setWordWrap(True)
 
         layout.addWidget(self._group("Обновления", self.update_label))
+        layout.addWidget(self._options_group())
         layout.addWidget(self._group("Воркер", self.worker_label))
         layout.addWidget(self._group("Сессия", self.session_label))
         layout.addWidget(self._group("Среда", self.runtime_text), 1)
@@ -304,6 +335,15 @@ class SettingsDialog(QtWidgets.QDialog):
         box_layout.addWidget(content)
         return box
 
+    def _options_group(self) -> QtWidgets.QWidget:
+        box = QtWidgets.QGroupBox("Во время выгрузки")
+        box_layout = QtWidgets.QVBoxLayout(box)
+        box_layout.setContentsMargins(12, 12, 12, 12)
+        box_layout.setSpacing(8)
+        box_layout.addWidget(self.prevent_sleep_checkbox)
+        box_layout.addWidget(self.prevent_sleep_hint)
+        return box
+
     def update_state(
         self,
         *,
@@ -311,8 +351,12 @@ class SettingsDialog(QtWidgets.QDialog):
         session_summary: str,
         runtime_summary: str,
         update_summary: str,
+        prevent_sleep_during_downloads: bool,
     ) -> None:
         self.update_label.setText(update_summary)
         self.worker_label.setText(worker_summary)
         self.session_label.setText(session_summary)
         self.runtime_text.setPlainText(runtime_summary)
+        blocked = self.prevent_sleep_checkbox.blockSignals(True)
+        self.prevent_sleep_checkbox.setChecked(prevent_sleep_during_downloads)
+        self.prevent_sleep_checkbox.blockSignals(blocked)

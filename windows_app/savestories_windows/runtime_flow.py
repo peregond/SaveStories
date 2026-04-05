@@ -14,9 +14,15 @@ except ImportError:
     winsound = None
 
 from .app_paths import AppPaths
-from .common_utils import normalize_profile_link, snapshot_download_counts
+from .common_utils import normalize_profile_link, parse_reel_links, snapshot_download_counts
 from .models import WorkerRequest, WorkerResponse
-from .ui_support import BootstrapTask, WorkerTask, write_crash_log
+from .ui_support import (
+    BootstrapTask,
+    WorkerTask,
+    prevent_system_sleep,
+    restore_system_sleep,
+    write_crash_log,
+)
 
 
 class MainWindowRuntimeFlowMixin:
@@ -86,6 +92,7 @@ class MainWindowRuntimeFlowMixin:
             session_summary=self.session_summary,
             runtime_summary=self.runtime_summary,
             update_summary=self.update_summary,
+            prevent_sleep_during_downloads=self.prevent_sleep_during_downloads,
         )
         self.refresh_home2_status_strip()
         if startup and response.ok:
@@ -164,6 +171,7 @@ class MainWindowRuntimeFlowMixin:
             session_summary=self.session_summary,
             runtime_summary=self.runtime_summary,
             update_summary=self.update_summary,
+            prevent_sleep_during_downloads=self.prevent_sleep_during_downloads,
         )
         self.refresh_home2_status_strip()
 
@@ -219,6 +227,29 @@ class MainWindowRuntimeFlowMixin:
             "Скачивание активных stories",
             callback=self.handle_download_response,
         )
+
+    def handle_download_response(self, response: WorkerResponse) -> None:
+        self.apply_response(response)
+
+    def download_reels(self) -> None:
+        links = parse_reel_links(self.reels_input.toPlainText())
+        if not links:
+            self.append_log("Не найдено ни одной ссылки на Reels.")
+            return
+
+        self.start_request(
+            WorkerRequest(
+                command="download_reels_urls",
+                url=None,
+                urls=links,
+                outputDirectory=str(self.save_directory),
+                headless=self.current_headless(),
+                mediaFilter=None,
+            ),
+            "Скачивание Reels",
+            callback=self.handle_download_response,
+        )
+        self.reels_input.clear()
 
     def choose_save_directory(self, line_edit: QtWidgets.QLineEdit) -> None:
         directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Выбрать папку", str(self.save_directory))
@@ -287,8 +318,12 @@ class MainWindowRuntimeFlowMixin:
         self.set_status(status_title, "Выполняется...")
         self.current_step_label = "Запускаю задачу."
         normalized_status = status_title.lower()
+        is_download_request = self.should_prevent_sleep_for_request(request)
         if "скачив" in normalized_status or "выгруз" in normalized_status:
             self.begin_live_download_tracking()
+        if is_download_request:
+            self.download_request_active = True
+            self.refresh_sleep_prevention_for_current_state()
         self.refresh_home2_status_strip()
         self.current_callback = callback
         self.current_task = WorkerTask(self.worker, request)
@@ -310,12 +345,17 @@ class MainWindowRuntimeFlowMixin:
             write_crash_log("finish_request failure", details)
             self.set_status("Ошибка", f"Ошибка UI-обработки: {error}")
             self.append_log(f"[ui_error] {error}")
-        self.stop_live_download_tracking()
-        self.refresh_live_download_tracking()
-        self.refresh_batch_table()
+        finally:
+            self.download_request_active = False
+            self.refresh_sleep_prevention_for_current_state()
+            self.stop_live_download_tracking()
+            self.refresh_live_download_tracking()
+            self.refresh_batch_table()
 
     def cleanup_request(self) -> None:
         self.current_task = None
+        self.download_request_active = False
+        self.refresh_sleep_prevention_for_current_state()
         self.refresh_batch_table()
 
     def apply_response(self, response: WorkerResponse) -> None:
@@ -445,6 +485,32 @@ class MainWindowRuntimeFlowMixin:
         self.play_success_sound()
         if hasattr(self, "confetti_overlay"):
             self.confetti_overlay.launch()
+
+    def set_prevent_sleep_during_downloads(self, enabled: bool) -> None:
+        self.prevent_sleep_during_downloads = bool(enabled)
+        self.settings_store.setValue("prevent_sleep_during_downloads", self.prevent_sleep_during_downloads)
+        self.refresh_sleep_prevention_for_current_state()
+
+    def should_prevent_sleep_for_request(self, request: WorkerRequest) -> bool:
+        return request.command in {"download_profile_stories", "download_profile_batch", "download_reels_urls"}
+
+    def refresh_sleep_prevention_for_current_state(self) -> None:
+        if self.prevent_sleep_during_downloads and self.download_request_active:
+            self.begin_sleep_prevention()
+        else:
+            self.end_sleep_prevention()
+
+    def begin_sleep_prevention(self) -> None:
+        if self.sleep_prevention_active:
+            return
+        if prevent_system_sleep():
+            self.sleep_prevention_active = True
+
+    def end_sleep_prevention(self) -> None:
+        if not self.sleep_prevention_active:
+            return
+        restore_system_sleep()
+        self.sleep_prevention_active = False
 
     def play_success_sound(self) -> None:
         if winsound is not None:

@@ -125,6 +125,32 @@ extension AppModel {
         }
     }
 
+    func downloadReels() async {
+        let urls = parsedReelLinks(from: reelsInput)
+        guard !urls.isEmpty else {
+            appendLog("Не найдено ни одной ссылки на Reels.")
+            return
+        }
+
+        await perform("Скачивание Reels") {
+            self.currentStepLabel = "Открываю ссылку на Reels и подготавливаю выгрузку."
+            let response = await self.worker.run(
+                WorkerRequest(
+                    command: "download_reels_urls",
+                    url: nil,
+                    urls: urls,
+                    outputDirectory: self.saveDirectory.path,
+                    headless: self.downloadMode.usesHeadless,
+                    mediaFilter: nil
+                )
+            )
+            if response.ok {
+                self.reelsInput = ""
+            }
+            self.append(response)
+        }
+    }
+
     func perform(_ message: String, task: @escaping @MainActor () async -> Void) async {
         guard !isBusy else { return }
         isBusy = true
@@ -132,15 +158,22 @@ extension AppModel {
         statusDetail = "Выполняется..."
         currentStepLabel = "Запускаю задачу."
         let normalizedMessage = message.lowercased()
-        if normalizedMessage.contains("скачив") || normalizedMessage.contains("выгруз") {
+        let isDownloadOperation = normalizedMessage.contains("скачив") || normalizedMessage.contains("выгруз")
+        if isDownloadOperation {
             foundStoriesCount = 0
             savedStoriesCount = 0
+            isDownloadActivityInProgress = true
+            refreshSleepPreventionForCurrentState()
             beginLiveDownloadTracking()
         }
         appendLog(message)
         await task()
         isBusy = false
         stopLiveDownloadTracking()
+        if isDownloadOperation {
+            isDownloadActivityInProgress = false
+            refreshSleepPreventionForCurrentState()
+        }
         refreshLiveDownloadTracking()
         if statusTitle == "Готово" {
             currentStepLabel = "Операция завершена."
@@ -207,6 +240,34 @@ extension AppModel {
 
     private func environmentResponse() async -> WorkerResponse {
         await worker.run(WorkerRequest(command: "environment", url: nil, urls: nil, outputDirectory: nil, headless: nil, mediaFilter: nil))
+    }
+
+    func parsedReelLinks(from input: String) -> [String] {
+        input
+            .split(whereSeparator: \.isNewline)
+            .flatMap { chunk in
+                chunk.split(separator: ",")
+            }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .compactMap(normalizedReelLink(_:))
+    }
+
+    func normalizedReelLink(_ raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let url = URL(string: trimmed), let host = url.host?.lowercased() else {
+            return nil
+        }
+        guard host.contains("instagram.com") else { return nil }
+        let parts = url.pathComponents.filter { $0 != "/" }
+        guard parts.count >= 2 else { return nil }
+        let kind = parts[0].lowercased()
+        guard kind == "reel" || kind == "reels" || kind == "p" else { return nil }
+
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        components?.fragment = nil
+        components?.path = "/\(kind)/\(parts[1])/"
+        return components?.url?.absoluteString
     }
 
     private func refreshStartupSession() async {
@@ -345,6 +406,28 @@ extension AppModel {
     private func stopLiveDownloadTracking() {
         liveTrackingTask?.cancel()
         liveTrackingTask = nil
+    }
+
+    func refreshSleepPreventionForCurrentState() {
+        if preventSleepDuringDownloads && isDownloadActivityInProgress {
+            beginSleepPrevention()
+        } else {
+            endSleepPrevention()
+        }
+    }
+
+    private func beginSleepPrevention() {
+        guard sleepPreventionActivity == nil else { return }
+        sleepPreventionActivity = ProcessInfo.processInfo.beginActivity(
+            options: [.idleSystemSleepDisabled],
+            reason: "SaveStories download in progress"
+        )
+    }
+
+    private func endSleepPrevention() {
+        guard let activity = sleepPreventionActivity else { return }
+        ProcessInfo.processInfo.endActivity(activity)
+        sleepPreventionActivity = nil
     }
 
     nonisolated private static func snapshot(of directory: URL) -> (files: Int, folders: Int) {

@@ -7,6 +7,7 @@ final class AppModel: ObservableObject {
     static let recentBatchListsKey = "SaveStories.recentBatchLists"
     private static let mediaSelectionModeKey = "SaveStories.mediaSelectionMode"
     static let saveDirectoryKey = "SaveStories.saveDirectory"
+    private static let preventSleepDuringDownloadsKey = "SaveStories.preventSleepDuringDownloads"
     private static let actionSoundNames = ["Pop", "Tink", "Glass"]
     private static let successSoundNames = ["Glass", "Hero", "Funk", "Pop"]
     private static let logDateFormatter: DateFormatter = {
@@ -140,11 +141,18 @@ final class AppModel: ObservableObject {
 
     @Published var profileURL: String = ""
     @Published var batchInput: String = ""
+    @Published var reelsInput: String = ""
     @Published var batchQueue: [BatchProfileItem] = []
     @Published var downloadMode: DownloadMode = .background
     @Published var mediaSelectionMode: MediaSelectionMode = .videoOnly {
         didSet {
             UserDefaults.standard.set(mediaSelectionMode.rawValue, forKey: Self.mediaSelectionModeKey)
+        }
+    }
+    @Published var preventSleepDuringDownloads = true {
+        didSet {
+            UserDefaults.standard.set(preventSleepDuringDownloads, forKey: Self.preventSleepDuringDownloadsKey)
+            refreshSleepPreventionForCurrentState()
         }
     }
     @Published var saveDirectory: URL = AppPaths.defaultDownloads
@@ -159,6 +167,7 @@ final class AppModel: ObservableObject {
     @Published var runtimeSummary: String = ""
     @Published var updateSummary: String = "Автообновление ещё не настроено для этой сборки."
     @Published var canCheckForUpdates = false
+    @Published var isCheckingForUpdates = false
     @Published var downloadedItems: [WorkerItem] = []
     @Published var logs: [String] = []
     @Published var isBusy = false
@@ -183,6 +192,8 @@ final class AppModel: ObservableObject {
     var saveDirectoryBaselineFiles = 0
     var saveDirectoryBaselineFolders = 0
     var liveTrackingTask: Task<Void, Never>?
+    var sleepPreventionActivity: NSObjectProtocol?
+    var isDownloadActivityInProgress = false
     var hasEmbeddedRuntime: Bool { AppPaths.hasEmbeddedRuntime }
 
     init() {
@@ -197,6 +208,9 @@ final class AppModel: ObservableObject {
            let mode = MediaSelectionMode(rawValue: savedMediaMode)
         {
             mediaSelectionMode = mode
+        }
+        if UserDefaults.standard.object(forKey: Self.preventSleepDuringDownloadsKey) != nil {
+            preventSleepDuringDownloads = UserDefaults.standard.bool(forKey: Self.preventSleepDuringDownloadsKey)
         }
         loadRecentBatchLists()
     }

@@ -96,6 +96,7 @@ class MainWindow(
         self.update_summary = self.updater.summary
         self.download_mode = self.settings_store.value("download_mode", "background")
         self.media_filter = self.settings_store.value("media_filter", "video_only")
+        self.prevent_sleep_during_downloads = self._settings_bool("prevent_sleep_during_downloads", True)
         self.batch_entries: list[BatchEntry] = []
         self.batch_running = False
         self.batch_stop_requested = False
@@ -114,6 +115,8 @@ class MainWindow(
         self.status_pulse_active = False
         self._save_directory_baseline_files = 0
         self._save_directory_baseline_folders = 0
+        self.download_request_active = False
+        self.sleep_prevention_active = False
         self.live_tracking_timer = QtCore.QTimer(self)
         self.live_tracking_timer.setInterval(2000)
         self.live_tracking_timer.timeout.connect(self.refresh_live_download_tracking)
@@ -159,6 +162,7 @@ class MainWindow(
             session_summary=self.session_summary,
             runtime_summary=self.runtime_summary,
             update_summary=self.update_summary,
+            prevent_sleep_during_downloads=self.prevent_sleep_during_downloads,
         )
         self.settings_dialog.show()
         self.settings_dialog.raise_()
@@ -189,10 +193,17 @@ class MainWindow(
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         if self.login_poll_timer.isActive():
             self.login_poll_timer.stop()
+        self.end_sleep_prevention()
         self.stop_live_download_tracking()
         self.settings_store.setValue("window_geometry", self.saveGeometry())
         write_crash_log("MainWindow.closeEvent", "Window close requested.")
         super().closeEvent(event)
+
+    def _settings_bool(self, key: str, default: bool) -> bool:
+        value = self.settings_store.value(key, default)
+        if isinstance(value, bool):
+            return value
+        return str(value).strip().lower() not in {"0", "false", "no", "off", ""}
 
 
 def main() -> int:
@@ -223,5 +234,4 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     raise SystemExit(main())
-
 

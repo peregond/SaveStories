@@ -7,7 +7,9 @@ from pathlib import Path
 from savestories_windows.common_utils import (
     batch_status_title,
     normalize_profile_link,
+    normalize_reel_link,
     parse_batch_links,
+    parse_reel_links,
     snapshot_download_counts,
     suggested_recent_list_title,
 )
@@ -30,6 +32,24 @@ class CommonUtilsTests(unittest.TestCase):
                 "https://www.instagram.com/carol/",
             ],
         )
+
+    def test_parse_reel_links(self) -> None:
+        self.assertEqual(
+            parse_reel_links(
+                "https://www.instagram.com/reel/DMabc123/?utm_source=ig_web_copy_link, https://www.instagram.com/p/CODE456/\ninvalid"
+            ),
+            [
+                "https://www.instagram.com/reel/DMabc123/?utm_source=ig_web_copy_link",
+                "https://www.instagram.com/p/CODE456/",
+            ],
+        )
+
+    def test_normalize_reel_link(self) -> None:
+        self.assertEqual(
+            normalize_reel_link("https://www.instagram.com/reels/DMabc123/#fragment"),
+            "https://www.instagram.com/reels/DMabc123/",
+        )
+        self.assertEqual(normalize_reel_link("https://www.instagram.com/alice/"), "")
 
     def test_batch_status_title(self) -> None:
         self.assertEqual(batch_status_title("completed"), "Готово")

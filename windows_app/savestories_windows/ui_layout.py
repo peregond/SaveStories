@@ -35,6 +35,7 @@ class MainWindowLayoutMixin:
         self.settings_dialog.session_check_requested.connect(self.check_session)
         self.settings_dialog.update_check_requested.connect(lambda: self.check_for_updates(silent=False))
         self.settings_dialog.open_runtime_requested.connect(self.open_runtime_directory)
+        self.settings_dialog.prevent_sleep_toggled.connect(self.set_prevent_sleep_during_downloads)
 
     def _build_sidebar(self) -> QtWidgets.QWidget:
         sidebar = QtWidgets.QFrame()
@@ -57,9 +58,9 @@ class MainWindowLayoutMixin:
 
         for index, (text, detail) in enumerate(
             [
-                ("Главная", "Основной стартовый сценарий"),
+                ("Stories", "Загрузка stories из профилей тут"),
                 ("Списочная", "Очередь профилей"),
-                ("Reels", "Скоро появится"),
+                ("Reels", "Выгрузка Reels тут"),
             ]
         ):
             button = QtWidgets.QPushButton(f"{text}\n{detail}")
@@ -117,27 +118,42 @@ class MainWindowLayoutMixin:
         layout.addWidget(
             self._hero(
                 "Reels",
-                "Отдельный сценарий для выгрузки Reels появится в следующих версиях.",
+                "Вставь одну или несколько ссылок на Reels, и приложение скачает их через отдельный reels-downloader.",
             )
         )
 
-        card = QtWidgets.QGroupBox("Что будет дальше")
-        card_layout = QtWidgets.QVBoxLayout(card)
-        text = QtWidgets.QLabel(
-            "Здесь появится отдельный поток работы с Reels: вставка ссылок, пакетная выгрузка и более точные фильтры контента."
+        input_card = QtWidgets.QGroupBox("Ссылки на Reels")
+        input_layout = QtWidgets.QVBoxLayout(input_card)
+        note = QtWidgets.QLabel(
+            "Можно вставить одну или несколько ссылок. Файлы сохраняются по той же логике, что и обычные загрузки, но с префиксом reels перед номером."
         )
-        text.setWordWrap(True)
-        card_layout.addWidget(text)
-        for line in [
-            "Отдельная очередь ссылок на Reels.",
-            "Пакетная выгрузка с понятным прогрессом.",
-            "Более точные фильтры под видео-контент.",
-        ]:
-            bullet = QtWidgets.QLabel(f"• {line}")
-            bullet.setWordWrap(True)
-            card_layout.addWidget(bullet)
+        note.setWordWrap(True)
+        input_layout.addWidget(note)
 
-        layout.addWidget(card)
+        self.reels_input = QtWidgets.QPlainTextEdit()
+        self.reels_input.setPlaceholderText(
+            "Например:\nhttps://www.instagram.com/reel/DMabc123/\nhttps://www.instagram.com/reel/DMxyz456/"
+        )
+        self.reels_input.setFixedHeight(160)
+        input_layout.addWidget(self.reels_input)
+
+        buttons = QtWidgets.QHBoxLayout()
+        run_button = QtWidgets.QPushButton("Скачать Reels")
+        run_button.clicked.connect(self.download_reels)
+        clear_button = QtWidgets.QPushButton("Очистить поле")
+        clear_button.clicked.connect(self.reels_input.clear)
+        buttons.addWidget(run_button)
+        buttons.addWidget(clear_button)
+        input_layout.addLayout(buttons)
+
+        tip = QtWidgets.QLabel(
+            "Этот поток отделён от stories-выгрузки внутри worker, чтобы логика Reels не влияла на сценарий активных stories."
+        )
+        tip.setWordWrap(True)
+        input_layout.addWidget(tip)
+
+        layout.addWidget(input_card)
+        layout.addWidget(self._save_directory_card())
         layout.addStretch(1)
         return page
 
@@ -149,8 +165,8 @@ class MainWindowLayoutMixin:
 
         layout.addWidget(
             self._hero(
-                "Главная",
-                "Более удобный стартовый экран: собери список профилей, сохрани его как недавний и запускай выгрузку без лишних переключений.",
+                "Stories",
+                "Загрузка stories из профилей тут.",
             )
         )
         layout.addWidget(self._home2_status_strip())

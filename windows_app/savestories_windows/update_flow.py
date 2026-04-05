@@ -37,6 +37,7 @@ class MainWindowUpdateFlowMixin:
                 session_summary=self.session_summary,
                 runtime_summary=self.runtime_summary,
                 update_summary=self.update_summary,
+                prevent_sleep_during_downloads=self.prevent_sleep_during_downloads,
             )
             if not self.silent_update_check:
                 self.set_status("Ошибка", status)
@@ -50,6 +51,7 @@ class MainWindowUpdateFlowMixin:
                 session_summary=self.session_summary,
                 runtime_summary=self.runtime_summary,
                 update_summary=self.update_summary,
+                prevent_sleep_during_downloads=self.prevent_sleep_during_downloads,
             )
             return
 
@@ -60,6 +62,7 @@ class MainWindowUpdateFlowMixin:
                 session_summary=self.session_summary,
                 runtime_summary=self.runtime_summary,
                 update_summary=self.update_summary,
+                prevent_sleep_during_downloads=self.prevent_sleep_during_downloads,
             )
             if not self.silent_update_check:
                 self.set_status("Готово", "Новая версия не найдена.")
@@ -83,6 +86,7 @@ class MainWindowUpdateFlowMixin:
                 session_summary=self.session_summary,
                 runtime_summary=self.runtime_summary,
                 update_summary=self.update_summary,
+                prevent_sleep_during_downloads=self.prevent_sleep_during_downloads,
             )
             self.append_log(f"Найдена новая версия Windows: {release.version}.")
             if self.silent_update_check:

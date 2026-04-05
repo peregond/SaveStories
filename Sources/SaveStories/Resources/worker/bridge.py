@@ -2020,6 +2020,8 @@ def main() -> None:
             profile_command(url, output_directory, headless=bool(headless), media_filter=str(media_filter))
         elif command == "download_profile_batch":
             profile_batch_command(list(urls), output_directory, headless=bool(headless), media_filter=str(media_filter))
+        elif command == "download_reels_urls":
+            emit(False, "request_error", "Выгрузка Reels сейчас поддерживается только в Node worker.")
         else:
             emit(False, "request_error", f"Неподдерживаемая команда: {command}")
     except Exception as exc:

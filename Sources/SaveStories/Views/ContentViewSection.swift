@@ -5,28 +5,33 @@ extension ContentView {
         case main
         case batch
         case reels
+        case settings
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
             case .main:
-                "Главная"
+                "Stories"
             case .batch:
                 "Списочная"
             case .reels:
                 "Reels"
+            case .settings:
+                "Настройки"
             }
         }
 
         var subtitle: String {
             switch self {
             case .main:
-                "Новый стартовый сценарий"
+                "Загрузка stories из профилей тут"
             case .batch:
                 "Очередь профилей"
             case .reels:
-                "Скоро появится"
+                "Выгрузка Reels тут"
+            case .settings:
+                "Воркер, сессия и обновления"
             }
         }
 
@@ -38,6 +43,8 @@ extension ContentView {
                 "list.bullet.rectangle.portrait"
             case .reels:
                 "play.rectangle.on.rectangle"
+            case .settings:
+                "gearshape.fill"
             }
         }
     }
