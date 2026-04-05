@@ -8,6 +8,7 @@ struct ContentView: View {
     @State var showingAllRecentLists = false
     @State var showingRuntimeDetails = false
     @State var showingLogsCopiedFeedback = false
+    @State var showingPendingEmptyFolders = false
 
     var isDark: Bool { colorScheme == .dark }
 
@@ -112,6 +113,10 @@ struct ContentView: View {
         }
     }
 
+    var pendingEmptyFolderNames: [String] {
+        model.pendingEmptyStoryFolders.map(\.lastPathComponent)
+    }
+
     var body: some View {
         ZStack {
             windowBackground
@@ -127,6 +132,17 @@ struct ContentView: View {
                     .allowsHitTesting(false)
                     .zIndex(4)
             }
+
+            if model.showEmptyFolderCleanupPrompt {
+                Color.black.opacity(isDark ? 0.42 : 0.24)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .zIndex(5)
+
+                emptyFolderCleanupPrompt
+                    .transition(.opacity)
+                    .zIndex(6)
+            }
         }
         .alert("Нужен вход в Instagram", isPresented: $model.showLoginPrompt) {
             Button("Не сейчас", role: .cancel) {
@@ -138,22 +154,17 @@ struct ContentView: View {
         } message: {
             Text("Для первой выгрузки stories войди в Instagram через браузер приложения. Окно останется открытым, пока вход не будет завершён.")
         }
-        .alert("Удалить пустые папки?", isPresented: $model.showEmptyFolderCleanupPrompt) {
-            Button("Не удалять", role: .cancel) {
-                model.dismissEmptyFolderCleanupPrompt()
-            }
-            Button("Удалить") {
-                model.removePendingEmptyStoryFolders()
-            }
-        } message: {
-            Text("После выгрузки stories найдены пустые папки профилей. Удалить их и оставить только папки с сохранёнными файлами?")
-        }
         .alert(item: $model.emptyFolderCleanupReport) { report in
             Alert(
                 title: Text(report.title),
                 message: Text(report.message),
                 dismissButton: .default(Text("OK"))
             )
+        }
+        .onChange(of: model.showEmptyFolderCleanupPrompt) { _, isShown in
+            if !isShown {
+                showingPendingEmptyFolders = false
+            }
         }
         .onChange(of: model.celebrationToken) { _, newValue in
             guard newValue > 0 else { return }
@@ -166,6 +177,69 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    var emptyFolderCleanupPrompt: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Удалить пустые папки?")
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .foregroundStyle(primaryText)
+
+            Text("После выгрузки stories найдены пустые папки профилей. Удалить их и оставить только папки с сохранёнными файлами?")
+                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .foregroundStyle(secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+
+            DisclosureGroup(isExpanded: $showingPendingEmptyFolders) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(pendingEmptyFolderNames, id: \.self) { name in
+                            Text(name)
+                                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                .foregroundStyle(primaryText)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(itemFill)
+                                )
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+                .frame(maxHeight: 180)
+            } label: {
+                Text(showingPendingEmptyFolders ? "Скрыть список папок" : "Показать список папок")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(primaryText)
+            }
+            .tint(prominentButtonTint)
+
+            HStack(spacing: 12) {
+                Button {
+                    model.dismissEmptyFolderCleanupPrompt()
+                } label: {
+                    Text("Не удалять")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(secondaryButtonTint)
+
+                Button {
+                    model.removePendingEmptyStoryFolders()
+                } label: {
+                    Text("Удалить")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(prominentButtonTint)
+            }
+        }
+        .padding(24)
+        .frame(width: 460)
+        .cardBackground(cornerRadius: 28, fill: cardFill, stroke: cardStroke, tint: glassTint)
+        .shadow(color: Color.black.opacity(isDark ? 0.35 : 0.16), radius: 28, y: 14)
     }
 
 
