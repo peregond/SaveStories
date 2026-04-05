@@ -263,7 +263,7 @@ extension ContentView {
                 stepTracker
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 224, maxHeight: .infinity, alignment: .topLeading)
     }
 
     var homeResultCard: some View {
@@ -275,7 +275,7 @@ extension ContentView {
                 homeResultTile(title: "Папок", value: model.liveCreatedFolderCount, accent: Color.mint.opacity(0.78))
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 224, maxHeight: .infinity, alignment: .topLeading)
     }
 
     var statusRail: some View {
@@ -329,7 +329,8 @@ extension ContentView {
                 .foregroundStyle(primaryText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
                 .fill(pillFill)

@@ -39,6 +39,56 @@ function wrapCdata(value) {
   return value.replaceAll("]]>", "]]]]><![CDATA[>");
 }
 
+function escapeHtml(value) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function markdownToSparkleHtml(markdown) {
+  const lines = markdown
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    return "";
+  }
+
+  const html = [];
+  let listItems = [];
+
+  function flushList() {
+    if (listItems.length === 0) {
+      return;
+    }
+    html.push(`<ul>${listItems.join("")}</ul>`);
+    listItems = [];
+  }
+
+  for (const line of lines) {
+    if (line.startsWith("## ")) {
+      flushList();
+      html.push(`<h2>${escapeHtml(line.slice(3))}</h2>`);
+      continue;
+    }
+
+    if (line.startsWith("- ")) {
+      listItems.push(`<li>${escapeHtml(line.slice(2))}</li>`);
+      continue;
+    }
+
+    flushList();
+    html.push(`<p>${escapeHtml(line)}</p>`);
+  }
+
+  flushList();
+  return html.join("\n");
+}
+
 const assetPath = requiredArg("asset");
 const assetURL = requiredArg("asset-url");
 const releaseURL = requiredArg("release-url");
@@ -63,7 +113,7 @@ const privateKey = createPrivateKey(privateKeyPem);
 const signature = sign(null, assetBuffer, privateKey).toString("base64");
 const assetSize = statSync(assetPath).size;
 const publishedAt = new Date().toUTCString();
-const description = wrapCdata(notes);
+const description = wrapCdata(markdownToSparkleHtml(notes));
 
 const xml = `<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">

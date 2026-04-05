@@ -80,6 +80,28 @@ final class AppModel: ObservableObject {
         }
     }
 
+    struct EmptyFolderCleanupReport: Identifiable {
+        let id = UUID()
+        let removedCount: Int
+        let folderNames: [String]
+
+        var title: String {
+            removedCount > 0 ? "Пустые папки удалены" : "Удалять нечего"
+        }
+
+        var message: String {
+            guard removedCount > 0 else {
+                return "После проверки пустых папок для удаления не осталось."
+            }
+
+            let preview = folderNames.prefix(5).joined(separator: "\n")
+            if folderNames.count > 5 {
+                return "Удалено пустых папок: \(removedCount).\n\n\(preview)\nи ещё \(folderNames.count - 5)."
+            }
+            return "Удалено пустых папок: \(removedCount).\n\n\(preview)"
+        }
+    }
+
     enum DownloadMode: String, CaseIterable, Identifiable {
         case background
         case visible
@@ -174,6 +196,8 @@ final class AppModel: ObservableObject {
     @Published var workerReady = false
     @Published var sessionReady = false
     @Published var showLoginPrompt = false
+    @Published var showEmptyFolderCleanupPrompt = false
+    @Published var emptyFolderCleanupReport: EmptyFolderCleanupReport?
     @Published var recentBatchLists: [RecentBatchList] = []
     @Published var batchIsRunning = false
     @Published var batchStopRequested = false
@@ -194,6 +218,7 @@ final class AppModel: ObservableObject {
     var liveTrackingTask: Task<Void, Never>?
     var sleepPreventionActivity: NSObjectProtocol?
     var isDownloadActivityInProgress = false
+    var pendingEmptyStoryFolders: [URL] = []
     var hasEmbeddedRuntime: Bool { AppPaths.hasEmbeddedRuntime }
 
     init() {

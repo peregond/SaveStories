@@ -138,6 +138,23 @@ struct ContentView: View {
         } message: {
             Text("Для первой выгрузки stories войди в Instagram через браузер приложения. Окно останется открытым, пока вход не будет завершён.")
         }
+        .alert("Удалить пустые папки?", isPresented: $model.showEmptyFolderCleanupPrompt) {
+            Button("Не удалять", role: .cancel) {
+                model.dismissEmptyFolderCleanupPrompt()
+            }
+            Button("Удалить") {
+                model.removePendingEmptyStoryFolders()
+            }
+        } message: {
+            Text("После выгрузки stories найдены пустые папки профилей. Удалить их и оставить только папки с сохранёнными файлами?")
+        }
+        .alert(item: $model.emptyFolderCleanupReport) { report in
+            Alert(
+                title: Text(report.title),
+                message: Text(report.message),
+                dismissButton: .default(Text("OK"))
+            )
+        }
         .onChange(of: model.celebrationToken) { _, newValue in
             guard newValue > 0 else { return }
             withAnimation(.easeOut(duration: 0.25)) {
@@ -208,28 +225,9 @@ struct ContentView: View {
 
                 Group {
                     if compact {
-                        VStack(alignment: .leading, spacing: 14) {
-                            destinationInlineCard(compact: true)
-                            Text("Вставь профили, выбери режим и папку — затем нажми «Скачать».")
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
-                                .foregroundStyle(quaternaryText)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
+                        destinationInlineCard(compact: true)
                     } else {
-                        HStack(alignment: .top, spacing: 14) {
-                            destinationInlineCard(compact: false)
-
-                            Text("Вставь профили, выбери режим и папку — затем нажми «Скачать».")
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
-                                .foregroundStyle(quaternaryText)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .padding(12)
-                                .frame(maxWidth: .infinity, alignment: .topLeading)
-                                .background(
-                                    RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                                        .fill(itemFill)
-                                )
-                        }
+                        destinationInlineCard(compact: false)
                     }
                 }
 
@@ -1708,12 +1706,32 @@ struct ContentView: View {
 
     func ghostButton(_ title: String, systemImage: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .frame(maxWidth: .infinity)
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 13, weight: .semibold))
+                Text(title)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.82)
+            }
+            .frame(maxWidth: .infinity)
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .buttonStyle(.bordered)
-        .tint(tint ?? secondaryButtonTint)
+        .buttonStyle(.plain)
+        .foregroundStyle((tint ?? primaryText).opacity(model.isBusy ? 0.45 : 1))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(isDark ? 0.10 : 0.82))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder((tint ?? prominentButtonTint).opacity(isDark ? 0.22 : 0.18), lineWidth: 1)
+        )
         .disabled(model.isBusy)
+        .opacity(model.isBusy ? 0.7 : 1)
+        .frame(maxWidth: .infinity, minHeight: 46)
     }
 
     func queueSummaryBadge(text: String, tint: Color) -> some View {

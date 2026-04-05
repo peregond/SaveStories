@@ -171,6 +171,7 @@ extension AppModel {
             self.batchCurrentIndex = 0
             self.batchIsRunning = false
             self.batchStopRequested = false
+            self.prepareEmptyStoryFolderCleanupPrompt()
         }
     }
 
@@ -202,6 +203,38 @@ extension AppModel {
         NSWorkspace.shared.activateFileViewerSelecting([AppPaths.applicationSupport])
     }
 
+    func dismissEmptyFolderCleanupPrompt() {
+        pendingEmptyStoryFolders = []
+        showEmptyFolderCleanupPrompt = false
+    }
+
+    func removePendingEmptyStoryFolders() {
+        let folders = pendingEmptyStoryFolders
+        pendingEmptyStoryFolders = []
+        showEmptyFolderCleanupPrompt = false
+
+        guard !folders.isEmpty else {
+            emptyFolderCleanupReport = EmptyFolderCleanupReport(removedCount: 0, folderNames: [])
+            return
+        }
+
+        let manager = FileManager.default
+        var removedNames: [String] = []
+        for folder in folders {
+            do {
+                try manager.removeItem(at: folder)
+                removedNames.append(folder.lastPathComponent)
+            } catch {
+                appendLog("Не удалось удалить пустую папку \(folder.lastPathComponent): \(error.localizedDescription)")
+            }
+        }
+
+        if !removedNames.isEmpty {
+            appendLog("Удалены пустые папки после выгрузки stories: \(removedNames.joined(separator: ", ")).")
+        }
+        emptyFolderCleanupReport = EmptyFolderCleanupReport(removedCount: removedNames.count, folderNames: removedNames)
+    }
+
     func parsedBatchLinks(from input: String) -> [String] {
         input
             .split(whereSeparator: \.isNewline)
@@ -228,6 +261,50 @@ extension AppModel {
         guard let index = batchQueue.firstIndex(where: { $0.id == id }) else { return }
         batchQueue[index].status = status
         batchQueue[index].message = message
+    }
+
+    func prepareEmptyStoryFolderCleanupPrompt() {
+        let emptyFolders = emptyStoryFolders(in: saveDirectory)
+        guard !emptyFolders.isEmpty else { return }
+        pendingEmptyStoryFolders = emptyFolders
+        showEmptyFolderCleanupPrompt = true
+        appendLog("Найдены пустые папки после выгрузки stories: \(emptyFolders.count).")
+    }
+
+    func emptyStoryFolders(in root: URL) -> [URL] {
+        let manager = FileManager.default
+        guard let children = try? manager.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return []
+        }
+
+        return children.filter { candidate in
+            guard (try? candidate.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else {
+                return false
+            }
+            return isEffectivelyEmptyDirectory(candidate)
+        }
+    }
+
+    private func isEffectivelyEmptyDirectory(_ directory: URL) -> Bool {
+        let manager = FileManager.default
+        guard let enumerator = manager.enumerator(
+            at: directory,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles],
+            errorHandler: nil
+        ) else {
+            return false
+        }
+
+        for case let item as URL in enumerator {
+            guard item != directory else { continue }
+            return false
+        }
+        return true
     }
 
     func applyBatchResults(_ response: WorkerResponse, pendingItems: [BatchProfileItem]) {
