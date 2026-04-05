@@ -2,28 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveStories Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.5.0</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.5.1</link>
     <description>Release feed for SaveStories macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveStories 0.5.0</title>
-      <pubDate>Sun, 05 Apr 2026 20:01:55 GMT</pubDate>
-      <sparkle:version>59</sparkle:version>
-      <sparkle:shortVersionString>0.5.0</sparkle:shortVersionString>
-      <description><![CDATA[## SaveStories 0.5.0
-
-- Добавлена возможность скачивать Reels
-- Переделан раздел настроек
-- Теперь при скачивании устройство не переходит в режим сна (это можно отключить в настройках)
-- Раздел «Главная» переименован в «Stories»
-- Множество улучшений в интерфейсе программы
-]]></description>
+      <title>SaveStories 0.5.1</title>
+      <pubDate>Sun, 05 Apr 2026 20:43:29 GMT</pubDate>
+      <sparkle:version>60</sparkle:version>
+      <sparkle:shortVersionString>0.5.1</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveStories 0.5.1</h2>
+<ul><li>Добавлена возможность скачивать Reels</li><li>Переделан раздел настроек</li><li>Теперь при скачивании устройство не переходит в режим сна (это можно отключить в настройках)</li><li>Раздел «Главная» переименован в «Stories»</li><li>После завершения загрузки программа предложит удалить пустые папки</li><li>Множество улучшений в интерфейсе программы</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.5.0/SaveStories-macOS-v0.5.0.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.5.1/SaveStories-macOS-v0.5.1.dmg"
         sparkle:os="macos"
-        length="187096479"
+        length="187128412"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="UcaSRYtlnaQcAwhWHzwTw1O/kQgmR4f7PH+jI49/GwwJWSJYbzgWOY5CzAgtd+9j/KSWFUrvZd2+K2Id4bVkAQ==" />
+        sparkle:edSignature="i9gKnsSWNxY4Bj1wd5lUYAOLzuVejRmPGdwElC36GXaO3SCdh0yE4BCMOP50e2TwsdlwwBr9NTWJhKbjqLGxCQ==" />
     </item>
   </channel>
 </rss>
