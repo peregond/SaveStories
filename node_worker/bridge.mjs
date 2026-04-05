@@ -1051,6 +1051,17 @@ async function persistStoryItems(resolvedItems, destinationDir, username, browse
 
 async function collectStorySequence(page, destinationDir, username, jsonPayloads, networkCandidates, metadataCapturedAfter = null, persistMetadataItems = true, mediaFilter = "all") {
   const logs = [];
+
+  if (isHighlightStoryUrl(page.url())) {
+    logs.push(`highlight_page_rejected=${page.url()}`);
+    return { items: [], logs };
+  }
+
+  if (!isActiveStoryPage(page.url(), username)) {
+    logs.push(`active_story_page_missing=${page.url()}`);
+    return { items: [], logs };
+  }
+
   const resolvedItems = await waitForMetadataStoryItems(page, jsonPayloads, username, logs, 12, metadataCapturedAfter);
   if (resolvedItems.length > 0 && persistMetadataItems) {
     const persisted = await persistStoryItems(resolvedItems, destinationDir, username, page.context(), mediaFilter);

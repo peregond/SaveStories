@@ -323,26 +323,11 @@ struct ContentView: View {
                                 .fill(itemFill)
                         )
                 } else {
-                    ZStack(alignment: .topLeading) {
-                        if !showingAllRecentLists && model.recentBatchLists.count > 1 {
-                            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                                .fill(itemFill.opacity(0.68))
-                                .frame(height: 132)
-                                .offset(x: 8, y: 8)
-
-                            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                                .fill(itemFill.opacity(0.82))
-                                .frame(height: 132)
-                                .offset(x: 4, y: 4)
-                        }
-
-                        VStack(alignment: .leading, spacing: 10) {
-                            ForEach(displayedRecentBatchLists) { list in
-                                recentListCard(list, compact: compact)
-                            }
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(displayedRecentBatchLists) { list in
+                            recentListCard(list, compact: compact)
                         }
                     }
-                    .padding(.bottom, !showingAllRecentLists && model.recentBatchLists.count > 1 ? 10 : 0)
 
                     if model.recentBatchLists.count > 3 {
                         Button {
@@ -372,12 +357,13 @@ struct ContentView: View {
     }
 
     func recentListCard(_ list: AppModel.RecentBatchList, compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(list.title)
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(primaryText)
+                        .lineLimit(1)
 
                     HStack(spacing: 6) {
                         Text(list.subtitle)
@@ -401,30 +387,30 @@ struct ContentView: View {
                 .buttonStyle(.plain)
             }
 
-            Text(list.urls.prefix(3).joined(separator: "\n"))
+            Text(list.urls.prefix(2).joined(separator: "\n"))
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .foregroundStyle(secondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .lineLimit(3)
+                .lineLimit(2)
 
             if compact {
                 VStack(spacing: 8) {
-                    ghostButton("Добавить в очередь", systemImage: "plus") {
+                    recentActionButton("Добавить в очередь", systemImage: "plus") {
                         model.applyRecentBatchList(list)
                     }
 
-                    ghostButton("Заменить очередь", systemImage: "arrow.triangle.swap") {
+                    recentActionButton("Заменить очередь", systemImage: "arrow.triangle.swap") {
                         model.replaceQueueWithRecentBatchList(list)
                     }
                     .disabled(model.isBusy)
                 }
             } else {
                 HStack(spacing: 8) {
-                    ghostButton("Добавить в очередь", systemImage: "plus") {
+                    recentActionButton("Добавить в очередь", systemImage: "plus") {
                         model.applyRecentBatchList(list)
                     }
 
-                    ghostButton("Заменить очередь", systemImage: "arrow.triangle.swap") {
+                    recentActionButton("Заменить очередь", systemImage: "arrow.triangle.swap") {
                         model.replaceQueueWithRecentBatchList(list)
                     }
                     .disabled(model.isBusy)
@@ -434,8 +420,40 @@ struct ContentView: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                .fill(itemFill)
+                .fill(Color.white.opacity(isDark ? 0.06 : 0.52))
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
+                .strokeBorder(cardStroke.opacity(0.7), lineWidth: 1)
+        )
+    }
+
+    func recentActionButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(title)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.84)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(primaryText.opacity(model.isBusy ? 0.45 : 0.96))
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(isDark ? 0.08 : 0.72))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(prominentButtonTint.opacity(isDark ? 0.16 : 0.12), lineWidth: 1)
+        )
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .opacity(model.isBusy ? 0.72 : 1)
     }
 
     func destinationInlineCard(compact: Bool) -> some View {
