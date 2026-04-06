@@ -2,10 +2,436 @@ from __future__ import annotations
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from .ui_support import SettingsDialog, app_version
+from .ui_support import SettingsDialog, app_version, scaled
 
 
 class MainWindowLayoutMixin:
+    def _scale_size(self, width: int, height: int) -> QtCore.QSize:
+        return QtCore.QSize(scaled(width), scaled(height))
+
+    def _nav_subtitle(self, text: str, limit: int = 26) -> str:
+        compact = " ".join(text.split())
+        if len(compact) <= limit:
+            return compact
+        return compact[: max(1, limit - 1)].rstrip() + "…"
+
+    def _theme_palette(self) -> dict[str, str]:
+        if getattr(self, "current_theme", "dark") == "light":
+            return {
+                "window_bg": "#f3f3f3",
+                "card_bg": "#ffffff",
+                "card_border": "#e0e0e0",
+                "primary_text": "#1a1a1a",
+                "secondary_text": "#666666",
+                "input_bg": "#fafafa",
+                "input_border": "#d0d0d0",
+                "accent": "#0067c0",
+                "button_bg": "#f0f0f0",
+                "button_hover": "#e5e5e5",
+                "button_disabled": "#f5f5f5",
+                "section_header": "#888888",
+                "nav_bg": "#ebebeb",
+                "nav_hover": "#e0e0e0",
+                "nav_selected": "#ffffff",
+                "nav_border": "rgba(0,0,0,0.08)",
+                "card_overlay": "rgba(255,255,255,0.92)",
+                "subcard_bg": "#f7f7f7",
+                "badge_bg": "#f1f1f1",
+                "idle_bg": "#666666",
+                "idle_fg": "#ffffff",
+                "success_bg": "#107c10",
+                "success_fg": "#ffffff",
+                "error_bg": "#c42b1c",
+                "error_fg": "#ffffff",
+                "active_bg": "#0067c0",
+                "active_fg": "#ffffff",
+                "danger_bg": "rgba(196, 43, 28, 0.12)",
+                "danger_border": "rgba(196, 43, 28, 0.45)",
+                "danger_text": "#c42b1c",
+                "scroll_handle": "rgba(0,0,0,0.22)",
+            }
+        return {
+            "window_bg": "#1a1a1a",
+            "card_bg": "#2a2a2a",
+            "card_border": "#3a3a3a",
+            "primary_text": "#f0f0f0",
+            "secondary_text": "#888888",
+            "input_bg": "#222222",
+            "input_border": "#3a3a3a",
+            "accent": "#3b7dd8",
+            "button_bg": "#333333",
+            "button_hover": "#404040",
+            "button_disabled": "#262626",
+            "section_header": "#666666",
+            "nav_bg": "#141414",
+            "nav_hover": "#222222",
+            "nav_selected": "#2a2a2a",
+            "nav_border": "rgba(255,255,255,0.08)",
+            "card_overlay": "rgba(42,42,42,0.88)",
+            "subcard_bg": "rgba(255,255,255,0.04)",
+            "badge_bg": "rgba(255,255,255,0.08)",
+            "idle_bg": "#666666",
+            "idle_fg": "#ffffff",
+            "success_bg": "#107c10",
+            "success_fg": "#ffffff",
+            "error_bg": "#c42b1c",
+            "error_fg": "#ffffff",
+            "active_bg": "#3b7dd8",
+            "active_fg": "#ffffff",
+            "danger_bg": "rgba(196, 43, 28, 0.15)",
+            "danger_border": "rgba(196, 43, 28, 0.5)",
+            "danger_text": "#ff6b6b",
+            "scroll_handle": "rgba(255,255,255,0.18)",
+        }
+
+    def _theme_stylesheet(self) -> str:
+        p = self._theme_palette()
+        nav_h = scaled(52)
+        btn_h = scaled(30)
+        pad_x = scaled(12)
+        small_pad_x = scaled(10)
+        card_pad = scaled(12)
+        radius_card = scaled(8)
+        radius_button = scaled(4)
+        radius_pill = scaled(12)
+        stat_w = scaled(80)
+        stat_h = scaled(64)
+        status_h = scaled(26)
+        status_w = scaled(90)
+        input_min = scaled(140)
+        sb_width = scaled(12)
+        sb_handle = scaled(28)
+        inline_radius = scaled(9)
+        metric_value = scaled(24)
+        icon_badge = scaled(10)
+        clear_margin = scaled(8)
+        progress_h = scaled(8)
+        recent_remove_pad_h = scaled(2)
+        recent_remove_pad_w = scaled(4)
+        return f"""
+            QMainWindow, QWidget#appRoot, QWidget#contentHost, QScrollArea, QScrollArea > QWidget > QWidget {{
+                background: {p["window_bg"]};
+                color: {p["primary_text"]};
+                font-family: "Segoe UI Variable";
+                font-size: {scaled(13)}px;
+            }}
+            QFrame#sidebar {{
+                background: {p["nav_bg"]};
+                border-right: 1px solid {p["nav_border"]};
+            }}
+            QFrame#navBrand {{
+                background: {p["card_overlay"]};
+                border: 1px solid {p["card_border"]};
+                border-radius: {radius_card}px;
+            }}
+            QLabel#sidebarTitle {{
+                font-size: {scaled(13)}px;
+                font-weight: 600;
+                color: {p["primary_text"]};
+            }}
+            QLabel#sidebarSubtitle {{
+                font-size: {scaled(11)}px;
+                color: {p["secondary_text"]};
+            }}
+            QLabel#sidebarVersion, QLabel#heroVersion, QLabel#valuePill {{
+                font-size: {scaled(11)}px;
+                color: {p["secondary_text"]};
+                background: {p["badge_bg"]};
+                border: 1px solid {p["card_border"]};
+                border-radius: {radius_pill}px;
+                padding: {scaled(3)}px {scaled(8)}px;
+            }}
+            QFrame#sidebarSeparator {{
+                min-height: 1px;
+                max-height: 1px;
+                border: none;
+                background: {p["nav_border"]};
+                margin: {scaled(4)}px {scaled(2)}px;
+            }}
+            QPushButton[nav="true"] {{
+                text-align: left;
+                padding: {scaled(8)}px {pad_x}px {scaled(8)}px {pad_x}px;
+                border-radius: {radius_card}px;
+                border: 1px solid transparent;
+                border-left: {scaled(3)}px solid transparent;
+                background: transparent;
+                color: {p["primary_text"]};
+                font-size: {scaled(13)}px;
+                font-weight: 500;
+                min-height: {nav_h}px;
+            }}
+            QPushButton[nav="true"]:hover {{
+                background: {p["nav_hover"]};
+                border-color: {p["nav_border"]};
+            }}
+            QPushButton[nav="true"]:checked {{
+                background: transparent;
+                border-color: transparent;
+                border-left: {scaled(3)}px solid {p["accent"]};
+                color: {p["primary_text"]};
+            }}
+            QPushButton#applyUpdateButton, QPushButton#accentButton, QPushButton#queueActionButton {{
+                background: {p["accent"]};
+                color: white;
+                border: 1px solid {p["accent"]};
+                border-radius: {radius_button}px;
+                padding: {scaled(6)}px {pad_x}px;
+                min-height: {btn_h}px;
+                font-size: {scaled(13)}px;
+                font-weight: 600;
+            }}
+            QPushButton#applyUpdateButton:hover, QPushButton#accentButton:hover, QPushButton#queueActionButton:hover {{
+                background: {p["accent"]};
+                border-color: {p["accent"]};
+            }}
+            QPushButton#applyUpdateButton:disabled, QPushButton#accentButton:disabled, QPushButton#queueActionButton:disabled {{
+                background: {p["button_disabled"]};
+                color: {p["secondary_text"]};
+                border-color: {p["card_border"]};
+            }}
+            QPushButton {{
+                background: {p["button_bg"]};
+                color: {p["primary_text"]};
+                border: 1px solid {p["card_border"]};
+                border-radius: {radius_button}px;
+                padding: {scaled(6)}px {pad_x}px;
+                min-height: {btn_h}px;
+                font-size: {scaled(13)}px;
+            }}
+            QPushButton:hover {{
+                background: {p["button_hover"]};
+                border-color: {p["input_border"]};
+            }}
+            QPushButton:disabled {{
+                background: {p["button_disabled"]};
+                color: {p["secondary_text"]};
+                border-color: {p["card_border"]};
+            }}
+            QPushButton[secondary="true"] {{
+                background: transparent;
+                color: {p["secondary_text"]};
+                border: 1px solid {p["card_border"]};
+            }}
+            QPushButton[secondary="true"]:hover {{
+                background: {p["button_hover"]};
+                color: {p["primary_text"]};
+            }}
+            QPushButton[secondary="true"]:checked, QPushButton[segmented="true"]:checked {{
+                background: {p["accent"]};
+                color: white;
+                border-color: {p["accent"]};
+            }}
+            QPushButton#prominentSecondaryButton {{
+                border: 1px solid {p["accent"]};
+                color: {p["primary_text"]};
+            }}
+            QPushButton#prominentSecondaryButton:hover {{
+                background: {p["button_hover"]};
+            }}
+            QPushButton#subtleDangerButton:enabled {{
+                background: {p["danger_bg"]};
+                border: 1px solid {p["danger_border"]};
+                color: {p["danger_text"]};
+            }}
+            QPushButton#subtleDangerButton:enabled:hover {{
+                background: {p["danger_bg"]};
+                border-color: {p["danger_border"]};
+                color: {p["danger_text"]};
+            }}
+            QFrame#cardSurface, QFrame#subCard, QFrame#stepCard, QFrame#settingsCard, QFrame#settingsHero {{
+                background: {p["card_overlay"]};
+                border: 1px solid {p["card_border"]};
+                border-radius: {radius_card}px;
+            }}
+            QFrame#statusCard[statusTone="active"] {{
+                background: {p["card_overlay"]};
+                border: 1px solid {p["card_border"]};
+                border-left: {scaled(4)}px solid {p["active_bg"]};
+                border-radius: {radius_card}px;
+            }}
+            QFrame#statusCard[statusTone="success"] {{
+                background: {p["card_overlay"]};
+                border: 1px solid {p["card_border"]};
+                border-left: {scaled(4)}px solid {p["success_bg"]};
+                border-radius: {radius_card}px;
+            }}
+            QFrame#statusCard[statusTone="error"] {{
+                background: {p["card_overlay"]};
+                border: 1px solid {p["card_border"]};
+                border-left: {scaled(4)}px solid {p["error_bg"]};
+                border-radius: {radius_card}px;
+            }}
+            QFrame#statusCard[statusTone="idle"] {{
+                background: {p["card_overlay"]};
+                border: 1px solid {p["card_border"]};
+                border-left: {scaled(4)}px solid {p["idle_bg"]};
+                border-radius: {radius_card}px;
+            }}
+            QFrame#inputShell, QFrame#segmentedGroup {{
+                background: transparent;
+                border: 1px solid {p["card_border"]};
+                border-radius: {radius_button}px;
+            }}
+            QLabel#heroTitle {{
+                font-size: {scaled(20)}px;
+                font-weight: 600;
+                color: {p["primary_text"]};
+            }}
+            QLabel#heroSubtitle, QLabel#dialogSubtitle, QLabel#mutedBody {{
+                font-size: {scaled(13)}px;
+                color: {p["secondary_text"]};
+            }}
+            QLabel#heroMiniTitle, QLabel#recentListTitle {{
+                font-size: {scaled(13)}px;
+                font-weight: 600;
+                color: {p["primary_text"]};
+            }}
+            QLabel#sectionLabel {{
+                font-size: {scaled(10)}px;
+                font-weight: 600;
+                color: {p["section_header"]};
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+            }}
+            QLabel#cardHint, QLabel#footnoteLabel, QLabel#inputCounter, QLabel#metricTitle {{
+                font-size: {scaled(11)}px;
+                color: {p["secondary_text"]};
+            }}
+            QLabel#statusBadge {{
+                min-width: {status_w}px;
+                min-height: {status_h}px;
+                padding: {scaled(4)}px {small_pad_x}px;
+                border-radius: {radius_pill}px;
+                font-size: {scaled(11)}px;
+                font-weight: 600;
+                color: {p["idle_fg"]};
+                background: {p["idle_bg"]};
+                border: 1px solid {p["idle_bg"]};
+            }}
+            QLabel#statusBadge[statusTone="success"] {{ background: {p["success_bg"]}; border-color: {p["success_bg"]}; color: {p["success_fg"]}; }}
+            QLabel#statusBadge[statusTone="error"] {{ background: {p["error_bg"]}; border-color: {p["error_bg"]}; color: {p["error_fg"]}; }}
+            QLabel#statusBadge[statusTone="active"] {{ background: {p["active_bg"]}; border-color: {p["active_bg"]}; color: {p["active_fg"]}; }}
+            QLabel#statusBadge[statusTone="idle"] {{ background: {p["idle_bg"]}; border-color: {p["idle_bg"]}; color: {p["idle_fg"]}; }}
+            QLabel[badge="true"] {{
+                background: {p["badge_bg"]};
+                border: 1px solid {p["card_border"]};
+                border-radius: {radius_pill}px;
+                padding: {scaled(4)}px {small_pad_x}px;
+                font-size: {scaled(11)}px;
+                color: {p["secondary_text"]};
+            }}
+            QLineEdit, QPlainTextEdit, QListWidget, QTableWidget, QComboBox {{
+                background: {p["input_bg"]};
+                border: 1px solid {p["input_border"]};
+                border-radius: {radius_button}px;
+                padding: {scaled(8)}px;
+                color: {p["primary_text"]};
+                selection-background-color: {p["accent"]};
+            }}
+            QPlainTextEdit#profileEditor, QPlainTextEdit#logsText, QLabel#recentListPreview {{
+                font-family: "Cascadia Mono";
+                font-size: {scaled(13)}px;
+            }}
+            QLineEdit#pathField {{
+                font-family: "Cascadia Mono";
+                min-height: {btn_h}px;
+            }}
+            QPlainTextEdit#profileEditor {{
+                min-height: {input_min}px;
+            }}
+            QListWidget::item {{
+                padding: {scaled(8)}px;
+                border-radius: {radius_button}px;
+            }}
+            QListWidget::item:hover {{
+                background: {p["button_hover"]};
+            }}
+            QListWidget::item:selected {{
+                background: {p["nav_selected"]};
+            }}
+            QTableWidget {{
+                alternate-background-color: {p["subcard_bg"]};
+                gridline-color: {p["card_border"]};
+            }}
+            QTableWidget::item {{
+                padding: {scaled(6)}px;
+            }}
+            QHeaderView::section, QTableCornerButton::section {{
+                background: {p["subcard_bg"]};
+                border: none;
+                border-bottom: 1px solid {p["card_border"]};
+                padding: {scaled(8)}px;
+                font-weight: 600;
+                color: {p["primary_text"]};
+            }}
+            QToolButton#inlineClearButton {{
+                background: {p["button_bg"]};
+                border: 1px solid {p["card_border"]};
+                border-radius: {icon_badge}px;
+                padding: {scaled(2)}px;
+                margin: {clear_margin}px;
+            }}
+            QToolButton#inlineClearButton:hover, QToolButton#inlineRemoveButton:hover {{
+                background: {p["button_hover"]};
+            }}
+            QToolButton#inlineRemoveButton {{
+                color: {p["secondary_text"]};
+                background: {p["button_bg"]};
+                border: 1px solid {p["card_border"]};
+                border-radius: {inline_radius}px;
+                padding: {recent_remove_pad_h}px {recent_remove_pad_w}px;
+            }}
+            QFrame#metricTile {{
+                background: {p["subcard_bg"]};
+                border: 1px solid {p["card_border"]};
+                border-radius: {radius_card}px;
+                min-width: {stat_w}px;
+                min-height: {stat_h}px;
+            }}
+            QLabel#metricValue {{
+                font-size: {metric_value}px;
+                font-weight: 600;
+                color: {p["primary_text"]};
+            }}
+            QLabel#metricDot {{
+                font-size: {scaled(12)}px;
+            }}
+            QProgressBar#queueProgressBar {{
+                background: {p["input_bg"]};
+                border: 1px solid {p["input_border"]};
+                border-radius: {radius_button}px;
+                min-height: {progress_h}px;
+                max-height: {progress_h}px;
+            }}
+            QProgressBar#queueProgressBar::chunk {{
+                border-radius: {radius_button}px;
+                background: {p["accent"]};
+            }}
+            QScrollBar:vertical {{
+                background: transparent;
+                width: {sb_width}px;
+                margin: {scaled(2)}px 0;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {p["scroll_handle"]};
+                min-height: {sb_handle}px;
+                border-radius: {scaled(6)}px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {p["secondary_text"]};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+            QScrollBar:horizontal, QScrollBar::handle:horizontal,
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal,
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+                background: transparent;
+                border: none;
+                width: 0px;
+                height: 0px;
+            }}
+        """
+
     def _build_ui(self) -> None:
         central = QtWidgets.QWidget()
         central.setObjectName("appRoot")
@@ -20,8 +446,8 @@ class MainWindowLayoutMixin:
         content_host = QtWidgets.QWidget()
         content_host.setObjectName("contentHost")
         content_layout = QtWidgets.QHBoxLayout(content_host)
-        content_layout.setContentsMargins(24, 22, 24, 22)
-        content_layout.setSpacing(22)
+        content_layout.setContentsMargins(scaled(24), scaled(20), scaled(24), scaled(20))
+        content_layout.setSpacing(scaled(20))
         root.addWidget(content_host, 1)
 
         self.stack = QtWidgets.QStackedWidget()
@@ -44,17 +470,17 @@ class MainWindowLayoutMixin:
     def _build_sidebar(self) -> QtWidgets.QWidget:
         sidebar = QtWidgets.QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(252)
+        sidebar.setFixedWidth(scaled(180))
 
         layout = QtWidgets.QVBoxLayout(sidebar)
-        layout.setContentsMargins(14, 18, 14, 14)
-        layout.setSpacing(10)
+        layout.setContentsMargins(scaled(10), scaled(14), scaled(10), scaled(10))
+        layout.setSpacing(scaled(8))
 
         brand = QtWidgets.QFrame()
         brand.setObjectName("navBrand")
         brand_layout = QtWidgets.QVBoxLayout(brand)
-        brand_layout.setContentsMargins(10, 10, 10, 10)
-        brand_layout.setSpacing(2)
+        brand_layout.setContentsMargins(scaled(10), scaled(10), scaled(10), scaled(10))
+        brand_layout.setSpacing(scaled(2))
 
         title = QtWidgets.QLabel("SaveStories")
         title.setObjectName("sidebarTitle")
@@ -71,16 +497,16 @@ class MainWindowLayoutMixin:
         self.nav_group.setExclusive(True)
 
         nav_specs = [
-            ("Stories", "Скачать сторис из Instagram", QtWidgets.QStyle.SP_FileDialogContentsView),
-            ("Очередь профилей", "Пакетная выгрузка и управление списком", QtWidgets.QStyle.SP_FileDialogDetailedView),
-            ("Reels", "Скачать Reels по ссылке", QtWidgets.QStyle.SP_MediaPlay),
+            ("◈", "Stories", "Скачать сторис из Instagram"),
+            ("≡", "Очередь профилей", "Пакетная выгрузка и управление списком"),
+            ("▶", "Reels", "Скачать Reels по ссылке"),
         ]
-        for index, (text, detail, icon_kind) in enumerate(
+        for index, (symbol, text, detail) in enumerate(
             [
                 *nav_specs,
             ]
         ):
-            button = self._build_nav_button(text, detail, icon_kind)
+            button = self._build_nav_button(symbol, text, detail)
             button.clicked.connect(lambda checked=False, i=index: self.stack.setCurrentIndex(i))
             self.nav_group.addButton(button, index)
             layout.addWidget(button)
@@ -103,9 +529,9 @@ class MainWindowLayoutMixin:
         layout.addWidget(footer_separator)
 
         self.settings_nav_button = self._build_nav_button(
+            "⚙",
             "Настройки",
             "Обновления, среда и подключение к Instagram",
-            QtWidgets.QStyle.SP_FileDialogContentsView,
         )
         self.settings_nav_button.clicked.connect(self.open_settings)
         self.nav_group.addButton(self.settings_nav_button, 3)
@@ -140,7 +566,7 @@ class MainWindowLayoutMixin:
         page = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(12)
+        layout.setSpacing(scaled(12))
 
         layout.addWidget(
             self._hero(
@@ -151,15 +577,15 @@ class MainWindowLayoutMixin:
         )
 
         content_row = QtWidgets.QHBoxLayout()
-        content_row.setSpacing(12)
+        content_row.setSpacing(scaled(12))
 
         left_column = QtWidgets.QVBoxLayout()
-        left_column.setSpacing(12)
+        left_column.setSpacing(scaled(12))
 
         input_card = self._card("Ссылки на Reels")
         input_layout = QtWidgets.QVBoxLayout(input_card)
-        input_layout.setContentsMargins(16, 16, 16, 16)
-        input_layout.setSpacing(12)
+        input_layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        input_layout.setSpacing(scaled(12))
         input_layout.addWidget(self._section_caption("Ссылки на Reels"))
 
         note = QtWidgets.QLabel("Вставь одну или несколько ссылок. Каждая ссылка обработается отдельно.")
@@ -176,7 +602,7 @@ class MainWindowLayoutMixin:
         self.reels_input.setPlaceholderText(
             "Например:\nhttps://www.instagram.com/reel/DMabc123/\nhttps://www.instagram.com/reel/DMxyz456/"
         )
-        self.reels_input.setMinimumHeight(160)
+        self.reels_input.setMinimumHeight(scaled(140))
         input_layout_shell.addWidget(self.reels_input, 0, 0)
 
         self.reels_clear_input_button = QtWidgets.QToolButton(input_shell)
@@ -195,7 +621,7 @@ class MainWindowLayoutMixin:
         input_layout.addWidget(input_shell)
 
         buttons = QtWidgets.QHBoxLayout()
-        buttons.setSpacing(10)
+        buttons.setSpacing(scaled(8))
         self.reels_run_button = QtWidgets.QPushButton("Скачать")
         self.reels_run_button.setObjectName("queueActionButton")
         self.reels_run_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_ArrowDown))
@@ -217,7 +643,7 @@ class MainWindowLayoutMixin:
         left_column.addStretch(1)
 
         right_column = QtWidgets.QVBoxLayout()
-        right_column.setSpacing(12)
+        right_column.setSpacing(scaled(12))
         right_column.addWidget(self._reels_status_card())
         right_column.addWidget(self._reels_downloads_card())
         right_column.addWidget(self._reels_logs_card(), 1)
@@ -226,8 +652,8 @@ class MainWindowLayoutMixin:
         left_host.setLayout(left_column)
         right_host = QtWidgets.QWidget()
         right_host.setLayout(right_column)
-        right_host.setMinimumWidth(360)
-        right_host.setMaximumWidth(440)
+        right_host.setMinimumWidth(scaled(320))
+        right_host.setMaximumWidth(scaled(400))
 
         content_row.addWidget(left_host, 3)
         content_row.addWidget(right_host, 2)
@@ -241,7 +667,7 @@ class MainWindowLayoutMixin:
         page = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(12)
+        layout.setSpacing(scaled(12))
 
         layout.addWidget(
             self._hero(
@@ -251,15 +677,15 @@ class MainWindowLayoutMixin:
         )
 
         content_row = QtWidgets.QHBoxLayout()
-        content_row.setSpacing(12)
+        content_row.setSpacing(scaled(12))
 
         left_column = QtWidgets.QVBoxLayout()
-        left_column.setSpacing(12)
+        left_column.setSpacing(scaled(12))
         left_column.addWidget(self._home2_composer_card())
         left_column.addWidget(self._home2_queue_card(), 1)
 
         right_column = QtWidgets.QVBoxLayout()
-        right_column.setSpacing(12)
+        right_column.setSpacing(scaled(12))
         right_column.addWidget(self._home2_status_card())
         right_column.addWidget(self._home2_result_card())
         right_column.addWidget(self._home2_recent_lists_card())
@@ -270,8 +696,8 @@ class MainWindowLayoutMixin:
         left_host.setLayout(left_column)
         right_host = QtWidgets.QWidget()
         right_host.setLayout(right_column)
-        right_host.setMinimumWidth(380)
-        right_host.setMaximumWidth(460)
+        right_host.setMinimumWidth(scaled(340))
+        right_host.setMaximumWidth(scaled(420))
 
         content_row.addWidget(left_host, 3)
         content_row.addWidget(right_host, 2)
@@ -282,7 +708,7 @@ class MainWindowLayoutMixin:
         page = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(12)
+        layout.setSpacing(scaled(12))
 
         layout.addWidget(
             self._hero(
@@ -293,24 +719,24 @@ class MainWindowLayoutMixin:
         )
 
         content_row = QtWidgets.QHBoxLayout()
-        content_row.setSpacing(12)
+        content_row.setSpacing(scaled(12))
 
         left_column = QtWidgets.QVBoxLayout()
-        left_column.setSpacing(12)
+        left_column.setSpacing(scaled(12))
 
         input_card = self._card("Добавить профили")
         input_layout = QtWidgets.QVBoxLayout(input_card)
-        input_layout.setContentsMargins(16, 16, 16, 16)
-        input_layout.setSpacing(12)
+        input_layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        input_layout.setSpacing(scaled(12))
         input_layout.addWidget(self._section_caption("Добавить профили"))
         self.batch_input = QtWidgets.QPlainTextEdit()
         self.batch_input.setObjectName("profileEditor")
         self.batch_input.setPlaceholderText("Вставь по одной ссылке или username на строку.\nНапример:\nhttps://www.instagram.com/dian.vegas1/\nmonetentony")
-        self.batch_input.setMinimumHeight(160)
+        self.batch_input.setMinimumHeight(scaled(140))
         input_layout.addWidget(self.batch_input)
 
         input_buttons = QtWidgets.QHBoxLayout()
-        input_buttons.setSpacing(10)
+        input_buttons.setSpacing(scaled(8))
         add_button = QtWidgets.QPushButton("Добавить в очередь")
         add_button.setProperty("secondary", True)
         add_button.clicked.connect(self.add_batch_profiles)
@@ -327,8 +753,8 @@ class MainWindowLayoutMixin:
 
         queue_card = self._card("Очередь профилей")
         queue_layout = QtWidgets.QVBoxLayout(queue_card)
-        queue_layout.setContentsMargins(16, 16, 16, 16)
-        queue_layout.setSpacing(12)
+        queue_layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        queue_layout.setSpacing(scaled(12))
         queue_layout.addWidget(self._section_caption("Очередь профилей"))
         self.batch_progress_label = QtWidgets.QLabel("Очередь пока пуста.")
         self.batch_progress_label.setWordWrap(True)
@@ -342,7 +768,7 @@ class MainWindowLayoutMixin:
         self.batch_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
         self.batch_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
         self.batch_table.verticalHeader().setVisible(False)
-        self.batch_table.verticalHeader().setDefaultSectionSize(34)
+        self.batch_table.verticalHeader().setDefaultSectionSize(scaled(28))
         self.batch_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.batch_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.batch_table.setAlternatingRowColors(True)
@@ -350,7 +776,7 @@ class MainWindowLayoutMixin:
         queue_layout.addWidget(self.batch_table)
 
         queue_buttons = QtWidgets.QHBoxLayout()
-        queue_buttons.setSpacing(10)
+        queue_buttons.setSpacing(scaled(8))
         self.batch_run_button = QtWidgets.QPushButton("Скачать очередь")
         self.batch_run_button.setObjectName("queueActionButton")
         self.batch_run_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_ArrowDown))
@@ -387,8 +813,8 @@ class MainWindowLayoutMixin:
     def _home2_composer_card(self) -> QtWidgets.QWidget:
         card = self._card("Профили для скачивания")
         layout = QtWidgets.QVBoxLayout(card)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        layout.setSpacing(scaled(12))
         layout.addWidget(self._section_caption("Профили для скачивания"))
 
         note = QtWidgets.QLabel("Добавь профили, выбери настройки и запусти одной кнопкой.")
@@ -407,7 +833,7 @@ class MainWindowLayoutMixin:
         self.home2_batch_input.setPlaceholderText(
             "По одной ссылке или username на строку.\nНапример:\ndian.vegas1\nhttps://www.instagram.com/stevensetu/\nleftlanepapi"
         )
-        self.home2_batch_input.setMinimumHeight(160)
+        self.home2_batch_input.setMinimumHeight(scaled(140))
         self.home2_batch_input.setTabChangesFocus(False)
         input_layout.addWidget(self.home2_batch_input, 0, 0)
 
@@ -427,10 +853,10 @@ class MainWindowLayoutMixin:
         layout.addWidget(input_shell)
 
         row = QtWidgets.QHBoxLayout()
-        row.setSpacing(10)
+        row.setSpacing(scaled(8))
         add_button = QtWidgets.QPushButton("Добавить")
         add_button.setProperty("secondary", True)
-        add_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_DialogOpenButton))
+        add_button.setObjectName("prominentSecondaryButton")
         add_button.clicked.connect(self.add_batch_profiles_from_home2)
         remember_button = QtWidgets.QPushButton("Запомнить")
         remember_button.setProperty("secondary", True)
@@ -446,7 +872,7 @@ class MainWindowLayoutMixin:
         layout.addLayout(row)
 
         actions = QtWidgets.QHBoxLayout()
-        actions.setSpacing(10)
+        actions.setSpacing(scaled(8))
         run_button = QtWidgets.QPushButton("Скачать")
         run_button.setObjectName("queueActionButton")
         run_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_ArrowDown))
@@ -476,12 +902,12 @@ class MainWindowLayoutMixin:
     def _home2_queue_card(self) -> QtWidgets.QWidget:
         card = self._card("Очередь")
         layout = QtWidgets.QVBoxLayout(card)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        layout.setSpacing(scaled(12))
         layout.addWidget(self._section_caption("Очередь"))
 
         stats = QtWidgets.QHBoxLayout()
-        stats.setSpacing(8)
+        stats.setSpacing(scaled(6))
         self.home2_queue_count = self._badge_label("В очереди: 0")
         self.home2_recent_count = self._badge_label(f"Наборов: {len(self.recent_lists)}")
         self.home2_mode_label = self._badge_label(f"Режим: {'В фоне' if self.download_mode == 'background' else 'Видимо'}")
@@ -516,7 +942,7 @@ class MainWindowLayoutMixin:
         self.home2_batch_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
         self.home2_batch_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
         self.home2_batch_table.verticalHeader().setVisible(False)
-        self.home2_batch_table.verticalHeader().setDefaultSectionSize(34)
+        self.home2_batch_table.verticalHeader().setDefaultSectionSize(scaled(28))
         self.home2_batch_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.home2_batch_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.home2_batch_table.setAlternatingRowColors(True)
@@ -544,11 +970,11 @@ class MainWindowLayoutMixin:
     def _home2_recent_lists_card(self) -> QtWidgets.QWidget:
         card = self._card("Недавние наборы")
         layout = QtWidgets.QVBoxLayout(card)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        layout.setSpacing(scaled(10))
         layout.addWidget(self._section_caption("Недавние наборы"))
         self.home2_recent_lists_container = QtWidgets.QVBoxLayout()
-        self.home2_recent_lists_container.setSpacing(10)
+        self.home2_recent_lists_container.setSpacing(scaled(10))
         layout.addLayout(self.home2_recent_lists_container)
         self.home2_recent_toggle = QtWidgets.QPushButton("Показать ещё ↓")
         self.home2_recent_toggle.setProperty("secondary", True)
@@ -559,9 +985,12 @@ class MainWindowLayoutMixin:
 
     def _home2_status_card(self) -> QtWidgets.QWidget:
         card = self._card("Состояние")
+        card.setObjectName("statusCard")
+        card.setProperty("statusTone", "idle")
+        self.home2_status_card_frame = card
         layout = QtWidgets.QVBoxLayout(card)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        layout.setSpacing(scaled(10))
         layout.addWidget(self._section_caption("Состояние"))
 
         self.status_title_label = QtWidgets.QLabel("Ожидание")
@@ -583,8 +1012,8 @@ class MainWindowLayoutMixin:
         step_box = QtWidgets.QFrame()
         step_box.setObjectName("stepCard")
         step_layout = QtWidgets.QVBoxLayout(step_box)
-        step_layout.setContentsMargins(12, 12, 12, 12)
-        step_layout.setSpacing(4)
+        step_layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        step_layout.setSpacing(scaled(4))
         step_title = self._section_caption("Текущий шаг")
         self.home2_step_value = QtWidgets.QLabel("Ожидание команды.")
         self.home2_step_value.setWordWrap(True)
@@ -596,8 +1025,8 @@ class MainWindowLayoutMixin:
     def _home2_result_card(self) -> QtWidgets.QWidget:
         card = self._card("Результат")
         layout = QtWidgets.QGridLayout(card)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        layout.setSpacing(scaled(10))
         layout.addWidget(self._section_caption("Результат"), 0, 0, 1, 2)
 
         self.found_label = QtWidgets.QLabel("Найдено: 0")
@@ -620,8 +1049,8 @@ class MainWindowLayoutMixin:
     def _home2_activity_card(self) -> QtWidgets.QWidget:
         card = self._card("Журнал")
         layout = QtWidgets.QVBoxLayout(card)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        layout.setSpacing(scaled(10))
         layout.addWidget(self._section_caption("Журнал"))
 
         self.downloads_list = QtWidgets.QListWidget()
@@ -629,13 +1058,13 @@ class MainWindowLayoutMixin:
         self.downloads_list.itemDoubleClicked.connect(self.open_download_item)
         self.downloads_list.setSpacing(6)
         self.downloads_list.setUniformItemSizes(False)
-        self.downloads_list.setMinimumHeight(120)
+        self.downloads_list.setMinimumHeight(scaled(120))
         layout.addWidget(self._group("Последние загрузки", self.downloads_list))
 
         self.home2_logs_text = QtWidgets.QPlainTextEdit()
         self.home2_logs_text.setObjectName("logsText")
         self.home2_logs_text.setReadOnly(True)
-        self.home2_logs_text.setMinimumHeight(180)
+        self.home2_logs_text.setMinimumHeight(scaled(180))
         self.logs_text = self.home2_logs_text
         layout.addWidget(self._group("Логи", self.home2_logs_text))
 
@@ -692,8 +1121,8 @@ class MainWindowLayoutMixin:
         box = QtWidgets.QFrame()
         box.setObjectName("subCard")
         box_layout = QtWidgets.QVBoxLayout(box)
-        box_layout.setContentsMargins(12, 12, 12, 12)
-        box_layout.setSpacing(8)
+        box_layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        box_layout.setSpacing(scaled(8))
         box_layout.addWidget(self._section_caption(title))
         box_layout.addWidget(content)
         return box
@@ -744,8 +1173,8 @@ class MainWindowLayoutMixin:
     def _hero(self, title: str, subtitle: str, *, supporting: str | None = None) -> QtWidgets.QWidget:
         host = self._card("")
         layout = QtWidgets.QVBoxLayout(host)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(6)
+        layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        layout.setSpacing(scaled(6))
 
         header_row = QtWidgets.QHBoxLayout()
         header_row.setContentsMargins(0, 0, 0, 0)
@@ -787,7 +1216,7 @@ class MainWindowLayoutMixin:
     def _save_directory_card(self, *, batch_mode: bool = False, home2_mode: bool = False, reels_mode: bool = False) -> QtWidgets.QWidget:
         box = self._card("Папка для сохранения")
         layout = QtWidgets.QVBoxLayout(box)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
         layout.addWidget(self._section_caption("Папка для сохранения"))
         line_edit = QtWidgets.QLineEdit(str(self.save_directory))
         line_edit.setObjectName("pathField")
@@ -797,6 +1226,7 @@ class MainWindowLayoutMixin:
         layout.addWidget(line_edit)
 
         button_row = QtWidgets.QHBoxLayout()
+        button_row.setSpacing(scaled(8))
         choose = QtWidgets.QPushButton("Выбрать папку")
         choose.setProperty("secondary", True)
         choose.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_DialogOpenButton))
@@ -878,9 +1308,12 @@ class MainWindowLayoutMixin:
 
     def _reels_status_card(self) -> QtWidgets.QWidget:
         card = self._card("Состояние")
+        card.setObjectName("statusCard")
+        card.setProperty("statusTone", "idle")
+        self.reels_status_card_frame = card
         layout = QtWidgets.QVBoxLayout(card)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        layout.setSpacing(scaled(10))
         layout.addWidget(self._section_caption("Состояние"))
         self.reels_status_badge = QtWidgets.QLabel("Ожидание")
         self.reels_status_badge.setObjectName("statusBadge")
@@ -893,22 +1326,22 @@ class MainWindowLayoutMixin:
     def _reels_downloads_card(self) -> QtWidgets.QWidget:
         card = self._card("Последние загрузки")
         layout = QtWidgets.QVBoxLayout(card)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        layout.setSpacing(scaled(10))
         layout.addWidget(self._section_caption("Последние загрузки"))
         self.reels_downloads_list = QtWidgets.QListWidget()
         self.reels_downloads_list.setObjectName("downloadsList")
         self.reels_downloads_list.itemDoubleClicked.connect(self.open_download_item)
         self.reels_downloads_list.setSpacing(6)
-        self.reels_downloads_list.setMinimumHeight(150)
+        self.reels_downloads_list.setMinimumHeight(scaled(150))
         layout.addWidget(self.reels_downloads_list)
         return card
 
     def _reels_logs_card(self) -> QtWidgets.QWidget:
         card = self._card("Логи")
         layout = QtWidgets.QVBoxLayout(card)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        layout.setSpacing(scaled(10))
         header = QtWidgets.QHBoxLayout()
         header.setContentsMargins(0, 0, 0, 0)
         header.addWidget(self._section_caption("Логи"))
@@ -921,327 +1354,14 @@ class MainWindowLayoutMixin:
         self.reels_logs_text = QtWidgets.QPlainTextEdit()
         self.reels_logs_text.setObjectName("logsText")
         self.reels_logs_text.setReadOnly(True)
-        self.reels_logs_text.setMinimumHeight(180)
+        self.reels_logs_text.setMinimumHeight(scaled(180))
         layout.addWidget(self.reels_logs_text)
         return card
 
     def _apply_styles(self) -> None:
-        self.setStyleSheet(
-            """
-            QMainWindow, QWidget#appRoot, QWidget#contentHost, QScrollArea, QScrollArea > QWidget > QWidget {
-                background: #1c1c1c;
-                color: #f3f3f3;
-                font-size: 14px;
-            }
-            QFrame#sidebar {
-                background: #161616;
-                border-right: 1px solid rgba(255, 255, 255, 0.08);
-            }
-            QFrame#navBrand {
-                background: rgba(255, 255, 255, 0.035);
-                border: 1px solid rgba(255, 255, 255, 0.06);
-                border-radius: 8px;
-            }
-            QLabel#sidebarTitle { font-family: "Segoe UI Variable"; font-size: 20px; font-weight: 600; color: #f8f8f8; }
-            QLabel#sidebarSubtitle { font-family: "Segoe UI Variable"; font-size: 11px; font-weight: 600; color: #a0a0a0; text-transform: uppercase; letter-spacing: 0.08em; }
-            QLabel#sidebarVersion {
-                font-size: 11px;
-                color: #bcbcbc;
-                background: rgba(255,255,255,0.08);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 10px;
-                padding: 3px 8px;
-                margin-top: 6px;
-            }
-            QFrame#sidebarSeparator {
-                min-height: 1px;
-                max-height: 1px;
-                border: none;
-                background: rgba(255,255,255,0.08);
-                margin: 4px 2px;
-            }
-            QPushButton[nav="true"] {
-                text-align: left;
-                padding: 14px 14px;
-                border-radius: 8px;
-                border: 1px solid transparent;
-                background: transparent;
-                color: #f2f2f2;
-                font-family: "Segoe UI Variable";
-                font-size: 14px;
-                font-weight: 500;
-                min-height: 58px;
-            }
-            QPushButton[nav="true"]:hover {
-                background: rgba(255, 255, 255, 0.07);
-                border-color: rgba(255, 255, 255, 0.10);
-            }
-            QPushButton[nav="true"]:checked {
-                background: rgba(96, 205, 255, 0.18);
-                border-color: rgba(96, 205, 255, 0.32);
-            }
-            QPushButton#applyUpdateButton {
-                background: #0078d4;
-                color: white;
-                border: 1px solid #0078d4;
-                border-radius: 4px;
-                font-size: 14px;
-                font-weight: 600;
-                padding: 8px 12px;
-                min-height: 32px;
-            }
-            QPushButton#applyUpdateButton:hover { background: #1287df; }
-            QPushButton#applyUpdateButton:disabled {
-                background: rgba(255,255,255,0.08);
-                color: #8c8c8c;
-                border-color: rgba(255,255,255,0.05);
-            }
-            QPushButton#queueActionButton {
-                background: #0078d4;
-                color: white;
-                border: 1px solid #0078d4;
-                border-radius: 4px;
-                min-height: 36px;
-            }
-            QPushButton#queueActionButton:hover { background: #1287df; border-color: #1287df; }
-            QPushButton#queueActionButton:disabled {
-                background: rgba(255,255,255,0.10);
-                color: rgba(255,255,255,0.45);
-                border-color: rgba(255,255,255,0.05);
-            }
-            QPushButton {
-                background: rgba(255,255,255,0.08);
-                color: #f3f3f3;
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 4px;
-                padding: 8px 12px;
-                font-family: "Segoe UI Variable";
-                font-weight: 500;
-                min-height: 32px;
-            }
-            QPushButton:hover {
-                background: rgba(255,255,255,0.12);
-                border-color: rgba(255,255,255,0.12);
-            }
-            QPushButton:disabled {
-                background: rgba(255,255,255,0.04);
-                border-color: rgba(255,255,255,0.04);
-                color: rgba(255,255,255,0.35);
-            }
-            QPushButton[secondary="true"] {
-                background: rgba(255,255,255,0.06);
-                border-color: rgba(255,255,255,0.08);
-            }
-            QPushButton[secondary="true"]:checked {
-                background: rgba(0, 120, 212, 0.22);
-                border-color: rgba(0, 120, 212, 0.34);
-                color: #f5fbff;
-            }
-            QPushButton#subtleDangerButton:hover {
-                background: rgba(255, 99, 99, 0.12);
-                border-color: rgba(255, 99, 99, 0.22);
-                color: #ffb0b0;
-            }
-            QFrame#cardSurface, QFrame#subCard, QFrame#stepCard, QGroupBox {
-                background: rgba(255,255,255,0.048);
-                border: 1px solid rgba(255,255,255,0.085);
-                border-radius: 8px;
-            }
-            QFrame#inputShell {
-                background: rgba(255,255,255,0.025);
-                border-radius: 6px;
-            }
-            QGroupBox {
-                margin-top: 8px;
-                padding: 12px;
-                font-weight: 600;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 4px;
-                color: #d7d7d7;
-            }
-            QLabel#heroTitle { font-family: "Segoe UI Variable"; font-size: 20px; font-weight: 600; color: #f7f7f7; }
-            QLabel#heroSubtitle { font-family: "Segoe UI Variable"; font-size: 14px; color: #c7c7c7; }
-            QLabel#heroVersion {
-                font-size: 12px;
-                color: #b2b2b2;
-                background: rgba(255,255,255,0.08);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 12px;
-                padding: 4px 10px;
-            }
-            QLabel#sectionLabel {
-                font-family: "Segoe UI Variable";
-                font-size: 11px;
-                font-weight: 600;
-                color: #aaaaaa;
-                text-transform: uppercase;
-                letter-spacing: 0.08em;
-            }
-            QLabel#cardHint, QLabel#footnoteLabel, QLabel#inputCounter {
-                font-size: 12px;
-                color: #a6a6a6;
-            }
-            QLabel#statusBadge {
-                background: rgba(255,255,255,0.08);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 12px;
-                padding: 6px 12px;
-                font-weight: 600;
-                color: #dadada;
-            }
-            QLabel[statusTone="success"] {
-                background: rgba(64, 196, 99, 0.16);
-                border-color: rgba(64, 196, 99, 0.28);
-                color: #82dc89;
-            }
-            QLabel[statusTone="error"] {
-                background: rgba(255, 99, 99, 0.16);
-                border-color: rgba(255, 99, 99, 0.28);
-                color: #ff9f9f;
-            }
-            QLabel[statusTone="active"] {
-                background: rgba(0, 120, 212, 0.18);
-                border-color: rgba(0, 120, 212, 0.30);
-                color: #91cbff;
-            }
-            QLabel[statusTone="idle"] {
-                background: rgba(255,255,255,0.08);
-                border-color: rgba(255,255,255,0.10);
-                color: #d0d0d0;
-            }
-            QLabel[badge="true"] {
-                background: rgba(255,255,255,0.08);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 12px;
-                padding: 5px 10px;
-                font-size: 12px;
-                color: #cfcfcf;
-            }
-            QLineEdit, QPlainTextEdit, QListWidget, QTableWidget, QComboBox {
-                background: rgba(255,255,255,0.05);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 4px;
-                padding: 8px;
-                color: #f2f2f2;
-                selection-background-color: #0078d4;
-            }
-            QListWidget::item {
-                padding: 8px;
-                border-radius: 6px;
-            }
-            QListWidget::item:hover {
-                background: rgba(255,255,255,0.06);
-            }
-            QListWidget::item:selected {
-                background: rgba(0, 120, 212, 0.26);
-            }
-            QTableWidget {
-                alternate-background-color: rgba(255,255,255,0.03);
-            }
-            QTableWidget::item {
-                padding: 6px;
-            }
-            QTableCornerButton::section {
-                background: rgba(255,255,255,0.06);
-                border: none;
-                border-bottom: 1px solid rgba(255,255,255,0.08);
-                border-right: 1px solid rgba(255,255,255,0.08);
-            }
-            QPlainTextEdit#profileEditor, QPlainTextEdit#logsText {
-                font-family: "Cascadia Mono";
-                font-size: 13px;
-            }
-            QLineEdit#pathField {
-                font-family: "Cascadia Mono";
-            }
-            QToolButton#inlineClearButton {
-                background: rgba(255,255,255,0.08);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 10px;
-                padding: 2px;
-                margin: 8px;
-            }
-            QToolButton#inlineClearButton:hover {
-                background: rgba(255,255,255,0.14);
-            }
-            QToolButton#inlineRemoveButton {
-                color: #bcbcbc;
-                background: rgba(255,255,255,0.05);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 9px;
-                padding: 2px 4px;
-            }
-            QToolButton#inlineRemoveButton:hover {
-                color: #ffffff;
-                background: rgba(255,255,255,0.12);
-            }
-            QFrame#metricTile {
-                background: rgba(255,255,255,0.05);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 8px;
-            }
-            QLabel#metricValue {
-                font-size: 24px;
-                font-weight: 600;
-                color: #f6f6f6;
-            }
-            QLabel#metricTitle {
-                font-size: 12px;
-                color: #b1b1b1;
-            }
-            QLabel#metricDot {
-                font-size: 12px;
-            }
-            QHeaderView::section {
-                background: rgba(255,255,255,0.06);
-                border: none;
-                border-bottom: 1px solid rgba(255,255,255,0.08);
-                padding: 8px;
-                font-weight: 600;
-                color: #e0e0e0;
-            }
-            QTableWidget#queueTable {
-                gridline-color: rgba(255,255,255,0.08);
-            }
-            QProgressBar#queueProgressBar {
-                background: rgba(255,255,255,0.05);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 4px;
-                min-height: 8px;
-                max-height: 8px;
-            }
-            QProgressBar#queueProgressBar::chunk {
-                border-radius: 4px;
-                background: #0078d4;
-            }
-            QScrollBar:vertical {
-                background: transparent;
-                width: 12px;
-                margin: 2px 0;
-            }
-            QScrollBar::handle:vertical {
-                background: rgba(255,255,255,0.16);
-                min-height: 28px;
-                border-radius: 6px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background: rgba(255,255,255,0.24);
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
-            QScrollBar:horizontal, QScrollBar::handle:horizontal,
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal,
-            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
-                background: transparent;
-                border: none;
-                width: 0px;
-                height: 0px;
-            }
-            """
-        )
+        app = QtWidgets.QApplication.instance()
+        if app is not None:
+            app.setStyleSheet(self._theme_stylesheet())
 
     def _card(self, title: str) -> QtWidgets.QFrame:
         del title
@@ -1254,12 +1374,11 @@ class MainWindowLayoutMixin:
         label.setObjectName("sectionLabel")
         return label
 
-    def _build_nav_button(self, text: str, detail: str, icon_kind: QtWidgets.QStyle.StandardPixmap) -> QtWidgets.QPushButton:
-        button = QtWidgets.QPushButton(f"{text}\n{detail}")
+    def _build_nav_button(self, symbol: str, text: str, detail: str) -> QtWidgets.QPushButton:
+        button = QtWidgets.QPushButton(f"{symbol}  {text}\n{self._nav_subtitle(detail)}")
         button.setCheckable(True)
         button.setProperty("nav", True)
-        button.setIcon(self.style().standardIcon(icon_kind))
-        button.setIconSize(QtCore.QSize(18, 18))
+        button.setToolTip(detail)
         return button
 
     def _build_footer_button(self, text: str, icon_kind: QtWidgets.QStyle.StandardPixmap) -> QtWidgets.QPushButton:
@@ -1277,12 +1396,12 @@ class MainWindowLayoutMixin:
         tile = QtWidgets.QFrame()
         tile.setObjectName("metricTile")
         layout = QtWidgets.QVBoxLayout(tile)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(6)
+        layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        layout.setSpacing(scaled(6))
 
         title_row = QtWidgets.QHBoxLayout()
         title_row.setContentsMargins(0, 0, 0, 0)
-        title_row.setSpacing(6)
+        title_row.setSpacing(scaled(6))
         dot = QtWidgets.QLabel("●")
         dot.setObjectName("metricDot")
         dot.setStyleSheet(f"color: {color};")
@@ -1309,11 +1428,14 @@ class MainWindowLayoutMixin:
         host = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(host)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
+        layout.setSpacing(scaled(8))
         layout.addWidget(self._section_caption(title))
 
-        row = QtWidgets.QHBoxLayout()
-        row.setSpacing(8)
+        group = QtWidgets.QFrame()
+        group.setObjectName("segmentedGroup")
+        row = QtWidgets.QHBoxLayout(group)
+        row.setContentsMargins(scaled(3), scaled(3), scaled(3), scaled(3))
+        row.setSpacing(scaled(4))
         combo = QtWidgets.QComboBox()
         combo.hide()
         buttons: list[QtWidgets.QPushButton] = []
@@ -1321,12 +1443,12 @@ class MainWindowLayoutMixin:
             combo.addItem(button_text, value)
             button = QtWidgets.QPushButton(button_text)
             button.setCheckable(True)
-            button.setProperty("secondary", True)
+            button.setProperty("segmented", True)
             button.clicked.connect(lambda checked=False, i=index, target=combo: target.setCurrentIndex(i))
             row.addWidget(button, 1)
             buttons.append(button)
         combo.currentIndexChanged.connect(change_handler)
-        layout.addLayout(row)
+        layout.addWidget(group)
         layout.addWidget(combo)
 
         description = QtWidgets.QLabel("")

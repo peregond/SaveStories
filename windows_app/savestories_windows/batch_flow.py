@@ -5,7 +5,13 @@ import json
 from PySide6 import QtCore, QtWidgets
 
 from .models import BatchEntry, WorkerRequest, WorkerResponse
-from .ui_support import batch_status_title, normalize_profile_link, parse_batch_links, suggested_recent_list_title
+from .ui_support import (
+    batch_status_title,
+    normalize_profile_link,
+    parse_batch_links,
+    scaled,
+    suggested_recent_list_title,
+)
 
 
 class MainWindowBatchFlowMixin:
@@ -317,14 +323,14 @@ class MainWindowBatchFlowMixin:
             card = QtWidgets.QFrame()
             card.setObjectName("subCard")
             layout = QtWidgets.QVBoxLayout(card)
-            layout.setContentsMargins(12, 12, 12, 12)
-            layout.setSpacing(8)
+            layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+            layout.setSpacing(scaled(8))
 
             header = QtWidgets.QHBoxLayout()
             header.setContentsMargins(0, 0, 0, 0)
-            header.setSpacing(8)
+            header.setSpacing(scaled(8))
             title_label = QtWidgets.QLabel(title)
-            title_label.setStyleSheet("font-weight: 600;")
+            title_label.setObjectName("recentListTitle")
             summary = QtWidgets.QLabel(f"{len(urls)} профилей")
             summary.setObjectName("cardHint")
             remove_button = QtWidgets.QToolButton()
@@ -338,12 +344,12 @@ class MainWindowBatchFlowMixin:
 
             preview = QtWidgets.QLabel("\n".join(urls[:2]))
             preview.setWordWrap(True)
-            preview.setStyleSheet("font-family: 'Cascadia Mono';")
+            preview.setObjectName("recentListPreview")
             layout.addLayout(header)
             layout.addWidget(preview)
 
             row = QtWidgets.QHBoxLayout()
-            row.setSpacing(8)
+            row.setSpacing(scaled(8))
             add_button = QtWidgets.QPushButton("Добавить в очередь")
             add_button.setProperty("secondary", True)
             add_button.clicked.connect(lambda checked=False, batch_urls=urls: self.apply_recent_list(batch_urls))

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import importlib.util
 from pathlib import Path
@@ -31,6 +32,7 @@ if __package__ in {None, ""}:
         WorkerTask,
         app_version,
         install_global_exception_hooks,
+        scaled,
         write_crash_log,
     )
     from savestories_windows.worker_client import WorkerClient
@@ -57,6 +59,7 @@ else:
         WorkerTask,
         app_version,
         install_global_exception_hooks,
+        scaled,
         write_crash_log,
     )
     from .worker_client import WorkerClient
@@ -96,6 +99,9 @@ class MainWindow(
         self.update_summary = self.updater.summary
         self.download_mode = self.settings_store.value("download_mode", "background")
         self.media_filter = self.settings_store.value("media_filter", "video_only")
+        self.current_theme = str(self.settings_store.value("theme", "dark") or "dark").strip().lower()
+        if self.current_theme not in {"dark", "light"}:
+            self.current_theme = "dark"
         self.prevent_sleep_during_downloads = self._settings_bool("prevent_sleep_during_downloads", True)
         self.batch_entries: list[BatchEntry] = []
         self.batch_running = False
@@ -130,8 +136,8 @@ class MainWindow(
         self.reset_live_download_tracking_baseline()
 
         self.setWindowTitle("SaveStories for Windows")
-        self.setMinimumSize(960, 620)
-        default_size = QtCore.QSize(1180, 740)
+        self.setMinimumSize(scaled(860), scaled(560))
+        default_size = QtCore.QSize(scaled(1180), scaled(740))
         saved_geometry = self.settings_store.value("window_geometry")
         if isinstance(saved_geometry, QtCore.QByteArray) and not saved_geometry.isEmpty():
             self.restoreGeometry(saved_geometry)
@@ -139,9 +145,12 @@ class MainWindow(
             self.resize(default_size)
         self._build_ui()
         self.confetti_overlay = ConfettiOverlay(self.centralWidget())
+        self.settings_dialog.theme_changed.connect(self.set_theme)
+        self.settings_dialog.set_theme_value(self.current_theme)
         self._apply_styles()
         self.refresh_recent_lists_ui()
         self.refresh_home2_status_strip()
+        self.refresh_ui_action_states()
 
         QtCore.QTimer.singleShot(0, self.prepare)
 
@@ -164,9 +173,20 @@ class MainWindow(
             update_summary=self.update_summary,
             prevent_sleep_during_downloads=self.prevent_sleep_during_downloads,
         )
+        self.settings_dialog.set_theme_value(self.current_theme)
         self.stack.setCurrentIndex(3)
         if hasattr(self, "settings_nav_button"):
             self.settings_nav_button.setChecked(True)
+
+    def set_theme(self, theme: str) -> None:
+        normalized = "light" if str(theme).strip().lower() == "light" else "dark"
+        if normalized == self.current_theme:
+            self.settings_dialog.set_theme_value(self.current_theme)
+            return
+        self.current_theme = normalized
+        self.settings_store.setValue("theme", self.current_theme)
+        self._apply_styles()
+        self.settings_dialog.set_theme_value(self.current_theme)
 
     def open_save_directory(self) -> None:
         self.open_in_explorer(self.save_directory)
@@ -208,8 +228,12 @@ class MainWindow(
 
 def main() -> int:
     install_global_exception_hooks()
+    os.environ["QT_SCALE_FACTOR_ROUNDING_POLICY"] = "PassThrough"
     QtWidgets.QApplication.setApplicationName("SaveStories")
     QtWidgets.QApplication.setApplicationVersion(app_version())
+    QtWidgets.QApplication.setHighDpiScaleFactorRoundingPolicy(
+        QtCore.Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+    )
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle("Fusion")
     app.aboutToQuit.connect(lambda: write_crash_log("Application aboutToQuit", "Qt signalled application shutdown."))

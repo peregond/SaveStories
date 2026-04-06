@@ -412,6 +412,10 @@ class MainWindowRuntimeFlowMixin:
             self.reels_status_badge.setProperty("statusTone", tone)
             self.reels_status_badge.style().unpolish(self.reels_status_badge)
             self.reels_status_badge.style().polish(self.reels_status_badge)
+            if hasattr(self, "reels_status_card_frame"):
+                self.reels_status_card_frame.setProperty("statusTone", tone)
+                self.reels_status_card_frame.style().unpolish(self.reels_status_card_frame)
+                self.reels_status_card_frame.style().polish(self.reels_status_card_frame)
             self.reels_status_summary.setText(detail)
         self.refresh_home2_status_strip()
 
@@ -461,6 +465,10 @@ class MainWindowRuntimeFlowMixin:
             self.home2_status_badge.setProperty("statusTone", tone)
             self.home2_status_badge.style().unpolish(self.home2_status_badge)
             self.home2_status_badge.style().polish(self.home2_status_badge)
+            if hasattr(self, "home2_status_card_frame"):
+                self.home2_status_card_frame.setProperty("statusTone", tone)
+                self.home2_status_card_frame.style().unpolish(self.home2_status_card_frame)
+                self.home2_status_card_frame.style().polish(self.home2_status_card_frame)
             self.home2_status_summary.setText(self.status_detail_label.text())
             live_prefix = "● " if is_active and self.status_pulse_active else ("○ " if is_active else "")
             self.home2_step_value.setText(f"{live_prefix}{self.current_step_label}")

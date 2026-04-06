@@ -25,6 +25,22 @@ from .updater import ReleaseInfo, WindowsUpdater
 from .worker_client import WorkerClient
 
 
+def ui_scale_factor() -> float:
+    app = QtWidgets.QApplication.instance()
+    screen = app.primaryScreen() if app is not None else QtGui.QGuiApplication.primaryScreen()
+    if screen is None:
+        return 1.0
+    try:
+        factor = float(screen.logicalDotsPerInch()) / 96.0
+    except Exception:
+        factor = 1.0
+    return max(1.0, factor)
+
+
+def scaled(px: int) -> int:
+    return max(1, int(round(px / ui_scale_factor())))
+
+
 def display_now() -> str:
     return datetime.now().astimezone().strftime("%d.%m.%Y %H:%M:%S")
 
@@ -64,7 +80,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.6.0"
+    return "0.6.1"
 
 
 def prevent_system_sleep() -> bool:
@@ -274,6 +290,7 @@ class SettingsDialog(QtWidgets.QWidget):
     open_runtime_requested = QtCore.Signal()
     update_check_requested = QtCore.Signal()
     prevent_sleep_toggled = QtCore.Signal(bool)
+    theme_changed = QtCore.Signal(str)
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
@@ -281,7 +298,7 @@ class SettingsDialog(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(12)
+        layout.setSpacing(scaled(12))
 
         title = QtWidgets.QLabel("Параметры приложения")
         title.setObjectName("dialogTitle")
@@ -301,16 +318,16 @@ class SettingsDialog(QtWidgets.QWidget):
         scroll.setWidget(scroll_host)
         content = QtWidgets.QVBoxLayout(scroll_host)
         content.setContentsMargins(0, 0, 0, 0)
-        content.setSpacing(12)
+        content.setSpacing(scaled(12))
 
         overview = QtWidgets.QFrame()
         overview.setObjectName("settingsHero")
         overview_layout = QtWidgets.QHBoxLayout(overview)
-        overview_layout.setContentsMargins(16, 16, 16, 16)
-        overview_layout.setSpacing(12)
+        overview_layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        overview_layout.setSpacing(scaled(12))
         overview_copy = QtWidgets.QVBoxLayout()
         overview_copy.setContentsMargins(0, 0, 0, 0)
-        overview_copy.setSpacing(4)
+        overview_copy.setSpacing(scaled(4))
         overview_title = QtWidgets.QLabel("Настройки Windows-клиента")
         overview_title.setObjectName("heroMiniTitle")
         overview_text = QtWidgets.QLabel("Здесь собраны обновления, среда, сессия Instagram и параметры поведения во время выгрузки.")
@@ -332,7 +349,7 @@ class SettingsDialog(QtWidgets.QWidget):
         self.update_label.setWordWrap(True)
         self.runtime_text = QtWidgets.QPlainTextEdit()
         self.runtime_text.setReadOnly(True)
-        self.runtime_text.setMinimumHeight(170)
+        self.runtime_text.setMinimumHeight(scaled(140))
         self.runtime_text.setMaximumBlockCount(300)
         self.prevent_sleep_checkbox = QtWidgets.QCheckBox("Не давать ноутбуку засыпать во время выгрузки")
         self.prevent_sleep_checkbox.setChecked(True)
@@ -343,6 +360,7 @@ class SettingsDialog(QtWidgets.QWidget):
         )
         self.prevent_sleep_hint.setWordWrap(True)
 
+        content.addWidget(self._settings_card("Оформление", self._theme_row()))
         content.addWidget(self._settings_card("Версия", self._version_row()))
         content.addWidget(self._settings_card("Не давать компьютеру засыпать", self._sleep_row()))
         content.addWidget(self._settings_card("Обновления", self._update_row()))
@@ -374,8 +392,8 @@ class SettingsDialog(QtWidgets.QWidget):
         card = QtWidgets.QFrame()
         card.setObjectName("settingsCard")
         layout = QtWidgets.QVBoxLayout(card)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        layout.setSpacing(scaled(10))
         layout.addWidget(self._caption(title))
         layout.addWidget(body)
         return card
@@ -384,8 +402,8 @@ class SettingsDialog(QtWidgets.QWidget):
         card = QtWidgets.QFrame()
         card.setObjectName("settingsCard")
         layout = QtWidgets.QVBoxLayout(card)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(scaled(12), scaled(12), scaled(12), scaled(12))
+        layout.setSpacing(scaled(10))
 
         toggle = QtWidgets.QToolButton()
         toggle.setObjectName("expanderButton")
@@ -398,7 +416,7 @@ class SettingsDialog(QtWidgets.QWidget):
         body = QtWidgets.QWidget()
         body_layout = QtWidgets.QVBoxLayout(body)
         body_layout.setContentsMargins(0, 0, 0, 0)
-        body_layout.setSpacing(10)
+        body_layout.setSpacing(scaled(10))
         for row in rows:
             body_layout.addWidget(row)
         body.setVisible(expanded)
@@ -428,11 +446,38 @@ class SettingsDialog(QtWidgets.QWidget):
         row.addWidget(value)
         return host
 
+    def _theme_row(self) -> QtWidgets.QWidget:
+        host = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(host)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(scaled(8))
+
+        group = QtWidgets.QFrame()
+        group.setObjectName("segmentedGroup")
+        row = QtWidgets.QHBoxLayout(group)
+        row.setContentsMargins(scaled(3), scaled(3), scaled(3), scaled(3))
+        row.setSpacing(scaled(4))
+
+        self.theme_dark_button = QtWidgets.QPushButton("Тёмная")
+        self.theme_dark_button.setCheckable(True)
+        self.theme_dark_button.setProperty("secondary", True)
+        self.theme_dark_button.clicked.connect(lambda: self.theme_changed.emit("dark"))
+
+        self.theme_light_button = QtWidgets.QPushButton("Светлая")
+        self.theme_light_button.setCheckable(True)
+        self.theme_light_button.setProperty("secondary", True)
+        self.theme_light_button.clicked.connect(lambda: self.theme_changed.emit("light"))
+
+        row.addWidget(self.theme_dark_button, 1)
+        row.addWidget(self.theme_light_button, 1)
+        layout.addWidget(group)
+        return host
+
     def _sleep_row(self) -> QtWidgets.QWidget:
         host = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(host)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
+        layout.setSpacing(scaled(8))
         row = QtWidgets.QHBoxLayout()
         row.setContentsMargins(0, 0, 0, 0)
         row.addWidget(self.prevent_sleep_checkbox)
@@ -446,7 +491,7 @@ class SettingsDialog(QtWidgets.QWidget):
         host = QtWidgets.QWidget()
         layout = QtWidgets.QHBoxLayout(host)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(12)
+        layout.setSpacing(scaled(12))
         self.update_button = QtWidgets.QPushButton("Проверить обновления")
         self.update_button.setObjectName("accentButton")
         self.update_button.clicked.connect(self.update_check_requested)
@@ -463,8 +508,8 @@ class SettingsDialog(QtWidgets.QWidget):
         host = QtWidgets.QWidget()
         layout = QtWidgets.QGridLayout(host)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setHorizontalSpacing(10)
-        layout.setVerticalSpacing(10)
+        layout.setHorizontalSpacing(scaled(10))
+        layout.setVerticalSpacing(scaled(10))
         buttons = [
             ("Установить движок", self.bootstrap_requested, 0, 0),
             ("Проверить среду", self.refresh_requested, 0, 1),
@@ -483,7 +528,7 @@ class SettingsDialog(QtWidgets.QWidget):
         host = QtWidgets.QWidget()
         row = QtWidgets.QHBoxLayout(host)
         row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(10)
+        row.setSpacing(scaled(10))
         button = QtWidgets.QPushButton("Открыть папку с данными")
         button.clicked.connect(self.open_runtime_requested)
         row.addStretch(1)
@@ -494,7 +539,7 @@ class SettingsDialog(QtWidgets.QWidget):
         host = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(host)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
+        layout.setSpacing(scaled(6))
         layout.addWidget(self._caption(title))
         if isinstance(content, QtWidgets.QLabel):
             content.setObjectName("mutedBody")
@@ -502,132 +547,12 @@ class SettingsDialog(QtWidgets.QWidget):
         return host
 
     def _apply_styles(self) -> None:
-        self.setStyleSheet(
-            """
-            QWidget#settingsPage, QWidget#settingsPage QScrollArea, QWidget#settingsPage QScrollArea > QWidget > QWidget {
-                background: transparent;
-                color: #f3f3f3;
-            }
-            QLabel#dialogTitle {
-                font-family: "Segoe UI Variable";
-                font-size: 20px;
-                font-weight: 600;
-                color: #f7f7f7;
-            }
-            QLabel#heroMiniTitle {
-                font-family: "Segoe UI Variable";
-                font-size: 16px;
-                font-weight: 600;
-                color: #f7f7f7;
-            }
-            QLabel#dialogSubtitle {
-                font-size: 12px;
-                color: #aaaaaa;
-            }
-            QLabel#mutedBody {
-                font-size: 13px;
-                color: #d0d0d0;
-            }
-            QLabel#sectionLabel {
-                font-family: "Segoe UI Variable";
-                font-size: 11px;
-                font-weight: 600;
-                color: #aaaaaa;
-                text-transform: uppercase;
-                letter-spacing: 0.08em;
-            }
-            QFrame#settingsHero, QFrame#settingsCard {
-                background: rgba(255,255,255,0.05);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 8px;
-            }
-            QFrame#settingsCard {
-                margin-top: 0px;
-            }
-            QToolButton#expanderButton {
-                border: none;
-                color: #f3f3f3;
-                font-size: 14px;
-                font-weight: 600;
-                text-align: left;
-                padding: 0;
-            }
-            QToolButton#expanderButton:hover {
-                color: #ffffff;
-            }
-            QPushButton {
-                background: rgba(255,255,255,0.08);
-                color: #f3f3f3;
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 4px;
-                padding: 8px 12px;
-                min-height: 32px;
-            }
-            QPushButton:hover {
-                background: rgba(255,255,255,0.12);
-            }
-            QPushButton#accentButton {
-                background: #0078d4;
-                border-color: #0078d4;
-            }
-            QPushButton#accentButton:hover {
-                background: #1287df;
-            }
-            QCheckBox::indicator {
-                width: 16px;
-                height: 16px;
-                border-radius: 4px;
-                border: 1px solid rgba(255,255,255,0.20);
-                background: rgba(255,255,255,0.06);
-            }
-            QCheckBox::indicator:checked {
-                background: #0078d4;
-                border-color: #0078d4;
-            }
-            QCheckBox {
-                spacing: 8px;
-            }
-            QPlainTextEdit {
-                background: rgba(255,255,255,0.05);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 4px;
-                padding: 8px;
-                color: #f2f2f2;
-                font-family: "Cascadia Mono";
-                font-size: 12px;
-            }
-            QLabel#valuePill {
-                background: rgba(255,255,255,0.08);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 12px;
-                padding: 4px 10px;
-                color: #cccccc;
-            }
-            QScrollBar:vertical {
-                background: transparent;
-                width: 12px;
-                margin: 2px 0;
-            }
-            QScrollBar::handle:vertical {
-                background: rgba(255,255,255,0.16);
-                min-height: 28px;
-                border-radius: 6px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background: rgba(255,255,255,0.24);
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
-            QScrollBar:horizontal, QScrollBar::handle:horizontal,
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal,
-            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
-                background: transparent;
-                border: none;
-                width: 0px;
-                height: 0px;
-            }
-            """
-        )
+        return None
+
+    def set_theme_value(self, theme: str) -> None:
+        dark = theme != "light"
+        self.theme_dark_button.setChecked(dark)
+        self.theme_light_button.setChecked(not dark)
 
     def update_state(
         self,
