@@ -39,6 +39,7 @@ class MainWindowUpdateFlowMixin:
                 update_summary=self.update_summary,
                 prevent_sleep_during_downloads=self.prevent_sleep_during_downloads,
             )
+            self.settings_dialog.set_update_action_available(False)
             if not self.silent_update_check:
                 self.set_status("Ошибка", status)
                 self.append_log(f"[update_error] {status}")
@@ -53,6 +54,7 @@ class MainWindowUpdateFlowMixin:
                 update_summary=self.update_summary,
                 prevent_sleep_during_downloads=self.prevent_sleep_during_downloads,
             )
+            self.settings_dialog.set_update_action_available(False)
             return
 
         if status == "up_to_date":
@@ -64,6 +66,7 @@ class MainWindowUpdateFlowMixin:
                 update_summary=self.update_summary,
                 prevent_sleep_during_downloads=self.prevent_sleep_during_downloads,
             )
+            self.settings_dialog.set_update_action_available(False)
             if not self.silent_update_check:
                 self.set_status("Готово", "Новая версия не найдена.")
                 self.append_log("Новая Windows-версия не найдена.")
@@ -88,6 +91,7 @@ class MainWindowUpdateFlowMixin:
                 update_summary=self.update_summary,
                 prevent_sleep_during_downloads=self.prevent_sleep_during_downloads,
             )
+            self.settings_dialog.set_update_action_available(False)
             self.append_log(f"Найдена новая версия Windows: {release.version}.")
             if self.silent_update_check:
                 if self.updater.supports_auto_install:
@@ -98,21 +102,74 @@ class MainWindowUpdateFlowMixin:
             self.prompt_update_install(release)
 
     def prompt_update_install(self, release: ReleaseInfo) -> None:
-        dialog = QtWidgets.QMessageBox(self)
-        dialog.setWindowTitle("Доступно обновление")
-        dialog.setIcon(QtWidgets.QMessageBox.Information)
-        dialog.setText(f"Доступна новая версия SaveStories {release.version}.")
         details = release.notes.strip() or "GitHub release опубликован без release notes."
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("Доступно обновление")
+        dialog.setModal(True)
+        dialog.setMinimumWidth(520)
+
+        layout = QtWidgets.QVBoxLayout(dialog)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        title = QtWidgets.QLabel(f"Доступна новая версия SaveStories {release.version}.")
+        title.setStyleSheet("font-weight: 600;")
+        title.setWordWrap(True)
+        layout.addWidget(title)
+
+        body = QtWidgets.QLabel()
+        body.setWordWrap(True)
         if self.updater.supports_auto_install:
-            dialog.setInformativeText("Сейчас можно скачать установщик обновления и затем применить его через кнопку в левом меню.")
-            install_button = dialog.addButton("Скачать обновление", QtWidgets.QMessageBox.AcceptRole)
+            body.setText(
+                "Сейчас можно скачать установщик обновления и затем применить его через кнопку в настройках или в левом меню."
+            )
+            primary_label = "Скачать обновление"
         else:
-            dialog.setInformativeText("Текущая Windows-сборка работает в portable-режиме. Для обновления открой установщик новой версии.")
-            install_button = dialog.addButton("Скачать установщик", QtWidgets.QMessageBox.AcceptRole)
-        dialog.setDetailedText(details)
-        dialog.addButton("Позже", QtWidgets.QMessageBox.RejectRole)
-        dialog.exec()
-        if dialog.clickedButton() == install_button:
+            body.setText(
+                "Текущая Windows-сборка работает в portable-режиме. Для обновления открой установщик новой версии."
+            )
+            primary_label = "Скачать установщик"
+        layout.addWidget(body)
+
+        details_toggle = QtWidgets.QToolButton()
+        details_toggle.setText("Показать подробности")
+        details_toggle.setCheckable(True)
+        details_toggle.setChecked(False)
+        details_toggle.setToolButtonStyle(QtCore.Qt.ToolButtonTextOnly)
+
+        details_box = QtWidgets.QPlainTextEdit()
+        details_box.setReadOnly(True)
+        details_box.setPlainText(details)
+        details_box.setVisible(False)
+        details_box.setMinimumHeight(140)
+
+        def toggle_details(checked: bool) -> None:
+            details_box.setVisible(checked)
+            details_toggle.setText("Скрыть подробности" if checked else "Показать подробности")
+            dialog.adjustSize()
+
+        details_toggle.toggled.connect(toggle_details)
+        layout.addWidget(details_toggle, 0, QtCore.Qt.AlignLeft)
+        layout.addWidget(details_box)
+
+        buttons = QtWidgets.QHBoxLayout()
+        buttons.setContentsMargins(0, 0, 0, 0)
+        buttons.setSpacing(8)
+        buttons.addStretch(1)
+
+        later_button = QtWidgets.QPushButton("Позже")
+        later_button.setProperty("secondary", True)
+        later_button.clicked.connect(dialog.reject)
+
+        install_button = QtWidgets.QPushButton(primary_label)
+        install_button.setObjectName("accentButton")
+        install_button.clicked.connect(dialog.accept)
+
+        buttons.addWidget(later_button)
+        buttons.addWidget(install_button)
+        layout.addLayout(buttons)
+
+        if dialog.exec() == QtWidgets.QDialog.Accepted:
             if self.updater.supports_auto_install:
                 self.install_update(release, initiated_by_user=True)
             else:
@@ -133,6 +190,7 @@ class MainWindowUpdateFlowMixin:
         self.update_ready_to_apply = False
         self.apply_update_sidebar_button.setVisible(False)
         self.apply_update_sidebar_button.setEnabled(False)
+        self.settings_dialog.set_update_action_available(False)
         self.set_status("Обновление", f"Скачиваю установщик SaveStories {release.version}.")
         self.append_log(f"Начинаю скачивание установщика обновления Windows: {release.version}.")
         self.update_download_progress = 0
@@ -159,9 +217,10 @@ class MainWindowUpdateFlowMixin:
         self.update_ready_to_apply = True
         self.apply_update_sidebar_button.setVisible(True)
         self.apply_update_sidebar_button.setEnabled(True)
+        self.settings_dialog.set_update_action_available(True)
         self.set_status("Обновление", message)
         self.append_log(message)
-        self.append_log("Кнопка «Установить обновление» появилась в левом меню над «Настройки».")
+        self.append_log("Кнопка «Установить обновление» доступна и в настройках, и в левом меню.")
         self.append_log("После нажатия кнопки откроется установщик Windows с запросом прав администратора.")
 
     def apply_prepared_update(self) -> None:

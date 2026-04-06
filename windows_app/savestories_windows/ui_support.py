@@ -80,7 +80,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.6.1"
+    return "0.6.2"
 
 
 def prevent_system_sleep() -> bool:
@@ -289,6 +289,7 @@ class SettingsDialog(QtWidgets.QWidget):
     session_check_requested = QtCore.Signal()
     open_runtime_requested = QtCore.Signal()
     update_check_requested = QtCore.Signal()
+    apply_update_requested = QtCore.Signal()
     prevent_sleep_toggled = QtCore.Signal(bool)
     theme_changed = QtCore.Signal(str)
 
@@ -495,12 +496,18 @@ class SettingsDialog(QtWidgets.QWidget):
         self.update_button = QtWidgets.QPushButton("Проверить обновления")
         self.update_button.setObjectName("accentButton")
         self.update_button.clicked.connect(self.update_check_requested)
+        self.apply_update_button = QtWidgets.QPushButton("Установить обновление")
+        self.apply_update_button.setProperty("secondary", True)
+        self.apply_update_button.setVisible(False)
+        self.apply_update_button.setEnabled(False)
+        self.apply_update_button.clicked.connect(self.apply_update_requested)
         summary_box = QtWidgets.QVBoxLayout()
         summary_box.setContentsMargins(0, 0, 0, 0)
         summary_box.setSpacing(4)
         self.update_label.setObjectName("mutedBody")
         summary_box.addWidget(self.update_label)
         layout.addLayout(summary_box, 1)
+        layout.addWidget(self.apply_update_button, 0, QtCore.Qt.AlignRight)
         layout.addWidget(self.update_button, 0, QtCore.Qt.AlignRight)
         return host
 
@@ -553,6 +560,10 @@ class SettingsDialog(QtWidgets.QWidget):
         dark = theme != "light"
         self.theme_dark_button.setChecked(dark)
         self.theme_light_button.setChecked(not dark)
+
+    def set_update_action_available(self, available: bool) -> None:
+        self.apply_update_button.setVisible(available)
+        self.apply_update_button.setEnabled(available)
 
     def update_state(
         self,

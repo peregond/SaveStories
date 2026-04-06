@@ -147,6 +147,7 @@ class MainWindow(
         self.confetti_overlay = ConfettiOverlay(self.centralWidget())
         self.settings_dialog.theme_changed.connect(self.set_theme)
         self.settings_dialog.set_theme_value(self.current_theme)
+        self.settings_dialog.set_update_action_available(self.update_ready_to_apply)
         self._apply_styles()
         self.refresh_recent_lists_ui()
         self.refresh_home2_status_strip()
@@ -174,6 +175,7 @@ class MainWindow(
             prevent_sleep_during_downloads=self.prevent_sleep_during_downloads,
         )
         self.settings_dialog.set_theme_value(self.current_theme)
+        self.settings_dialog.set_update_action_available(self.update_ready_to_apply)
         self.stack.setCurrentIndex(3)
         if hasattr(self, "settings_nav_button"):
             self.settings_nav_button.setChecked(True)

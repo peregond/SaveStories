@@ -47,8 +47,13 @@ $env:PLAYWRIGHT_BROWSERS_PATH = $runtimeBrowsers
 & "$venv\\Scripts\\python.exe" (Join-Path $root "packaging\\generate_windows_icon.py") $iconPath
 
 Push-Location $nodeWorkerDir
-npm install
-node .\node_modules\playwright\cli.js install chromium
+npm ci
+$existingChromium = Get-ChildItem -Path $runtimeBrowsers -Filter "chrome.exe" -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $existingChromium) {
+    node .\node_modules\playwright\cli.js install chromium
+} else {
+    Write-Host "Using cached Playwright Chromium from $($existingChromium.DirectoryName)"
+}
 Pop-Location
 
 @"

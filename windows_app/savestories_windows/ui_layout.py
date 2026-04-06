@@ -464,6 +464,7 @@ class MainWindowLayoutMixin:
         self.settings_dialog.login_requested.connect(self.login)
         self.settings_dialog.session_check_requested.connect(self.check_session)
         self.settings_dialog.update_check_requested.connect(lambda: self.check_for_updates(silent=False))
+        self.settings_dialog.apply_update_requested.connect(self.apply_prepared_update)
         self.settings_dialog.open_runtime_requested.connect(self.open_runtime_directory)
         self.settings_dialog.prevent_sleep_toggled.connect(self.set_prevent_sleep_during_downloads)
 
