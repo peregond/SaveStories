@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveStories Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.0</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.1</link>
     <description>Release feed for SaveStories macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveStories 0.6.0</title>
-      <pubDate>Mon, 06 Apr 2026 09:28:49 GMT</pubDate>
-      <sparkle:version>63</sparkle:version>
-      <sparkle:shortVersionString>0.6.0</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveStories 0.6.0</h2>
-<ul><li>Полностью обновлён интерфейс Windows-версии в стиле Windows 11</li><li>Добавлена возможность скачивать Reels</li><li>Переделан раздел настроек</li><li>Теперь при скачивании устройство не переходит в режим сна (это можно отключить в настройках)</li><li>Раздел «Главная» переименован в «Stories»</li><li>После завершения загрузки программа предложит удалить пустые папки</li><li>Множество улучшений в интерфейсе программы</li></ul>]]></description>
+      <title>SaveStories 0.6.1</title>
+      <pubDate>Mon, 06 Apr 2026 13:35:21 GMT</pubDate>
+      <sparkle:version>64</sparkle:version>
+      <sparkle:shortVersionString>0.6.1</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveStories 0.6.1</h2>
+<ul><li>Интерфейс Windows-версии дополнительно отполирован и адаптирован под DPI 120–150%</li><li>В Windows добавен ручной переключатель светлой и тёмной темы</li><li>Добавлена возможность скачивать Reels</li><li>Переделан раздел настроек</li><li>Теперь при скачивании устройство не переходит в режим сна (это можно отключить в настройках)</li><li>Раздел «Главная» переименован в «Stories»</li><li>После завершения загрузки программа предложит удалить пустые папки</li><li>Множество улучшений в интерфейсе программы</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.0/SaveStories-macOS-v0.6.0.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.1/SaveStories-macOS-v0.6.1.dmg"
         sparkle:os="macos"
-        length="187142703"
+        length="187163513"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="woq+PC+X8k9xdH0dGDPMqCsW0bA9nTtBue0RG5mDwCBWvZJI89wFvbsnS6rxnHhAKJT4LeGLMaCSaWy+nuWFAA==" />
+        sparkle:edSignature="g28td+hX9BRK6nvzzacFYW7enfzi+jd33Brj8yiihoYINLgzD9N388zMgGGNz66KJKDl/Tsxi5F9ZqrpGez0Aw==" />
     </item>
   </channel>
 </rss>
