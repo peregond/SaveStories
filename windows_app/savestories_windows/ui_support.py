@@ -266,7 +266,7 @@ class ConfettiOverlay(QtWidgets.QWidget):
             painter.restore()
 
 
-class SettingsDialog(QtWidgets.QDialog):
+class SettingsDialog(QtWidgets.QWidget):
     refresh_requested = QtCore.Signal()
     bootstrap_requested = QtCore.Signal()
     login_requested = QtCore.Signal()
@@ -277,17 +277,52 @@ class SettingsDialog(QtWidgets.QDialog):
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Настройки")
-        self.setModal(True)
-        self.resize(560, 420)
+        self.setObjectName("settingsPage")
 
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(14)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(12)
 
-        title = QtWidgets.QLabel("Служебные настройки")
+        title = QtWidgets.QLabel("Параметры приложения")
         title.setObjectName("dialogTitle")
         layout.addWidget(title)
+
+        subtitle = QtWidgets.QLabel("Обновления, поведение во время выгрузки и подключение к Instagram собраны в одном месте.")
+        subtitle.setWordWrap(True)
+        subtitle.setObjectName("dialogSubtitle")
+        layout.addWidget(subtitle)
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+        layout.addWidget(scroll, 1)
+
+        scroll_host = QtWidgets.QWidget()
+        scroll.setWidget(scroll_host)
+        content = QtWidgets.QVBoxLayout(scroll_host)
+        content.setContentsMargins(0, 0, 0, 0)
+        content.setSpacing(12)
+
+        overview = QtWidgets.QFrame()
+        overview.setObjectName("settingsHero")
+        overview_layout = QtWidgets.QHBoxLayout(overview)
+        overview_layout.setContentsMargins(16, 16, 16, 16)
+        overview_layout.setSpacing(12)
+        overview_copy = QtWidgets.QVBoxLayout()
+        overview_copy.setContentsMargins(0, 0, 0, 0)
+        overview_copy.setSpacing(4)
+        overview_title = QtWidgets.QLabel("Настройки Windows-клиента")
+        overview_title.setObjectName("heroMiniTitle")
+        overview_text = QtWidgets.QLabel("Здесь собраны обновления, среда, сессия Instagram и параметры поведения во время выгрузки.")
+        overview_text.setWordWrap(True)
+        overview_text.setObjectName("dialogSubtitle")
+        overview_copy.addWidget(overview_title)
+        overview_copy.addWidget(overview_text)
+        self.settings_version_badge = QtWidgets.QLabel(app_version())
+        self.settings_version_badge.setObjectName("valuePill")
+        overview_layout.addLayout(overview_copy, 1)
+        overview_layout.addWidget(self.settings_version_badge, 0, QtCore.Qt.AlignTop | QtCore.Qt.AlignRight)
+        content.addWidget(overview)
 
         self.worker_label = QtWidgets.QLabel("Воркер ещё не проверялся.")
         self.worker_label.setWordWrap(True)
@@ -298,6 +333,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.runtime_text = QtWidgets.QPlainTextEdit()
         self.runtime_text.setReadOnly(True)
         self.runtime_text.setMinimumHeight(170)
+        self.runtime_text.setMaximumBlockCount(300)
         self.prevent_sleep_checkbox = QtWidgets.QCheckBox("Не давать ноутбуку засыпать во время выгрузки")
         self.prevent_sleep_checkbox.setChecked(True)
         self.prevent_sleep_checkbox.toggled.connect(self.prevent_sleep_toggled)
@@ -307,42 +343,291 @@ class SettingsDialog(QtWidgets.QDialog):
         )
         self.prevent_sleep_hint.setWordWrap(True)
 
-        layout.addWidget(self._group("Обновления", self.update_label))
-        layout.addWidget(self._options_group())
-        layout.addWidget(self._group("Воркер", self.worker_label))
-        layout.addWidget(self._group("Сессия", self.session_label))
-        layout.addWidget(self._group("Среда", self.runtime_text), 1)
+        content.addWidget(self._settings_card("Версия", self._version_row()))
+        content.addWidget(self._settings_card("Не давать компьютеру засыпать", self._sleep_row()))
+        content.addWidget(self._settings_card("Обновления", self._update_row()))
+        content.addWidget(
+            self._expander_card(
+                "Состояние служб",
+                [self._info_row("Воркер", self.worker_label), self._info_row("Сессия", self.session_label)],
+                expanded=False,
+            )
+        )
+        content.addWidget(
+            self._expander_card(
+                "Подключение к Instagram",
+                [self._instagram_grid()],
+                expanded=True,
+            )
+        )
+        content.addWidget(
+            self._expander_card(
+                "Техническая информация",
+                [self._info_row("Среда", self.runtime_text), self._runtime_actions_row()],
+                expanded=False,
+            )
+        )
+        content.addStretch(1)
+        self._apply_styles()
 
-        button_row = QtWidgets.QHBoxLayout()
-        button_row.setSpacing(10)
-        for text, signal in [
-            ("Установить движок", self.bootstrap_requested),
-            ("Проверить среду", self.refresh_requested),
-            ("Открыть браузер для входа", self.login_requested),
-            ("Проверить сессию", self.session_check_requested),
-            ("Проверить обновления", self.update_check_requested),
-            ("Открыть папку среды", self.open_runtime_requested),
-        ]:
+    def _settings_card(self, title: str, body: QtWidgets.QWidget) -> QtWidgets.QWidget:
+        card = QtWidgets.QFrame()
+        card.setObjectName("settingsCard")
+        layout = QtWidgets.QVBoxLayout(card)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10)
+        layout.addWidget(self._caption(title))
+        layout.addWidget(body)
+        return card
+
+    def _expander_card(self, title: str, rows: list[QtWidgets.QWidget], *, expanded: bool) -> QtWidgets.QWidget:
+        card = QtWidgets.QFrame()
+        card.setObjectName("settingsCard")
+        layout = QtWidgets.QVBoxLayout(card)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10)
+
+        toggle = QtWidgets.QToolButton()
+        toggle.setObjectName("expanderButton")
+        toggle.setCheckable(True)
+        toggle.setChecked(expanded)
+        toggle.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+        toggle.setArrowType(QtCore.Qt.DownArrow if expanded else QtCore.Qt.RightArrow)
+        toggle.setText(title)
+
+        body = QtWidgets.QWidget()
+        body_layout = QtWidgets.QVBoxLayout(body)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setSpacing(10)
+        for row in rows:
+            body_layout.addWidget(row)
+        body.setVisible(expanded)
+
+        def on_toggle(checked: bool) -> None:
+            toggle.setArrowType(QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow)
+            body.setVisible(checked)
+
+        toggle.toggled.connect(on_toggle)
+        layout.addWidget(toggle)
+        layout.addWidget(body)
+        return card
+
+    def _caption(self, text: str) -> QtWidgets.QLabel:
+        label = QtWidgets.QLabel(text)
+        label.setObjectName("sectionLabel")
+        return label
+
+    def _version_row(self) -> QtWidgets.QWidget:
+        host = QtWidgets.QWidget()
+        row = QtWidgets.QHBoxLayout(host)
+        row.setContentsMargins(0, 0, 0, 0)
+        value = QtWidgets.QLabel(app_version())
+        value.setObjectName("valuePill")
+        row.addWidget(QtWidgets.QLabel("Текущая версия"))
+        row.addStretch(1)
+        row.addWidget(value)
+        return host
+
+    def _sleep_row(self) -> QtWidgets.QWidget:
+        host = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(host)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        row = QtWidgets.QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(self.prevent_sleep_checkbox)
+        row.addStretch(1)
+        layout.addLayout(row)
+        self.prevent_sleep_hint.setObjectName("mutedBody")
+        layout.addWidget(self.prevent_sleep_hint)
+        return host
+
+    def _update_row(self) -> QtWidgets.QWidget:
+        host = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(host)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(12)
+        self.update_button = QtWidgets.QPushButton("Проверить обновления")
+        self.update_button.setObjectName("accentButton")
+        self.update_button.clicked.connect(self.update_check_requested)
+        summary_box = QtWidgets.QVBoxLayout()
+        summary_box.setContentsMargins(0, 0, 0, 0)
+        summary_box.setSpacing(4)
+        self.update_label.setObjectName("mutedBody")
+        summary_box.addWidget(self.update_label)
+        layout.addLayout(summary_box, 1)
+        layout.addWidget(self.update_button, 0, QtCore.Qt.AlignRight)
+        return host
+
+    def _instagram_grid(self) -> QtWidgets.QWidget:
+        host = QtWidgets.QWidget()
+        layout = QtWidgets.QGridLayout(host)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setHorizontalSpacing(10)
+        layout.setVerticalSpacing(10)
+        buttons = [
+            ("Установить движок", self.bootstrap_requested, 0, 0),
+            ("Проверить среду", self.refresh_requested, 0, 1),
+            ("Открыть браузер для входа", self.login_requested, 1, 0),
+            ("Проверить сессию", self.session_check_requested, 1, 1),
+        ]
+        for text, signal, row, col in buttons:
             button = QtWidgets.QPushButton(text)
+            if text == "Открыть браузер для входа":
+                button.setObjectName("accentButton")
             button.clicked.connect(signal)
-            button_row.addWidget(button)
-        layout.addLayout(button_row)
+            layout.addWidget(button, row, col)
+        return host
 
-    def _group(self, title: str, content: QtWidgets.QWidget) -> QtWidgets.QWidget:
-        box = QtWidgets.QGroupBox(title)
-        box_layout = QtWidgets.QVBoxLayout(box)
-        box_layout.setContentsMargins(12, 12, 12, 12)
-        box_layout.addWidget(content)
-        return box
+    def _runtime_actions_row(self) -> QtWidgets.QWidget:
+        host = QtWidgets.QWidget()
+        row = QtWidgets.QHBoxLayout(host)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(10)
+        button = QtWidgets.QPushButton("Открыть папку с данными")
+        button.clicked.connect(self.open_runtime_requested)
+        row.addStretch(1)
+        row.addWidget(button)
+        return host
 
-    def _options_group(self) -> QtWidgets.QWidget:
-        box = QtWidgets.QGroupBox("Во время выгрузки")
-        box_layout = QtWidgets.QVBoxLayout(box)
-        box_layout.setContentsMargins(12, 12, 12, 12)
-        box_layout.setSpacing(8)
-        box_layout.addWidget(self.prevent_sleep_checkbox)
-        box_layout.addWidget(self.prevent_sleep_hint)
-        return box
+    def _info_row(self, title: str, content: QtWidgets.QWidget) -> QtWidgets.QWidget:
+        host = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(host)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        layout.addWidget(self._caption(title))
+        if isinstance(content, QtWidgets.QLabel):
+            content.setObjectName("mutedBody")
+        layout.addWidget(content)
+        return host
+
+    def _apply_styles(self) -> None:
+        self.setStyleSheet(
+            """
+            QWidget#settingsPage, QWidget#settingsPage QScrollArea, QWidget#settingsPage QScrollArea > QWidget > QWidget {
+                background: transparent;
+                color: #f3f3f3;
+            }
+            QLabel#dialogTitle {
+                font-family: "Segoe UI Variable";
+                font-size: 20px;
+                font-weight: 600;
+                color: #f7f7f7;
+            }
+            QLabel#heroMiniTitle {
+                font-family: "Segoe UI Variable";
+                font-size: 16px;
+                font-weight: 600;
+                color: #f7f7f7;
+            }
+            QLabel#dialogSubtitle {
+                font-size: 12px;
+                color: #aaaaaa;
+            }
+            QLabel#mutedBody {
+                font-size: 13px;
+                color: #d0d0d0;
+            }
+            QLabel#sectionLabel {
+                font-family: "Segoe UI Variable";
+                font-size: 11px;
+                font-weight: 600;
+                color: #aaaaaa;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+            }
+            QFrame#settingsHero, QFrame#settingsCard {
+                background: rgba(255,255,255,0.05);
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 8px;
+            }
+            QFrame#settingsCard {
+                margin-top: 0px;
+            }
+            QToolButton#expanderButton {
+                border: none;
+                color: #f3f3f3;
+                font-size: 14px;
+                font-weight: 600;
+                text-align: left;
+                padding: 0;
+            }
+            QToolButton#expanderButton:hover {
+                color: #ffffff;
+            }
+            QPushButton {
+                background: rgba(255,255,255,0.08);
+                color: #f3f3f3;
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 4px;
+                padding: 8px 12px;
+                min-height: 32px;
+            }
+            QPushButton:hover {
+                background: rgba(255,255,255,0.12);
+            }
+            QPushButton#accentButton {
+                background: #0078d4;
+                border-color: #0078d4;
+            }
+            QPushButton#accentButton:hover {
+                background: #1287df;
+            }
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+                border-radius: 4px;
+                border: 1px solid rgba(255,255,255,0.20);
+                background: rgba(255,255,255,0.06);
+            }
+            QCheckBox::indicator:checked {
+                background: #0078d4;
+                border-color: #0078d4;
+            }
+            QCheckBox {
+                spacing: 8px;
+            }
+            QPlainTextEdit {
+                background: rgba(255,255,255,0.05);
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 4px;
+                padding: 8px;
+                color: #f2f2f2;
+                font-family: "Cascadia Mono";
+                font-size: 12px;
+            }
+            QLabel#valuePill {
+                background: rgba(255,255,255,0.08);
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 12px;
+                padding: 4px 10px;
+                color: #cccccc;
+            }
+            QScrollBar:vertical {
+                background: transparent;
+                width: 12px;
+                margin: 2px 0;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(255,255,255,0.16);
+                min-height: 28px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgba(255,255,255,0.24);
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+            QScrollBar:horizontal, QScrollBar::handle:horizontal,
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal,
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+                background: transparent;
+                border: none;
+                width: 0px;
+                height: 0px;
+            }
+            """
+        )
 
     def update_state(
         self,

@@ -265,6 +265,8 @@ class MainWindowRuntimeFlowMixin:
             self.directory_line.setText(str(self.save_directory))
         if hasattr(self, "home2_directory_line"):
             self.home2_directory_line.setText(str(self.save_directory))
+        if hasattr(self, "reels_directory_line"):
+            self.reels_directory_line.setText(str(self.save_directory))
         self.append_log(f"Папка сохранения изменена на {self.save_directory}.")
 
     def on_mode_changed(self) -> None:
@@ -325,6 +327,7 @@ class MainWindowRuntimeFlowMixin:
             self.download_request_active = True
             self.refresh_sleep_prevention_for_current_state()
         self.refresh_home2_status_strip()
+        self.refresh_ui_action_states()
         self.current_callback = callback
         self.current_task = WorkerTask(self.worker, request)
         self.current_task.response_ready.connect(self.finish_request)
@@ -351,12 +354,14 @@ class MainWindowRuntimeFlowMixin:
             self.stop_live_download_tracking()
             self.refresh_live_download_tracking()
             self.refresh_batch_table()
+            self.refresh_ui_action_states()
 
     def cleanup_request(self) -> None:
         self.current_task = None
         self.download_request_active = False
         self.refresh_sleep_prevention_for_current_state()
         self.refresh_batch_table()
+        self.refresh_ui_action_states()
 
     def apply_response(self, response: WorkerResponse) -> None:
         self.set_status("Готово" if response.ok else "Ошибка", response.message)
@@ -379,12 +384,35 @@ class MainWindowRuntimeFlowMixin:
             list_item = QtWidgets.QListWidgetItem(f"{item.mediaType.upper()}  {item.localPath}")
             list_item.setData(QtCore.Qt.UserRole, item.localPath)
             self.downloads_list.insertItem(0, list_item)
+            if hasattr(self, "reels_downloads_list"):
+                reels_item = QtWidgets.QListWidgetItem(f"{item.mediaType.upper()}  {item.localPath}")
+                reels_item.setData(QtCore.Qt.UserRole, item.localPath)
+                self.reels_downloads_list.insertItem(0, reels_item)
         if response.ok and self._response_saved_count(response) > 0 and response.status == "download_complete":
             self.trigger_celebration()
 
     def set_status(self, title: str, detail: str) -> None:
         self.status_title_label.setText(title)
         self.status_detail_label.setText(detail)
+        if hasattr(self, "reels_status_badge"):
+            lowered = title.lower()
+            if "ошибка" in lowered:
+                tone = "error"
+                badge = "Ошибка"
+            elif "готов" in lowered:
+                tone = "success"
+                badge = "Готово"
+            elif "скачив" in lowered or "выгруз" in lowered or self.current_task is not None:
+                tone = "active"
+                badge = "Загружаю"
+            else:
+                tone = "idle"
+                badge = "Ожидание"
+            self.reels_status_badge.setText(badge)
+            self.reels_status_badge.setProperty("statusTone", tone)
+            self.reels_status_badge.style().unpolish(self.reels_status_badge)
+            self.reels_status_badge.style().polish(self.reels_status_badge)
+            self.reels_status_summary.setText(detail)
         self.refresh_home2_status_strip()
 
     def append_log(self, message: str) -> None:
@@ -398,23 +426,64 @@ class MainWindowRuntimeFlowMixin:
             self.home2_logs_text.appendPlainText(line)
             home2_scroll = self.home2_logs_text.verticalScrollBar()
             home2_scroll.setValue(home2_scroll.maximum())
+        if hasattr(self, "reels_logs_text"):
+            self.reels_logs_text.appendPlainText(line)
+            reels_scroll = self.reels_logs_text.verticalScrollBar()
+            reels_scroll.setValue(reels_scroll.maximum())
 
     def refresh_home2_status_strip(self) -> None:
-        if not hasattr(self, "home2_status_label"):
-            return
         is_active = self.batch_running or (self.current_task is not None)
         if is_active and not self.status_pulse_timer.isActive():
             self.status_pulse_timer.start()
         if not is_active and self.status_pulse_timer.isActive():
             self.status_pulse_timer.stop()
             self.status_pulse_active = False
-        live_dot = "🟢" if self.status_pulse_active else "🟩"
-        self.home2_status_label.setText(f"{self.status_title_label.text()}\n{self.status_detail_label.text()}")
-        self.home2_step_label.setText(f"{live_dot} {self.current_step_label}" if is_active else self.current_step_label)
-        self.home2_result_label.setText(f"{self.saved_label.text()}\n{self.found_label.text()}")
-        self.home2_live_label.setText(
-            f"{self.live_downloaded_file_count} файлов\n{self.live_created_folder_count} папок создано"
-        )
+        def extract_count(label_text: str) -> str:
+            _, _, value = label_text.partition(":")
+            return value.strip() or "0"
+
+        if hasattr(self, "home2_status_badge"):
+            title = self.status_title_label.text()
+            if is_active:
+                badge_text = "Загружаю"
+                tone = "active"
+            elif "ошибка" in title.lower():
+                badge_text = "Ошибка"
+                tone = "error"
+            elif "готов" in title.lower():
+                badge_text = "Готово"
+                tone = "success"
+            else:
+                badge_text = "Ожидание"
+                tone = "idle"
+
+            self.home2_status_badge.setText(badge_text)
+            self.home2_status_badge.setProperty("statusTone", tone)
+            self.home2_status_badge.style().unpolish(self.home2_status_badge)
+            self.home2_status_badge.style().polish(self.home2_status_badge)
+            self.home2_status_summary.setText(self.status_detail_label.text())
+            live_prefix = "● " if is_active and self.status_pulse_active else ("○ " if is_active else "")
+            self.home2_step_value.setText(f"{live_prefix}{self.current_step_label}")
+
+        if hasattr(self, "home2_profiles_value"):
+            self.home2_profiles_value.setText(extract_count(self.found_label.text()))
+        if hasattr(self, "home2_saved_value"):
+            self.home2_saved_value.setText(extract_count(self.saved_label.text()))
+        if hasattr(self, "home2_files_value"):
+            self.home2_files_value.setText(str(self.live_downloaded_file_count))
+        if hasattr(self, "home2_folders_value"):
+            self.home2_folders_value.setText(str(self.live_created_folder_count))
+
+        if hasattr(self, "home2_progress_bar"):
+            total = max(len(self.batch_pending_indices), len(self.batch_entries), 0)
+            if self.batch_running and total > 0:
+                completed = max(self.batch_cursor - 1, 0)
+                self.home2_progress_bar.setMaximum(total)
+                self.home2_progress_bar.setValue(min(completed, total))
+                self.home2_progress_bar.setVisible(True)
+            else:
+                self.home2_progress_bar.setVisible(False)
+
         if hasattr(self, "home2_last_result"):
             self.home2_last_result.setText(self.activity_subtitle.text())
         if hasattr(self, "home2_session_summary"):
@@ -433,6 +502,13 @@ class MainWindowRuntimeFlowMixin:
     def _tick_status_pulse(self) -> None:
         self.status_pulse_active = not self.status_pulse_active
         self.refresh_home2_status_strip()
+
+    def refresh_ui_action_states(self) -> None:
+        if hasattr(self, "reels_run_button"):
+            busy = self.current_task is not None
+            self.reels_run_button.setEnabled(bool(self.reels_input.toPlainText().strip()) and not busy)
+            self.reels_clear_button.setEnabled(not busy)
+            self.reels_run_button.setText("Загружаю..." if busy else "Скачать")
 
     def update_current_step_from_log(self, message: str) -> None:
         lowered = message.lower()

@@ -297,8 +297,10 @@ class MainWindowBatchFlowMixin:
                 widget.deleteLater()
 
         if not self.recent_lists:
-            label = QtWidgets.QLabel("Здесь будут появляться сохранённые и недавно запущенные списки профилей.")
+            label = QtWidgets.QLabel("Здесь появятся сохранённые наборы профилей.")
             label.setWordWrap(True)
+            label.setObjectName("cardHint")
+            label.setAlignment(QtCore.Qt.AlignHCenter)
             self.home2_recent_lists_container.addWidget(label)
             self.home2_recent_count.setText("Недавних наборов: 0")
             if hasattr(self, "home2_recent_toggle"):
@@ -306,37 +308,59 @@ class MainWindowBatchFlowMixin:
             return
 
         show_all = self.home2_recent_expanded
-        visible_items = self.recent_lists if show_all else self.recent_lists[:1]
-        for index, item in enumerate(visible_items):
+        visible_items = self.recent_lists if show_all else self.recent_lists[:3]
+        for visible_index, item in enumerate(visible_items):
             title = str(item.get("title") or "Недавний список")
             urls = [str(url) for url in item.get("urls", [])]
-            card = QtWidgets.QGroupBox(title)
+            original_index = self.recent_lists.index(item)
+
+            card = QtWidgets.QFrame()
+            card.setObjectName("subCard")
             layout = QtWidgets.QVBoxLayout(card)
+            layout.setContentsMargins(12, 12, 12, 12)
+            layout.setSpacing(8)
+
+            header = QtWidgets.QHBoxLayout()
+            header.setContentsMargins(0, 0, 0, 0)
+            header.setSpacing(8)
+            title_label = QtWidgets.QLabel(title)
+            title_label.setStyleSheet("font-weight: 600;")
             summary = QtWidgets.QLabel(f"{len(urls)} профилей")
-            summary.setObjectName("sidebarSubtitle")
-            preview = QtWidgets.QLabel("\n".join(urls[:3]))
+            summary.setObjectName("cardHint")
+            remove_button = QtWidgets.QToolButton()
+            remove_button.setText("✕")
+            remove_button.setObjectName("inlineRemoveButton")
+            remove_button.setAutoRaise(True)
+            remove_button.clicked.connect(lambda checked=False, item_index=original_index: self.remove_recent_list(item_index))
+            header.addWidget(title_label, 1)
+            header.addWidget(summary, 0, QtCore.Qt.AlignLeft)
+            header.addWidget(remove_button, 0, QtCore.Qt.AlignRight)
+
+            preview = QtWidgets.QLabel("\n".join(urls[:2]))
             preview.setWordWrap(True)
-            layout.addWidget(summary)
+            preview.setStyleSheet("font-family: 'Cascadia Mono';")
+            layout.addLayout(header)
             layout.addWidget(preview)
+
             row = QtWidgets.QHBoxLayout()
-            add_button = QtWidgets.QPushButton("Добавить")
+            row.setSpacing(8)
+            add_button = QtWidgets.QPushButton("Добавить в очередь")
+            add_button.setProperty("secondary", True)
             add_button.clicked.connect(lambda checked=False, batch_urls=urls: self.apply_recent_list(batch_urls))
-            replace_button = QtWidgets.QPushButton("Заменить")
+            replace_button = QtWidgets.QPushButton("Заменить очередь")
+            replace_button.setProperty("secondary", True)
             replace_button.clicked.connect(lambda checked=False, batch_urls=urls: self.replace_with_recent_list(batch_urls))
-            remove_button = QtWidgets.QPushButton("Удалить")
-            remove_button.clicked.connect(lambda checked=False, item_index=index: self.remove_recent_list(item_index))
-            row.addWidget(add_button)
-            row.addWidget(replace_button)
-            row.addWidget(remove_button)
+            row.addWidget(add_button, 1)
+            row.addWidget(replace_button, 1)
             layout.addLayout(row)
             self.home2_recent_lists_container.addWidget(card)
 
         self.home2_recent_lists_container.addStretch(1)
         self.home2_recent_count.setText(f"Недавних наборов: {len(self.recent_lists)}")
         if hasattr(self, "home2_recent_toggle"):
-            has_more = len(self.recent_lists) > 1
+            has_more = len(self.recent_lists) > 3
             self.home2_recent_toggle.setVisible(has_more)
-            self.home2_recent_toggle.setText("Свернуть" if show_all else "Ещё")
+            self.home2_recent_toggle.setText("Свернуть ↑" if show_all else "Показать ещё ↓")
 
     def toggle_home2_recent_lists(self) -> None:
         self.home2_recent_expanded = not self.home2_recent_expanded

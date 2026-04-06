@@ -164,9 +164,9 @@ class MainWindow(
             update_summary=self.update_summary,
             prevent_sleep_during_downloads=self.prevent_sleep_during_downloads,
         )
-        self.settings_dialog.show()
-        self.settings_dialog.raise_()
-        self.settings_dialog.activateWindow()
+        self.stack.setCurrentIndex(3)
+        if hasattr(self, "settings_nav_button"):
+            self.settings_nav_button.setChecked(True)
 
     def open_save_directory(self) -> None:
         self.open_in_explorer(self.save_directory)
@@ -234,4 +234,3 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     raise SystemExit(main())
-
