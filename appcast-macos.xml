@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveStories Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.3</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.4</link>
     <description>Release feed for SaveStories macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveStories 0.6.3</title>
-      <pubDate>Fri, 10 Apr 2026 18:28:34 GMT</pubDate>
-      <sparkle:version>66</sparkle:version>
-      <sparkle:shortVersionString>0.6.3</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveStories 0.6.3</h2>
-<ul><li>Релиз включает macOS-версию и Windows WinUI 3 beta</li><li>Старая Windows-версия с прежним интерфейсом больше не публикуется в релизных ассетах</li><li>Исправлено окно обновления в Windows: кнопки скачивания и подробностей снова работают корректно</li></ul>]]></description>
+      <title>SaveStories 0.6.4</title>
+      <pubDate>Fri, 10 Apr 2026 18:47:42 GMT</pubDate>
+      <sparkle:version>67</sparkle:version>
+      <sparkle:shortVersionString>0.6.4</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveStories 0.6.4</h2>
+<ul><li>Релиз включает macOS-версию и Windows WinUI 3 beta</li><li>Для Windows WinUI 3 на GitHub теперь публикуется установщик .exe</li><li>После установки приложение предлагает докачать runtime-модули (node зависимости и Chromium)</li><li>Старая Windows-версия с прежним интерфейсом больше не публикуется в релизных ассетах</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.3/SaveStories-macOS-v0.6.3.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.4/SaveStories-macOS-v0.6.4.dmg"
         sparkle:os="macos"
-        length="187176562"
+        length="187163634"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="1LaS5T3ts68T/BFk1sHySr34w7y54ArvZxAWJFjxzhgp+URqdiqvqMQCa4iMMq5BjfVjG6qXL1bwlaku+v3yAQ==" />
+        sparkle:edSignature="miBaKPL6dEzcvu1V4u4yk0SUeV0bsjF5BO5bYeC1c1Mlu+Y2SMsvVDfSidquyESeXtXDdduDShwFvZwrURXDBw==" />
     </item>
   </channel>
 </rss>
