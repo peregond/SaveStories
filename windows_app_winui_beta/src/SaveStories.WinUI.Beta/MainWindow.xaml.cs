@@ -7,11 +7,15 @@ namespace SaveStories.WinUI.Beta;
 
 public sealed partial class MainWindow : Window
 {
+    private bool _startupTasksCompleted;
+
     public MainWindow()
     {
         InitializeComponent();
         AppNav.Loaded += OnRootLoaded;
         BetaSettingsStore.Current.Load();
+        VersionBadgeText.Text = $"{AppVersionProvider.CurrentVersion()}-beta";
+        DiagnosticsService.Current.LogInfo($"Startup version={AppVersionProvider.CurrentVersion()}");
         ApplyTheme(BetaSettingsStore.Current.Theme);
         BetaSettingsStore.Current.ThemeChanged += OnThemeChanged;
         AppNav.SelectedItem = AppNav.MenuItems[0];
@@ -58,7 +62,27 @@ public sealed partial class MainWindow : Window
     private async void OnRootLoaded(object sender, RoutedEventArgs e)
     {
         AppNav.Loaded -= OnRootLoaded;
+        await RunStartupChecksAsync();
+    }
+
+    private async Task RunStartupChecksAsync()
+    {
+        try
+        {
+            var preflight = PreflightService.Current.Run();
+            foreach (var check in preflight.Checks)
+            {
+                DiagnosticsService.Current.LogInfo($"preflight {check.Name}: {(check.Ok ? "ok" : "failed")} ({check.Message})");
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticsService.Current.LogError("Preflight failed", ex);
+        }
+
         await PromptRuntimeInstallIfNeededAsync();
+        _startupTasksCompleted = true;
+        _ = AutoCheckForUpdatesAsync();
     }
 
     private async Task PromptRuntimeInstallIfNeededAsync()
@@ -163,6 +187,45 @@ public sealed partial class MainWindow : Window
             };
             await errorDialog.ShowAsync();
             return false;
+        }
+    }
+
+    private async Task AutoCheckForUpdatesAsync()
+    {
+        try
+        {
+            if (!_startupTasksCompleted || !WindowsUpdaterService.Current.IsAvailable)
+            {
+                return;
+            }
+
+            var lastCheckRaw = BetaSettingsStore.Current.LastUpdateCheckAt;
+            if (DateTimeOffset.TryParse(lastCheckRaw, out var lastCheck))
+            {
+                if (DateTimeOffset.Now - lastCheck < TimeSpan.FromHours(6))
+                {
+                    return;
+                }
+            }
+
+            var result = await WindowsUpdaterService.Current.CheckLatestReleaseAsync(AppVersionProvider.CurrentVersion());
+            BetaSettingsStore.Current.SetLastUpdateCheckAt(DateTimeOffset.Now.ToString("O"));
+            if (result.Status == "update_available" && result.Release is not null)
+            {
+                DiagnosticsService.Current.LogInfo($"Update available: {result.Release.Version}");
+                var dialog = new ContentDialog
+                {
+                    XamlRoot = (Content as FrameworkElement)?.XamlRoot,
+                    Title = "Доступно обновление",
+                    Content = $"Найдена новая версия {result.Release.Version}. Открой «Настройки», чтобы скачать и установить обновление.",
+                    CloseButtonText = "ОК"
+                };
+                await dialog.ShowAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticsService.Current.LogError("Auto update check failed", ex);
         }
     }
 }

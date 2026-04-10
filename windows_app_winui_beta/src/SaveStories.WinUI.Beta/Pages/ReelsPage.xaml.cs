@@ -12,6 +12,7 @@ public sealed partial class ReelsPage : Page
     private readonly Queue<string> _logLines = new();
     private readonly List<string> _pendingLogs = new();
     private readonly StringBuilder _logBuilder = new();
+    private readonly List<string> _lastFailedLinks = new();
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _logFlushTimer;
     private bool _isRunning;
     private CancellationTokenSource? _runCts;
@@ -99,6 +100,7 @@ public sealed partial class ReelsPage : Page
         _isRunning = true;
         RunReelsButton.IsEnabled = false;
         StopReelsButton.IsEnabled = true;
+        RetryFailedReelsButton.IsEnabled = false;
         ReelsStatusTitleText.Text = "Загружаю";
         ReelsStatusDetailText.Text = runningMessage;
         AppendLog(runningMessage);
@@ -156,10 +158,21 @@ public sealed partial class ReelsPage : Page
         ReelsStatusTitleText.Text = response.Ok ? "Готово" : "Ошибка";
         ReelsStatusDetailText.Text = response.Message;
         AppendLog($"[{response.Status}] {response.Message}");
+        _lastFailedLinks.Clear();
 
         foreach (var line in response.Logs)
         {
             AppendLog(line);
+            if (line.StartsWith("reel_failed=", StringComparison.OrdinalIgnoreCase))
+            {
+                var payload = line["reel_failed=".Length..];
+                var separatorIndex = payload.IndexOf(" :: ", StringComparison.Ordinal);
+                var reelUrl = separatorIndex >= 0 ? payload[..separatorIndex] : payload;
+                if (!string.IsNullOrWhiteSpace(reelUrl))
+                {
+                    _lastFailedLinks.Add(reelUrl.Trim());
+                }
+            }
         }
 
         foreach (var item in response.Items)
@@ -174,7 +187,11 @@ public sealed partial class ReelsPage : Page
 
         var savedCount = response.Data.TryGetValue("savedCount", out var saved) ? saved : response.Items.Count.ToString();
         var filesCount = response.Items.Count.ToString();
-        ReelsResultSummaryText.Text = $"Ссылок: {_queue.Count}  ·  Сохранено: {savedCount}  ·  Файлов: {filesCount}";
+        var processedCount = response.Data.TryGetValue("processedCount", out var processed) ? processed : _queue.Count.ToString();
+        var failedCount = response.Data.TryGetValue("failedCount", out var failed) ? failed : _lastFailedLinks.Count.ToString();
+        RetryFailedReelsButton.IsEnabled = _lastFailedLinks.Count > 0;
+        ReelsResultSummaryText.Text = $"Ссылок: {_queue.Count}  ·  Обработано: {processedCount}  ·  Сохранено: {savedCount}  ·  Ошибок: {failedCount}  ·  Файлов: {filesCount}";
+        DiagnosticsService.Current.LogInfo($"reels_result ok={response.Ok} saved={savedCount} failed={failedCount}");
     }
 
     private void AppendLog(string line)
@@ -233,6 +250,23 @@ public sealed partial class ReelsPage : Page
 
         ReelsLogsTextBox.Text = _logBuilder.ToString();
         ReelsLogsTextBox.SelectionStart = ReelsLogsTextBox.Text.Length;
+    }
+
+    private void OnRetryFailedClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (_isRunning || _lastFailedLinks.Count == 0)
+        {
+            return;
+        }
+
+        _queue.Clear();
+        foreach (var link in _lastFailedLinks.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            _queue.Add(link);
+        }
+        RetryFailedReelsButton.IsEnabled = false;
+        AppendLog($"Сформирована очередь из неудачных ссылок: {_queue.Count}");
+        RefreshQueueSummary();
     }
 
     private static List<string> ParseInputLines(string input)

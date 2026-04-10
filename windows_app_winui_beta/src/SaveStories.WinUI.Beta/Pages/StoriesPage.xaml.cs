@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml.Controls;
 using SaveStories.WinUI.Beta.Services;
 using System.Collections.ObjectModel;
 using System.Text;
+using System.Text.Json;
 
 namespace SaveStories.WinUI.Beta.Pages;
 
@@ -11,6 +12,7 @@ public sealed partial class StoriesPage : Page
     private readonly Queue<string> _logLines = new();
     private readonly List<string> _pendingLogs = new();
     private readonly StringBuilder _logBuilder = new();
+    private readonly List<string> _lastFailedProfiles = new();
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _logFlushTimer;
     private bool _isRunning;
     private CancellationTokenSource? _runCts;
@@ -98,6 +100,7 @@ public sealed partial class StoriesPage : Page
         _isRunning = true;
         DownloadButton.IsEnabled = false;
         CancelButton.IsEnabled = true;
+        RetryFailedButton.IsEnabled = false;
         StatusTitleText.Text = "Загружаю";
         StatusDetailText.Text = runningMessage;
         AppendLog(runningMessage);
@@ -171,8 +174,16 @@ public sealed partial class StoriesPage : Page
         var profilesCount = _queue.Count;
         var savedCount = response.Data.TryGetValue("savedCount", out var saved) ? saved : response.Items.Count.ToString();
         var foundCount = response.Data.TryGetValue("foundCount", out var found) ? found : "0";
+        var processedCount = response.Data.TryGetValue("processedCount", out var processed) ? processed : profilesCount.ToString();
+        _lastFailedProfiles.Clear();
+        if (response.Data.TryGetValue("batchResults", out var batchResultsJson) && !string.IsNullOrWhiteSpace(batchResultsJson))
+        {
+            TryExtractFailedProfiles(batchResultsJson, _lastFailedProfiles);
+        }
+        RetryFailedButton.IsEnabled = _lastFailedProfiles.Count > 0;
         var filesCount = response.Items.Count.ToString();
-        ResultSummaryText.Text = $"Профилей: {profilesCount}  ·  Найдено: {foundCount}  ·  Сохранено: {savedCount}  ·  Файлов: {filesCount}";
+        ResultSummaryText.Text = $"Профилей: {profilesCount}  ·  Обработано: {processedCount}  ·  Найдено: {foundCount}  ·  Сохранено: {savedCount}  ·  Файлов: {filesCount}";
+        DiagnosticsService.Current.LogInfo($"stories_result ok={response.Ok} saved={savedCount} failed={_lastFailedProfiles.Count}");
     }
 
     private void AppendLog(string line)
@@ -231,6 +242,53 @@ public sealed partial class StoriesPage : Page
 
         LogsTextBox.Text = _logBuilder.ToString();
         LogsTextBox.SelectionStart = LogsTextBox.Text.Length;
+    }
+
+    private void OnRetryFailedClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (_isRunning || _lastFailedProfiles.Count == 0)
+        {
+            return;
+        }
+
+        _queue.Clear();
+        foreach (var profile in _lastFailedProfiles)
+        {
+            _queue.Add(profile);
+        }
+        RetryFailedButton.IsEnabled = false;
+        AppendLog($"Сформирована очередь из неудачных профилей: {_queue.Count}");
+        RefreshQueueSummary();
+    }
+
+    private static void TryExtractFailedProfiles(string json, List<string> output)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return;
+            }
+
+            foreach (var entry in document.RootElement.EnumerateArray())
+            {
+                var status = entry.TryGetProperty("status", out var statusElement) ? (statusElement.GetString() ?? "") : "";
+                if (string.Equals(status, "completed", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                var url = entry.TryGetProperty("url", out var urlElement) ? (urlElement.GetString() ?? "") : "";
+                if (!string.IsNullOrWhiteSpace(url))
+                {
+                    output.Add(url.Trim());
+                }
+            }
+        }
+        catch
+        {
+            // ignore malformed batch results
+        }
     }
 
     private static List<string> ParseInputLines(string input)

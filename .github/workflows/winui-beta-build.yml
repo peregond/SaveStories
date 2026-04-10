@@ -76,6 +76,20 @@ jobs:
           New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
           Copy-Item -Path (Join-Path $nodeRoot.FullName "*") -Destination $targetDir -Recurse -Force
 
+      - name: Smoke-test WinUI executable
+        shell: pwsh
+        run: |
+          $exe = "dist\winui-beta\SaveStories.WinUI.Beta.exe"
+          if (-not (Test-Path $exe)) {
+            throw "Executable not found: $exe"
+          }
+          $process = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 8
+          if ($process.HasExited) {
+            throw "Smoke test failed: app exited too early with code $($process.ExitCode)"
+          }
+          Stop-Process -Id $process.Id -Force
+
       - name: Install Inno Setup
         shell: pwsh
         run: |
@@ -100,6 +114,27 @@ jobs:
             ".\windows_app_winui_beta\SaveStories-WinUI-Beta.iss"
           if ($LASTEXITCODE -ne 0) {
             throw "ISCC failed with code $LASTEXITCODE"
+          }
+
+      - name: Sign WinUI installer (optional)
+        if: ${{ secrets.WINDOWS_SIGN_PFX_BASE64 != '' && secrets.WINDOWS_SIGN_PFX_PASSWORD != '' }}
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem -Path "dist" -Filter "SaveStories-WinUI-Beta-Setup-v*.exe" -File | Select-Object -First 1
+          if (-not $setup) {
+            throw "Installer not found for signing."
+          }
+          $pfxPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [System.IO.File]::WriteAllBytes($pfxPath, [System.Convert]::FromBase64String("${{ secrets.WINDOWS_SIGN_PFX_BASE64 }}"))
+          $securePassword = ConvertTo-SecureString "${{ secrets.WINDOWS_SIGN_PFX_PASSWORD }}" -AsPlainText -Force
+          Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword | Out-Null
+          $signtool = (Get-Command signtool.exe -ErrorAction SilentlyContinue)
+          if (-not $signtool) {
+            throw "signtool.exe not found."
+          }
+          & $signtool.Source sign /fd SHA256 /td SHA256 /tr "http://timestamp.digicert.com" /a $setup.FullName
+          if ($LASTEXITCODE -ne 0) {
+            throw "signtool failed with code $LASTEXITCODE"
           }
 
       - name: Upload beta installer artifact

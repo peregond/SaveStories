@@ -36,6 +36,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button x:Name="DownloadButton" Click="OnDownloadClick" Content="Скачать" />
                         <Button x:Name="CancelButton" Click="OnStopClick" Content="Остановить" IsEnabled="False" />
+                        <Button x:Name="RetryFailedButton" Click="OnRetryFailedClick" Content="Повторить неудачные" IsEnabled="False" />
                     </StackPanel>
                     <TextBlock x:Name="QueueSummaryText" Opacity="0.75" Text="Очередь: 0 профилей." />
                     <ListView x:Name="QueueListView" MaxHeight="160" />

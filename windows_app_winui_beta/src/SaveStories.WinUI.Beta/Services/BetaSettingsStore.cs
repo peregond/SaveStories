@@ -11,6 +11,7 @@ public enum BetaTheme
 public sealed class BetaSettingsStore
 {
     private const string FileName = "settings.json";
+    private const int CurrentSchemaVersion = 2;
     private static readonly Lazy<BetaSettingsStore> LazyInstance = new(() => new BetaSettingsStore());
 
     private readonly string _settingsDirectory;
@@ -20,6 +21,7 @@ public sealed class BetaSettingsStore
 
     public BetaTheme Theme { get; private set; } = BetaTheme.Dark;
     public bool RuntimePromptShown { get; private set; }
+    public string LastUpdateCheckAt { get; private set; } = "";
 
     public event EventHandler<BetaTheme>? ThemeChanged;
 
@@ -41,13 +43,20 @@ public sealed class BetaSettingsStore
 
             var json = File.ReadAllText(_settingsPath);
             var payload = JsonSerializer.Deserialize<SettingsPayload>(json);
+            var schemaVersion = payload?.SchemaVersion ?? 1;
             Theme = ParseTheme(payload?.Theme);
             RuntimePromptShown = payload?.RuntimePromptShown ?? false;
+            LastUpdateCheckAt = payload?.LastUpdateCheckAt ?? "";
+            if (schemaVersion < CurrentSchemaVersion)
+            {
+                Save();
+            }
         }
         catch
         {
             Theme = BetaTheme.Dark;
             RuntimePromptShown = false;
+            LastUpdateCheckAt = "";
         }
     }
 
@@ -76,13 +85,21 @@ public sealed class BetaSettingsStore
         Save();
     }
 
+    public void SetLastUpdateCheckAt(string isoDateTime)
+    {
+        LastUpdateCheckAt = isoDateTime ?? "";
+        Save();
+    }
+
     private void Save()
     {
         Directory.CreateDirectory(_settingsDirectory);
         var payload = new SettingsPayload
         {
+            SchemaVersion = CurrentSchemaVersion,
             Theme = Theme == BetaTheme.Light ? "light" : "dark",
             RuntimePromptShown = RuntimePromptShown,
+            LastUpdateCheckAt = LastUpdateCheckAt,
         };
         var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(_settingsPath, json);
@@ -97,7 +114,9 @@ public sealed class BetaSettingsStore
 
     private sealed class SettingsPayload
     {
+        public int SchemaVersion { get; set; } = CurrentSchemaVersion;
         public string? Theme { get; set; }
         public bool RuntimePromptShown { get; set; }
+        public string? LastUpdateCheckAt { get; set; }
     }
 }

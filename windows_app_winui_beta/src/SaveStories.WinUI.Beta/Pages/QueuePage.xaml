@@ -32,6 +32,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button x:Name="RunQueueButton" Click="OnRunQueueClick" Content="Скачать очередь" />
                         <Button x:Name="StopQueueButton" Click="OnStopQueueClick" Content="Остановить" IsEnabled="False" />
+                        <Button x:Name="RetryFailedQueueButton" Click="OnRetryFailedClick" Content="Повторить неудачные" IsEnabled="False" />
                         <Button Click="OnClearQueueClick" Content="Очистить очередь" />
                     </StackPanel>
                     <TextBlock x:Name="QueueSummaryText" Opacity="0.75" Text="Очередь: 0 профилей." />

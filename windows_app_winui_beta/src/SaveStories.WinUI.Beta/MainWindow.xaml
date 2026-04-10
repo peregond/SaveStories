@@ -35,7 +35,7 @@
                         VerticalAlignment="Center"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         CornerRadius="12">
-                        <TextBlock Opacity="0.75" Text="0.6.4-beta" />
+                        <TextBlock x:Name="VersionBadgeText" Opacity="0.75" Text="beta" />
                     </Border>
                 </Grid>
             </NavigationView.Header>

@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml.Controls;
 using SaveStories.WinUI.Beta.Services;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 
 namespace SaveStories.WinUI.Beta.Pages;
@@ -9,11 +10,14 @@ namespace SaveStories.WinUI.Beta.Pages;
 public sealed partial class SettingsPage : Page
 {
     private CancellationTokenSource? _chromiumInstallCts;
+    private CancellationTokenSource? _updateCts;
+    private ReleaseInfo? _pendingRelease;
 
     public SettingsPage()
     {
         InitializeComponent();
         ApplyThemeButtons(BetaSettingsStore.Current.Theme);
+        UpdateSummaryText.Text = WindowsUpdaterService.Current.Summary;
         ChromiumSummaryText.Text = ChromiumBootstrapService.Current.GetBootstrapSummary();
         ChromiumPathText.Text = $"Папка: {ChromiumBootstrapService.Current.GetTargetDirectory()}";
         var dependenciesInstalled = ChromiumBootstrapService.Current.IsWorkerDependenciesInstalled();
@@ -22,6 +26,7 @@ public sealed partial class SettingsPage : Page
             ? "Состояние: runtime модули уже установлены."
             : "Состояние: нужно докачать runtime модули.";
         ChromiumLogText.Text = "Лог установки появится здесь.";
+        DiagnosticsService.Current.LogInfo("Settings page opened.");
     }
 
     private void OnDarkThemeClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
@@ -58,11 +63,13 @@ public sealed partial class SettingsPage : Page
         {
             var result = await ChromiumBootstrapService.Current.EnsureRuntimeInstalledAsync(progress, _chromiumInstallCts.Token);
             ChromiumStatusText.Text = $"Состояние: {result}";
+            DiagnosticsService.Current.LogInfo(result);
         }
         catch (Exception ex)
         {
             ChromiumStatusText.Text = "Состояние: ошибка установки runtime модулей.";
             ChromiumLogText.Text += Environment.NewLine + ex.Message;
+            DiagnosticsService.Current.LogError("Runtime install failed", ex);
             var dialog = new ContentDialog
             {
                 XamlRoot = XamlRoot,
@@ -78,6 +85,211 @@ public sealed partial class SettingsPage : Page
             _chromiumInstallCts = null;
             InstallChromiumButton.IsEnabled = true;
             ChromiumProgressBar.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+        }
+    }
+
+    private async void OnCheckUpdatesClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (!WindowsUpdaterService.Current.IsAvailable)
+        {
+            UpdateSummaryText.Text = "Автообновление недоступно: не настроен источник release API.";
+            return;
+        }
+        if (_updateCts is not null)
+        {
+            return;
+        }
+
+        _updateCts = new CancellationTokenSource();
+        CheckUpdatesButton.IsEnabled = false;
+        DownloadUpdateButton.IsEnabled = false;
+        ApplyUpdateButton.IsEnabled = false;
+        UpdateProgressBar.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+        UpdateSummaryText.Text = "Проверяю latest release в GitHub...";
+        try
+        {
+            var result = await WindowsUpdaterService.Current.CheckLatestReleaseAsync(
+                AppVersionProvider.CurrentVersion(),
+                _updateCts.Token);
+            BetaSettingsStore.Current.SetLastUpdateCheckAt(DateTimeOffset.Now.ToString("O"));
+
+            if (result.Status == "up_to_date")
+            {
+                _pendingRelease = null;
+                UpdateSummaryText.Text = $"Уже установлена актуальная версия {AppVersionProvider.CurrentVersion()}.";
+                return;
+            }
+
+            if (result.Status == "update_available" && result.Release is not null)
+            {
+                _pendingRelease = result.Release;
+                DownloadUpdateButton.IsEnabled = true;
+                UpdateSummaryText.Text = $"Доступна версия {_pendingRelease.Version}. Можно скачать установщик и применить обновление поверх текущей сборки.";
+                await ShowUpdatePromptAsync(_pendingRelease);
+                return;
+            }
+
+            UpdateSummaryText.Text = "Обновления пока недоступны.";
+        }
+        catch (Exception ex)
+        {
+            UpdateSummaryText.Text = $"Ошибка проверки обновлений: {ex.Message}";
+            DiagnosticsService.Current.LogError("Update check failed", ex);
+        }
+        finally
+        {
+            _updateCts.Dispose();
+            _updateCts = null;
+            CheckUpdatesButton.IsEnabled = true;
+        }
+    }
+
+    private async void OnDownloadUpdateClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (_pendingRelease is null)
+        {
+            UpdateSummaryText.Text = "Сначала проверь обновления.";
+            return;
+        }
+        if (_updateCts is not null)
+        {
+            return;
+        }
+
+        _updateCts = new CancellationTokenSource();
+        CheckUpdatesButton.IsEnabled = false;
+        DownloadUpdateButton.IsEnabled = false;
+        ApplyUpdateButton.IsEnabled = false;
+        UpdateProgressBar.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+        UpdateProgressBar.IsIndeterminate = false;
+        UpdateProgressBar.Value = 0;
+
+        var progress = new Progress<UpdateProgress>(update =>
+        {
+            UpdateProgressBar.Value = update.Percent;
+            UpdateSummaryText.Text = update.Message;
+        });
+
+        try
+        {
+            var message = await WindowsUpdaterService.Current.PrepareInstallAsync(
+                _pendingRelease,
+                progress,
+                _updateCts.Token);
+            UpdateSummaryText.Text = message;
+            ApplyUpdateButton.IsEnabled = true;
+            DiagnosticsService.Current.LogInfo($"Update prepared: {_pendingRelease.Version}");
+        }
+        catch (Exception ex)
+        {
+            UpdateSummaryText.Text = $"Ошибка подготовки обновления: {ex.Message}";
+            DiagnosticsService.Current.LogError("Prepare update failed", ex);
+        }
+        finally
+        {
+            _updateCts.Dispose();
+            _updateCts = null;
+            CheckUpdatesButton.IsEnabled = true;
+            DownloadUpdateButton.IsEnabled = _pendingRelease is not null;
+        }
+    }
+
+    private async void OnApplyUpdateClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        try
+        {
+            var logPath = WindowsUpdaterService.Current.LaunchPreparedInstall();
+            UpdateSummaryText.Text = $"Запускаю установщик обновления. Лог: {logPath}";
+            DiagnosticsService.Current.LogInfo($"Launching prepared update. Log: {logPath}");
+            await Task.Delay(700);
+            Microsoft.UI.Xaml.Application.Current.Exit();
+        }
+        catch (Exception ex)
+        {
+            UpdateSummaryText.Text = $"Ошибка запуска установщика: {ex.Message}";
+            DiagnosticsService.Current.LogError("Launch update failed", ex);
+        }
+    }
+
+    private void OnRunPreflightClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        var result = PreflightService.Current.Run();
+        PreflightSummaryText.Text = result.Ok ? "Система готова к работе." : "Найдены проблемы, смотри детали ниже.";
+        PreflightDetailsTextBox.Text = string.Join(
+            Environment.NewLine,
+            result.Checks.Select(x => $"{(x.Ok ? "OK" : "FAIL")} · {x.Name}: {x.Message}"));
+        DiagnosticsService.Current.LogInfo($"Preflight run. ok={result.Ok}");
+    }
+
+    private async void OnExportDiagnosticsClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        try
+        {
+            var path = DiagnosticsService.Current.ExportSnapshot();
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = "Диагностика сохранена",
+                Content = path,
+                CloseButtonText = "ОК"
+            };
+            await dialog.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = "Ошибка экспорта диагностики",
+                Content = ex.Message,
+                CloseButtonText = "ОК"
+            };
+            await dialog.ShowAsync();
+        }
+    }
+
+    private async Task ShowUpdatePromptAsync(ReleaseInfo release)
+    {
+        var details = string.IsNullOrWhiteSpace(release.Notes)
+            ? "GitHub release опубликован без release notes."
+            : release.Notes;
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Доступно обновление",
+            PrimaryButtonText = "Скачать обновление",
+            CloseButtonText = "Позже",
+            DefaultButton = ContentDialogButton.Primary,
+            Content = new StackPanel
+            {
+                Spacing = 8,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = $"Доступна новая версия SaveStories {release.Version}. Сейчас можно скачать установщик и затем применить обновление поверх текущей сборки.",
+                        TextWrapping = TextWrapping.WrapWholeWords,
+                    },
+                    new Expander
+                    {
+                        Header = "Показать подробности",
+                        Content = new ScrollViewer
+                        {
+                            MaxHeight = 180,
+                            Content = new TextBlock
+                            {
+                                Text = details,
+                                TextWrapping = TextWrapping.WrapWholeWords,
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            OnDownloadUpdateClick(this, new Microsoft.UI.Xaml.RoutedEventArgs());
         }
     }
 
