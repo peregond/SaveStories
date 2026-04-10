@@ -117,16 +117,22 @@ jobs:
           }
 
       - name: Sign WinUI installer (optional)
-        if: ${{ secrets.WINDOWS_SIGN_PFX_BASE64 != '' && secrets.WINDOWS_SIGN_PFX_PASSWORD != '' }}
         shell: pwsh
+        env:
+          WINDOWS_SIGN_PFX_BASE64: ${{ secrets.WINDOWS_SIGN_PFX_BASE64 }}
+          WINDOWS_SIGN_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGN_PFX_PASSWORD }}
         run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGN_PFX_BASE64) -or [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGN_PFX_PASSWORD)) {
+            Write-Host "Signing secrets are not configured. Skipping code-sign."
+            exit 0
+          }
           $setup = Get-ChildItem -Path "dist" -Filter "SaveStories-WinUI-Beta-Setup-v*.exe" -File | Select-Object -First 1
           if (-not $setup) {
             throw "Installer not found for signing."
           }
           $pfxPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
-          [System.IO.File]::WriteAllBytes($pfxPath, [System.Convert]::FromBase64String("${{ secrets.WINDOWS_SIGN_PFX_BASE64 }}"))
-          $securePassword = ConvertTo-SecureString "${{ secrets.WINDOWS_SIGN_PFX_PASSWORD }}" -AsPlainText -Force
+          [System.IO.File]::WriteAllBytes($pfxPath, [System.Convert]::FromBase64String($env:WINDOWS_SIGN_PFX_BASE64))
+          $securePassword = ConvertTo-SecureString $env:WINDOWS_SIGN_PFX_PASSWORD -AsPlainText -Force
           Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword | Out-Null
           $signtool = (Get-Command signtool.exe -ErrorAction SilentlyContinue)
           if (-not $signtool) {
