@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml.Controls;
 using SaveStories.WinUI.Beta.Services;
 using System.Collections.ObjectModel;
+using System.Text;
 
 namespace SaveStories.WinUI.Beta.Pages;
 
@@ -8,30 +9,30 @@ public sealed partial class ReelsPage : Page
 {
     private readonly ObservableCollection<string> _queue = new();
     private readonly ObservableCollection<string> _downloads = new();
+    private readonly Queue<string> _logLines = new();
+    private readonly List<string> _pendingLogs = new();
+    private readonly StringBuilder _logBuilder = new();
+    private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _logFlushTimer;
     private bool _isRunning;
     private CancellationTokenSource? _runCts;
+    private const int MaxLogLines = 1500;
 
     public ReelsPage()
     {
         InitializeComponent();
         ReelsQueueListView.ItemsSource = _queue;
         ReelsDownloadsListView.ItemsSource = _downloads;
+        _logFlushTimer = DispatcherQueue.CreateTimer();
+        _logFlushTimer.Interval = TimeSpan.FromMilliseconds(120);
+        _logFlushTimer.IsRepeating = false;
+        _logFlushTimer.Tick += (_, _) => FlushPendingLogs();
         RefreshQueueSummary();
     }
 
     private void OnAddLinksClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         var lines = ParseInputLines(ReelsInputTextBox.Text);
-        var added = 0;
-        foreach (var line in lines)
-        {
-            if (_queue.Contains(line))
-            {
-                continue;
-            }
-            _queue.Add(line);
-            added++;
-        }
+        var added = AddQueueItems(lines);
 
         ReelsInputTextBox.Text = string.Empty;
         AppendLog($"Добавлено ссылок Reels: {added}");
@@ -69,13 +70,7 @@ public sealed partial class ReelsPage : Page
         if (_queue.Count == 0)
         {
             var lines = ParseInputLines(ReelsInputTextBox.Text);
-            foreach (var line in lines)
-            {
-                if (!_queue.Contains(line))
-                {
-                    _queue.Add(line);
-                }
-            }
+            AddQueueItems(lines);
             ReelsInputTextBox.Text = string.Empty;
             RefreshQueueSummary();
         }
@@ -133,6 +128,7 @@ public sealed partial class ReelsPage : Page
         }
         finally
         {
+            FlushPendingLogs();
             _runCts?.Dispose();
             _runCts = null;
             _isRunning = false;
@@ -183,12 +179,60 @@ public sealed partial class ReelsPage : Page
 
     private void AppendLog(string line)
     {
-        ReelsLogsTextBox.Text += $"{DateTime.Now:HH:mm:ss}  {line}{Environment.NewLine}";
+        _pendingLogs.Add($"{DateTime.Now:HH:mm:ss}  {line}");
+        if (!_logFlushTimer.IsRunning)
+        {
+            _logFlushTimer.Start();
+        }
     }
 
     private void RefreshQueueSummary()
     {
         ReelsQueueSummaryText.Text = $"Очередь: {_queue.Count} ссылок.";
+    }
+
+    private int AddQueueItems(IEnumerable<string> lines)
+    {
+        var added = 0;
+        foreach (var line in lines)
+        {
+            if (_queue.Any(existing => string.Equals(existing, line, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+            _queue.Add(line);
+            added++;
+        }
+
+        return added;
+    }
+
+    private void FlushPendingLogs()
+    {
+        if (_pendingLogs.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var line in _pendingLogs)
+        {
+            _logLines.Enqueue(line);
+        }
+        _pendingLogs.Clear();
+
+        while (_logLines.Count > MaxLogLines)
+        {
+            _logLines.Dequeue();
+        }
+
+        _logBuilder.Clear();
+        foreach (var line in _logLines)
+        {
+            _logBuilder.AppendLine(line);
+        }
+
+        ReelsLogsTextBox.Text = _logBuilder.ToString();
+        ReelsLogsTextBox.SelectionStart = ReelsLogsTextBox.Text.Length;
     }
 
     private static List<string> ParseInputLines(string input)

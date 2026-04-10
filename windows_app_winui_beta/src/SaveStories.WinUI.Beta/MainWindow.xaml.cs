@@ -92,16 +92,19 @@ public sealed partial class MainWindow : Window
         };
 
         var result = await promptDialog.ShowAsync();
-        BetaSettingsStore.Current.MarkRuntimePromptShown();
         if (result != ContentDialogResult.Primary)
         {
             return;
         }
 
-        await InstallRuntimeWithProgressDialogAsync(root);
+        var installed = await InstallRuntimeWithProgressDialogAsync(root);
+        if (installed)
+        {
+            BetaSettingsStore.Current.MarkRuntimePromptShown();
+        }
     }
 
-    private async Task InstallRuntimeWithProgressDialogAsync(FrameworkElement root)
+    private async Task<bool> InstallRuntimeWithProgressDialogAsync(FrameworkElement root)
     {
         var statusText = new TextBlock
         {
@@ -145,6 +148,7 @@ public sealed partial class MainWindow : Window
                 CloseButtonText = "ОК"
             };
             await okDialog.ShowAsync();
+            return true;
         }
         catch (Exception ex)
         {
@@ -158,6 +162,7 @@ public sealed partial class MainWindow : Window
                 CloseButtonText = "ОК"
             };
             await errorDialog.ShowAsync();
+            return false;
         }
     }
 }

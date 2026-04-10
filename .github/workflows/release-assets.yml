@@ -116,6 +116,32 @@ jobs:
             -p:WindowsAppSDKSelfContained=true `
             -o $outDir
 
+      - name: Bundle Node.js runtime
+        shell: pwsh
+        run: |
+          $nodeVersion = "v24.11.0"
+          $nodeZip = "node-$nodeVersion-win-x64.zip"
+          $downloadUrl = "https://nodejs.org/dist/$nodeVersion/$nodeZip"
+          $zipPath = Join-Path $env:RUNNER_TEMP $nodeZip
+          $extractRoot = Join-Path $env:RUNNER_TEMP "node-runtime"
+          $targetDir = "dist\winui-beta\runtime\node"
+
+          if (Test-Path $extractRoot) {
+            Remove-Item $extractRoot -Recurse -Force
+          }
+          if (Test-Path $targetDir) {
+            Remove-Item $targetDir -Recurse -Force
+          }
+
+          Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath
+          Expand-Archive -Path $zipPath -DestinationPath $extractRoot -Force
+          $nodeRoot = Get-ChildItem -Path $extractRoot -Directory | Select-Object -First 1
+          if (-not $nodeRoot) {
+            throw "Unable to extract Node.js runtime."
+          }
+          New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+          Copy-Item -Path (Join-Path $nodeRoot.FullName "*") -Destination $targetDir -Recurse -Force
+
       - name: Install Inno Setup
         shell: pwsh
         run: |

@@ -55,9 +55,10 @@ public sealed class ChromiumBootstrapService
         if (!File.Exists(cliPath))
         {
             progress?.Report("Устанавливаю зависимости node_worker (npm ci --omit=dev)...");
+            var npmInstall = NodeRuntimeResolver.ResolveNpmInstallCommand("ci --omit=dev");
             await RunProcessAsync(
-                fileName: "npm.cmd",
-                arguments: "ci --omit=dev",
+                fileName: npmInstall.fileName,
+                arguments: npmInstall.arguments,
                 workingDirectory: nodeWorkerDir,
                 env: null,
                 progress: progress,
@@ -91,8 +92,9 @@ public sealed class ChromiumBootstrapService
         Directory.CreateDirectory(GetTargetDirectory());
 
         progress?.Report("Запускаю playwright install chromium...");
+        var nodeExecutable = NodeRuntimeResolver.ResolveNodeExecutable();
         var output = await RunProcessAsync(
-            fileName: "node",
+            fileName: nodeExecutable,
             arguments: $"\"{cliPath}\" install chromium",
             workingDirectory: nodeWorkerDir,
             env: new Dictionary<string, string>

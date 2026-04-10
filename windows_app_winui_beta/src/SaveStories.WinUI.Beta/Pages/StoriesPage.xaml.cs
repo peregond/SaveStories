@@ -1,35 +1,36 @@
 using Microsoft.UI.Xaml.Controls;
 using SaveStories.WinUI.Beta.Services;
 using System.Collections.ObjectModel;
+using System.Text;
 
 namespace SaveStories.WinUI.Beta.Pages;
 
 public sealed partial class StoriesPage : Page
 {
     private readonly ObservableCollection<string> _queue = new();
+    private readonly Queue<string> _logLines = new();
+    private readonly List<string> _pendingLogs = new();
+    private readonly StringBuilder _logBuilder = new();
+    private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _logFlushTimer;
     private bool _isRunning;
     private CancellationTokenSource? _runCts;
+    private const int MaxLogLines = 1500;
 
     public StoriesPage()
     {
         InitializeComponent();
         QueueListView.ItemsSource = _queue;
+        _logFlushTimer = DispatcherQueue.CreateTimer();
+        _logFlushTimer.Interval = TimeSpan.FromMilliseconds(120);
+        _logFlushTimer.IsRepeating = false;
+        _logFlushTimer.Tick += (_, _) => FlushPendingLogs();
         RefreshQueueSummary();
     }
 
     private void OnAddProfilesClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         var lines = ParseInputLines(ProfilesInputTextBox.Text);
-        var added = 0;
-        foreach (var line in lines)
-        {
-            if (_queue.Contains(line))
-            {
-                continue;
-            }
-            _queue.Add(line);
-            added++;
-        }
+        var added = AddQueueItems(lines);
 
         ProfilesInputTextBox.Text = string.Empty;
         AppendLog($"Добавлено профилей: {added}");
@@ -67,13 +68,7 @@ public sealed partial class StoriesPage : Page
         if (_queue.Count == 0)
         {
             var lines = ParseInputLines(ProfilesInputTextBox.Text);
-            foreach (var line in lines)
-            {
-                if (!_queue.Contains(line))
-                {
-                    _queue.Add(line);
-                }
-            }
+            AddQueueItems(lines);
             ProfilesInputTextBox.Text = string.Empty;
             RefreshQueueSummary();
         }
@@ -132,6 +127,7 @@ public sealed partial class StoriesPage : Page
         }
         finally
         {
+            FlushPendingLogs();
             _runCts?.Dispose();
             _runCts = null;
             _isRunning = false;
@@ -181,12 +177,60 @@ public sealed partial class StoriesPage : Page
 
     private void AppendLog(string line)
     {
-        LogsTextBox.Text += $"{DateTime.Now:HH:mm:ss}  {line}{Environment.NewLine}";
+        _pendingLogs.Add($"{DateTime.Now:HH:mm:ss}  {line}");
+        if (!_logFlushTimer.IsRunning)
+        {
+            _logFlushTimer.Start();
+        }
     }
 
     private void RefreshQueueSummary()
     {
         QueueSummaryText.Text = $"Очередь: {_queue.Count} профилей.";
+    }
+
+    private int AddQueueItems(IEnumerable<string> lines)
+    {
+        var added = 0;
+        foreach (var line in lines)
+        {
+            if (_queue.Any(existing => string.Equals(existing, line, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+            _queue.Add(line);
+            added++;
+        }
+
+        return added;
+    }
+
+    private void FlushPendingLogs()
+    {
+        if (_pendingLogs.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var line in _pendingLogs)
+        {
+            _logLines.Enqueue(line);
+        }
+        _pendingLogs.Clear();
+
+        while (_logLines.Count > MaxLogLines)
+        {
+            _logLines.Dequeue();
+        }
+
+        _logBuilder.Clear();
+        foreach (var line in _logLines)
+        {
+            _logBuilder.AppendLine(line);
+        }
+
+        LogsTextBox.Text = _logBuilder.ToString();
+        LogsTextBox.SelectionStart = LogsTextBox.Text.Length;
     }
 
     private static List<string> ParseInputLines(string input)

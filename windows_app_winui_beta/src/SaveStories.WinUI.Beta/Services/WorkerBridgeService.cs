@@ -77,14 +77,14 @@ public sealed class WorkerBridgeService
         var workerScript = Path.Combine(repoRoot, "node_worker", "bridge.mjs");
         if (!File.Exists(workerScript))
         {
-            throw new InvalidOperationException("Не найден node_worker/bridge.mjs. Укажи SAVESTORIES_BETA_REPO_ROOT.");
+            throw new InvalidOperationException("Не найден node_worker/bridge.mjs рядом с приложением.");
         }
 
         EnsureRuntimeDirectories();
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = "node",
+            FileName = NodeRuntimeResolver.ResolveNodeExecutable(),
             Arguments = $"\"{workerScript}\"",
             WorkingDirectory = repoRoot,
             RedirectStandardInput = true,
@@ -232,6 +232,6 @@ public sealed class WorkerBridgeService
             current = current.Parent;
         }
 
-        throw new InvalidOperationException("Не удалось найти корень репозитория. Укажи SAVESTORIES_BETA_REPO_ROOT.");
+        throw new InvalidOperationException("Не удалось найти рабочую папку с node_worker рядом с приложением.");
     }
 }
