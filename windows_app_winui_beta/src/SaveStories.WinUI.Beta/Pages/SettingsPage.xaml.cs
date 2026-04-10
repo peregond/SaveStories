@@ -16,9 +16,11 @@ public sealed partial class SettingsPage : Page
         ApplyThemeButtons(BetaSettingsStore.Current.Theme);
         ChromiumSummaryText.Text = ChromiumBootstrapService.Current.GetBootstrapSummary();
         ChromiumPathText.Text = $"Папка: {ChromiumBootstrapService.Current.GetTargetDirectory()}";
-        ChromiumStatusText.Text = ChromiumBootstrapService.Current.IsChromiumInstalled()
-            ? "Состояние: Chromium уже установлен."
-            : "Состояние: Chromium ещё не установлен.";
+        var dependenciesInstalled = ChromiumBootstrapService.Current.IsWorkerDependenciesInstalled();
+        var chromiumInstalled = ChromiumBootstrapService.Current.IsChromiumInstalled();
+        ChromiumStatusText.Text = dependenciesInstalled && chromiumInstalled
+            ? "Состояние: runtime модули уже установлены."
+            : "Состояние: нужно докачать runtime модули.";
         ChromiumLogText.Text = "Лог установки появится здесь.";
     }
 
@@ -44,7 +46,7 @@ public sealed partial class SettingsPage : Page
         _chromiumInstallCts = new CancellationTokenSource();
         InstallChromiumButton.IsEnabled = false;
         ChromiumProgressBar.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
-        ChromiumStatusText.Text = "Устанавливаю Chromium...";
+        ChromiumStatusText.Text = "Докачиваю runtime модули...";
         ChromiumLogText.Text = string.Empty;
 
         var progress = new Progress<string>(line =>
@@ -54,17 +56,17 @@ public sealed partial class SettingsPage : Page
 
         try
         {
-            var result = await ChromiumBootstrapService.Current.InstallChromiumAsync(progress, _chromiumInstallCts.Token);
+            var result = await ChromiumBootstrapService.Current.EnsureRuntimeInstalledAsync(progress, _chromiumInstallCts.Token);
             ChromiumStatusText.Text = $"Состояние: {result}";
         }
         catch (Exception ex)
         {
-            ChromiumStatusText.Text = "Состояние: ошибка установки.";
+            ChromiumStatusText.Text = "Состояние: ошибка установки runtime модулей.";
             ChromiumLogText.Text += Environment.NewLine + ex.Message;
             var dialog = new ContentDialog
             {
                 XamlRoot = XamlRoot,
-                Title = "Ошибка установки Chromium",
+                Title = "Ошибка установки runtime модулей",
                 Content = ex.Message,
                 CloseButtonText = "Закрыть"
             };

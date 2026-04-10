@@ -23,7 +23,7 @@
 
             <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
                 <StackPanel Spacing="8">
-                    <TextBlock FontWeight="SemiBold" Text="Chromium после установки" />
+                    <TextBlock FontWeight="SemiBold" Text="Runtime модули после установки" />
                     <TextBlock x:Name="ChromiumSummaryText" Opacity="0.75" Text="Инициализация..." />
                     <TextBlock x:Name="ChromiumPathText" Opacity="0.65" TextWrapping="WrapWholeWords" />
                     <ProgressBar x:Name="ChromiumProgressBar" IsIndeterminate="True" Visibility="Collapsed" />
@@ -35,7 +35,7 @@
                         IsReadOnly="True"
                         TextWrapping="Wrap" />
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button x:Name="InstallChromiumButton" Click="OnInstallChromiumClick" Content="Установить Chromium" />
+                        <Button x:Name="InstallChromiumButton" Click="OnInstallChromiumClick" Content="Докачать модули" />
                         <Button Click="OnOpenChromiumFolderClick" Content="Открыть папку" />
                     </StackPanel>
                 </StackPanel>

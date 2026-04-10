@@ -15,7 +15,7 @@ public sealed class ChromiumBootstrapService
 
     public string GetBootstrapSummary()
     {
-        return "Chromium скачивается отдельным действием после установки и хранится вне .exe.";
+        return "После установки .exe приложение может докачать runtime модули (node зависимости и Chromium).";
     }
 
     public string GetTargetDirectory()
@@ -35,6 +35,38 @@ public sealed class ChromiumBootstrapService
         return Directory.EnumerateFiles(root, "chrome.exe", SearchOption.AllDirectories).Any();
     }
 
+    public bool IsWorkerDependenciesInstalled()
+    {
+        var repoRoot = ResolveRepoRoot();
+        var cliPath = Path.Combine(repoRoot, "node_worker", "node_modules", "playwright", "cli.js");
+        return File.Exists(cliPath);
+    }
+
+    public async Task<string> EnsureRuntimeInstalledAsync(IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+    {
+        var repoRoot = ResolveRepoRoot();
+        var nodeWorkerDir = Path.Combine(repoRoot, "node_worker");
+        if (!Directory.Exists(nodeWorkerDir))
+        {
+            throw new InvalidOperationException("Не найдена папка node_worker рядом с приложением.");
+        }
+
+        var cliPath = Path.Combine(nodeWorkerDir, "node_modules", "playwright", "cli.js");
+        if (!File.Exists(cliPath))
+        {
+            progress?.Report("Устанавливаю зависимости node_worker (npm ci --omit=dev)...");
+            await RunProcessAsync(
+                fileName: "npm.cmd",
+                arguments: "ci --omit=dev",
+                workingDirectory: nodeWorkerDir,
+                env: null,
+                progress: progress,
+                cancellationToken: cancellationToken);
+        }
+
+        return await InstallChromiumAsync(progress, cancellationToken);
+    }
+
     public async Task<string> InstallChromiumAsync(IProgress<string>? progress = null, CancellationToken cancellationToken = default)
     {
         if (IsChromiumInstalled())
@@ -48,14 +80,12 @@ public sealed class ChromiumBootstrapService
 
         if (!Directory.Exists(nodeWorkerDir))
         {
-            throw new InvalidOperationException("Не найдена папка node_worker. Укажи SAVESTORIES_BETA_REPO_ROOT.");
+            throw new InvalidOperationException("Не найдена папка node_worker рядом с приложением.");
         }
 
         if (!File.Exists(cliPath))
         {
-            throw new InvalidOperationException(
-                "Не найден playwright CLI. Выполни `npm ci` в node_worker или собери beta-пакет с зависимостями."
-            );
+            throw new InvalidOperationException("Не найден playwright CLI. Запусти установку модулей из окна настройки.");
         }
 
         Directory.CreateDirectory(GetTargetDirectory());
@@ -100,7 +130,7 @@ public sealed class ChromiumBootstrapService
         }
 
         throw new InvalidOperationException(
-            "Не удалось найти корень репозитория рядом с beta-приложением. Укажи SAVESTORIES_BETA_REPO_ROOT."
+            "Не удалось найти рабочую папку с node_worker рядом с beta-приложением."
         );
     }
 

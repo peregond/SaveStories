@@ -115,25 +115,42 @@ jobs:
             -p:WindowsPackageType=None `
             -o $outDir
 
-      - name: Pack WinUI beta release artifact
+      - name: Install Inno Setup
         shell: pwsh
         run: |
-          $zipPath = "dist\SaveStories-Windows-WinUI-Beta-${{ env.RELEASE_TAG }}.zip"
-          if (Test-Path $zipPath) {
-            Remove-Item $zipPath -Force
+          if (Get-Command ISCC.exe -ErrorAction SilentlyContinue) {
+            Write-Host "Inno Setup already available."
+          } else {
+            choco install innosetup -y --no-progress
           }
-          Compress-Archive -Path "dist\winui-beta\*" -DestinationPath $zipPath
 
-      - name: Upload WinUI beta asset to release
+      - name: Build WinUI beta installer EXE
+        shell: pwsh
+        run: |
+          $version = "${{ env.RELEASE_TAG }}" -replace '^v', ''
+          $sourceDir = (Resolve-Path "dist\winui-beta").Path
+          $outputDir = (Resolve-Path "dist").Path
+          $baseName = "SaveStories-Windows-WinUI-Beta-Setup-${{ env.RELEASE_TAG }}"
+          $env:SAVESTORIES_VERSION = $version
+          & ISCC.exe `
+            "/DSourceDir=$sourceDir" `
+            "/DOutputDir=$outputDir" `
+            "/DOutputBaseFilename=$baseName" `
+            ".\windows_app_winui_beta\SaveStories-WinUI-Beta.iss"
+          if ($LASTEXITCODE -ne 0) {
+            throw "ISCC failed with code $LASTEXITCODE"
+          }
+
+      - name: Upload WinUI beta installer to release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $artifact = "dist\SaveStories-Windows-WinUI-Beta-${{ env.RELEASE_TAG }}.zip"
-          if (-not (Test-Path $artifact)) {
-            throw "Windows WinUI beta archive was not produced: $artifact"
+          $artifact = Get-ChildItem -Path "dist" -Filter "SaveStories-Windows-WinUI-Beta-Setup-${{ env.RELEASE_TAG }}.exe" -File | Select-Object -First 1
+          if (-not $artifact) {
+            throw "Windows WinUI beta installer was not produced."
           }
-          gh release upload $env:RELEASE_TAG $artifact --clobber
+          gh release upload $env:RELEASE_TAG $artifact.FullName --clobber
 
   publish-update-feed:
     needs:

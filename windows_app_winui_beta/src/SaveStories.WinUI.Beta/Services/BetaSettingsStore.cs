@@ -19,6 +19,7 @@ public sealed class BetaSettingsStore
     public static BetaSettingsStore Current => LazyInstance.Value;
 
     public BetaTheme Theme { get; private set; } = BetaTheme.Dark;
+    public bool RuntimePromptShown { get; private set; }
 
     public event EventHandler<BetaTheme>? ThemeChanged;
 
@@ -41,10 +42,12 @@ public sealed class BetaSettingsStore
             var json = File.ReadAllText(_settingsPath);
             var payload = JsonSerializer.Deserialize<SettingsPayload>(json);
             Theme = ParseTheme(payload?.Theme);
+            RuntimePromptShown = payload?.RuntimePromptShown ?? false;
         }
         catch
         {
             Theme = BetaTheme.Dark;
+            RuntimePromptShown = false;
         }
     }
 
@@ -62,12 +65,24 @@ public sealed class BetaSettingsStore
 
     public string SettingsDirectory => _settingsDirectory;
 
+    public void MarkRuntimePromptShown()
+    {
+        if (RuntimePromptShown)
+        {
+            return;
+        }
+
+        RuntimePromptShown = true;
+        Save();
+    }
+
     private void Save()
     {
         Directory.CreateDirectory(_settingsDirectory);
         var payload = new SettingsPayload
         {
             Theme = Theme == BetaTheme.Light ? "light" : "dark",
+            RuntimePromptShown = RuntimePromptShown,
         };
         var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(_settingsPath, json);
@@ -83,5 +98,6 @@ public sealed class BetaSettingsStore
     private sealed class SettingsPayload
     {
         public string? Theme { get; set; }
+        public bool RuntimePromptShown { get; set; }
     }
 }

@@ -49,34 +49,51 @@ jobs:
             -p:WindowsPackageType=None `
             -o $outDir
 
-      - name: Pack beta artifact
+      - name: Install Inno Setup
         shell: pwsh
         run: |
-          $zipPath = "dist\SaveStories-WinUI-Beta.zip"
-          if (Test-Path $zipPath) {
-            Remove-Item $zipPath -Force
+          if (Get-Command ISCC.exe -ErrorAction SilentlyContinue) {
+            Write-Host "Inno Setup already available."
+          } else {
+            choco install innosetup -y --no-progress
           }
-          Compress-Archive -Path "dist\winui-beta\*" -DestinationPath $zipPath
 
-      - name: Upload beta artifact
+      - name: Build WinUI beta installer EXE
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          $sourceDir = (Resolve-Path "dist\winui-beta").Path
+          $outputDir = (Resolve-Path "dist").Path
+          $baseName = "SaveStories-WinUI-Beta-Setup-v$version"
+          $env:SAVESTORIES_VERSION = $version
+          & ISCC.exe `
+            "/DSourceDir=$sourceDir" `
+            "/DOutputDir=$outputDir" `
+            "/DOutputBaseFilename=$baseName" `
+            ".\windows_app_winui_beta\SaveStories-WinUI-Beta.iss"
+          if ($LASTEXITCODE -ne 0) {
+            throw "ISCC failed with code $LASTEXITCODE"
+          }
+
+      - name: Upload beta installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SaveStories-WinUI-Beta
-          path: dist/SaveStories-WinUI-Beta.zip
+          name: SaveStories-WinUI-Beta-Setup
+          path: dist/SaveStories-WinUI-Beta-Setup-v*.exe
 
-      - name: Upload beta zip to GitHub prerelease
+      - name: Upload beta installer to GitHub prerelease
         if: startsWith(github.ref, 'refs/tags/winui-beta-v')
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "${{ github.ref_name }}"
-          $zip = "dist\SaveStories-WinUI-Beta.zip"
-          if (-not (Test-Path $zip)) {
-            throw "Beta archive not found: $zip"
+          $setup = Get-ChildItem -Path "dist" -Filter "SaveStories-WinUI-Beta-Setup-v*.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $setup) {
+            throw "Beta installer not found for tag: $tag"
           }
           if (gh release view $tag *> $null) {
-            gh release upload $tag $zip --clobber
+            gh release upload $tag $setup.FullName --clobber
           } else {
-            gh release create $tag $zip --title "SaveStories WinUI Beta $tag" --prerelease --notes "Automated WinUI beta build."
+            gh release create $tag $setup.FullName --title "SaveStories WinUI Beta $tag" --prerelease --notes "Automated WinUI beta build."
           }
