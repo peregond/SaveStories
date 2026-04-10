@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BUNDLE_NAME="SaveStories"
+BUNDLE_NAME="SaveMe"
 BUILD_DIR="$ROOT/beta-build"
 RELEASE_DIR="$BUILD_DIR/release"
 APP_DIR="$RELEASE_DIR/$BUNDLE_NAME.app"

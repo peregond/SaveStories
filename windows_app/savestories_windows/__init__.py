@@ -1,1 +1,1 @@
-"""Windows shell for SaveStories."""
+"""Windows shell for SaveMe."""

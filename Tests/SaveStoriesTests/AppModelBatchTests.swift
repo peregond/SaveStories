@@ -1,5 +1,5 @@
 import XCTest
-@testable import SaveStories
+@testable import SaveMe
 
 @MainActor
 final class AppModelBatchTests: XCTestCase {

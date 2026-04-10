@@ -2,9 +2,9 @@
 
 set -euo pipefail
 
-APP_SUPPORT="${SAVESTORIES_APP_SUPPORT:-$HOME/Library/Application Support/SaveStories}"
+APP_SUPPORT="${SAVESTORIES_APP_SUPPORT:-$HOME/Library/Application Support/SaveMe}"
 if ! mkdir -p "$APP_SUPPORT" 2>/dev/null; then
-  APP_SUPPORT="$(pwd)/.runtime/SaveStories"
+  APP_SUPPORT="$(pwd)/.runtime/SaveMe"
 fi
 
 WORKER_ROOT="$APP_SUPPORT/worker"

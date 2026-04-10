@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 
-namespace SaveStories.WinUI.Beta.Services;
+namespace SaveMe.WinUI.Beta.Services;
 
 public sealed class ChromiumBootstrapService
 {
@@ -21,7 +21,7 @@ public sealed class ChromiumBootstrapService
     public string GetTargetDirectory()
     {
         var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(root, "SaveStories", "worker", "ms-playwright");
+        return Path.Combine(root, "SaveMe", "worker", "ms-playwright");
     }
 
     public bool IsChromiumInstalled()

@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace SaveStories.WinUI.Beta.Services;
+namespace SaveMe.WinUI.Beta.Services;
 
 public sealed class DiagnosticsService
 {
@@ -14,7 +14,7 @@ public sealed class DiagnosticsService
     private DiagnosticsService()
     {
         var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        _logDirectory = Path.Combine(root, "SaveStories.WinUI.Beta", "logs");
+        _logDirectory = Path.Combine(root, "SaveMe.WinUI.Beta", "logs");
         _logPath = Path.Combine(_logDirectory, "app.log");
     }
 
@@ -37,7 +37,7 @@ public sealed class DiagnosticsService
         var target = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             "Downloads",
-            $"SaveStories-WinUI-diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
+            $"SaveMe-WinUI-diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
         var source = File.Exists(_logPath) ? File.ReadAllText(_logPath) : "Логов пока нет.";
         var payload = new StringBuilder();
         payload.AppendLine($"Timestamp: {DateTime.Now:O}");

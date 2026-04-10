@@ -4,7 +4,7 @@ extension ContentView {
     var sidebar: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("SaveStories")
+                Text("SaveMe")
                     .font(.system(size: 24, weight: .semibold, design: .rounded))
                     .foregroundStyle(primaryText)
 

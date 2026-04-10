@@ -2,10 +2,10 @@ $ErrorActionPreference = "Stop"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $distRoot = Join-Path $root "dist\\windows"
-$appDir = Join-Path $distRoot "SaveStories-Windows"
+$appDir = Join-Path $distRoot "SaveMe-Windows"
 $versionFile = Join-Path $root "VERSION"
 $version = if (Test-Path $versionFile) { (Get-Content $versionFile -Raw).Trim() } else { "0.6.0" }
-$outputFileName = "SaveStories-Windows-Setup-v$version"
+$outputFileName = "SaveMe-Windows-Setup-v$version"
 $issPath = Join-Path $PSScriptRoot "SaveStories-Windows.iss"
 $iscc = Get-Command ISCC.exe -ErrorAction SilentlyContinue
 
@@ -13,7 +13,7 @@ if (-not (Test-Path $appDir)) {
     throw "Build folder not found: $appDir. Run build_windows.ps1 first."
 }
 
-if (-not (Test-Path (Join-Path $appDir "SaveStories-Windows.exe"))) {
+if (-not (Test-Path (Join-Path $appDir "SaveMe-Windows.exe"))) {
     throw "Main executable not found in: $appDir"
 }
 

@@ -1,10 +1,10 @@
 import Foundation
 
 enum AppPaths {
-    static let appName = "SaveStories"
-    private static let legacyAppName = "DimaSave"
+    static let appName = "SaveMe"
+    private static let legacyAppNames = ["SaveStories", "DimaSave"]
     private static let embeddedRuntimeDirectoryName = "runtime"
-    static let resourceBundleName = "SaveStories_SaveStories.bundle"
+    static let resourceBundleName = "SaveMe_SaveMe.bundle"
 
     static var homeDirectory: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -235,23 +235,27 @@ enum AppPaths {
         return candidates.compactMap(existingDirectory(at:)).first
     }
 
-    private static var legacyApplicationSupport: URL {
-        homeDirectory
-            .appendingPathComponent("Library", isDirectory: true)
-            .appendingPathComponent("Application Support", isDirectory: true)
-            .appendingPathComponent(legacyAppName, isDirectory: true)
+    private static var legacyApplicationSupports: [URL] {
+        legacyAppNames.map { legacyName in
+            homeDirectory
+                .appendingPathComponent("Library", isDirectory: true)
+                .appendingPathComponent("Application Support", isDirectory: true)
+                .appendingPathComponent(legacyName, isDirectory: true)
+        }
     }
 
     private static func migrateLegacyApplicationSupportIfNeeded(using fileManager: FileManager) throws {
         guard applicationSupport.lastPathComponent == appName else { return }
-        guard fileManager.fileExists(atPath: legacyApplicationSupport.path) else { return }
         guard !fileManager.fileExists(atPath: applicationSupport.path) else { return }
+        guard let legacySource = legacyApplicationSupports.first(where: { fileManager.fileExists(atPath: $0.path) }) else {
+            return
+        }
 
         try fileManager.createDirectory(
             at: applicationSupport.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        try fileManager.moveItem(at: legacyApplicationSupport, to: applicationSupport)
+        try fileManager.moveItem(at: legacySource, to: applicationSupport)
     }
 
     private static func existingDirectory(at url: URL?) -> URL? {

@@ -31,6 +31,11 @@ struct UpdateConfiguration: Decodable {
                 .appendingPathComponent("update_config.json", isDirectory: false),
             URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
                 .appendingPathComponent("Sources", isDirectory: true)
+                .appendingPathComponent("SaveMe", isDirectory: true)
+                .appendingPathComponent("Resources", isDirectory: true)
+                .appendingPathComponent("update_config.json", isDirectory: false),
+            URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                .appendingPathComponent("Sources", isDirectory: true)
                 .appendingPathComponent("SaveStories", isDirectory: true)
                 .appendingPathComponent("Resources", isDirectory: true)
                 .appendingPathComponent("update_config.json", isDirectory: false),

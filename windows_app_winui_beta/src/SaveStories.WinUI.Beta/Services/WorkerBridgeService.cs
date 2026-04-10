@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 
-namespace SaveStories.WinUI.Beta.Services;
+namespace SaveMe.WinUI.Beta.Services;
 
 public sealed class WorkerBridgeService
 {
@@ -20,13 +20,25 @@ public sealed class WorkerBridgeService
     public string GetDefaultDownloadsDirectory()
     {
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        return Path.Combine(profile, "Downloads", "SaveStories");
+        return Path.Combine(profile, "Downloads", "SaveMe");
     }
 
     public string GetAppSupportDirectory()
     {
         var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(root, "SaveStories");
+        var target = Path.Combine(root, "SaveMe");
+        if (!Directory.Exists(target))
+        {
+            foreach (var legacy in new[] { "SaveStories", "DimaSave" })
+            {
+                var legacyPath = Path.Combine(root, legacy);
+                if (Directory.Exists(legacyPath))
+                {
+                    return legacyPath;
+                }
+            }
+        }
+        return target;
     }
 
     public async Task<WorkerRunResult> RunAsync(

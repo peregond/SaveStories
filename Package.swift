@@ -2,14 +2,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "SaveStories",
+    name: "SaveMe",
     platforms: [
         .macOS(.v14),
     ],
     products: [
         .executable(
-            name: "SaveStories",
-            targets: ["SaveStories"]
+            name: "SaveMe",
+            targets: ["SaveMe"]
         ),
     ],
     dependencies: [
@@ -17,10 +17,11 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "SaveStories",
+            name: "SaveMe",
             dependencies: [
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
+            path: "Sources/SaveStories",
             resources: [
                 .copy("Resources/bootstrap_worker.sh"),
                 .copy("Resources/update_config.json"),
@@ -30,8 +31,9 @@ let package = Package(
         .testTarget(
             name: "SaveStoriesTests",
             dependencies: [
-                "SaveStories",
-            ]
+                "SaveMe",
+            ],
+            path: "Tests/SaveStoriesTests"
         ),
     ]
 )

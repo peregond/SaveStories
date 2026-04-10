@@ -58,7 +58,7 @@ final class WorkerClient {
                 self.lock.unlock()
                 self.finished.signal()
             }
-            thread.name = "SaveStories.PipeCollector"
+            thread.name = "SaveMe.PipeCollector"
             thread.start()
             readerThread = thread
         }
@@ -277,14 +277,22 @@ final class WorkerClient {
             return bundled
         }
 
-        let fallback = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-            .appendingPathComponent("Sources", isDirectory: true)
-            .appendingPathComponent("SaveStories", isDirectory: true)
-            .appendingPathComponent("Resources", isDirectory: true)
-            .appendingPathComponent("worker", isDirectory: true)
-            .appendingPathComponent("bridge.py", isDirectory: false)
+        let fallbackCandidates = [
+            URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                .appendingPathComponent("Sources", isDirectory: true)
+                .appendingPathComponent("SaveMe", isDirectory: true)
+                .appendingPathComponent("Resources", isDirectory: true)
+                .appendingPathComponent("worker", isDirectory: true)
+                .appendingPathComponent("bridge.py", isDirectory: false),
+            URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                .appendingPathComponent("Sources", isDirectory: true)
+                .appendingPathComponent("SaveStories", isDirectory: true)
+                .appendingPathComponent("Resources", isDirectory: true)
+                .appendingPathComponent("worker", isDirectory: true)
+                .appendingPathComponent("bridge.py", isDirectory: false),
+        ]
 
-        if FileManager.default.fileExists(atPath: fallback.path) {
+        if let fallback = fallbackCandidates.first(where: { FileManager.default.fileExists(atPath: $0.path) }) {
             return fallback
         }
 

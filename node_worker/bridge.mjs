@@ -18,7 +18,8 @@ import {
 } from "./media_utils.mjs";
 import { downloadReelsCommand } from "./reels_downloader.mjs";
 
-const APP_NAME = "SaveStories";
+const APP_NAME = "SaveMe";
+const LEGACY_APP_NAMES = ["SaveStories", "DimaSave"];
 const BATCH_JOB_TIMEOUT_MS = 120_000;
 
 function emit(ok, status, message, { data = {}, items = [], logs = [] } = {}) {
@@ -132,6 +133,19 @@ async function canWrite(directory) {
 
 async function defaultAppSupport() {
   const preferred = preferredAppSupportPath();
+  try {
+    await fs.access(preferred);
+  } catch {
+    const legacyCandidates = LEGACY_APP_NAMES.map((legacyName) => path.join(path.dirname(preferred), legacyName));
+    for (const candidate of legacyCandidates) {
+      try {
+        await fs.access(candidate);
+        return candidate;
+      } catch {
+        // try next candidate
+      }
+    }
+  }
   if (await canWrite(path.dirname(preferred))) {
     return preferred;
   }

@@ -107,7 +107,7 @@ jobs:
           $version = (Get-Content VERSION -Raw).Trim()
           $sourceDir = (Resolve-Path "dist\winui-beta").Path
           $outputDir = (Resolve-Path "dist").Path
-          $baseName = "SaveStories-WinUI-Beta-Setup-v$version"
+          $baseName = "SaveMe-WinUI-Beta-Setup-v$version"
           $env:SAVESTORIES_VERSION = $version
           & ISCC.exe `
             "/DSourceDir=$sourceDir" `
@@ -128,7 +128,7 @@ jobs:
             Write-Host "Signing secrets are not configured. Skipping code-sign."
             exit 0
           }
-          $setup = Get-ChildItem -Path "dist" -Filter "SaveStories-WinUI-Beta-Setup-v*.exe" -File | Select-Object -First 1
+          $setup = Get-ChildItem -Path "dist" -Filter "SaveMe-WinUI-Beta-Setup-v*.exe" -File | Select-Object -First 1
           if (-not $setup) {
             throw "Installer not found for signing."
           }
@@ -148,8 +148,8 @@ jobs:
       - name: Upload beta installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SaveStories-WinUI-Beta-Setup
-          path: dist/SaveStories-WinUI-Beta-Setup-v*.exe
+          name: SaveMe-WinUI-Beta-Setup
+          path: dist/SaveMe-WinUI-Beta-Setup-v*.exe
 
       - name: Upload beta installer to GitHub prerelease
         if: startsWith(github.ref, 'refs/tags/winui-beta-v')
@@ -158,12 +158,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "${{ github.ref_name }}"
-          $setup = Get-ChildItem -Path "dist" -Filter "SaveStories-WinUI-Beta-Setup-v*.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $setup = Get-ChildItem -Path "dist" -Filter "SaveMe-WinUI-Beta-Setup-v*.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           if (-not $setup) {
             throw "Beta installer not found for tag: $tag"
           }
           if (gh release view $tag *> $null) {
             gh release upload $tag $setup.FullName --clobber
           } else {
-            gh release create $tag $setup.FullName --title "SaveStories WinUI Beta $tag" --prerelease --notes "Automated WinUI beta build."
+            gh release create $tag $setup.FullName --title "SaveMe WinUI Beta $tag" --prerelease --notes "Automated WinUI beta build."
           }

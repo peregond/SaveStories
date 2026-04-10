@@ -1,10 +1,10 @@
-# SaveStories
+# SaveMe
 
-`SaveStories` — desktop-приложение для выгрузки активных Instagram Stories через локальный `Playwright` worker.
+`SaveMe` — desktop-приложение для выгрузки активных Instagram Stories через локальный `Playwright` worker.
 
 Текущее состояние репозитория:
 
-- версия исходников: `0.6.5`
+- версия исходников: `0.6.6`
 - платформы: `macOS` и `Windows`
 - общий runtime: `Node 24 LTS + Playwright + Chromium`
 
@@ -81,7 +81,7 @@ macOS-версия собирается как `.app` и пакуется в `.d
 Или напрямую:
 
 ```bash
-swift run SaveStories
+swift run SaveMe
 ```
 
 Локальная подготовка worker runtime:
@@ -123,8 +123,8 @@ cd windows_app
 Основные результаты:
 
 ```text
-dist/windows/SaveStories-Windows/SaveStories-Windows.exe
-dist/windows/SaveStories-Windows-Setup-vX.Y.Z.exe
+dist/windows/SaveMe-Windows/SaveMe-Windows.exe
+dist/windows/SaveMe-Windows-Setup-vX.Y.Z.exe
 ```
 
 Подробнее:
@@ -141,10 +141,9 @@ Workflow:
 
 Что публикуется в релиз:
 
-- `SaveStories-macOS-vX.Y.Z.dmg`
-- `SaveStories-Windows-vX.Y.Z.7z`
-- `SaveStories-Windows-vX.Y.Z.zip`
-- `SaveStories-Windows-Setup-vX.Y.Z.exe`
+- `SaveMe-macOS-vX.Y.Z.dmg`
+- `SaveMe-Windows-WinUI-Beta-Setup-vX.Y.Z.exe`
+- `SaveMe-Windows-Setup-vX.Y.Z.exe`
 - `appcast-macos.xml` в ветку `update-feed`
 
 Как выпустить новую версию:
@@ -157,11 +156,11 @@ Workflow:
 
 ```bash
 git add .
-git commit -m "Prepare v0.6.5 release"
+git commit -m "Prepare v0.6.6 release"
 git pull --rebase origin main
 git push origin main
-git tag v0.6.5
-git push origin v0.6.5
+git tag v0.6.6
+git push origin v0.6.6
 ```
 
 После этого GitHub Actions:
@@ -177,7 +176,7 @@ git push origin v0.6.5
 
 `macOS` использует `Sparkle`, а `Windows` проверяет `GitHub Releases`.
 
-Для `Windows` автоустановка работает только у версии, установленной через `SaveStories-Windows-Setup-vX.Y.Z.exe`.
+Для `Windows` автоустановка работает только у версии, установленной через `SaveMe-Windows-Setup-vX.Y.Z.exe`.
 Если приложение запущено из portable-папки или распакованного архива, оно сможет проверить наличие новой версии, но установщик нужно будет скачать и запустить вручную.
 
 Для обновлений `macOS` нужен локальный signing key и GitHub secret:
@@ -206,7 +205,7 @@ git push origin v0.6.5
 export APPLE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
 export APPLE_NOTARY_PROFILE="savestories-notary"
 export SAVESTORIES_BUNDLE_ID="com.example.savestories"
-export SAVESTORIES_VERSION="0.6.5"
+export SAVESTORIES_VERSION="0.6.6"
 export SAVESTORIES_BUILD="71"
 ./scripts/build_release_dmg.sh
 ```
@@ -214,7 +213,7 @@ export SAVESTORIES_BUILD="71"
 Итоговый файл:
 
 ```text
-dist/release/SaveStories.dmg
+dist/release/SaveMe.dmg
 ```
 
 ## Локальная разработка

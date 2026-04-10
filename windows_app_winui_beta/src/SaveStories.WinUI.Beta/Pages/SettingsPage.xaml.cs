@@ -1,11 +1,11 @@
 using Microsoft.UI.Xaml.Controls;
-using SaveStories.WinUI.Beta.Services;
+using SaveMe.WinUI.Beta.Services;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 
-namespace SaveStories.WinUI.Beta.Pages;
+namespace SaveMe.WinUI.Beta.Pages;
 
 public sealed partial class SettingsPage : Page
 {
@@ -267,7 +267,7 @@ public sealed partial class SettingsPage : Page
                 {
                     new TextBlock
                     {
-                        Text = $"Доступна новая версия SaveStories {release.Version}. Сейчас можно скачать установщик и затем применить обновление поверх текущей сборки.",
+                        Text = $"Доступна новая версия SaveMe {release.Version}. Сейчас можно скачать установщик и затем применить обновление поверх текущей сборки.",
                         TextWrapping = Microsoft.UI.Xaml.TextWrapping.WrapWholeWords,
                     },
                     new Expander

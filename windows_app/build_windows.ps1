@@ -44,7 +44,9 @@ New-Item -ItemType Directory -Force -Path $runtimeBrowsers | Out-Null
 New-Item -ItemType Directory -Force -Path $runtimeNode | Out-Null
 New-Item -ItemType Directory -Force -Path (Split-Path $versionInfoPath) | Out-Null
 $env:PLAYWRIGHT_BROWSERS_PATH = $runtimeBrowsers
-& "$venv\\Scripts\\python.exe" (Join-Path $root "packaging\\generate_windows_icon.py") $iconPath
+if (-not (Test-Path $iconPath)) {
+    & "$venv\\Scripts\\python.exe" (Join-Path $root "packaging\\generate_windows_icon.py") $iconPath
+}
 
 Push-Location $nodeWorkerDir
 npm ci
@@ -74,12 +76,12 @@ VSVersionInfo(
         StringTable(
           u'040904B0',
           [
-            StringStruct(u'CompanyName', u'SaveStories'),
-            StringStruct(u'FileDescription', u'SaveStories for Windows'),
+            StringStruct(u'CompanyName', u'SaveMe'),
+            StringStruct(u'FileDescription', u'SaveMe for Windows'),
             StringStruct(u'FileVersion', u'$version'),
-            StringStruct(u'InternalName', u'SaveStories-Windows'),
-            StringStruct(u'OriginalFilename', u'SaveStories-Windows.exe'),
-            StringStruct(u'ProductName', u'SaveStories'),
+            StringStruct(u'InternalName', u'SaveMe-Windows'),
+            StringStruct(u'OriginalFilename', u'SaveMe-Windows.exe'),
+            StringStruct(u'ProductName', u'SaveMe'),
             StringStruct(u'ProductVersion', u'$version')
           ]
         )
@@ -95,7 +97,7 @@ Push-Location $root
 & "$venv\\Scripts\\pyinstaller.exe" `
     --noconfirm `
     --windowed `
-    --name SaveStories-Windows `
+    --name SaveMe-Windows `
     --distpath $dist `
     --workpath (Join-Path $dist "build") `
     --specpath $dist `

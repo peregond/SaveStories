@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORKER_DIR="$ROOT/node_worker"
-APP_SUPPORT="${SAVESTORIES_APP_SUPPORT:-$HOME/Library/Application Support/SaveStories}"
+APP_SUPPORT="${SAVESTORIES_APP_SUPPORT:-$HOME/Library/Application Support/SaveMe}"
 BROWSERS="${SAVESTORIES_PLAYWRIGHT_BROWSERS:-$APP_SUPPORT/worker/ms-playwright}"
 
 if ! command -v node >/dev/null 2>&1; then

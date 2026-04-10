@@ -7,14 +7,14 @@ import sys
 from pathlib import Path
 
 
-TITLE = "Как установить SaveStories"
+TITLE = "Как установить SaveMe"
 STEPS = [
-    "1. Откройте SaveStories.dmg.",
-    "2. Перетащите SaveStories.app в Applications.",
+    "1. Откройте SaveMe.dmg.",
+    "2. Перетащите SaveMe.app в Applications.",
     "3. Запустите приложение из Applications.",
     "4. Если macOS покажет предупреждение, нажмите Right Click -> Open.",
     "5. Если появится сообщение «приложение повреждено», выполните в Terminal:",
-    "   xattr -dr com.apple.quarantine /Applications/SaveStories.app",
+    "   xattr -dr com.apple.quarantine /Applications/SaveMe.app",
     "6. Внутри приложения откройте шестерёнку и выполните вход в Instagram.",
 ]
 FOOTER = "Сборка без Developer ID и notarization, поэтому Gatekeeper может запросить ручное подтверждение."
@@ -58,8 +58,8 @@ def main() -> None:
     output_dir = Path(sys.argv[1])
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    (output_dir / "How to Install SaveStories.svg").write_text(build_svg(), encoding="utf-8")
-    (output_dir / "How to Install SaveStories.txt").write_text(build_text(), encoding="utf-8")
+    (output_dir / "How to Install SaveMe.svg").write_text(build_svg(), encoding="utf-8")
+    (output_dir / "How to Install SaveMe.txt").write_text(build_text(), encoding="utf-8")
 
 
 if __name__ == "__main__":

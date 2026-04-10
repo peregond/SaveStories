@@ -1,10 +1,10 @@
 using Microsoft.UI.Xaml.Controls;
-using SaveStories.WinUI.Beta.Services;
+using SaveMe.WinUI.Beta.Services;
 using System.Collections.ObjectModel;
 using System.Text;
 using System.Text.Json;
 
-namespace SaveStories.WinUI.Beta.Pages;
+namespace SaveMe.WinUI.Beta.Pages;
 
 public sealed partial class QueuePage : Page
 {

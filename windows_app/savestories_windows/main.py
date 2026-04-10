@@ -76,7 +76,7 @@ class MainWindow(
         super().__init__()
         self.worker = WorkerClient()
         self.updater = WindowsUpdater()
-        self.settings_store = QtCore.QSettings("SaveStories", "Windows")
+        self.settings_store = QtCore.QSettings("SaveMe", "Windows")
         self.migrate_legacy_settings()
         self.current_task: WorkerTask | None = None
         self.current_callback: Callable[[WorkerResponse], None] | None = None
@@ -135,7 +135,7 @@ class MainWindow(
         AppPaths.ensure_directories()
         self.reset_live_download_tracking_baseline()
 
-        self.setWindowTitle("SaveStories for Windows")
+        self.setWindowTitle("SaveMe for Windows")
         self.setMinimumSize(scaled(860), scaled(560))
         default_size = QtCore.QSize(scaled(1180), scaled(740))
         saved_geometry = self.settings_store.value("window_geometry")
@@ -156,13 +156,14 @@ class MainWindow(
         QtCore.QTimer.singleShot(0, self.prepare)
 
     def migrate_legacy_settings(self) -> None:
-        legacy_settings = QtCore.QSettings("DimaSave", "Windows")
         migrated = False
-        for key in legacy_settings.allKeys():
-            if self.settings_store.contains(key):
-                continue
-            self.settings_store.setValue(key, legacy_settings.value(key))
-            migrated = True
+        for organization in ("SaveStories", "DimaSave"):
+            legacy_settings = QtCore.QSettings(organization, "Windows")
+            for key in legacy_settings.allKeys():
+                if self.settings_store.contains(key):
+                    continue
+                self.settings_store.setValue(key, legacy_settings.value(key))
+                migrated = True
         if migrated:
             self.settings_store.sync()
 
@@ -231,7 +232,7 @@ class MainWindow(
 def main() -> int:
     install_global_exception_hooks()
     os.environ["QT_SCALE_FACTOR_ROUNDING_POLICY"] = "PassThrough"
-    QtWidgets.QApplication.setApplicationName("SaveStories")
+    QtWidgets.QApplication.setApplicationName("SaveMe")
     QtWidgets.QApplication.setApplicationVersion(app_version())
     QtWidgets.QApplication.setHighDpiScaleFactorRoundingPolicy(
         QtCore.Qt.HighDpiScaleFactorRoundingPolicy.PassThrough

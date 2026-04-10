@@ -16,7 +16,7 @@ Produce a native `.app` bundle for Apple Silicon macOS without App Store distrib
 Expected output:
 
 ```text
-beta-build/release/SaveStories.app
+beta-build/release/SaveMe.app
 ```
 
 ## What The App Needs On First Run

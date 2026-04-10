@@ -3,8 +3,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BUNDLE_NAME="SaveStories"
-EXECUTABLE_NAME="SaveStories"
+BUNDLE_NAME="SaveMe"
+EXECUTABLE_NAME="SaveMe"
 ICON_BASENAME="SaveStories"
 BUILD_DIR="$ROOT/beta-build"
 RELEASE_DIR="$BUILD_DIR/release"
@@ -16,7 +16,7 @@ FRAMEWORKS_DIR="$CONTENTS_DIR/Frameworks"
 ICONSET_DIR="$BUILD_DIR/$ICON_BASENAME.iconset"
 ICON_PATH="$BUILD_DIR/$ICON_BASENAME.icns"
 STATIC_ICON_PATH="$ROOT/packaging/AppBundle/$ICON_BASENAME.icns"
-RESOURCE_BUNDLE_NAME="$EXECUTABLE_NAME"_SaveStories.bundle
+RESOURCE_BUNDLE_NAME="$EXECUTABLE_NAME"_SaveMe.bundle
 
 mkdir -p "$BUILD_DIR" "$RELEASE_DIR"
 

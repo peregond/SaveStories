@@ -1,9 +1,9 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using SaveStories.WinUI.Beta.Pages;
-using SaveStories.WinUI.Beta.Services;
+using SaveMe.WinUI.Beta.Pages;
+using SaveMe.WinUI.Beta.Services;
 
-namespace SaveStories.WinUI.Beta;
+namespace SaveMe.WinUI.Beta;
 
 public sealed partial class MainWindow : Window
 {

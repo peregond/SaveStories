@@ -1,11 +1,11 @@
-# SaveStories Release
+# SaveMe Release
 
 This project now has a separate direct-distribution pipeline for shipping a `.dmg` to other Apple Silicon Macs.
 
 ## What the release scripts do
 
 - build the Swift release binary
-- assemble `SaveStories.app`
+- assemble `SaveMe.app`
 - apply release bundle metadata
 - optionally sign the app and dmg
 - optionally notarize and staple both artifacts
@@ -13,8 +13,8 @@ This project now has a separate direct-distribution pipeline for shipping a `.dm
 
 ## Artifacts
 
-- `dist/release/SaveStories.app`
-- `dist/release/SaveStories.dmg`
+- `dist/release/SaveMe.app`
+- `dist/release/SaveMe.dmg`
 
 ## Unsigned local release
 

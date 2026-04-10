@@ -1,5 +1,5 @@
-#define MyAppName "SaveStories WinUI Beta"
-#define MyAppExeName "SaveStories.WinUI.Beta.exe"
+#define MyAppName "SaveMe WinUI Beta"
+#define MyAppExeName "SaveMe.WinUI.Beta.exe"
 #define MyAppVersion GetEnv("SAVESTORIES_VERSION")
 
 [Setup]
@@ -7,8 +7,8 @@ AppId={{D9F59F3E-A19A-4E8D-9F2B-9841F1A35D55}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
-AppPublisher=SaveStories
-DefaultDirName={localappdata}\Programs\SaveStoriesWinUIBeta
+AppPublisher=SaveMe
+DefaultDirName={localappdata}\Programs\SaveMeWinUIBeta
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}

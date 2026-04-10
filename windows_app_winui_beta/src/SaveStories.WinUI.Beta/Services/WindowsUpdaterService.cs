@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace SaveStories.WinUI.Beta.Services;
+namespace SaveMe.WinUI.Beta.Services;
 
 public sealed class WindowsUpdaterService
 {
@@ -19,10 +19,10 @@ public sealed class WindowsUpdaterService
     private WindowsUpdaterService()
     {
         _http = new HttpClient();
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("SaveStories-WinUI-Updater");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("SaveMe-WinUI-Updater");
 
         var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        _updatesDirectory = Path.Combine(root, "SaveStories.WinUI.Beta", "updates");
+        _updatesDirectory = Path.Combine(root, "SaveMe.WinUI.Beta", "updates");
         _config = LoadConfig();
     }
 
@@ -192,6 +192,9 @@ public sealed class WindowsUpdaterService
         var normalizedVersion = normalizedTag.TrimStart('v', 'V');
         var expected = new[]
         {
+            $"SaveMe-Windows-WinUI-Beta-Setup-{normalizedTag}.exe",
+            $"SaveMe-Windows-WinUI-Beta-Setup-v{normalizedVersion}.exe",
+            $"SaveMe-WinUI-Beta-Setup-v{normalizedVersion}.exe",
             $"SaveStories-Windows-WinUI-Beta-Setup-{normalizedTag}.exe",
             $"SaveStories-Windows-WinUI-Beta-Setup-v{normalizedVersion}.exe",
             $"SaveStories-WinUI-Beta-Setup-v{normalizedVersion}.exe",
@@ -206,7 +209,8 @@ public sealed class WindowsUpdaterService
                 return ParseAsset(asset);
             }
             if (fallback is null
-                && name.StartsWith("SaveStories-Windows-WinUI-Beta-Setup-", StringComparison.OrdinalIgnoreCase)
+                && (name.StartsWith("SaveMe-Windows-WinUI-Beta-Setup-", StringComparison.OrdinalIgnoreCase)
+                    || name.StartsWith("SaveStories-Windows-WinUI-Beta-Setup-", StringComparison.OrdinalIgnoreCase))
                 && name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
             {
                 fallback = asset;

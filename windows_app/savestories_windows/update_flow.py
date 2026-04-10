@@ -112,7 +112,7 @@ class MainWindowUpdateFlowMixin:
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        title = QtWidgets.QLabel(f"Доступна новая версия SaveStories {release.version}.")
+        title = QtWidgets.QLabel(f"Доступна новая версия SaveMe {release.version}.")
         title.setStyleSheet("font-weight: 600;")
         title.setWordWrap(True)
         layout.addWidget(title)
@@ -191,7 +191,7 @@ class MainWindowUpdateFlowMixin:
         self.apply_update_sidebar_button.setVisible(False)
         self.apply_update_sidebar_button.setEnabled(False)
         self.settings_dialog.set_update_action_available(False)
-        self.set_status("Обновление", f"Скачиваю установщик SaveStories {release.version}.")
+        self.set_status("Обновление", f"Скачиваю установщик SaveMe {release.version}.")
         self.append_log(f"Начинаю скачивание установщика обновления Windows: {release.version}.")
         self.update_download_progress = 0
         self.last_logged_update_progress = -1

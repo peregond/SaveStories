@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct SaveStoriesApp: App {
+struct SaveMeApp: App {
     @StateObject private var model = AppModel()
 
     var body: some Scene {

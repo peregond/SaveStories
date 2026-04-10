@@ -2,15 +2,15 @@ $ErrorActionPreference = "Stop"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $distRoot = Join-Path $root "dist\\windows"
-$appDir = Join-Path $distRoot "SaveStories-Windows"
-$zipPath = Join-Path $distRoot "SaveStories-Windows.zip"
-$sevenZipPath = Join-Path $distRoot "SaveStories-Windows.7z"
-$shaPath = Join-Path $distRoot "SaveStories-Windows.sha256"
-$exePath = Join-Path $appDir "SaveStories-Windows.exe"
+$appDir = Join-Path $distRoot "SaveMe-Windows"
+$zipPath = Join-Path $distRoot "SaveMe-Windows.zip"
+$sevenZipPath = Join-Path $distRoot "SaveMe-Windows.7z"
+$shaPath = Join-Path $distRoot "SaveMe-Windows.sha256"
+$exePath = Join-Path $appDir "SaveMe-Windows.exe"
 $versionFile = Join-Path $root "VERSION"
 $version = if (Test-Path $versionFile) { (Get-Content $versionFile -Raw).Trim() } else { "0.6.0" }
-$setupPath = Join-Path $distRoot "SaveStories-Windows-Setup-v$version.exe"
-$setupShaPath = Join-Path $distRoot "SaveStories-Windows-Setup-v$version.sha256"
+$setupPath = Join-Path $distRoot "SaveMe-Windows-Setup-v$version.exe"
+$setupShaPath = Join-Path $distRoot "SaveMe-Windows-Setup-v$version.sha256"
 $sevenZip = Get-Command 7z.exe -ErrorAction SilentlyContinue
 
 if (-not (Test-Path $appDir)) {

@@ -1,4 +1,4 @@
-namespace SaveStories.WinUI.Beta.Services;
+namespace SaveMe.WinUI.Beta.Services;
 
 public sealed class PreflightService
 {

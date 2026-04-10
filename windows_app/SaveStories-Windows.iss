@@ -1,5 +1,5 @@
-#define MyAppName "SaveStories"
-#define MyAppExeName "SaveStories-Windows.exe"
+#define MyAppName "SaveMe"
+#define MyAppExeName "SaveMe-Windows.exe"
 #define MyAppVersion GetStringFileInfo(AddBackslash(SourceDir) + MyAppExeName, "ProductVersion")
 
 [Setup]

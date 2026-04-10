@@ -95,7 +95,7 @@ const releaseURL = requiredArg("release-url");
 const version = requiredArg("version");
 const build = requiredArg("build");
 const output = requiredArg("output");
-const title = readArg("title") || `SaveStories ${version}`;
+const title = readArg("title") || `SaveMe ${version}`;
 const mimeType = readArg("mime-type") || "application/octet-stream";
 const privateKeyPath = readArg("private-key-path");
 const notes = readOptionalFile(readArg("notes-file")) || readArg("notes") || `Release ${version} опубликован в GitHub Releases.`;
@@ -118,9 +118,9 @@ const description = wrapCdata(markdownToSparkleHtml(notes));
 const xml = `<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
-    <title>SaveStories Updates</title>
+    <title>SaveMe Updates</title>
     <link>${escapeXml(releaseURL)}</link>
-    <description>Release feed for SaveStories macOS updates.</description>
+    <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
       <title>${escapeXml(title)}</title>

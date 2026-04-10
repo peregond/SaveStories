@@ -4,8 +4,8 @@ set -euo pipefail
 setopt null_glob
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BUNDLE_NAME="SaveStories"
-EXECUTABLE_NAME="SaveStories"
+BUNDLE_NAME="SaveMe"
+EXECUTABLE_NAME="SaveMe"
 ICON_BASENAME="SaveStories"
 BUILD_DIR="$ROOT/dist"
 RELEASE_DIR="$BUILD_DIR/release"
@@ -32,6 +32,8 @@ NODE_SOURCE_WORKER_DIR="$ROOT/node_worker"
 NODE_BUILD_RUNTIME_DIR="$BUILD_DIR/node-runtime"
 NODE_BUILD_PLAYWRIGHT_DIR="$NODE_BUILD_RUNTIME_DIR/ms-playwright"
 LEGACY_RELEASE_APP_CANDIDATES=(
+  "$ROOT/dist/release/SaveMe.app"
+  "/Applications/SaveMe.app"
   "$ROOT/dist/release/SaveStories.app"
   "/Applications/SaveStories.app"
 )
@@ -66,12 +68,12 @@ fi
 DEFAULT_BUILD="$("$PLIST_BUDDY" -c 'Print :CFBundleVersion' "$SOURCE_PLIST")"
 SHORT_VERSION="${SAVESTORIES_VERSION:-$DEFAULT_VERSION}"
 BUILD_NUMBER="${SAVESTORIES_BUILD:-$DEFAULT_BUILD}"
-BUNDLE_ID="${SAVESTORIES_BUNDLE_ID:-local.savestories.release}"
+BUNDLE_ID="${SAVESTORIES_BUNDLE_ID:-local.saveme.release}"
 COPYRIGHT_TEXT="${SAVESTORIES_COPYRIGHT:-Direct distribution build}"
 MACOS_UPDATE_FEED_URL="${SAVESTORIES_MACOS_UPDATE_FEED_URL:-$(read_update_config_value macosFeedURL)}"
 UPDATE_PUBLIC_KEY="${SAVESTORIES_UPDATE_PUBLIC_KEY:-$(read_update_config_value publicEDKey)}"
 SIGN_IDENTITY="${APPLE_SIGN_IDENTITY:-}"
-RESOURCE_BUNDLE_NAME="$EXECUTABLE_NAME"_SaveStories.bundle
+RESOURCE_BUNDLE_NAME="$EXECUTABLE_NAME"_SaveMe.bundle
 
 node_runtime_is_bundleable() {
   local executable="$1"

@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $workerDir = Join-Path $root "node_worker"
-$appSupport = if ($env:SAVESTORIES_APP_SUPPORT) { $env:SAVESTORIES_APP_SUPPORT } else { Join-Path ($env:LOCALAPPDATA ?? $env:APPDATA) "SaveStories" }
+$appSupport = if ($env:SAVESTORIES_APP_SUPPORT) { $env:SAVESTORIES_APP_SUPPORT } else { Join-Path ($env:LOCALAPPDATA ?? $env:APPDATA) "SaveMe" }
 $browsers = if ($env:SAVESTORIES_PLAYWRIGHT_BROWSERS) { $env:SAVESTORIES_PLAYWRIGHT_BROWSERS } else { Join-Path $appSupport "worker\\ms-playwright" }
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {

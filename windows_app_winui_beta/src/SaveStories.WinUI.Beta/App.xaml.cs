@@ -1,7 +1,9 @@
 using Microsoft.UI.Xaml;
-using SaveStories.WinUI.Beta.Services;
+using Microsoft.UI.Xaml.Controls;
+using SaveMe.WinUI.Beta.Services;
+using System.Text;
 
-namespace SaveStories.WinUI.Beta;
+namespace SaveMe.WinUI.Beta;
 
 public partial class App : Application
 {
@@ -17,13 +19,51 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        _window = new MainWindow();
-        _window.Activate();
+        try
+        {
+            _window = new MainWindow();
+            _window.Activate();
+        }
+        catch (Exception ex)
+        {
+            DiagnosticsService.Current.LogError("Startup.MainWindowFailed", ex);
+            _window = BuildFatalWindow(ex);
+            _window.Activate();
+        }
     }
 
     private void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
     {
         DiagnosticsService.Current.LogError("Application.UnhandledException", e.Exception);
+        e.Handled = true;
+    }
+
+    private static Window BuildFatalWindow(Exception ex)
+    {
+        var diagnosticsPath = DiagnosticsService.Current.LogPath;
+        var details = new StringBuilder();
+        details.AppendLine("Приложение не смогло корректно запуститься.");
+        details.AppendLine();
+        details.AppendLine("Ошибка:");
+        details.AppendLine(ex.ToString());
+        details.AppendLine();
+        details.AppendLine($"Лог: {diagnosticsPath}");
+        details.AppendLine("Отправь этот текст разработчику.");
+
+        var window = new Window();
+        window.Title = "SaveMe — ошибка запуска";
+        window.Content = new ScrollViewer
+        {
+            Padding = new Thickness(20),
+            Content = new TextBlock
+            {
+                Text = details.ToString(),
+                TextWrapping = TextWrapping.Wrap,
+                FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
+                FontSize = 13,
+            }
+        };
+        return window;
     }
 
     private void OnAppDomainUnhandledException(object? sender, System.UnhandledExceptionEventArgs e)

@@ -483,7 +483,7 @@ class MainWindowLayoutMixin:
         brand_layout.setContentsMargins(scaled(10), scaled(10), scaled(10), scaled(10))
         brand_layout.setSpacing(scaled(2))
 
-        title = QtWidgets.QLabel("SaveStories")
+        title = QtWidgets.QLabel("SaveMe")
         title.setObjectName("sidebarTitle")
         subtitle = QtWidgets.QLabel("Windows shell")
         subtitle.setObjectName("sidebarSubtitle")
@@ -556,7 +556,7 @@ class MainWindowLayoutMixin:
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(18)
 
-        layout.addWidget(self._hero("SaveStories", "Windows-клиент для выгрузки активных stories из Instagram по ссылке на профиль."))
+        layout.addWidget(self._hero("SaveMe", "Windows-клиент для выгрузки активных stories из Instagram по ссылке на профиль."))
         layout.addWidget(self._status_card())
         layout.addWidget(self._save_directory_card())
         layout.addWidget(self._profile_card())

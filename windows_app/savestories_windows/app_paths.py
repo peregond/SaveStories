@@ -6,8 +6,8 @@ from pathlib import Path
 
 
 class AppPaths:
-    app_name = "SaveStories"
-    legacy_app_name = "DimaSave"
+    app_name = "SaveMe"
+    legacy_app_names = ("SaveStories", "DimaSave")
 
     @staticmethod
     def project_root() -> Path:
@@ -157,7 +157,12 @@ class AppPaths:
         else:
             root_path = Path.home() / "AppData" / "Local"
 
-        legacy = root_path / AppPaths.legacy_app_name
         current = root_path / AppPaths.app_name
-        if legacy.exists() and not current.exists():
-            legacy.rename(current)
+        if current.exists():
+            return
+
+        for legacy_name in AppPaths.legacy_app_names:
+            legacy = root_path / legacy_name
+            if legacy.exists():
+                legacy.rename(current)
+                return

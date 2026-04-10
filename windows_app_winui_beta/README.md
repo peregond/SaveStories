@@ -1,4 +1,4 @@
-# SaveStories Windows .beta (WinUI 3)
+# SaveMe Windows .beta (WinUI 3)
 
 This is a separate Windows frontend rewrite target based on WinUI 3.
 
@@ -22,11 +22,11 @@ Current state:
 Build on Windows:
 1. Open `SaveStories.WinUI.Beta.sln` in Visual Studio 2022 (17.8+).
 2. Ensure "Windows App SDK" workload is installed.
-3. Build and run `SaveStories.WinUI.Beta`.
+3. Build and run `SaveMe.WinUI.Beta`.
 
 GitHub build:
-1. Run workflow `Build WinUI Beta` manually from Actions to get artifact `SaveStories-WinUI-Beta.zip`.
-2. Or push tag `winui-beta-vX.Y.Z` to publish a prerelease with the same zip attached.
+1. Run workflow `Build WinUI Beta` manually from Actions to get artifact `SaveMe-WinUI-Beta-Setup`.
+2. Or push tag `winui-beta-vX.Y.Z` to publish a prerelease with installer `SaveMe-WinUI-Beta-Setup-vX.Y.Z.exe`.
 
 Notes:
 - This project is intentionally isolated from the current PySide6 app.

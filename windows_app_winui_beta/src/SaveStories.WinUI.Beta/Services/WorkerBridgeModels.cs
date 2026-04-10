@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace SaveStories.WinUI.Beta.Services;
+namespace SaveMe.WinUI.Beta.Services;
 
 public sealed class WorkerRequest
 {

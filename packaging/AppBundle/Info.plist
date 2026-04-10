@@ -5,21 +5,21 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>SaveStories</string>
+	<string>SaveMe</string>
 	<key>CFBundleExecutable</key>
-	<string>SaveStories</string>
+	<string>SaveMe</string>
 	<key>CFBundleIdentifier</key>
-	<string>local.savestories.beta</string>
+	<string>local.saveme.beta</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleIconFile</key>
 	<string>SaveStories</string>
 	<key>CFBundleName</key>
-	<string>SaveStories</string>
+	<string>SaveMe</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.6.5</string>
+	<string>0.6.6</string>
 	<key>CFBundleVersion</key>
 	<string>71</string>
 	<key>LSApplicationCategoryType</key>

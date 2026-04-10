@@ -20,6 +20,9 @@ from importlib import metadata
 from pathlib import Path
 from typing import Any
 
+APP_NAME = "SaveMe"
+LEGACY_APP_NAMES = ("SaveStories", "DimaSave")
+
 
 def emit(ok: bool, status: str, message: str, *, data: dict[str, str] | None = None,
          items: list[dict[str, str]] | None = None, logs: list[str] | None = None) -> None:
@@ -70,13 +73,13 @@ def current_platform() -> str:
 def preferred_app_support_path() -> Path:
     system = current_platform()
     if system == "darwin":
-        return Path.home() / "Library" / "Application Support" / "SaveStories"
+        return Path.home() / "Library" / "Application Support" / APP_NAME
     if system == "windows":
         root = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
         if root:
-            return Path(root) / "SaveStories"
-        return Path.home() / "AppData" / "Local" / "SaveStories"
-    return Path.home() / ".local" / "share" / "SaveStories"
+            return Path(root) / APP_NAME
+        return Path.home() / "AppData" / "Local" / APP_NAME
+    return Path.home() / ".local" / "share" / APP_NAME
 
 
 def preferred_downloads_path() -> Path:
@@ -84,15 +87,21 @@ def preferred_downloads_path() -> Path:
     if system == "windows":
         root = os.environ.get("USERPROFILE")
         if root:
-            return Path(root) / "Downloads" / "SaveStories"
-    return Path.home() / "Downloads" / "SaveStories"
+            return Path(root) / "Downloads" / APP_NAME
+    return Path.home() / "Downloads" / APP_NAME
 
 
 def default_app_support() -> Path:
     preferred = preferred_app_support_path()
+    if not preferred.exists():
+        base = preferred.parent
+        for legacy_name in LEGACY_APP_NAMES:
+            legacy = base / legacy_name
+            if legacy.exists():
+                return legacy
     if can_write(preferred.parent):
         return preferred
-    return Path.cwd() / ".runtime" / "SaveStories"
+    return Path.cwd() / ".runtime" / APP_NAME
 
 
 def default_downloads(app_support: Path) -> Path:

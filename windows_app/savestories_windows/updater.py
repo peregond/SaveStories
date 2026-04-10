@@ -75,7 +75,7 @@ class WindowsUpdater:
             api_url,
             headers={
                 "Accept": "application/vnd.github+json",
-                "User-Agent": "SaveStories-Updater",
+                "User-Agent": "SaveMe-Updater",
             },
         )
 
@@ -122,7 +122,7 @@ class WindowsUpdater:
         installer_path = update_root / release.asset.name
         request = urllib.request.Request(
             release.asset.url,
-            headers={"User-Agent": "SaveStories-Updater"},
+            headers={"User-Agent": "SaveMe-Updater"},
         )
         self._emit_progress(progress_callback, 0, f"Скачивание обновления {release.version}: 0%")
         with urllib.request.urlopen(request, timeout=60) as response, installer_path.open("wb") as handle:
@@ -236,6 +236,9 @@ class WindowsUpdater:
         normalized_tag = latest_tag.strip()
         normalized_version = normalized_tag.lstrip("vV")
         expected_names = [
+            f"SaveMe-Windows-Setup-{normalized_tag}.exe",
+            f"SaveMe-Windows-Setup-v{normalized_version}.exe",
+            f"SaveMe-Windows-Setup-{normalized_version}.exe",
             f"SaveStories-Windows-Setup-{normalized_tag}.exe",
             f"SaveStories-Windows-Setup-v{normalized_version}.exe",
             f"SaveStories-Windows-Setup-{normalized_version}.exe",
@@ -252,7 +255,10 @@ class WindowsUpdater:
                 )
             if (
                 fallback_asset is None
-                and name.startswith("SaveStories-Windows-Setup-")
+                and (
+                    name.startswith("SaveMe-Windows-Setup-")
+                    or name.startswith("SaveStories-Windows-Setup-")
+                )
                 and name.endswith(".exe")
             ):
                 fallback_asset = asset

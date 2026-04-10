@@ -420,7 +420,7 @@ extension AppModel {
         guard sleepPreventionActivity == nil else { return }
         sleepPreventionActivity = ProcessInfo.processInfo.beginActivity(
             options: [.idleSystemSleepDisabled],
-            reason: "SaveStories download in progress"
+            reason: "SaveMe download in progress"
         )
     }
 

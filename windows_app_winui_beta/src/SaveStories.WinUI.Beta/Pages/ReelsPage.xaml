@@ -1,5 +1,5 @@
 <Page
-    x:Class="SaveStories.WinUI.Beta.Pages.ReelsPage"
+    x:Class="SaveMe.WinUI.Beta.Pages.ReelsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid Padding="24,16,24,24" ColumnSpacing="12">

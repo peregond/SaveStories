@@ -62,7 +62,7 @@ def main() -> int:
     )
     check_equal(
         "release_notes/latest.md heading",
-        extract_regex(ROOT / "release_notes/latest.md", r"^## SaveStories ([0-9.]+)$"),
+        extract_regex(ROOT / "release_notes/latest.md", r"^## SaveMe ([0-9.]+)$"),
         expected,
         errors,
     )

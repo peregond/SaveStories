@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace SaveStories.WinUI.Beta.Services;
+namespace SaveMe.WinUI.Beta.Services;
 
 public enum BetaTheme
 {
@@ -28,7 +28,7 @@ public sealed class BetaSettingsStore
     private BetaSettingsStore()
     {
         var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        _settingsDirectory = Path.Combine(root, "SaveStories.WinUI.Beta");
+        _settingsDirectory = Path.Combine(root, "SaveMe.WinUI.Beta");
         _settingsPath = Path.Combine(_settingsDirectory, FileName);
     }
 
@@ -36,6 +36,7 @@ public sealed class BetaSettingsStore
     {
         try
         {
+            MigrateLegacyDirectoryIfNeeded();
             if (!File.Exists(_settingsPath))
             {
                 return;
@@ -110,6 +111,21 @@ public sealed class BetaSettingsStore
         return string.Equals(value, "light", StringComparison.OrdinalIgnoreCase)
             ? BetaTheme.Light
             : BetaTheme.Dark;
+    }
+
+    private void MigrateLegacyDirectoryIfNeeded()
+    {
+        if (Directory.Exists(_settingsDirectory))
+        {
+            return;
+        }
+
+        var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var legacyDirectory = Path.Combine(root, "SaveStories.WinUI.Beta");
+        if (Directory.Exists(legacyDirectory))
+        {
+            Directory.Move(legacyDirectory, _settingsDirectory);
+        }
     }
 
     private sealed class SettingsPayload

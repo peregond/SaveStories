@@ -1,5 +1,5 @@
 import XCTest
-@testable import SaveStories
+@testable import SaveMe
 
 final class AppPathsTests: XCTestCase {
     func testApplicationSupportUsesEnvironmentOverride() {

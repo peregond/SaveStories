@@ -1,6 +1,6 @@
-# SaveStories для Windows
+# SaveMe для Windows
 
-Эта папка содержит Windows-клиент `SaveStories`.
+Эта папка содержит Windows-клиент `SaveMe`.
 
 ## Что внутри
 
@@ -47,7 +47,7 @@ cd windows_app
 После этого браузеры `Playwright` ставятся в:
 
 ```text
-%LOCALAPPDATA%\SaveStories\worker\ms-playwright
+%LOCALAPPDATA%\SaveMe\worker\ms-playwright
 ```
 
 ## Сборка `.exe`
@@ -60,19 +60,19 @@ cd windows_app
 Основной результат:
 
 ```text
-dist/windows/SaveStories-Windows/SaveStories-Windows.exe
+dist/windows/SaveMe-Windows/SaveMe-Windows.exe
 ```
 
 Установщик Windows:
 
 ```text
-dist/windows/SaveStories-Windows-Setup-vX.Y.Z.exe
+dist/windows/SaveMe-Windows-Setup-vX.Y.Z.exe
 ```
 
 Полная папка сборки:
 
 ```text
-dist/windows/SaveStories-Windows/
+dist/windows/SaveMe-Windows/
 ```
 
 ## GitHub Actions
