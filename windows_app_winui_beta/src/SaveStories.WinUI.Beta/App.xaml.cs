@@ -34,7 +34,7 @@ public partial class App : Application
         }
         else
         {
-            DiagnosticsService.Current.LogError("AppDomain.UnhandledException", new Exception(String(e.ExceptionObject)));
+            DiagnosticsService.Current.LogError("AppDomain.UnhandledException", new Exception(e.ExceptionObject?.ToString() ?? "unknown"));
         }
     }
 

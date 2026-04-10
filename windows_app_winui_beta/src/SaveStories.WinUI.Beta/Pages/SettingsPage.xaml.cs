@@ -268,7 +268,7 @@ public sealed partial class SettingsPage : Page
                     new TextBlock
                     {
                         Text = $"Доступна новая версия SaveStories {release.Version}. Сейчас можно скачать установщик и затем применить обновление поверх текущей сборки.",
-                        TextWrapping = TextWrapping.WrapWholeWords,
+                        TextWrapping = Microsoft.UI.Xaml.TextWrapping.WrapWholeWords,
                     },
                     new Expander
                     {
@@ -279,7 +279,7 @@ public sealed partial class SettingsPage : Page
                             Content = new TextBlock
                             {
                                 Text = details,
-                                TextWrapping = TextWrapping.WrapWholeWords,
+                                TextWrapping = Microsoft.UI.Xaml.TextWrapping.WrapWholeWords,
                             }
                         }
                     }
