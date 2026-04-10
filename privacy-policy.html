@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Политика конфиденциальности SaveStories</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --card: #171a21;
+      --text: #eef2f7;
+      --muted: #b0b8c7;
+      --line: #2a3140;
+      --accent: #4da3ff;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f5f7fb;
+        --card: #ffffff;
+        --text: #1c2430;
+        --muted: #5c6b7f;
+        --line: #dce3ef;
+        --accent: #0067c0;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+      background: radial-gradient(1200px 600px at 10% -20%, #1d2a44 0%, var(--bg) 45%);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 32px 16px;
+    }
+    .wrap {
+      max-width: 900px;
+      margin: 0 auto;
+      background: color-mix(in srgb, var(--card) 92%, transparent);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 28px 22px;
+      backdrop-filter: blur(6px);
+    }
+    h1 {
+      font-size: 30px;
+      line-height: 1.2;
+      margin: 0 0 8px;
+    }
+    .date {
+      color: var(--muted);
+      margin: 0 0 22px;
+      font-size: 14px;
+    }
+    h2 {
+      font-size: 20px;
+      margin: 26px 0 10px;
+    }
+    p, li { font-size: 16px; }
+    ul { padding-left: 22px; margin: 10px 0; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .footer {
+      margin-top: 30px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Политика конфиденциальности SaveStories</h1>
+    <p class="date">Дата вступления в силу: 10 апреля 2026 г.</p>
+
+    <h2>1. Общая информация</h2>
+    <p>SaveStories — это приложение для локальной выгрузки медиа по ссылкам Instagram (Stories и Reels) на устройство пользователя. Мы уважаем приватность пользователей и стремимся к минимальной обработке данных.</p>
+
+    <h2>2. Какие данные обрабатываются</h2>
+    <ul>
+      <li>ссылки и имена профилей, которые пользователь вводит вручную;</li>
+      <li>данные браузерной сессии Instagram (для авторизации), которые хранятся локально на устройстве;</li>
+      <li>загруженные медиафайлы и технические метаданные, сохранённые в выбранной пользователем папке;</li>
+      <li>локальные технические логи работы приложения и воркера;</li>
+      <li>данные проверки обновлений (запрос к GitHub Releases API).</li>
+    </ul>
+
+    <h2>3. Что приложение не делает</h2>
+    <ul>
+      <li>не запрашивает отдельную регистрацию аккаунта SaveStories;</li>
+      <li>не продаёт персональные данные;</li>
+      <li>не передаёт содержимое загруженных файлов на наши серверы;</li>
+      <li>не ведёт рекламный трекинг.</li>
+    </ul>
+
+    <h2>4. Где и как хранятся данные</h2>
+    <p>Данные хранятся локально на устройстве пользователя, в том числе в папке загрузок, папке данных приложения (например, <code>%LOCALAPPDATA%/SaveStories</code> или <code>%LOCALAPPDATA%/SaveStories.WinUI.Beta</code>), а также в локальных файлах сессии и логах.</p>
+
+    <h2>5. Сетевые обращения</h2>
+    <p>Приложение выполняет сетевые запросы только для доступа к Instagram по действиям пользователя, проверки и загрузки обновлений (GitHub API и ассеты релиза), а также скачивания runtime-компонентов (например, Chromium/зависимостей), если пользователь запускает такую установку.</p>
+
+    <h2>6. Передача третьим лицам</h2>
+    <p>Мы не передаём пользовательские данные третьим лицам, кроме технически необходимых обращений к сервисам, которые пользователь использует через приложение (Instagram, GitHub, инфраструктура загрузки зависимостей).</p>
+
+    <h2>7. Права пользователя и удаление данных</h2>
+    <p>Пользователь может в любой момент удалить загруженные файлы, очистить папку данных приложения, удалить сохранённую сессию Instagram и удалить приложение.</p>
+
+    <h2>8. Безопасность</h2>
+    <p>Мы применяем разумные технические меры для снижения рисков несанкционированного доступа к локальным данным. Однако безопасность также зависит от защиты самого устройства пользователя.</p>
+
+    <h2>9. Изменения политики</h2>
+    <p>Мы можем обновлять эту политику при изменении функциональности приложения или требований платформ. Актуальная версия публикуется по текущему URL.</p>
+
+    <h2>10. Контакты</h2>
+    <p>По вопросам конфиденциальности и обработки данных: <a href="https://github.com/peregond/SaveStories/issues">https://github.com/peregond/SaveStories/issues</a>.</p>
+
+    <div class="footer">SaveStories Privacy Policy</div>
+  </main>
+</body>
+</html>
