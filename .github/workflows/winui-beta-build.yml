@@ -1,0 +1,82 @@
+name: Build WinUI Beta
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "winui-beta-v*"
+    paths:
+      - "windows_app_winui_beta/**"
+      - ".github/workflows/winui-beta-build.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build-winui-beta:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          dotnet restore .\windows_app_winui_beta\SaveStories.WinUI.Beta.sln
+
+      - name: Build
+        shell: pwsh
+        run: |
+          dotnet build .\windows_app_winui_beta\SaveStories.WinUI.Beta.sln -c Release -p:Platform=x64
+
+      - name: Publish unpackaged beta app
+        shell: pwsh
+        run: |
+          $outDir = "dist\winui-beta"
+          if (Test-Path $outDir) {
+            Remove-Item $outDir -Force -Recurse
+          }
+          dotnet publish .\windows_app_winui_beta\src\SaveStories.WinUI.Beta\SaveStories.WinUI.Beta.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained false `
+            -p:WindowsPackageType=None `
+            -o $outDir
+
+      - name: Pack beta artifact
+        shell: pwsh
+        run: |
+          $zipPath = "dist\SaveStories-WinUI-Beta.zip"
+          if (Test-Path $zipPath) {
+            Remove-Item $zipPath -Force
+          }
+          Compress-Archive -Path "dist\winui-beta\*" -DestinationPath $zipPath
+
+      - name: Upload beta artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SaveStories-WinUI-Beta
+          path: dist/SaveStories-WinUI-Beta.zip
+
+      - name: Upload beta zip to GitHub prerelease
+        if: startsWith(github.ref, 'refs/tags/winui-beta-v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $zip = "dist\SaveStories-WinUI-Beta.zip"
+          if (-not (Test-Path $zip)) {
+            throw "Beta archive not found: $zip"
+          }
+          if (gh release view $tag *> $null) {
+            gh release upload $tag $zip --clobber
+          } else {
+            gh release create $tag $zip --title "SaveStories WinUI Beta $tag" --prerelease --notes "Automated WinUI beta build."
+          }

@@ -1,0 +1,72 @@
+<Page
+    x:Class="SaveStories.WinUI.Beta.Pages.QueuePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Padding="24,16,24,24" ColumnSpacing="12">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*" />
+            <ColumnDefinition Width="2*" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Spacing="12">
+            <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <StackPanel Spacing="8">
+                    <TextBlock FontSize="20" FontWeight="SemiBold" Text="Очередь профилей" />
+                    <TextBlock Opacity="0.75" Text="Пакетная выгрузка stories списком профилей." />
+                </StackPanel>
+            </Border>
+
+            <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <StackPanel Spacing="10">
+                    <TextBlock FontWeight="SemiBold" Text="Добавить профили" />
+                    <TextBox
+                        x:Name="QueueInputTextBox"
+                        AcceptsReturn="True"
+                        MinHeight="160"
+                        PlaceholderText="По одному username или ссылке на строку." />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Click="OnAddProfilesClick" Content="Добавить в очередь" />
+                        <Button Click="OnClearInputClick" Content="Очистить" />
+                        <Button Click="OnCheckSessionClick" Content="Проверить сессию" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="RunQueueButton" Click="OnRunQueueClick" Content="Скачать очередь" />
+                        <Button x:Name="StopQueueButton" Click="OnStopQueueClick" Content="Остановить" IsEnabled="False" />
+                        <Button Click="OnClearQueueClick" Content="Очистить очередь" />
+                    </StackPanel>
+                    <TextBlock x:Name="QueueSummaryText" Opacity="0.75" Text="Очередь: 0 профилей." />
+                    <ListView x:Name="QueueListView" MaxHeight="180" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Spacing="12">
+            <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <StackPanel Spacing="8">
+                    <TextBlock FontWeight="SemiBold" Text="Состояние" />
+                    <TextBlock x:Name="QueueStatusTitleText" Text="Ожидание" />
+                    <TextBlock x:Name="QueueStatusDetailText" Opacity="0.75" Text="Готово к запуску очереди." />
+                </StackPanel>
+            </Border>
+
+            <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <StackPanel Spacing="8">
+                    <TextBlock FontWeight="SemiBold" Text="Результат" />
+                    <TextBlock x:Name="QueueResultSummaryText" Opacity="0.75" Text="Профилей: 0  ·  Найдено: 0  ·  Сохранено: 0" />
+                </StackPanel>
+            </Border>
+
+            <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <StackPanel Spacing="8">
+                    <TextBlock FontWeight="SemiBold" Text="Логи" />
+                    <TextBox
+                        x:Name="QueueLogsTextBox"
+                        AcceptsReturn="True"
+                        MinHeight="220"
+                        IsReadOnly="True"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Grid>
+</Page>

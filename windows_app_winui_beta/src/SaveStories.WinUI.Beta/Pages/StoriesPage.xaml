@@ -1,0 +1,75 @@
+<Page
+    x:Class="SaveStories.WinUI.Beta.Pages.StoriesPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Padding="24,16,24,24" ColumnSpacing="12">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*" />
+            <ColumnDefinition Width="2*" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Spacing="12">
+            <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <StackPanel Spacing="8">
+                    <TextBlock FontSize="20" FontWeight="SemiBold" Text="Stories" />
+                    <TextBlock Opacity="0.75" Text="Скачать сторис из Instagram" />
+                </StackPanel>
+            </Border>
+
+            <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <StackPanel Spacing="10">
+                    <TextBlock FontWeight="SemiBold" Text="Профили для скачивания" />
+                    <TextBox
+                        x:Name="ProfilesInputTextBox"
+                        AcceptsReturn="True"
+                        MinHeight="160"
+                        PlaceholderText="По одному username или ссылке на строку." />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Click="OnAddProfilesClick" Content="Добавить" />
+                        <Button Click="OnClearInputClick" Content="Очистить" />
+                        <Button Click="OnCheckSessionClick" Content="Проверить сессию" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="DownloadButton" Click="OnDownloadClick" Content="Скачать" />
+                        <Button x:Name="CancelButton" Click="OnStopClick" Content="Остановить" IsEnabled="False" />
+                    </StackPanel>
+                    <TextBlock x:Name="QueueSummaryText" Opacity="0.75" Text="Очередь: 0 профилей." />
+                    <ListView x:Name="QueueListView" MaxHeight="160" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Spacing="12">
+            <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <StackPanel Spacing="8">
+                    <TextBlock FontWeight="SemiBold" Text="Состояние" />
+                    <TextBlock x:Name="StatusTitleText" Text="Ожидание" />
+                    <TextBlock x:Name="StatusDetailText" Opacity="0.75" Text="Готово к проверке сессии и выгрузке." />
+                </StackPanel>
+            </Border>
+
+            <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <StackPanel Spacing="8">
+                    <TextBlock FontWeight="SemiBold" Text="Результат" />
+                    <TextBlock x:Name="ResultSummaryText" Opacity="0.75" Text="Профилей: 0  ·  Сохранено: 0  ·  Файлов: 0" />
+                </StackPanel>
+            </Border>
+
+            <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <StackPanel Spacing="8">
+                    <TextBlock FontWeight="SemiBold" Text="Логи" />
+                    <TextBox
+                        x:Name="LogsTextBox"
+                        AcceptsReturn="True"
+                        MinHeight="200"
+                        IsReadOnly="True"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Grid>
+</Page>
