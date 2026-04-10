@@ -45,8 +45,9 @@ jobs:
           dotnet publish .\windows_app_winui_beta\src\SaveStories.WinUI.Beta\SaveStories.WinUI.Beta.csproj `
             -c Release `
             -r win-x64 `
-            --self-contained false `
+            --self-contained true `
             -p:WindowsPackageType=None `
+            -p:WindowsAppSDKSelfContained=true `
             -o $outDir
 
       - name: Install Inno Setup
