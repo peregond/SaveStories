@@ -1,5 +1,5 @@
 #define MyAppName "SaveMe WinUI Beta"
-#define MyAppExeName "SaveMe.WinUI.Beta.exe"
+#define MyAppExeName "SaveStories.WinUI.Beta.exe"
 #define MyAppVersion GetEnv("SAVESTORIES_VERSION")
 
 [Setup]
