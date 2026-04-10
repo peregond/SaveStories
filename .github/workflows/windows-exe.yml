@@ -1,12 +1,7 @@
-name: Build Windows EXE
+name: Build Windows EXE (Legacy)
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "windows_app/**"
-      - "node_worker/**"
-      - ".github/workflows/windows-exe.yml"
 
 jobs:
   build-windows:

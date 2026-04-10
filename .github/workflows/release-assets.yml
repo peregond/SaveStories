@@ -78,7 +78,7 @@ jobs:
           name: macos-release-asset
           path: dist/release/SaveStories-macOS-${{ env.RELEASE_TAG }}.dmg
 
-  build-windows:
+  build-windows-winui-beta:
     needs: create-release
     runs-on: windows-latest
 
@@ -86,57 +86,54 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
         with:
-          python-version: "3.13"
-          cache: "pip"
-          cache-dependency-path: windows_app/requirements.txt
+          dotnet-version: "8.0.x"
 
-      - name: Setup Node 24 LTS
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: "npm"
-          cache-dependency-path: node_worker/package-lock.json
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: windows_app/.build/runtime/ms-playwright
-          key: windows-playwright-${{ runner.os }}-${{ hashFiles('node_worker/package-lock.json', 'windows_app/build_windows.ps1') }}
-
-      - name: Build Windows distribution
+      - name: Restore WinUI beta solution
         shell: pwsh
         run: |
-          Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
-          ./windows_app/build_windows.ps1
+          dotnet restore .\windows_app_winui_beta\SaveStories.WinUI.Beta.sln
 
-      - name: Install Inno Setup
+      - name: Build WinUI beta solution
         shell: pwsh
         run: |
-          if (Get-Command ISCC.exe -ErrorAction SilentlyContinue) {
-            Write-Host "Inno Setup already available."
-          } else {
-            choco install innosetup -y --no-progress
+          dotnet build .\windows_app_winui_beta\SaveStories.WinUI.Beta.sln -c Release -p:Platform=x64
+
+      - name: Publish WinUI beta app
+        shell: pwsh
+        run: |
+          $outDir = "dist\winui-beta"
+          if (Test-Path $outDir) {
+            Remove-Item $outDir -Force -Recurse
           }
+          dotnet publish .\windows_app_winui_beta\src\SaveStories.WinUI.Beta\SaveStories.WinUI.Beta.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained false `
+            -p:WindowsPackageType=None `
+            -o $outDir
 
-      - name: Build Windows installer
+      - name: Pack WinUI beta release artifact
         shell: pwsh
         run: |
-          Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
-          ./windows_app/build_windows_installer.ps1
+          $zipPath = "dist\SaveStories-Windows-WinUI-Beta-${{ env.RELEASE_TAG }}.zip"
+          if (Test-Path $zipPath) {
+            Remove-Item $zipPath -Force
+          }
+          Compress-Archive -Path "dist\winui-beta\*" -DestinationPath $zipPath
 
-      - name: Upload Windows asset to release
+      - name: Upload WinUI beta asset to release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $setup = Get-ChildItem -Path "dist/windows" -Filter "SaveStories-Windows-Setup-*.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          if (-not $setup) {
-            throw "Windows installer was not produced. Expected dist/windows/SaveStories-Windows-Setup-*.exe"
+          $artifact = "dist\SaveStories-Windows-WinUI-Beta-${{ env.RELEASE_TAG }}.zip"
+          if (-not (Test-Path $artifact)) {
+            throw "Windows WinUI beta archive was not produced: $artifact"
           }
-          gh release upload $env:RELEASE_TAG $setup.FullName --clobber
+          gh release upload $env:RELEASE_TAG $artifact --clobber
 
   publish-update-feed:
     needs:
