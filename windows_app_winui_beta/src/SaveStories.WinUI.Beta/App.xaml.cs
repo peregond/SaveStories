@@ -26,7 +26,7 @@ public partial class App : Application
         DiagnosticsService.Current.LogError("Application.UnhandledException", e.Exception);
     }
 
-    private void OnAppDomainUnhandledException(object? sender, UnhandledExceptionEventArgs e)
+    private void OnAppDomainUnhandledException(object? sender, System.UnhandledExceptionEventArgs e)
     {
         if (e.ExceptionObject is Exception ex)
         {
@@ -38,7 +38,7 @@ public partial class App : Application
         }
     }
 
-    private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    private void OnUnobservedTaskException(object? sender, System.Threading.Tasks.UnobservedTaskExceptionEventArgs e)
     {
         DiagnosticsService.Current.LogError("TaskScheduler.UnobservedTaskException", e.Exception);
         e.SetObserved();
