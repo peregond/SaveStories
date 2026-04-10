@@ -35,7 +35,7 @@
                         VerticalAlignment="Center"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         CornerRadius="12">
-                        <TextBlock Opacity="0.75" Text="0.6.3-beta" />
+                        <TextBlock Opacity="0.75" Text="0.6.4-beta" />
                     </Border>
                 </Grid>
             </NavigationView.Header>
