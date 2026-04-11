@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.11</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.12</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.11</title>
-      <pubDate>Sat, 11 Apr 2026 09:30:33 GMT</pubDate>
-      <sparkle:version>79</sparkle:version>
-      <sparkle:shortVersionString>0.6.11</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.11</h2>
-<ul><li>Исправлен краш при открытии экрана Stories на некоторых системах WinUI (инициализация режимов вынесена из XAML в code-behind)</li><li>Улучшено окно фатальной ошибки запуска: текст теперь можно выделять и копировать, добавлена кнопка «Скопировать текст»</li><li>Сохранены изменения стабильного WinUI-канала из 0.6.10 (installer naming + updater compatibility)</li></ul>]]></description>
+      <title>SaveMe 0.6.12</title>
+      <pubDate>Sat, 11 Apr 2026 09:55:34 GMT</pubDate>
+      <sparkle:version>80</sparkle:version>
+      <sparkle:shortVersionString>0.6.12</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.12</h2>
+<ul><li>Исправлена ошибка `batch_failed` при Stories в режиме «Только видео»: если активные stories есть, но без видео, профиль больше не считается неуспешным</li><li>Улучшен onboarding runtime-модулей: более понятный диалог настройки, прогресс и очищенные логи без «мусорных» символов</li><li>В настройках обновлений объединён процесс в одно действие: «Проверить и установить» (после подтверждения сразу скачивание и запуск установщика)</li><li>Кнопки «Скачать» и «Остановить» на Stories/Reels теперь визуально разделены по цветам (зелёная/красная)</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.11/SaveMe-macOS-v0.6.11.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.12/SaveMe-macOS-v0.6.12.dmg"
         sparkle:os="macos"
-        length="187201029"
+        length="187224198"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="JNfZEI2Gg+1C2ZnsX32Xor2XH236B4OjT9KPW9soC21AEXrPogTuRpPBzyA1310bNZ36SR/hAKGp9eAHQgMlDQ==" />
+        sparkle:edSignature="4VqGZzowE1k7FPoe2ibgsjokNELsOUYjxbr5Q68ZZ20PXwBLkcmE8IBx2UPfvB15XFeps2IzewzQSYT14XxyBQ==" />
     </item>
   </channel>
 </rss>
