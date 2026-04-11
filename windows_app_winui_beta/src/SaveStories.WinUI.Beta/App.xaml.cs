@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using SaveMe.WinUI.Beta.Services;
 using System.Text;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace SaveMe.WinUI.Beta;
 
@@ -49,20 +50,51 @@ public partial class App : Application
         details.AppendLine();
         details.AppendLine($"Лог: {diagnosticsPath}");
         details.AppendLine("Отправь этот текст разработчику.");
+        var detailsText = details.ToString();
+
+        var detailsBox = new TextBox
+        {
+            Text = detailsText,
+            IsReadOnly = true,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
+            FontSize = 13,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+        };
+
+        var copyButton = new Button
+        {
+            Content = "Скопировать текст",
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        copyButton.Click += (_, _) =>
+        {
+            var data = new DataPackage();
+            data.SetText(detailsText);
+            Clipboard.SetContent(data);
+        };
 
         var window = new Window();
         window.Title = "SaveMe — ошибка запуска";
-        window.Content = new ScrollViewer
+        window.Content = new Grid
         {
             Padding = new Thickness(20),
-            Content = new TextBlock
+            RowDefinitions =
             {
-                Text = details.ToString(),
-                TextWrapping = TextWrapping.Wrap,
-                FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
-                FontSize = 13,
-            }
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = new GridLength(12) },
+                new RowDefinition { Height = new GridLength(1, GridUnitType.Star) },
+            },
+            Children =
+            {
+                copyButton,
+                detailsBox,
+            },
         };
+        Grid.SetRow(copyButton, 0);
+        Grid.SetRow(detailsBox, 2);
         return window;
     }
 

@@ -24,6 +24,8 @@ public sealed partial class StoriesPage : Page
     {
         InitializeComponent();
         QueueListView.ItemsSource = _queue;
+        HeadlessModeRadio.IsChecked = true;
+        SaveVideoOnlyRadio.IsChecked = true;
         _outputDirectory = WorkerBridgeService.Current.GetDefaultDownloadsDirectory();
         OutputDirectoryText.Text = _outputDirectory;
         _logFlushTimer = DispatcherQueue.CreateTimer();

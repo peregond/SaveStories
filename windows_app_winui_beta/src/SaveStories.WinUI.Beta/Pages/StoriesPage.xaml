@@ -47,7 +47,6 @@
                                     <RadioButton
                                         x:Name="HeadlessModeRadio"
                                         GroupName="BrowserMode"
-                                        IsChecked="True"
                                         Checked="OnBrowserModeChecked"
                                         Content="В фоне" />
                                     <RadioButton
@@ -75,7 +74,6 @@
                                     <RadioButton
                                         x:Name="SaveVideoOnlyRadio"
                                         GroupName="MediaMode"
-                                        IsChecked="True"
                                         Checked="OnMediaModeChecked"
                                         Content="Только видео" />
                                 </StackPanel>
