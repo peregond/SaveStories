@@ -7,17 +7,17 @@
     <language>ru</language>
     <item>
       <title>SaveMe 0.6.9</title>
-      <pubDate>Sat, 11 Apr 2026 08:09:26 GMT</pubDate>
-      <sparkle:version>76</sparkle:version>
+      <pubDate>Sat, 11 Apr 2026 08:34:10 GMT</pubDate>
+      <sparkle:version>77</sparkle:version>
       <sparkle:shortVersionString>0.6.9</sparkle:shortVersionString>
       <description><![CDATA[<h2>SaveMe 0.6.9</h2>
 <ul><li>Релиз включает macOS-версию и Windows WinUI 3 beta</li><li>Для Windows WinUI 3 на GitHub публикуется установщик .exe с bundled Node runtime</li><li>В настройках WinUI добавлен выбор темы: «Системная / Светлая / Тёмная» (по умолчанию используется системная тема)</li><li>Улучшена чёткость интерфейса на масштабе Windows 125–150% (PerMonitorV2 DPI awareness)</li><li>Исправлены ресайз окна и прокрутка контента на экранах Stories, Queue, Reels и Settings</li><li>Обновлён визуальный стиль WinUI: добавлен мягкий лаймовый градиентный фон с полупрозрачными карточками</li></ul>]]></description>
       <enclosure
         url="https://github.com/peregond/SaveStories/releases/download/v0.6.9/SaveMe-macOS-v0.6.9.dmg"
         sparkle:os="macos"
-        length="187221735"
+        length="187215213"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="y65bReIAOwwtSJ6cDXmBt/LFqe4flq3IdDW9YNxp0KgfdfjS1jZx184yxUjReZKSRImUjaRDCFEg/bfQplFFDg==" />
+        sparkle:edSignature="84UNnXrYMvSDfTtT+OuI05UXx2d5EDnlkD2HNZqDaBKtrBqxsnZZ/uWhjcLK68tpqthDhf6MH59pSZl0/V/sBA==" />
     </item>
   </channel>
 </rss>
