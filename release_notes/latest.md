@@ -1,4 +1,4 @@
-## SaveMe 0.6.7
+## SaveMe 0.6.8
 
 - Релиз включает macOS-версию и Windows WinUI 3 beta
 - Для Windows WinUI 3 на GitHub публикуется установщик .exe с bundled Node runtime

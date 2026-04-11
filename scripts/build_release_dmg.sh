@@ -93,10 +93,26 @@ EOF
 fi
 
 if [ -n "$DEVICE" ]; then
-  hdiutil detach "$DEVICE" -force >/dev/null
+  DETACH_TARGET="$DEVICE"
 else
-  hdiutil detach "$MOUNT_POINT" -force >/dev/null
+  DETACH_TARGET="$MOUNT_POINT"
 fi
+
+DETACHED=0
+for attempt in {1..12}; do
+  if hdiutil detach "$DETACH_TARGET" -force >/dev/null 2>&1; then
+    DETACHED=1
+    break
+  fi
+  sleep 1
+done
+
+if [ "$DETACHED" -ne 1 ]; then
+  printf 'Failed to detach mounted image target after retries: %s\n' "$DETACH_TARGET" >&2
+  hdiutil info || true
+  exit 16
+fi
+
 hdiutil convert "$RW_DMG_PATH" -format UDBZ -o "$TEMP_DMG_PATH" >/dev/null
 rm -f "$RW_DMG_PATH"
 mv -f "$TEMP_DMG_PATH" "$DMG_PATH"
