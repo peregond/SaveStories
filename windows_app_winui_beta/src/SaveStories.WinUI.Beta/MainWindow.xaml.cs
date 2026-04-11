@@ -1,7 +1,9 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Windowing;
 using SaveMe.WinUI.Beta.Pages;
 using SaveMe.WinUI.Beta.Services;
+using WinRT.Interop;
 
 namespace SaveMe.WinUI.Beta;
 
@@ -12,6 +14,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        ConfigureWindowBehavior();
         AppNav.Loaded += OnRootLoaded;
         BetaSettingsStore.Current.Load();
         VersionBadgeText.Text = $"{AppVersionProvider.CurrentVersion()}-beta";
@@ -55,7 +58,26 @@ public sealed partial class MainWindow : Window
     {
         if (Content is FrameworkElement root)
         {
-            root.RequestedTheme = theme == BetaTheme.Light ? ElementTheme.Light : ElementTheme.Dark;
+            root.RequestedTheme = theme switch
+            {
+                BetaTheme.Light => ElementTheme.Light,
+                BetaTheme.Dark => ElementTheme.Dark,
+                _ => ElementTheme.Default,
+            };
+        }
+    }
+
+    private void ConfigureWindowBehavior()
+    {
+        var hwnd = WindowNative.GetWindowHandle(this);
+        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+        var appWindow = AppWindow.GetFromWindowId(windowId);
+        if (appWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.IsResizable = true;
+            presenter.IsMaximizable = true;
+            presenter.IsMinimizable = true;
+            presenter.SetBorderAndTitleBar(true, true);
         }
     }
 

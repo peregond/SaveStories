@@ -16,6 +16,8 @@ public sealed partial class SettingsPage : Page
     public SettingsPage()
     {
         InitializeComponent();
+        Unloaded += OnUnloaded;
+        BetaSettingsStore.Current.ThemeChanged += OnThemeChanged;
         ApplyThemeButtons(BetaSettingsStore.Current.Theme);
         UpdateSummaryText.Text = WindowsUpdaterService.Current.Summary;
         ChromiumSummaryText.Text = ChromiumBootstrapService.Current.GetBootstrapSummary();
@@ -27,6 +29,23 @@ public sealed partial class SettingsPage : Page
             : "Состояние: нужно докачать runtime модули.";
         ChromiumLogText.Text = "Лог установки появится здесь.";
         DiagnosticsService.Current.LogInfo("Settings page opened.");
+    }
+
+    private void OnUnloaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        BetaSettingsStore.Current.ThemeChanged -= OnThemeChanged;
+        Unloaded -= OnUnloaded;
+    }
+
+    private void OnThemeChanged(object? sender, BetaTheme theme)
+    {
+        ApplyThemeButtons(theme);
+    }
+
+    private void OnSystemThemeClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        BetaSettingsStore.Current.SetTheme(BetaTheme.System);
+        ApplyThemeButtons(BetaTheme.System);
     }
 
     private void OnDarkThemeClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
@@ -307,7 +326,8 @@ public sealed partial class SettingsPage : Page
 
     private void ApplyThemeButtons(BetaTheme theme)
     {
-        DarkThemeButton.IsEnabled = theme != BetaTheme.Dark;
+        SystemThemeButton.IsEnabled = theme != BetaTheme.System;
         LightThemeButton.IsEnabled = theme != BetaTheme.Light;
+        DarkThemeButton.IsEnabled = theme != BetaTheme.Dark;
     }
 }

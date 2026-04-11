@@ -4,6 +4,7 @@ namespace SaveMe.WinUI.Beta.Services;
 
 public enum BetaTheme
 {
+    System,
     Dark,
     Light,
 }
@@ -11,7 +12,7 @@ public enum BetaTheme
 public sealed class BetaSettingsStore
 {
     private const string FileName = "settings.json";
-    private const int CurrentSchemaVersion = 2;
+    private const int CurrentSchemaVersion = 3;
     private static readonly Lazy<BetaSettingsStore> LazyInstance = new(() => new BetaSettingsStore());
 
     private readonly string _settingsDirectory;
@@ -19,7 +20,7 @@ public sealed class BetaSettingsStore
 
     public static BetaSettingsStore Current => LazyInstance.Value;
 
-    public BetaTheme Theme { get; private set; } = BetaTheme.Dark;
+    public BetaTheme Theme { get; private set; } = BetaTheme.System;
     public bool RuntimePromptShown { get; private set; }
     public string LastUpdateCheckAt { get; private set; } = "";
 
@@ -46,6 +47,10 @@ public sealed class BetaSettingsStore
             var payload = JsonSerializer.Deserialize<SettingsPayload>(json);
             var schemaVersion = payload?.SchemaVersion ?? 1;
             Theme = ParseTheme(payload?.Theme);
+            if (schemaVersion < 3)
+            {
+                Theme = BetaTheme.System;
+            }
             RuntimePromptShown = payload?.RuntimePromptShown ?? false;
             LastUpdateCheckAt = payload?.LastUpdateCheckAt ?? "";
             if (schemaVersion < CurrentSchemaVersion)
@@ -55,7 +60,7 @@ public sealed class BetaSettingsStore
         }
         catch
         {
-            Theme = BetaTheme.Dark;
+            Theme = BetaTheme.System;
             RuntimePromptShown = false;
             LastUpdateCheckAt = "";
         }
@@ -98,7 +103,12 @@ public sealed class BetaSettingsStore
         var payload = new SettingsPayload
         {
             SchemaVersion = CurrentSchemaVersion,
-            Theme = Theme == BetaTheme.Light ? "light" : "dark",
+            Theme = Theme switch
+            {
+                BetaTheme.Light => "light",
+                BetaTheme.Dark => "dark",
+                _ => "system",
+            },
             RuntimePromptShown = RuntimePromptShown,
             LastUpdateCheckAt = LastUpdateCheckAt,
         };
@@ -108,9 +118,17 @@ public sealed class BetaSettingsStore
 
     private static BetaTheme ParseTheme(string? value)
     {
-        return string.Equals(value, "light", StringComparison.OrdinalIgnoreCase)
-            ? BetaTheme.Light
-            : BetaTheme.Dark;
+        if (string.Equals(value, "light", StringComparison.OrdinalIgnoreCase))
+        {
+            return BetaTheme.Light;
+        }
+
+        if (string.Equals(value, "dark", StringComparison.OrdinalIgnoreCase))
+        {
+            return BetaTheme.Dark;
+        }
+
+        return BetaTheme.System;
     }
 
     private void MigrateLegacyDirectoryIfNeeded()
