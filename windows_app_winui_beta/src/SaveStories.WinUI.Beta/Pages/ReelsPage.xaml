@@ -10,16 +10,16 @@
 
         <ScrollViewer HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="12">
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
                         <TextBlock FontSize="20" FontWeight="SemiBold" Text="Reels" />
-                        <TextBlock Opacity="0.75" Text="Скачать Reels по ссылке" />
+                        <TextBlock Style="{StaticResource AppSecondaryTextStyle}" Text="Скачать Reels по ссылке" />
                     </StackPanel>
                 </Border>
 
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="10">
-                        <TextBlock FontWeight="SemiBold" Text="Ссылки на Reels" />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ССЫЛКИ НА REELS" />
                         <TextBox
                             x:Name="ReelsInputTextBox"
                             AcceptsReturn="True"
@@ -35,7 +35,7 @@
                             <Button x:Name="StopReelsButton" Click="OnStopClick" Content="Остановить" IsEnabled="False" />
                             <Button x:Name="RetryFailedReelsButton" Click="OnRetryFailedClick" Content="Повторить неудачные" IsEnabled="False" />
                         </StackPanel>
-                        <TextBlock x:Name="ReelsQueueSummaryText" Opacity="0.75" Text="Очередь: 0 ссылок." />
+                        <TextBlock x:Name="ReelsQueueSummaryText" Style="{StaticResource AppSecondaryTextStyle}" Text="Очередь: 0 ссылок." />
                         <ListView x:Name="ReelsQueueListView" MaxHeight="160" />
                     </StackPanel>
                 </Border>
@@ -43,22 +43,19 @@
         </ScrollViewer>
 
         <ScrollViewer Grid.Column="1" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
-            <Border
-                Padding="16"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                CornerRadius="8">
+            <Border Style="{StaticResource AppCardBorderStyle}">
                 <StackPanel Spacing="10">
-                    <TextBlock FontWeight="SemiBold" Text="Состояние" />
+                    <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="СОСТОЯНИЕ" />
                     <TextBlock x:Name="ReelsStatusTitleText" Text="Ожидание" />
-                    <TextBlock x:Name="ReelsStatusDetailText" Opacity="0.75" Text="Готово к запуску выгрузки Reels." />
+                    <TextBlock x:Name="ReelsStatusDetailText" Style="{StaticResource AppSecondaryTextStyle}" Text="Готово к запуску выгрузки Reels." />
 
-                    <TextBlock FontWeight="SemiBold" Text="Результат" />
-                    <TextBlock x:Name="ReelsResultSummaryText" Opacity="0.75" Text="Ссылок: 0  ·  Сохранено: 0  ·  Файлов: 0" />
+                    <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="РЕЗУЛЬТАТ" />
+                    <TextBlock x:Name="ReelsResultSummaryText" Style="{StaticResource AppSecondaryTextStyle}" Text="Ссылок: 0  ·  Сохранено: 0  ·  Файлов: 0" />
 
-                    <TextBlock FontWeight="SemiBold" Text="Последние загрузки" />
+                    <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ПОСЛЕДНИЕ ЗАГРУЗКИ" />
                     <ListView x:Name="ReelsDownloadsListView" MaxHeight="140" />
 
-                    <TextBlock FontWeight="SemiBold" Text="Логи" />
+                    <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ЛОГИ" />
                     <TextBox
                         x:Name="ReelsLogsTextBox"
                         AcceptsReturn="True"

@@ -10,16 +10,16 @@
 
         <ScrollViewer HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="12">
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
                         <TextBlock FontSize="20" FontWeight="SemiBold" Text="Очередь профилей" />
-                        <TextBlock Opacity="0.75" Text="Пакетная выгрузка stories списком профилей." />
+                        <TextBlock Style="{StaticResource AppSecondaryTextStyle}" Text="Пакетная выгрузка stories списком профилей." />
                     </StackPanel>
                 </Border>
 
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="10">
-                        <TextBlock FontWeight="SemiBold" Text="Добавить профили" />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ДОБАВИТЬ ПРОФИЛИ" />
                         <TextBox
                             x:Name="QueueInputTextBox"
                             AcceptsReturn="True"
@@ -36,7 +36,7 @@
                             <Button x:Name="RetryFailedQueueButton" Click="OnRetryFailedClick" Content="Повторить неудачные" IsEnabled="False" />
                             <Button Click="OnClearQueueClick" Content="Очистить очередь" />
                         </StackPanel>
-                        <TextBlock x:Name="QueueSummaryText" Opacity="0.75" Text="Очередь: 0 профилей." />
+                        <TextBlock x:Name="QueueSummaryText" Style="{StaticResource AppSecondaryTextStyle}" Text="Очередь: 0 профилей." />
                         <ListView x:Name="QueueListView" MaxHeight="180" />
                     </StackPanel>
                 </Border>
@@ -45,24 +45,24 @@
 
         <ScrollViewer Grid.Column="1" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="12">
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
-                        <TextBlock FontWeight="SemiBold" Text="Состояние" />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="СОСТОЯНИЕ" />
                         <TextBlock x:Name="QueueStatusTitleText" Text="Ожидание" />
-                        <TextBlock x:Name="QueueStatusDetailText" Opacity="0.75" Text="Готово к запуску очереди." />
+                        <TextBlock x:Name="QueueStatusDetailText" Style="{StaticResource AppSecondaryTextStyle}" Text="Готово к запуску очереди." />
                     </StackPanel>
                 </Border>
 
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
-                        <TextBlock FontWeight="SemiBold" Text="Результат" />
-                        <TextBlock x:Name="QueueResultSummaryText" Opacity="0.75" Text="Профилей: 0  ·  Найдено: 0  ·  Сохранено: 0" />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="РЕЗУЛЬТАТ" />
+                        <TextBlock x:Name="QueueResultSummaryText" Style="{StaticResource AppSecondaryTextStyle}" Text="Профилей: 0  ·  Найдено: 0  ·  Сохранено: 0" />
                     </StackPanel>
                 </Border>
 
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
-                        <TextBlock FontWeight="SemiBold" Text="Логи" />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ЛОГИ" />
                         <TextBox
                             x:Name="QueueLogsTextBox"
                             AcceptsReturn="True"

@@ -5,16 +5,16 @@
     <ScrollViewer HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
         <Grid Padding="24,16,24,24">
             <StackPanel Spacing="12">
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
                         <TextBlock FontSize="20" FontWeight="SemiBold" Text="Настройки" />
-                        <TextBlock Opacity="0.75" Text="Beta-страница. Сюда переедет полный settings flow из стабильной версии." />
+                        <TextBlock Style="{StaticResource AppSecondaryTextStyle}" Text="Beta-страница. Сюда переедет полный settings flow из стабильной версии." />
                     </StackPanel>
                 </Border>
 
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
-                        <TextBlock FontWeight="SemiBold" Text="Оформление" />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ОФОРМЛЕНИЕ" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button x:Name="SystemThemeButton" Click="OnSystemThemeClick" Content="Системная" />
                             <Button x:Name="LightThemeButton" Click="OnLightThemeClick" Content="Светлая" />
@@ -23,10 +23,10 @@
                     </StackPanel>
                 </Border>
 
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
-                        <TextBlock FontWeight="SemiBold" Text="Обновления" />
-                        <TextBlock x:Name="UpdateSummaryText" Opacity="0.75" TextWrapping="WrapWholeWords" />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ОБНОВЛЕНИЯ" />
+                        <TextBlock x:Name="UpdateSummaryText" Style="{StaticResource AppSecondaryTextStyle}" TextWrapping="WrapWholeWords" />
                         <ProgressBar x:Name="UpdateProgressBar" IsIndeterminate="False" Minimum="0" Maximum="100" Visibility="Collapsed" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button x:Name="CheckUpdatesButton" Click="OnCheckUpdatesClick" Content="Проверить обновления" />
@@ -36,10 +36,10 @@
                     </StackPanel>
                 </Border>
 
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
-                        <TextBlock FontWeight="SemiBold" Text="Проверка готовности" />
-                        <TextBlock x:Name="PreflightSummaryText" Opacity="0.75" Text="Проверка ещё не запускалась." />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ПРОВЕРКА ГОТОВНОСТИ" />
+                        <TextBlock x:Name="PreflightSummaryText" Style="{StaticResource AppSecondaryTextStyle}" Text="Проверка ещё не запускалась." />
                         <TextBox
                             x:Name="PreflightDetailsTextBox"
                             MinHeight="80"
@@ -53,10 +53,10 @@
                     </StackPanel>
                 </Border>
 
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
-                        <TextBlock FontWeight="SemiBold" Text="Runtime модули после установки" />
-                        <TextBlock x:Name="ChromiumSummaryText" Opacity="0.75" Text="Инициализация..." />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="RUNTIME МОДУЛИ ПОСЛЕ УСТАНОВКИ" />
+                        <TextBlock x:Name="ChromiumSummaryText" Style="{StaticResource AppSecondaryTextStyle}" Text="Инициализация..." />
                         <TextBlock x:Name="ChromiumPathText" Opacity="0.65" TextWrapping="WrapWholeWords" />
                         <ProgressBar x:Name="ChromiumProgressBar" IsIndeterminate="True" Visibility="Collapsed" />
                         <TextBlock x:Name="ChromiumStatusText" Opacity="0.85" TextWrapping="WrapWholeWords" />

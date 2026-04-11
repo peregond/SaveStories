@@ -14,16 +14,16 @@
 
         <ScrollViewer HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="12">
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
                         <TextBlock FontSize="20" FontWeight="SemiBold" Text="Stories" />
-                        <TextBlock Opacity="0.75" Text="Скачать сторис из Instagram" />
+                        <TextBlock Style="{StaticResource AppSecondaryTextStyle}" Text="Скачать сторис из Instagram" />
                     </StackPanel>
                 </Border>
 
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="10">
-                        <TextBlock FontWeight="SemiBold" Text="Профили для скачивания" />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ПРОФИЛИ ДЛЯ СКАЧИВАНИЯ" />
                         <TextBox
                             x:Name="ProfilesInputTextBox"
                             AcceptsReturn="True"
@@ -40,9 +40,9 @@
                             <Button x:Name="RetryFailedButton" Click="OnRetryFailedClick" Content="Повторить неудачные" IsEnabled="False" />
                         </StackPanel>
 
-                        <Border Padding="10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                        <Border Style="{StaticResource AppCardBorderStyle}" Padding="10">
                             <StackPanel Spacing="8">
-                                <TextBlock FontWeight="SemiBold" Text="Режим браузера" />
+                                <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="РЕЖИМ БРАУЗЕРА" />
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <RadioButton
                                         x:Name="HeadlessModeRadio"
@@ -58,14 +58,14 @@
                                 </StackPanel>
                                 <TextBlock
                                     x:Name="BrowserModeDescriptionText"
-                                    Opacity="0.75"
+                                    Style="{StaticResource AppSecondaryTextStyle}"
                                     Text="Браузер скрыт, работает незаметно" />
                             </StackPanel>
                         </Border>
 
-                        <Border Padding="10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                        <Border Style="{StaticResource AppCardBorderStyle}" Padding="10">
                             <StackPanel Spacing="8">
-                                <TextBlock FontWeight="SemiBold" Text="Что сохранять" />
+                                <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ЧТО СОХРАНЯТЬ" />
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <RadioButton
                                         x:Name="SaveAllMediaRadio"
@@ -81,17 +81,17 @@
                                 </StackPanel>
                                 <TextBlock
                                     x:Name="MediaModeDescriptionText"
-                                    Opacity="0.75"
+                                    Style="{StaticResource AppSecondaryTextStyle}"
                                     Text="Фото пропускаются" />
                             </StackPanel>
                         </Border>
 
-                        <Border Padding="10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                        <Border Style="{StaticResource AppCardBorderStyle}" Padding="10">
                             <StackPanel Spacing="8">
-                                <TextBlock FontWeight="SemiBold" Text="Папка сохранения" />
+                                <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ПАПКА СОХРАНЕНИЯ" />
                                 <TextBlock
                                     x:Name="OutputDirectoryText"
-                                    Opacity="0.75"
+                                    Style="{StaticResource AppSecondaryTextStyle}"
                                     TextWrapping="WrapWholeWords" />
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <Button Click="OnChangeOutputDirectoryClick" Content="Изменить папку" />
@@ -100,8 +100,8 @@
                             </StackPanel>
                         </Border>
 
-                        <TextBlock FontWeight="SemiBold" Text="Список профилей для выгрузки" />
-                        <TextBlock x:Name="QueueSummaryText" Opacity="0.75" Text="Очередь: 0 профилей." />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="СПИСОК ПРОФИЛЕЙ ДЛЯ ВЫГРУЗКИ" />
+                        <TextBlock x:Name="QueueSummaryText" Style="{StaticResource AppSecondaryTextStyle}" Text="Очередь: 0 профилей." />
                         <ListView x:Name="QueueListView" MaxHeight="160" />
                     </StackPanel>
                 </Border>
@@ -110,24 +110,24 @@
 
         <ScrollViewer Grid.Column="1" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="12">
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
-                        <TextBlock FontWeight="SemiBold" Text="Состояние" />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="СОСТОЯНИЕ" />
                         <TextBlock x:Name="StatusTitleText" Text="Ожидание" />
-                        <TextBlock x:Name="StatusDetailText" Opacity="0.75" Text="Готово к проверке сессии и выгрузке." />
+                        <TextBlock x:Name="StatusDetailText" Style="{StaticResource AppSecondaryTextStyle}" Text="Готово к проверке сессии и выгрузке." />
                     </StackPanel>
                 </Border>
 
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
-                        <TextBlock FontWeight="SemiBold" Text="Результат" />
-                        <TextBlock x:Name="ResultSummaryText" Opacity="0.75" Text="Профилей: 0  ·  Сохранено: 0  ·  Файлов: 0" />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="РЕЗУЛЬТАТ" />
+                        <TextBlock x:Name="ResultSummaryText" Style="{StaticResource AppSecondaryTextStyle}" Text="Профилей: 0  ·  Сохранено: 0  ·  Файлов: 0" />
                     </StackPanel>
                 </Border>
 
-                <Border Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
-                        <TextBlock FontWeight="SemiBold" Text="Логи" />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ЛОГИ" />
                         <TextBox
                             x:Name="LogsTextBox"
                             AcceptsReturn="True"
