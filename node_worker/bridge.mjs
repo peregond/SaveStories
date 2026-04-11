@@ -1221,7 +1221,21 @@ async function downloadProfileWithPage(page, profileUrl, outputDirectory, mediaF
       mediaFilter,
     );
     logs.push(...result.logs);
-    const foundCount = mediaFilter === "video_only" ? result.items.length : extractFoundCount(result.logs, result.items.length);
+    const foundCountAllStories = extractFoundCount(result.logs, result.items.length);
+    const foundCount = foundCountAllStories;
+
+    if (result.items.length === 0 && mediaFilter === "video_only" && foundCountAllStories > 0) {
+      return {
+        ok: true,
+        status: "download_filtered",
+        message: `Для профиля ${username} активные stories найдены, но видео для сохранения не обнаружены.`,
+        data: { foundCount: String(foundCountAllStories), savedCount: "0" },
+        items: [],
+        logs,
+        username,
+        profileUrl,
+      };
+    }
 
     if (result.items.length === 0) {
       return {

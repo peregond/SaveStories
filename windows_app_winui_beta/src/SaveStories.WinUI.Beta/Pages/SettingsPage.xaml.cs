@@ -3,6 +3,7 @@ using SaveMe.WinUI.Beta.Services;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 
 namespace SaveMe.WinUI.Beta.Pages;
@@ -11,7 +12,6 @@ public sealed partial class SettingsPage : Page
 {
     private CancellationTokenSource? _chromiumInstallCts;
     private CancellationTokenSource? _updateCts;
-    private ReleaseInfo? _pendingRelease;
 
     public SettingsPage()
     {
@@ -75,7 +75,11 @@ public sealed partial class SettingsPage : Page
 
         var progress = new Progress<string>(line =>
         {
-            ChromiumLogText.Text += line + Environment.NewLine;
+            var cleaned = NormalizeProgressLine(line);
+            if (!string.IsNullOrWhiteSpace(cleaned))
+            {
+                ChromiumLogText.Text += cleaned + Environment.NewLine;
+            }
         });
 
         try
@@ -119,32 +123,25 @@ public sealed partial class SettingsPage : Page
             return;
         }
 
-        _updateCts = new CancellationTokenSource();
         CheckUpdatesButton.IsEnabled = false;
-        DownloadUpdateButton.IsEnabled = false;
-        ApplyUpdateButton.IsEnabled = false;
+        CheckUpdatesButton.Content = "Проверяю...";
         UpdateProgressBar.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
         UpdateSummaryText.Text = "Проверяю latest release в GitHub...";
         try
         {
-            var result = await WindowsUpdaterService.Current.CheckLatestReleaseAsync(
-                AppVersionProvider.CurrentVersion(),
-                _updateCts.Token);
+            var result = await WindowsUpdaterService.Current.CheckLatestReleaseAsync(AppVersionProvider.CurrentVersion());
             BetaSettingsStore.Current.SetLastUpdateCheckAt(DateTimeOffset.Now.ToString("O"));
 
             if (result.Status == "up_to_date")
             {
-                _pendingRelease = null;
                 UpdateSummaryText.Text = $"Уже установлена актуальная версия {AppVersionProvider.CurrentVersion()}.";
                 return;
             }
 
             if (result.Status == "update_available" && result.Release is not null)
             {
-                _pendingRelease = result.Release;
-                DownloadUpdateButton.IsEnabled = true;
-                UpdateSummaryText.Text = $"Доступна версия {_pendingRelease.Version}. Можно скачать установщик и применить обновление поверх текущей сборки.";
-                await ShowUpdatePromptAsync(_pendingRelease);
+                UpdateSummaryText.Text = $"Доступна версия {result.Release.Version}.";
+                await ShowUpdatePromptAsync(result.Release);
                 return;
             }
 
@@ -157,19 +154,16 @@ public sealed partial class SettingsPage : Page
         }
         finally
         {
-            _updateCts.Dispose();
-            _updateCts = null;
-            CheckUpdatesButton.IsEnabled = true;
+            if (_updateCts is null)
+            {
+                CheckUpdatesButton.Content = "Проверить и установить";
+                CheckUpdatesButton.IsEnabled = true;
+            }
         }
     }
 
-    private async void OnDownloadUpdateClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    private async Task DownloadAndInstallUpdateAsync(ReleaseInfo release)
     {
-        if (_pendingRelease is null)
-        {
-            UpdateSummaryText.Text = "Сначала проверь обновления.";
-            return;
-        }
         if (_updateCts is not null)
         {
             return;
@@ -177,8 +171,7 @@ public sealed partial class SettingsPage : Page
 
         _updateCts = new CancellationTokenSource();
         CheckUpdatesButton.IsEnabled = false;
-        DownloadUpdateButton.IsEnabled = false;
-        ApplyUpdateButton.IsEnabled = false;
+        CheckUpdatesButton.Content = "Скачиваю обновление...";
         UpdateProgressBar.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
         UpdateProgressBar.IsIndeterminate = false;
         UpdateProgressBar.Value = 0;
@@ -192,31 +185,12 @@ public sealed partial class SettingsPage : Page
         try
         {
             var message = await WindowsUpdaterService.Current.PrepareInstallAsync(
-                _pendingRelease,
+                release,
                 progress,
                 _updateCts.Token);
             UpdateSummaryText.Text = message;
-            ApplyUpdateButton.IsEnabled = true;
-            DiagnosticsService.Current.LogInfo($"Update prepared: {_pendingRelease.Version}");
-        }
-        catch (Exception ex)
-        {
-            UpdateSummaryText.Text = $"Ошибка подготовки обновления: {ex.Message}";
-            DiagnosticsService.Current.LogError("Prepare update failed", ex);
-        }
-        finally
-        {
-            _updateCts.Dispose();
-            _updateCts = null;
-            CheckUpdatesButton.IsEnabled = true;
-            DownloadUpdateButton.IsEnabled = _pendingRelease is not null;
-        }
-    }
+            DiagnosticsService.Current.LogInfo($"Update prepared: {release.Version}");
 
-    private async void OnApplyUpdateClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
-    {
-        try
-        {
             var logPath = WindowsUpdaterService.Current.LaunchPreparedInstall();
             UpdateSummaryText.Text = $"Запускаю установщик обновления. Лог: {logPath}";
             DiagnosticsService.Current.LogInfo($"Launching prepared update. Log: {logPath}");
@@ -225,8 +199,16 @@ public sealed partial class SettingsPage : Page
         }
         catch (Exception ex)
         {
-            UpdateSummaryText.Text = $"Ошибка запуска установщика: {ex.Message}";
-            DiagnosticsService.Current.LogError("Launch update failed", ex);
+            UpdateSummaryText.Text = $"Ошибка обновления: {ex.Message}";
+            DiagnosticsService.Current.LogError("Update install failed", ex);
+            CheckUpdatesButton.Content = "Проверить и установить";
+            CheckUpdatesButton.IsEnabled = true;
+            UpdateProgressBar.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+        }
+        finally
+        {
+            _updateCts?.Dispose();
+            _updateCts = null;
         }
     }
 
@@ -276,7 +258,7 @@ public sealed partial class SettingsPage : Page
         {
             XamlRoot = XamlRoot,
             Title = "Доступно обновление",
-            PrimaryButtonText = "Скачать обновление",
+            PrimaryButtonText = "Скачать и установить",
             CloseButtonText = "Позже",
             DefaultButton = ContentDialogButton.Primary,
             Content = new StackPanel
@@ -286,7 +268,7 @@ public sealed partial class SettingsPage : Page
                 {
                     new TextBlock
                     {
-                        Text = $"Доступна новая версия SaveMe {release.Version}. Сейчас можно скачать установщик и затем применить обновление поверх текущей сборки.",
+                        Text = $"Доступна новая версия SaveMe {release.Version}. После подтверждения начнётся загрузка и сразу запустится установка поверх текущей сборки.",
                         TextWrapping = Microsoft.UI.Xaml.TextWrapping.WrapWholeWords,
                     },
                     new Expander
@@ -308,7 +290,7 @@ public sealed partial class SettingsPage : Page
         var result = await dialog.ShowAsync();
         if (result == ContentDialogResult.Primary)
         {
-            OnDownloadUpdateClick(this, new Microsoft.UI.Xaml.RoutedEventArgs());
+            await DownloadAndInstallUpdateAsync(release);
         }
     }
 
@@ -329,5 +311,29 @@ public sealed partial class SettingsPage : Page
         SystemThemeButton.IsEnabled = theme != BetaTheme.System;
         LightThemeButton.IsEnabled = theme != BetaTheme.Light;
         DarkThemeButton.IsEnabled = theme != BetaTheme.Dark;
+    }
+
+    private static string NormalizeProgressLine(string? line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder(line.Length);
+        foreach (var ch in line)
+        {
+            if (char.IsControl(ch) && ch != '\t' && ch != ' ')
+            {
+                continue;
+            }
+            if (ch == '\uFFFD')
+            {
+                continue;
+            }
+            builder.Append(ch);
+        }
+
+        return builder.ToString().Trim();
     }
 }

@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Windowing;
 using SaveMe.WinUI.Beta.Pages;
 using SaveMe.WinUI.Beta.Services;
+using System.Text;
 using WinRT.Interop;
 
 namespace SaveMe.WinUI.Beta;
@@ -130,9 +131,9 @@ public sealed partial class MainWindow : Window
         var promptDialog = new ContentDialog
         {
             XamlRoot = root.XamlRoot,
-            Title = "Нужна докачка модулей",
-            Content = "Для работы Stories/Reels нужно докачать runtime-модули (node зависимости и Chromium). Сделать это сейчас?",
-            PrimaryButtonText = "Докачать",
+            Title = "Подготовка приложения",
+            Content = "Для первого запуска нужно автоматически докачать рабочие модули (Node + Chromium). Начать сейчас?",
+            PrimaryButtonText = "Начать настройку",
             CloseButtonText = "Позже",
             DefaultButton = ContentDialogButton.Primary
         };
@@ -154,28 +155,49 @@ public sealed partial class MainWindow : Window
     {
         var statusText = new TextBlock
         {
-            Text = "Подготавливаю установку модулей..."
+            Text = "Подготавливаю установку модулей...",
+            TextWrapping = TextWrapping.WrapWholeWords,
         };
+        var detailsText = new TextBox
+        {
+            IsReadOnly = true,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            MinHeight = 100,
+            MaxHeight = 180,
+            PlaceholderText = "Ход установки появится здесь.",
+        };
+        var logs = new Queue<string>();
         var progressDialog = new ContentDialog
         {
             XamlRoot = root.XamlRoot,
-            Title = "Установка модулей",
+            Title = "Настраиваю SaveMe",
             Content = new StackPanel
             {
                 Spacing = 12,
                 Children =
                 {
                     new ProgressRing { IsActive = true, Width = 24, Height = 24 },
-                    statusText
+                    statusText,
+                    detailsText,
                 }
-            }
+            },
+            CloseButtonText = "Свернуть"
         };
 
         var progress = new Progress<string>(line =>
         {
-            if (!string.IsNullOrWhiteSpace(line))
+            var cleaned = NormalizeProgressLine(line);
+            if (!string.IsNullOrWhiteSpace(cleaned))
             {
-                statusText.Text = line;
+                statusText.Text = cleaned;
+                logs.Enqueue(cleaned);
+                while (logs.Count > 120)
+                {
+                    logs.Dequeue();
+                }
+                detailsText.Text = string.Join(Environment.NewLine, logs);
+                detailsText.SelectionStart = detailsText.Text.Length;
             }
         });
 
@@ -189,8 +211,8 @@ public sealed partial class MainWindow : Window
             var okDialog = new ContentDialog
             {
                 XamlRoot = root.XamlRoot,
-                Title = "Готово",
-                Content = result,
+                Title = "Готово к работе",
+                Content = "Все необходимые модули установлены. Можно сразу начинать загрузку Stories и Reels.",
                 CloseButtonText = "ОК"
             };
             await okDialog.ShowAsync();
@@ -210,6 +232,30 @@ public sealed partial class MainWindow : Window
             await errorDialog.ShowAsync();
             return false;
         }
+    }
+
+    private static string NormalizeProgressLine(string? line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder(line.Length);
+        foreach (var ch in line)
+        {
+            if (char.IsControl(ch) && ch != '\t' && ch != ' ')
+            {
+                continue;
+            }
+            if (ch == '\uFFFD')
+            {
+                continue;
+            }
+            builder.Append(ch);
+        }
+
+        return builder.ToString().Trim();
     }
 
     private async Task AutoCheckForUpdatesAsync()

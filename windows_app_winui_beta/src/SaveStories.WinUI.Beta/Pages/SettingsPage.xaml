@@ -29,9 +29,7 @@
                         <TextBlock x:Name="UpdateSummaryText" Style="{StaticResource AppSecondaryTextStyle}" TextWrapping="WrapWholeWords" />
                         <ProgressBar x:Name="UpdateProgressBar" IsIndeterminate="False" Minimum="0" Maximum="100" Visibility="Collapsed" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button x:Name="CheckUpdatesButton" Click="OnCheckUpdatesClick" Content="Проверить обновления" />
-                            <Button x:Name="DownloadUpdateButton" Click="OnDownloadUpdateClick" Content="Скачать обновление" IsEnabled="False" />
-                            <Button x:Name="ApplyUpdateButton" Click="OnApplyUpdateClick" Content="Установить обновление" IsEnabled="False" />
+                            <Button x:Name="CheckUpdatesButton" Click="OnCheckUpdatesClick" Content="Проверить и установить" />
                         </StackPanel>
                     </StackPanel>
                 </Border>

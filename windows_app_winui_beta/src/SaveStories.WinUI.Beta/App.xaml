@@ -17,6 +17,10 @@
                     </LinearGradientBrush>
                     <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="#CCFFFFFF" />
                     <SolidColorBrush x:Key="NavPaneBackgroundBrush" Color="#C7EEF4DE" />
+                    <SolidColorBrush x:Key="SuccessActionBackgroundBrush" Color="#107C10" />
+                    <SolidColorBrush x:Key="SuccessActionForegroundBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="DangerActionBackgroundBrush" Color="#C42B1C" />
+                    <SolidColorBrush x:Key="DangerActionForegroundBrush" Color="#FFFFFFFF" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <LinearGradientBrush x:Key="AppWindowBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
@@ -26,6 +30,10 @@
                     </LinearGradientBrush>
                     <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="#CC252A25" />
                     <SolidColorBrush x:Key="NavPaneBackgroundBrush" Color="#B61A2318" />
+                    <SolidColorBrush x:Key="SuccessActionBackgroundBrush" Color="#1F8A4C" />
+                    <SolidColorBrush x:Key="SuccessActionForegroundBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="DangerActionBackgroundBrush" Color="#B13A3A" />
+                    <SolidColorBrush x:Key="DangerActionForegroundBrush" Color="#FFFFFFFF" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Default">
                     <LinearGradientBrush x:Key="AppWindowBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
@@ -35,6 +43,10 @@
                     </LinearGradientBrush>
                     <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="#CC252A25" />
                     <SolidColorBrush x:Key="NavPaneBackgroundBrush" Color="#B61A2318" />
+                    <SolidColorBrush x:Key="SuccessActionBackgroundBrush" Color="#1F8A4C" />
+                    <SolidColorBrush x:Key="SuccessActionForegroundBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="DangerActionBackgroundBrush" Color="#B13A3A" />
+                    <SolidColorBrush x:Key="DangerActionForegroundBrush" Color="#FFFFFFFF" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 
@@ -66,6 +78,18 @@
                 <Setter Property="MinHeight" Value="32" />
                 <Setter Property="CornerRadius" Value="4" />
                 <Setter Property="Padding" Value="12,6" />
+            </Style>
+
+            <Style x:Key="SuccessActionButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="Background" Value="{ThemeResource SuccessActionBackgroundBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource SuccessActionForegroundBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource SuccessActionBackgroundBrush}" />
+            </Style>
+
+            <Style x:Key="DangerActionButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="Background" Value="{ThemeResource DangerActionBackgroundBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource DangerActionForegroundBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource DangerActionBackgroundBrush}" />
             </Style>
 
             <Style TargetType="TextBox">
