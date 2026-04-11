@@ -15,7 +15,6 @@
             Background="Transparent"
             IsBackButtonVisible="Collapsed"
             IsSettingsVisible="False"
-            PaneBackground="{ThemeResource NavPaneBackgroundBrush}"
             PaneDisplayMode="LeftCompact"
             SelectionChanged="OnNavigationSelectionChanged">
 
