@@ -59,6 +59,12 @@ public sealed partial class ReelsPage : Page
                 Headless = true,
             },
             "Проверяю сессию Instagram...");
+
+        if (string.Equals(ReelsStatusTitleText.Text, "Ошибка", StringComparison.OrdinalIgnoreCase)
+            && IsSessionMissingText(ReelsStatusDetailText.Text))
+        {
+            await PromptLoginFromSessionCheckAsync();
+        }
     }
 
     private async void OnDownloadClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
@@ -277,5 +283,51 @@ public sealed partial class ReelsPage : Page
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private async Task PromptLoginFromSessionCheckAsync()
+    {
+        var prompt = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Сессия не найдена",
+            Content = "Чтобы продолжить, войди в Instagram через браузер.",
+            PrimaryButtonText = "Войти",
+            CloseButtonText = "Отмена",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        var result = await prompt.ShowAsync();
+        if (result != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        await RunWorkerCommandAsync(
+            new WorkerRequest
+            {
+                Command = "login",
+                Headless = false,
+            },
+            "Открываю браузер для входа в Instagram...");
+
+        await RunWorkerCommandAsync(
+            new WorkerRequest
+            {
+                Command = "check_session",
+                Headless = true,
+            },
+            "Проверяю сессию после входа...");
+    }
+
+    private static bool IsSessionMissingText(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        return text.Contains("Сначала откройте браузер для входа", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("Требуется вход в Instagram", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("сессия Instagram не найдена", StringComparison.OrdinalIgnoreCase);
     }
 }

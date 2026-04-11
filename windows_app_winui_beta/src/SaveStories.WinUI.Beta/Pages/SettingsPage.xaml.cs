@@ -306,6 +306,49 @@ public sealed partial class SettingsPage : Page
         });
     }
 
+    private async void OnLoginInstagramClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (_updateCts is not null || _chromiumInstallCts is not null)
+        {
+            return;
+        }
+
+        LoginInstagramButton.IsEnabled = false;
+        ChromiumStatusText.Text = "Открываю браузер для входа в Instagram...";
+        try
+        {
+            var login = await WorkerBridgeService.Current.RunAsync(
+                new WorkerRequest
+                {
+                    Command = "login",
+                    Headless = false,
+                });
+            ChromiumStatusText.Text = login.Response.Ok
+                ? "Состояние: сессия Instagram сохранена."
+                : $"Состояние: вход не завершён ({login.Response.Message})";
+
+            var verify = await WorkerBridgeService.Current.RunAsync(
+                new WorkerRequest
+                {
+                    Command = "check_session",
+                    Headless = true,
+                });
+            if (verify.Response.Ok)
+            {
+                ChromiumStatusText.Text = "Состояние: сессия Instagram активна.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ChromiumStatusText.Text = $"Состояние: ошибка входа ({ex.Message})";
+            DiagnosticsService.Current.LogError("Instagram login failed", ex);
+        }
+        finally
+        {
+            LoginInstagramButton.IsEnabled = true;
+        }
+    }
+
     private void ApplyThemeButtons(BetaTheme theme)
     {
         SystemThemeButton.IsEnabled = theme != BetaTheme.System;

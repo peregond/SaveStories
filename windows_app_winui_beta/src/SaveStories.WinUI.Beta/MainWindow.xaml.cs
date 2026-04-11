@@ -104,6 +104,7 @@ public sealed partial class MainWindow : Window
         }
 
         await PromptRuntimeInstallIfNeededAsync();
+        await PromptInstagramLoginIfNeededAsync();
         _startupTasksCompleted = true;
         _ = AutoCheckForUpdatesAsync();
     }
@@ -256,6 +257,130 @@ public sealed partial class MainWindow : Window
         }
 
         return builder.ToString().Trim();
+    }
+
+    private async Task PromptInstagramLoginIfNeededAsync()
+    {
+        if (Content is not FrameworkElement root)
+        {
+            return;
+        }
+
+        var runtimeReady = ChromiumBootstrapService.Current.IsWorkerDependenciesInstalled()
+            && ChromiumBootstrapService.Current.IsChromiumInstalled();
+        if (!runtimeReady)
+        {
+            return;
+        }
+
+        try
+        {
+            var session = await WorkerBridgeService.Current.RunAsync(
+                new WorkerRequest
+                {
+                    Command = "check_session",
+                    Headless = true,
+                });
+            if (session.Response.Ok || !IsSessionMissing(session.Response))
+            {
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticsService.Current.LogError("Startup session check failed", ex);
+            return;
+        }
+
+        var promptDialog = new ContentDialog
+        {
+            XamlRoot = root.XamlRoot,
+            Title = "Вход в Instagram",
+            Content = "Сессия Instagram не найдена. Войти через браузер сейчас?",
+            PrimaryButtonText = "Войти",
+            CloseButtonText = "Позже",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        var result = await promptDialog.ShowAsync();
+        if (result != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        await RunInstagramLoginAsync(root);
+    }
+
+    private async Task RunInstagramLoginAsync(FrameworkElement root)
+    {
+        var statusText = new TextBlock
+        {
+            Text = "Открываю браузер для входа...",
+            TextWrapping = TextWrapping.WrapWholeWords,
+        };
+        var dialog = new ContentDialog
+        {
+            XamlRoot = root.XamlRoot,
+            Title = "Подключение к Instagram",
+            Content = new StackPanel
+            {
+                Spacing = 12,
+                Children =
+                {
+                    new ProgressRing { IsActive = true, Width = 24, Height = 24 },
+                    statusText,
+                }
+            }
+        };
+
+        var showTask = dialog.ShowAsync().AsTask();
+        try
+        {
+            var login = await WorkerBridgeService.Current.RunAsync(
+                new WorkerRequest
+                {
+                    Command = "login",
+                    Headless = false,
+                });
+            dialog.Hide();
+            await showTask;
+
+            var message = login.Response.Ok
+                ? "Вход выполнен, сессия сохранена."
+                : $"Вход не завершён: {login.Response.Message}";
+            var doneDialog = new ContentDialog
+            {
+                XamlRoot = root.XamlRoot,
+                Title = login.Response.Ok ? "Instagram подключён" : "Вход в Instagram",
+                Content = message,
+                CloseButtonText = "ОК",
+            };
+            await doneDialog.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            dialog.Hide();
+            await showTask;
+            DiagnosticsService.Current.LogError("Startup login flow failed", ex);
+            var errorDialog = new ContentDialog
+            {
+                XamlRoot = root.XamlRoot,
+                Title = "Ошибка входа",
+                Content = ex.Message,
+                CloseButtonText = "ОК",
+            };
+            await errorDialog.ShowAsync();
+        }
+    }
+
+    private static bool IsSessionMissing(WorkerResponse response)
+    {
+        if (string.Equals(response.Status, "session_missing", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return response.Message.Contains("Сначала откройте браузер для входа", StringComparison.OrdinalIgnoreCase)
+            || response.Message.Contains("Требуется вход в Instagram", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task AutoCheckForUpdatesAsync()
