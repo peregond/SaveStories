@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml.Controls;
 using SaveMe.WinUI.Beta.Services;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 
@@ -16,16 +17,21 @@ public sealed partial class StoriesPage : Page
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _logFlushTimer;
     private bool _isRunning;
     private CancellationTokenSource? _runCts;
+    private string _outputDirectory;
     private const int MaxLogLines = 1500;
 
     public StoriesPage()
     {
         InitializeComponent();
         QueueListView.ItemsSource = _queue;
+        _outputDirectory = WorkerBridgeService.Current.GetDefaultDownloadsDirectory();
+        OutputDirectoryText.Text = _outputDirectory;
         _logFlushTimer = DispatcherQueue.CreateTimer();
         _logFlushTimer.Interval = TimeSpan.FromMilliseconds(120);
         _logFlushTimer.IsRepeating = false;
         _logFlushTimer.Tick += (_, _) => FlushPendingLogs();
+        UpdateModeDescription();
+        UpdateMediaDescription();
         RefreshQueueSummary();
     }
 
@@ -55,7 +61,7 @@ public sealed partial class StoriesPage : Page
             new WorkerRequest
             {
                 Command = "check_session",
-                Headless = true,
+                Headless = IsHeadlessMode(),
             },
             "Проверяю сессию Instagram...");
     }
@@ -87,9 +93,9 @@ public sealed partial class StoriesPage : Page
             {
                 Command = "download_profile_batch",
                 Urls = _queue.ToList(),
-                OutputDirectory = WorkerBridgeService.Current.GetDefaultDownloadsDirectory(),
-                Headless = true,
-                MediaFilter = "video_only",
+                OutputDirectory = _outputDirectory,
+                Headless = IsHeadlessMode(),
+                MediaFilter = GetMediaFilter(),
             },
             "Запускаю выгрузку stories...");
     }
@@ -197,7 +203,9 @@ public sealed partial class StoriesPage : Page
 
     private void RefreshQueueSummary()
     {
-        QueueSummaryText.Text = $"Очередь: {_queue.Count} профилей.";
+        var modeLabel = IsHeadlessMode() ? "в фоне" : "видимо";
+        var mediaLabel = SaveVideoOnlyRadio.IsChecked == true ? "только видео" : "фото и видео";
+        QueueSummaryText.Text = $"Очередь: {_queue.Count} профилей · режим: {modeLabel} · контент: {mediaLabel}.";
     }
 
     private int AddQueueItems(IEnumerable<string> lines)
@@ -259,6 +267,116 @@ public sealed partial class StoriesPage : Page
         RetryFailedButton.IsEnabled = false;
         AppendLog($"Сформирована очередь из неудачных профилей: {_queue.Count}");
         RefreshQueueSummary();
+    }
+
+    private async void OnChangeOutputDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        var pathInput = new TextBox
+        {
+            Text = _outputDirectory,
+            PlaceholderText = "C:\\Users\\...\\Downloads\\SaveMe",
+            MinWidth = 420,
+        };
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Папка сохранения",
+            Content = new StackPanel
+            {
+                Spacing = 8,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = "Укажи полный путь для сохранения файлов.",
+                        Opacity = 0.8,
+                    },
+                    pathInput
+                }
+            },
+            PrimaryButtonText = "Сохранить",
+            CloseButtonText = "Отмена",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        var newPath = pathInput.Text?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(newPath))
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(newPath);
+            _outputDirectory = newPath;
+            OutputDirectoryText.Text = _outputDirectory;
+            AppendLog($"Папка сохранения обновлена: {_outputDirectory}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"[folder_error] {ex.Message}");
+        }
+    }
+
+    private void OnOpenOutputDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        try
+        {
+            Directory.CreateDirectory(_outputDirectory);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = _outputDirectory,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"[open_folder_error] {ex.Message}");
+        }
+    }
+
+    private void OnBrowserModeChecked(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        UpdateModeDescription();
+        RefreshQueueSummary();
+    }
+
+    private void OnMediaModeChecked(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        UpdateMediaDescription();
+        RefreshQueueSummary();
+    }
+
+    private bool IsHeadlessMode()
+    {
+        return HeadlessModeRadio.IsChecked == true;
+    }
+
+    private string GetMediaFilter()
+    {
+        return SaveVideoOnlyRadio.IsChecked == true ? "video_only" : "all";
+    }
+
+    private void UpdateModeDescription()
+    {
+        BrowserModeDescriptionText.Text = IsHeadlessMode()
+            ? "Браузер скрыт, работает незаметно"
+            : "Открывается окно Chromium, можно наблюдать";
+    }
+
+    private void UpdateMediaDescription()
+    {
+        MediaModeDescriptionText.Text = SaveVideoOnlyRadio.IsChecked == true
+            ? "Фото пропускаются"
+            : "Скачиваются все сторис";
     }
 
     private static void TryExtractFailedProfiles(string json, List<string> output)

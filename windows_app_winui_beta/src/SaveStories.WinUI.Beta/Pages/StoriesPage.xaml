@@ -39,6 +39,68 @@
                             <Button x:Name="CancelButton" Click="OnStopClick" Content="Остановить" IsEnabled="False" />
                             <Button x:Name="RetryFailedButton" Click="OnRetryFailedClick" Content="Повторить неудачные" IsEnabled="False" />
                         </StackPanel>
+
+                        <Border Padding="10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                            <StackPanel Spacing="8">
+                                <TextBlock FontWeight="SemiBold" Text="Режим браузера" />
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <RadioButton
+                                        x:Name="HeadlessModeRadio"
+                                        GroupName="BrowserMode"
+                                        IsChecked="True"
+                                        Checked="OnBrowserModeChecked"
+                                        Content="В фоне" />
+                                    <RadioButton
+                                        x:Name="VisibleModeRadio"
+                                        GroupName="BrowserMode"
+                                        Checked="OnBrowserModeChecked"
+                                        Content="Видимо" />
+                                </StackPanel>
+                                <TextBlock
+                                    x:Name="BrowserModeDescriptionText"
+                                    Opacity="0.75"
+                                    Text="Браузер скрыт, работает незаметно" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Padding="10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                            <StackPanel Spacing="8">
+                                <TextBlock FontWeight="SemiBold" Text="Что сохранять" />
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <RadioButton
+                                        x:Name="SaveAllMediaRadio"
+                                        GroupName="MediaMode"
+                                        Checked="OnMediaModeChecked"
+                                        Content="Фото и видео" />
+                                    <RadioButton
+                                        x:Name="SaveVideoOnlyRadio"
+                                        GroupName="MediaMode"
+                                        IsChecked="True"
+                                        Checked="OnMediaModeChecked"
+                                        Content="Только видео" />
+                                </StackPanel>
+                                <TextBlock
+                                    x:Name="MediaModeDescriptionText"
+                                    Opacity="0.75"
+                                    Text="Фото пропускаются" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Padding="10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+                            <StackPanel Spacing="8">
+                                <TextBlock FontWeight="SemiBold" Text="Папка сохранения" />
+                                <TextBlock
+                                    x:Name="OutputDirectoryText"
+                                    Opacity="0.75"
+                                    TextWrapping="WrapWholeWords" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Click="OnChangeOutputDirectoryClick" Content="Изменить папку" />
+                                    <Button Click="OnOpenOutputDirectoryClick" Content="Открыть папку" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock FontWeight="SemiBold" Text="Список профилей для выгрузки" />
                         <TextBlock x:Name="QueueSummaryText" Opacity="0.75" Text="Очередь: 0 профилей." />
                         <ListView x:Name="QueueListView" MaxHeight="160" />
                     </StackPanel>
