@@ -11,30 +11,30 @@
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
                     <LinearGradientBrush x:Key="AppWindowBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Offset="0" Color="#FFF5F8EF" />
-                        <GradientStop Offset="0.55" Color="#FFF2F4EE" />
-                        <GradientStop Offset="1" Color="#FFEAF3DB" />
+                        <GradientStop Offset="0" Color="#FFF2F9E2" />
+                        <GradientStop Offset="0.55" Color="#FFEFF7DF" />
+                        <GradientStop Offset="1" Color="#FFE3F1C8" />
                     </LinearGradientBrush>
                     <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="#CCFFFFFF" />
-                    <SolidColorBrush x:Key="NavPaneBackgroundBrush" Color="#BFF3F6ED" />
+                    <SolidColorBrush x:Key="NavPaneBackgroundBrush" Color="#C7EEF4DE" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <LinearGradientBrush x:Key="AppWindowBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Offset="0" Color="#FF141A14" />
-                        <GradientStop Offset="0.55" Color="#FF141616" />
-                        <GradientStop Offset="1" Color="#FF1D2B13" />
+                        <GradientStop Offset="0" Color="#FF172116" />
+                        <GradientStop Offset="0.55" Color="#FF182017" />
+                        <GradientStop Offset="1" Color="#FF2D4A1B" />
                     </LinearGradientBrush>
                     <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="#CC252A25" />
-                    <SolidColorBrush x:Key="NavPaneBackgroundBrush" Color="#B3141914" />
+                    <SolidColorBrush x:Key="NavPaneBackgroundBrush" Color="#B61A2318" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Default">
                     <LinearGradientBrush x:Key="AppWindowBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Offset="0" Color="#FF141A14" />
-                        <GradientStop Offset="0.55" Color="#FF141616" />
-                        <GradientStop Offset="1" Color="#FF1D2B13" />
+                        <GradientStop Offset="0" Color="#FF172116" />
+                        <GradientStop Offset="0.55" Color="#FF182017" />
+                        <GradientStop Offset="1" Color="#FF2D4A1B" />
                     </LinearGradientBrush>
                     <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="#CC252A25" />
-                    <SolidColorBrush x:Key="NavPaneBackgroundBrush" Color="#B3141914" />
+                    <SolidColorBrush x:Key="NavPaneBackgroundBrush" Color="#B61A2318" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
