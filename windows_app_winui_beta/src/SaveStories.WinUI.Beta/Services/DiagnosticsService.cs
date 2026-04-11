@@ -14,7 +14,7 @@ public sealed class DiagnosticsService
     private DiagnosticsService()
     {
         var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        _logDirectory = Path.Combine(root, "SaveMe.WinUI.Beta", "logs");
+        _logDirectory = Path.Combine(root, "SaveMe.WinUI", "logs");
         _logPath = Path.Combine(_logDirectory, "app.log");
     }
 

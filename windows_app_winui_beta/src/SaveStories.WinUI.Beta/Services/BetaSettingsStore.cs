@@ -29,7 +29,7 @@ public sealed class BetaSettingsStore
     private BetaSettingsStore()
     {
         var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        _settingsDirectory = Path.Combine(root, "SaveMe.WinUI.Beta");
+        _settingsDirectory = Path.Combine(root, "SaveMe.WinUI");
         _settingsPath = Path.Combine(_settingsDirectory, FileName);
     }
 
@@ -139,8 +139,13 @@ public sealed class BetaSettingsStore
         }
 
         var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var legacyDirectory = Path.Combine(root, "SaveStories.WinUI.Beta");
-        if (Directory.Exists(legacyDirectory))
+        var legacyDirectories = new[]
+        {
+            Path.Combine(root, "SaveMe.WinUI.Beta"),
+            Path.Combine(root, "SaveStories.WinUI.Beta"),
+        };
+        var legacyDirectory = legacyDirectories.FirstOrDefault(Directory.Exists);
+        if (legacyDirectory is not null)
         {
             Directory.Move(legacyDirectory, _settingsDirectory);
         }

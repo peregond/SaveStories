@@ -7,7 +7,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:pages="using:SaveMe.WinUI.Beta.Pages"
     mc:Ignorable="d"
-    Title="SaveMe Windows .beta">
+    Title="SaveMe Windows">
 
     <Grid Background="{ThemeResource AppWindowBackgroundBrush}">
         <NavigationView
@@ -28,7 +28,7 @@
                         VerticalAlignment="Center"
                         FontSize="20"
                         FontWeight="SemiBold"
-                        Text="SaveMe Windows .beta" />
+                        Text="SaveMe Windows" />
                     <Border
                         Grid.Column="1"
                         Margin="8,0,0,0"
@@ -36,7 +36,7 @@
                         VerticalAlignment="Center"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         CornerRadius="12">
-                        <TextBlock x:Name="VersionBadgeText" Opacity="0.75" Text="beta" />
+                        <TextBlock x:Name="VersionBadgeText" Opacity="0.75" Text="0.0.0" />
                     </Border>
                 </Grid>
             </NavigationView.Header>

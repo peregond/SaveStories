@@ -1,4 +1,4 @@
-name: Build WinUI Beta
+name: Build WinUI
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 jobs:
-  build-winui-beta:
+  build-winui:
     runs-on: windows-latest
 
     steps:
@@ -35,10 +35,10 @@ jobs:
         run: |
           dotnet build .\windows_app_winui_beta\SaveStories.WinUI.Beta.sln -c Release -p:Platform=x64
 
-      - name: Publish unpackaged beta app
+      - name: Publish unpackaged app
         shell: pwsh
         run: |
-          $outDir = "dist\winui-beta"
+          $outDir = "dist\winui"
           if (Test-Path $outDir) {
             Remove-Item $outDir -Force -Recurse
           }
@@ -58,7 +58,7 @@ jobs:
           $downloadUrl = "https://nodejs.org/dist/$nodeVersion/$nodeZip"
           $zipPath = Join-Path $env:RUNNER_TEMP $nodeZip
           $extractRoot = Join-Path $env:RUNNER_TEMP "node-runtime"
-          $targetDir = "dist\winui-beta\runtime\node"
+          $targetDir = "dist\winui\runtime\node"
 
           if (Test-Path $extractRoot) {
             Remove-Item $extractRoot -Recurse -Force
@@ -80,7 +80,7 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          $exe = "dist\winui-beta\SaveStories.WinUI.Beta.exe"
+          $exe = "dist\winui\SaveMe.WinUI.exe"
           if (-not (Test-Path $exe)) {
             throw "Executable not found: $exe"
           }
@@ -101,13 +101,13 @@ jobs:
             choco install innosetup -y --no-progress
           }
 
-      - name: Build WinUI beta installer EXE
+      - name: Build WinUI installer EXE
         shell: pwsh
         run: |
           $version = (Get-Content VERSION -Raw).Trim()
-          $sourceDir = (Resolve-Path "dist\winui-beta").Path
+          $sourceDir = (Resolve-Path "dist\winui").Path
           $outputDir = (Resolve-Path "dist").Path
-          $baseName = "SaveMe-WinUI-Beta-Setup-v$version"
+          $baseName = "SaveMe-Windows-Setup-v$version"
           $env:SAVESTORIES_VERSION = $version
           & ISCC.exe `
             "/DSourceDir=$sourceDir" `
@@ -128,7 +128,7 @@ jobs:
             Write-Host "Signing secrets are not configured. Skipping code-sign."
             exit 0
           }
-          $setup = Get-ChildItem -Path "dist" -Filter "SaveMe-WinUI-Beta-Setup-v*.exe" -File | Select-Object -First 1
+          $setup = Get-ChildItem -Path "dist" -Filter "SaveMe-Windows-Setup-v*.exe" -File | Select-Object -First 1
           if (-not $setup) {
             throw "Installer not found for signing."
           }
@@ -145,25 +145,25 @@ jobs:
             throw "signtool failed with code $LASTEXITCODE"
           }
 
-      - name: Upload beta installer artifact
+      - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SaveMe-WinUI-Beta-Setup
-          path: dist/SaveMe-WinUI-Beta-Setup-v*.exe
+          name: SaveMe-Windows-Setup
+          path: dist/SaveMe-Windows-Setup-v*.exe
 
-      - name: Upload beta installer to GitHub prerelease
+      - name: Upload installer to GitHub prerelease
         if: startsWith(github.ref, 'refs/tags/winui-beta-v')
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "${{ github.ref_name }}"
-          $setup = Get-ChildItem -Path "dist" -Filter "SaveMe-WinUI-Beta-Setup-v*.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $setup = Get-ChildItem -Path "dist" -Filter "SaveMe-Windows-Setup-v*.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           if (-not $setup) {
-            throw "Beta installer not found for tag: $tag"
+            throw "Installer not found for tag: $tag"
           }
           if (gh release view $tag *> $null) {
             gh release upload $tag $setup.FullName --clobber
           } else {
-            gh release create $tag $setup.FullName --title "SaveMe WinUI Beta $tag" --prerelease --notes "Automated WinUI beta build."
+            gh release create $tag $setup.FullName --title "SaveMe WinUI $tag" --prerelease --notes "Automated WinUI build."
           }

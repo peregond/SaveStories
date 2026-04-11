@@ -78,7 +78,7 @@ jobs:
           name: macos-release-asset
           path: dist/release/SaveMe-macOS-${{ env.RELEASE_TAG }}.dmg
 
-  build-windows-winui-beta:
+  build-windows-winui:
     needs: create-release
     runs-on: windows-latest
 
@@ -91,20 +91,20 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: Restore WinUI beta solution
+      - name: Restore WinUI solution
         shell: pwsh
         run: |
           dotnet restore .\windows_app_winui_beta\SaveStories.WinUI.Beta.sln
 
-      - name: Build WinUI beta solution
+      - name: Build WinUI solution
         shell: pwsh
         run: |
           dotnet build .\windows_app_winui_beta\SaveStories.WinUI.Beta.sln -c Release -p:Platform=x64
 
-      - name: Publish WinUI beta app
+      - name: Publish WinUI app
         shell: pwsh
         run: |
-          $outDir = "dist\winui-beta"
+          $outDir = "dist\winui"
           if (Test-Path $outDir) {
             Remove-Item $outDir -Force -Recurse
           }
@@ -124,7 +124,7 @@ jobs:
           $downloadUrl = "https://nodejs.org/dist/$nodeVersion/$nodeZip"
           $zipPath = Join-Path $env:RUNNER_TEMP $nodeZip
           $extractRoot = Join-Path $env:RUNNER_TEMP "node-runtime"
-          $targetDir = "dist\winui-beta\runtime\node"
+          $targetDir = "dist\winui\runtime\node"
 
           if (Test-Path $extractRoot) {
             Remove-Item $extractRoot -Recurse -Force
@@ -146,7 +146,7 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          $exe = "dist\winui-beta\SaveStories.WinUI.Beta.exe"
+          $exe = "dist\winui\SaveMe.WinUI.exe"
           if (-not (Test-Path $exe)) {
             throw "Executable not found: $exe"
           }
@@ -167,13 +167,13 @@ jobs:
             choco install innosetup -y --no-progress
           }
 
-      - name: Build WinUI beta installer EXE
+      - name: Build WinUI installer EXE
         shell: pwsh
         run: |
           $version = "${{ env.RELEASE_TAG }}" -replace '^v', ''
-          $sourceDir = (Resolve-Path "dist\winui-beta").Path
+          $sourceDir = (Resolve-Path "dist\winui").Path
           $outputDir = (Resolve-Path "dist").Path
-          $baseName = "SaveMe-Windows-WinUI-Beta-Setup-${{ env.RELEASE_TAG }}"
+          $baseName = "SaveMe-Windows-Setup-${{ env.RELEASE_TAG }}"
           $env:SAVESTORIES_VERSION = $version
           & ISCC.exe `
             "/DSourceDir=$sourceDir" `
@@ -194,7 +194,7 @@ jobs:
             Write-Host "Signing secrets are not configured. Skipping code-sign."
             exit 0
           }
-          $setup = Get-ChildItem -Path "dist" -Filter "SaveMe-Windows-WinUI-Beta-Setup-*.exe" -File | Select-Object -First 1
+          $setup = Get-ChildItem -Path "dist" -Filter "SaveMe-Windows-Setup-*.exe" -File | Select-Object -First 1
           if (-not $setup) {
             throw "Installer not found for signing."
           }
@@ -211,14 +211,14 @@ jobs:
             throw "signtool failed with code $LASTEXITCODE"
           }
 
-      - name: Upload WinUI beta installer to release
+      - name: Upload WinUI installer to release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $artifact = Get-ChildItem -Path "dist" -Filter "SaveMe-Windows-WinUI-Beta-Setup-${{ env.RELEASE_TAG }}.exe" -File | Select-Object -First 1
+          $artifact = Get-ChildItem -Path "dist" -Filter "SaveMe-Windows-Setup-${{ env.RELEASE_TAG }}.exe" -File | Select-Object -First 1
           if (-not $artifact) {
-            throw "Windows WinUI beta installer was not produced."
+            throw "Windows WinUI installer was not produced."
           }
           gh release upload $env:RELEASE_TAG $artifact.FullName --clobber
 

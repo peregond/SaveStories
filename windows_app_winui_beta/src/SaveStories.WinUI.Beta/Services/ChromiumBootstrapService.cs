@@ -114,7 +114,11 @@ public sealed class ChromiumBootstrapService
 
     private static string ResolveRepoRoot()
     {
-        var explicitRoot = Environment.GetEnvironmentVariable("SAVESTORIES_BETA_REPO_ROOT");
+        var explicitRoot = Environment.GetEnvironmentVariable("SAVEME_WINUI_REPO_ROOT");
+        if (string.IsNullOrWhiteSpace(explicitRoot))
+        {
+            explicitRoot = Environment.GetEnvironmentVariable("SAVESTORIES_BETA_REPO_ROOT");
+        }
         if (!string.IsNullOrWhiteSpace(explicitRoot) && Directory.Exists(explicitRoot))
         {
             return explicitRoot;
@@ -132,7 +136,7 @@ public sealed class ChromiumBootstrapService
         }
 
         throw new InvalidOperationException(
-            "Не удалось найти рабочую папку с node_worker рядом с beta-приложением."
+            "Не удалось найти рабочую папку с node_worker рядом с приложением."
         );
     }
 

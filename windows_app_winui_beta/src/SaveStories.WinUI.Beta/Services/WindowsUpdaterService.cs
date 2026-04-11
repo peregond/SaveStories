@@ -22,7 +22,7 @@ public sealed class WindowsUpdaterService
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("SaveMe-WinUI-Updater");
 
         var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        _updatesDirectory = Path.Combine(root, "SaveMe.WinUI.Beta", "updates");
+        _updatesDirectory = Path.Combine(root, "SaveMe.WinUI", "updates");
         _config = LoadConfig();
     }
 
@@ -192,6 +192,9 @@ public sealed class WindowsUpdaterService
         var normalizedVersion = normalizedTag.TrimStart('v', 'V');
         var expected = new[]
         {
+            $"SaveMe-Windows-Setup-{normalizedTag}.exe",
+            $"SaveMe-Windows-Setup-v{normalizedVersion}.exe",
+            $"SaveMe-Windows-Setup-{normalizedVersion}.exe",
             $"SaveMe-Windows-WinUI-Beta-Setup-{normalizedTag}.exe",
             $"SaveMe-Windows-WinUI-Beta-Setup-v{normalizedVersion}.exe",
             $"SaveMe-WinUI-Beta-Setup-v{normalizedVersion}.exe",
@@ -210,6 +213,7 @@ public sealed class WindowsUpdaterService
             }
             if (fallback is null
                 && (name.StartsWith("SaveMe-Windows-WinUI-Beta-Setup-", StringComparison.OrdinalIgnoreCase)
+                    || name.StartsWith("SaveMe-Windows-Setup-", StringComparison.OrdinalIgnoreCase)
                     || name.StartsWith("SaveStories-Windows-WinUI-Beta-Setup-", StringComparison.OrdinalIgnoreCase))
                 && name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
             {
@@ -222,7 +226,7 @@ public sealed class WindowsUpdaterService
             return ParseAsset(fallback.Value);
         }
 
-        throw new InvalidOperationException("Не удалось найти установщик WinUI beta в assets релиза.");
+        throw new InvalidOperationException("Не удалось найти установщик Windows в assets релиза.");
     }
 
     private static ReleaseAsset ParseAsset(JsonElement asset)

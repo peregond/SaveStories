@@ -17,7 +17,7 @@ public sealed partial class MainWindow : Window
         ConfigureWindowBehavior();
         AppNav.Loaded += OnRootLoaded;
         BetaSettingsStore.Current.Load();
-        VersionBadgeText.Text = $"{AppVersionProvider.CurrentVersion()}-beta";
+        VersionBadgeText.Text = AppVersionProvider.CurrentVersion();
         DiagnosticsService.Current.LogInfo($"Startup version={AppVersionProvider.CurrentVersion()}");
         ApplyTheme(BetaSettingsStore.Current.Theme);
         BetaSettingsStore.Current.ThemeChanged += OnThemeChanged;
