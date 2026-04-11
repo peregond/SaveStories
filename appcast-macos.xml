@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.8</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.9</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.8</title>
-      <pubDate>Sat, 11 Apr 2026 06:55:58 GMT</pubDate>
-      <sparkle:version>72</sparkle:version>
-      <sparkle:shortVersionString>0.6.8</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.8</h2>
-<ul><li>Релиз включает macOS-версию и Windows WinUI 3 beta</li><li>Для Windows WinUI 3 на GitHub публикуется установщик .exe с bundled Node runtime</li><li>В WinUI добавлены проверки и установка обновлений прямо из приложения (check/download/apply)</li><li>Добавлены preflight-проверка готовности, экспорт диагностики и crash logging</li><li>Для Stories, Queue и Reels добавлена кнопка «Повторить неудачные»</li><li>Старая Windows-версия с прежним интерфейсом по-прежнему не публикуется в релизных ассетах</li></ul>]]></description>
+      <title>SaveMe 0.6.9</title>
+      <pubDate>Sat, 11 Apr 2026 07:40:48 GMT</pubDate>
+      <sparkle:version>73</sparkle:version>
+      <sparkle:shortVersionString>0.6.9</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.9</h2>
+<ul><li>Релиз включает macOS-версию и Windows WinUI 3 beta</li><li>Для Windows WinUI 3 на GitHub публикуется установщик .exe с bundled Node runtime</li><li>В настройках WinUI добавлен выбор темы: «Системная / Светлая / Тёмная» (по умолчанию используется системная тема)</li><li>Улучшена чёткость интерфейса на масштабе Windows 125–150% (PerMonitorV2 DPI awareness)</li><li>Исправлены ресайз окна и прокрутка контента на экранах Stories, Queue, Reels и Settings</li><li>Обновлён визуальный стиль WinUI: добавлен мягкий лаймовый градиентный фон с полупрозрачными карточками</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.8/SaveMe-macOS-v0.6.8.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.9/SaveMe-macOS-v0.6.9.dmg"
         sparkle:os="macos"
-        length="187262708"
+        length="187221132"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="H77H3azD4Sszj2NCdujXeNhgdIfFbiAXBLtZ13kFnRjTjqSMtuZrJUtp9fbXtlDRFq81zE3qfksHOC+ZW/W3Bw==" />
+        sparkle:edSignature="OA/5kPi/4AUKH5tputmeWXaoSmwXgG+9/8pzHgiYjs8BhhF8ZftrEdognYY9cFLuQ/jql6c3y1/BeGn2Q61lDw==" />
     </item>
   </channel>
 </rss>
