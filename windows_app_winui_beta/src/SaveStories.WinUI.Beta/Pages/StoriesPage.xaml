@@ -6,13 +6,13 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid Padding="24,16,24,24" ColumnSpacing="12">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="3*" />
-            <ColumnDefinition Width="2*" />
-        </Grid.ColumnDefinitions>
+    <ScrollViewer HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+        <Grid Padding="24,16,24,24" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="2*" />
+            </Grid.ColumnDefinitions>
 
-        <ScrollViewer HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="12">
                 <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
@@ -104,10 +104,8 @@
                     </StackPanel>
                 </Border>
             </StackPanel>
-        </ScrollViewer>
 
-        <ScrollViewer Grid.Column="1" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="12">
+            <StackPanel Grid.Column="1" Spacing="12">
                 <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
                         <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="СОСТОЯНИЕ" />
@@ -135,6 +133,6 @@
                     </StackPanel>
                 </Border>
             </StackPanel>
-        </ScrollViewer>
-    </Grid>
+        </Grid>
+    </ScrollViewer>
 </Page>
