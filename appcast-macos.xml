@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.15</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.16</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.15</title>
-      <pubDate>Sat, 11 Apr 2026 10:24:43 GMT</pubDate>
-      <sparkle:version>83</sparkle:version>
-      <sparkle:shortVersionString>0.6.15</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.15</h2>
-<ul><li>Исправлена ошибка `batch_failed` при Stories в режиме «Только видео»: если активные stories есть, но без видео, профиль больше не считается неуспешным</li><li>Улучшен onboarding runtime-модулей: более понятный диалог настройки, прогресс и очищенные логи без «мусорных» символов</li><li>В настройках обновлений объединён процесс в одно действие: «Проверить и установить» (после подтверждения сразу скачивание и запуск установщика)</li><li>Кнопки «Скачать» и «Остановить» на Stories/Reels теперь визуально разделены по цветам (зелёная/красная)</li><li>Возвращён login flow: при первом запуске onboarding снова предлагает войти в Instagram</li><li>В кнопке «Проверить сессию» добавлен сценарий входа: если сессии нет, приложение сразу предлагает открыть браузер и авторизоваться</li><li>В настройках добавлена отдельная кнопка «Войти в Instagram»</li><li>Синхронизированы номера версии во всех release-файлах (исправлен CI `check_version_consistency`)</li></ul>]]></description>
+      <title>SaveMe 0.6.16</title>
+      <pubDate>Sun, 12 Apr 2026 20:06:33 GMT</pubDate>
+      <sparkle:version>84</sparkle:version>
+      <sparkle:shortVersionString>0.6.16</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.16</h2>
+<ul><li>Исправлено автообновление macOS со старых версий (включая 0.6.2): возвращён совместимый `CFBundleIdentifier` для корректного перехода через Sparkle</li><li>Для Windows обновлена иконка приложения в более живом emoji-стиле</li><li>В интерфейсе Windows (WinUI) прокрутка страниц `Stories`, `Reels` и `Очередь` теперь единая, а не раздельная по колонкам</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.15/SaveMe-macOS-v0.6.15.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.16/SaveMe-macOS-v0.6.16.dmg"
         sparkle:os="macos"
-        length="187213040"
+        length="187313628"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="ydDV5kid6/uCsmg/839jC0a1wBiafwISRuDrNUdhOBGTatX5M32qGREjD+o64U1l/E7SFSvrZpMjYOASW6f4AA==" />
+        sparkle:edSignature="TE9pDqsaBEOl7qZSLlEbKX6dz7HbsxA9ssN4GMv0nMB9RtyS/Q+Wno7ecX/UESSistW/h5nIFUA6zLtB4R7FDA==" />
     </item>
   </channel>
 </rss>
