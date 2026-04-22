@@ -16,7 +16,7 @@ extension ContentView {
             .padding(.horizontal, 18)
 
             VStack(spacing: 10) {
-                ForEach([AppSection.main, AppSection.batch, AppSection.reels]) { section in
+                ForEach([AppSection.main, AppSection.batch, AppSection.reels, AppSection.sorting]) { section in
                     Button {
                         selectedSection = section
                     } label: {
@@ -97,6 +97,8 @@ extension ContentView {
                 batchView
             case .reels:
                 reelsView
+            case .sorting:
+                sortingView
             case .settings:
                 settingsView
             }

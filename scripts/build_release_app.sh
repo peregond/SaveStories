@@ -35,7 +35,9 @@ LEGACY_RELEASE_APP_CANDIDATES=(
   "$ROOT/dist/release/SaveMe.app"
   "/Applications/SaveMe.app"
   "$ROOT/dist/release/SaveStories.app"
+  "$ROOT/dist/release/DimaSave.app"
   "/Applications/SaveStories.app"
+  "/Applications/DimaSave.app"
 )
 VERSION_FILE="$ROOT/VERSION"
 UPDATE_CONFIG_PATH="$ROOT/Sources/SaveStories/Resources/update_config.json"

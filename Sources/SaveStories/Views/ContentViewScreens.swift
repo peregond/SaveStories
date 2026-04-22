@@ -99,6 +99,40 @@ extension ContentView {
         .padding(.bottom, 28)
     }
 
+    var sortingView: some View {
+        GeometryReader { proxy in
+            let compact = proxy.size.width < 980
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    detailHero(
+                        eyebrow: "Сортировка",
+                        title: "Разложить файлы по папкам",
+                        subtitle: "Сначала выбираешь источник и папку назначения, потом запускаешь перенос и копируешь готовый результат."
+                    )
+
+                    if compact {
+                        VStack(alignment: .leading, spacing: 20) {
+                            postProcessingCard
+                            logsCard(maxHeight: 320)
+                        }
+                    } else {
+                        HStack(alignment: .top, spacing: 20) {
+                            postProcessingCard
+                                .frame(maxWidth: .infinity, alignment: .top)
+                            logsCard(maxHeight: 420)
+                                .frame(maxWidth: .infinity, alignment: .top)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(.horizontal, 28)
+                .padding(.bottom, 28)
+                .padding(.top, 4)
+            }
+        }
+    }
+
     var settingsView: some View {
         GeometryReader { proxy in
             let compact = proxy.size.width < 1040

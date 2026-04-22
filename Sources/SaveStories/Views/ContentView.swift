@@ -9,6 +9,8 @@ struct ContentView: View {
     @State var showingRuntimeDetails = false
     @State var showingLogsCopiedFeedback = false
     @State var showingPendingEmptyFolders = false
+    @State var sortingRulesExpanded = false
+    @State var sortingAdvancedExpanded = false
 
     var isDark: Bool { colorScheme == .dark }
 
@@ -115,6 +117,22 @@ struct ContentView: View {
 
     var pendingEmptyFolderNames: [String] {
         model.pendingEmptyStoryFolders.map(\.lastPathComponent)
+    }
+
+    var sortingRuleCount: Int {
+        model.parsedFolderRoutingRules().count
+    }
+
+    var sortingHasSource: Bool {
+        model.sortingSourceDirectory != nil
+    }
+
+    var sortingHasDestination: Bool {
+        model.distributionRootDirectory != nil
+    }
+
+    var sortingHasResults: Bool {
+        !model.postProcessedItems.isEmpty
     }
 
     var body: some View {
@@ -974,6 +992,281 @@ struct ContentView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: 260, alignment: .topLeading)
         }
+    }
+
+    var postProcessingCard: some View {
+        card("Сортировка") {
+            VStack(alignment: .leading, spacing: 16) {
+                sortingOverviewCard
+
+                sortingStepCard(
+                    number: "1",
+                    title: "Выбери папку Перенос",
+                    detail: "Отсюда приложение возьмёт файлы для раскладки.",
+                    isActive: true,
+                    isDone: sortingHasSource
+                ) {
+                    horizontalMonospaceField(
+                        model.sortingSourceDirectory?.path ?? "Папка ещё не выбрана.",
+                        fontSize: 12
+                    )
+                    .frame(height: 52)
+
+                    HStack(spacing: 10) {
+                        button("Выбрать папку", systemImage: "tray.full", prominent: true) {
+                            model.chooseSortingSourceDirectory()
+                        }
+
+                        button("Открыть", systemImage: "folder") {
+                            model.openSortingSourceDirectory()
+                        }
+                        .disabled(!sortingHasSource)
+                    }
+                }
+
+                sortingStepCard(
+                    number: "2",
+                    title: "Выбери папку назначения",
+                    detail: "Сюда файлы будут разложены по подпапкам.",
+                    isActive: sortingHasSource,
+                    isDone: sortingHasDestination
+                ) {
+                    horizontalMonospaceField(
+                        model.distributionRootDirectory?.path ?? "Папка ещё не выбрана.",
+                        fontSize: 12
+                    )
+                    .frame(height: 52)
+
+                    HStack(spacing: 10) {
+                        button("Выбрать папку", systemImage: "folder.badge.plus", prominent: sortingHasSource) {
+                            model.chooseDistributionRootDirectory()
+                        }
+
+                        button("Открыть", systemImage: "folder") {
+                            model.openDistributionRootDirectory()
+                        }
+                        .disabled(!sortingHasDestination)
+                    }
+                }
+
+                sortingStepCard(
+                    number: "3",
+                    title: "Добавь правила при необходимости",
+                    detail: "Если оставить пусто, будет использоваться имя ника.",
+                    isActive: sortingHasSource && sortingHasDestination,
+                    isDone: sortingRuleCount > 0
+                ) {
+                    DisclosureGroup(isExpanded: $sortingRulesExpanded) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            textEditorCard(
+                                text: $model.folderRoutingRules,
+                                placeholder: "nick = Папка блогера\nnick2 = Germany (DE)/nick2"
+                            )
+                            .frame(height: 124)
+                            .clipShape(RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous))
+
+                            Text("Можно указывать и вложенные папки, например: `nick = Australia (AU)/nick`.")
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(quaternaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.top, 8)
+                    } label: {
+                        HStack {
+                            Text(sortingRuleCount == 0 ? "Открыть правила" : "Правил: \(sortingRuleCount)")
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundStyle(primaryText)
+                            Spacer(minLength: 0)
+                        }
+                    }
+                    .tint(prominentButtonTint)
+                }
+
+                sortingStepCard(
+                    number: "4",
+                    title: "Разложи файлы",
+                    detail: "Нажми основную кнопку. Дополнительный вариант спрятан ниже.",
+                    isActive: sortingHasSource && sortingHasDestination,
+                    isDone: sortingHasResults
+                ) {
+                    HStack(spacing: 12) {
+                        statPill(
+                            title: "Последняя выгрузка",
+                            value: model.latestSessionDownloadedItems.count,
+                            accent: Color.orange.opacity(0.78)
+                        )
+                        statPill(
+                            title: "Готово",
+                            value: model.postProcessedItems.count,
+                            accent: Color.blue.opacity(0.78)
+                        )
+                    }
+
+                    Text(model.postProcessingSummary)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    button("Разложить из папки Перенос", systemImage: "arrow.right.doc.on.clipboard", prominent: true) {
+                        model.distributeFilesFromSortingSource()
+                    }
+                    .disabled(!(sortingHasSource && sortingHasDestination))
+
+                    DisclosureGroup(isExpanded: $sortingAdvancedExpanded) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Используй это, если нужно разложить файлы из последней загрузки приложения, без папки Перенос.")
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(quaternaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            button("Из последней загрузки", systemImage: "square.stack.3d.down.forward") {
+                                model.distributeLatestDownloadedFiles()
+                            }
+                            .disabled(!sortingHasDestination)
+                        }
+                        .padding(.top, 8)
+                    } label: {
+                        HStack {
+                            Text("Дополнительно")
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundStyle(primaryText)
+                            Spacer(minLength: 0)
+                        }
+                    }
+                    .tint(prominentButtonTint)
+                }
+
+                sortingStepCard(
+                    number: "5",
+                    title: "Скопируй готовый результат",
+                    detail: "Можно скопировать список файлов или сразу ссылки Google Drive.",
+                    isActive: sortingHasResults,
+                    isDone: false
+                ) {
+                    Text(model.googleDriveLinkSummary)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(quaternaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 10) {
+                        button("Скопировать список", systemImage: "doc.on.doc", prominent: sortingHasResults) {
+                            model.copyPostProcessedReport()
+                        }
+                        .disabled(!sortingHasResults)
+
+                        button("Скопировать ссылки", systemImage: "link.badge.plus") {
+                            Task { await model.exportGoogleDriveLinks() }
+                        }
+                        .disabled(!sortingHasResults)
+                    }
+
+                    Text("Если у файла не найдутся данные Google Drive, приложение попробует получить ссылку через Finder.")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(quaternaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    button("Открыть доступы", systemImage: "gearshape") {
+                        model.openSystemSettings()
+                    }
+                }
+            }
+        }
+    }
+
+    var sortingOverviewCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Пройди шаги сверху вниз: выбери две папки, при необходимости добавь правила и потом скопируй результат.")
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 10) {
+                sortingOverviewPill(title: "Источник", state: sortingHasSource ? "Выбран" : "Не выбран", tint: sortingHasSource ? Color.green.opacity(0.75) : Color.orange.opacity(0.75))
+                sortingOverviewPill(title: "Назначение", state: sortingHasDestination ? "Выбрано" : "Не выбрано", tint: sortingHasDestination ? Color.green.opacity(0.75) : Color.orange.opacity(0.75))
+                sortingOverviewPill(title: "Результат", state: sortingHasResults ? "Готов" : "Пусто", tint: sortingHasResults ? Color.blue.opacity(0.72) : Color.gray.opacity(0.45))
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
+                .fill(itemFill)
+        )
+    }
+
+    func sortingOverviewPill(title: String, state: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .textCase(.uppercase)
+                .foregroundStyle(tertiaryText)
+            Text(state)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(primaryText)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(tint.opacity(isDark ? 0.24 : 0.16))
+        )
+    }
+
+    func sortingStepCard<Content: View>(
+        number: String,
+        title: String,
+        detail: String,
+        isActive: Bool,
+        isDone: Bool,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                Text(number)
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(isDone ? Color.white : primaryText)
+                    .frame(width: 30, height: 30)
+                    .background(
+                        Circle()
+                            .fill(isDone ? Color.green.opacity(0.82) : (isActive ? prominentButtonTint.opacity(0.78) : tertiaryText.opacity(0.24)))
+                    )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text(title)
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundStyle(primaryText)
+                        if isDone {
+                            Text("Готово")
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule(style: .continuous)
+                                        .fill(Color.green.opacity(isDark ? 0.22 : 0.14))
+                                )
+                                .foregroundStyle(Color.green.opacity(0.92))
+                        }
+                    }
+
+                    Text(detail)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            content()
+                .opacity(isActive || isDone ? 1 : 0.72)
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
+                .fill(itemFill)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
+                .strokeBorder((isActive ? prominentButtonTint : Color.white).opacity(isDark ? 0.18 : 0.16), lineWidth: 1)
+        )
     }
 
     func logsCard(maxHeight: CGFloat? = nil) -> some View {

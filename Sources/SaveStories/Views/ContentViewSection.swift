@@ -5,6 +5,7 @@ extension ContentView {
         case main
         case batch
         case reels
+        case sorting
         case settings
 
         var id: String { rawValue }
@@ -17,6 +18,8 @@ extension ContentView {
                 "Списочная"
             case .reels:
                 "Reels"
+            case .sorting:
+                "Сортировка"
             case .settings:
                 "Настройки"
             }
@@ -30,6 +33,8 @@ extension ContentView {
                 "Очередь профилей"
             case .reels:
                 "Выгрузка Reels тут"
+            case .sorting:
+                "Перенос, папки и ссылки"
             case .settings:
                 "Воркер, сессия и обновления"
             }
@@ -43,6 +48,8 @@ extension ContentView {
                 "list.bullet.rectangle.portrait"
             case .reels:
                 "play.rectangle.on.rectangle"
+            case .sorting:
+                "folder.badge.gearshape"
             case .settings:
                 "gearshape.fill"
             }

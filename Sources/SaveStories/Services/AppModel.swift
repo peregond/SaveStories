@@ -7,6 +7,9 @@ final class AppModel: ObservableObject {
     static let recentBatchListsKey = "SaveStories.recentBatchLists"
     private static let mediaSelectionModeKey = "SaveStories.mediaSelectionMode"
     static let saveDirectoryKey = "SaveStories.saveDirectory"
+    static let distributionRootDirectoryKey = "SaveStories.distributionRootDirectory"
+    static let sortingSourceDirectoryKey = "SaveStories.sortingSourceDirectory"
+    static let folderRoutingRulesKey = "SaveStories.folderRoutingRules"
     private static let preventSleepDuringDownloadsKey = "SaveStories.preventSleepDuringDownloads"
     private static let actionSoundNames = ["Pop", "Tink", "Glass"]
     private static let successSoundNames = ["Glass", "Hero", "Funk", "Pop"]
@@ -102,6 +105,20 @@ final class AppModel: ObservableObject {
         }
     }
 
+    struct PostProcessedItem: Identifiable, Hashable {
+        let id: String
+        let originalUsername: String
+        let targetFolderName: String
+        let currentPath: String
+
+        var reportHeader: String {
+            if targetFolderName.caseInsensitiveCompare(originalUsername) == .orderedSame {
+                return "[\(targetFolderName)]"
+            }
+            return "[\(targetFolderName) (\(originalUsername))]"
+        }
+    }
+
     enum DownloadMode: String, CaseIterable, Identifiable {
         case background
         case visible
@@ -178,6 +195,13 @@ final class AppModel: ObservableObject {
         }
     }
     @Published var saveDirectory: URL = AppPaths.defaultDownloads
+    @Published var distributionRootDirectory: URL?
+    @Published var sortingSourceDirectory: URL?
+    @Published var folderRoutingRules: String = "" {
+        didSet {
+            UserDefaults.standard.set(folderRoutingRules, forKey: Self.folderRoutingRulesKey)
+        }
+    }
     @Published var workerSummary: String = "Воркер ещё не проверялся."
     @Published var sessionSummary: String = "Состояние сессии неизвестно."
     @Published var lastResult: String = "Действий пока не было."
@@ -208,6 +232,10 @@ final class AppModel: ObservableObject {
     @Published var celebrationToken = 0
     @Published var liveDownloadedFileCount = 0
     @Published var liveCreatedFolderCount = 0
+    @Published var latestSessionDownloadedItems: [WorkerItem] = []
+    @Published var postProcessedItems: [PostProcessedItem] = []
+    @Published var postProcessingSummary: String = "Постобработка ещё не запускалась."
+    @Published var googleDriveLinkSummary: String = "Ссылки Google Drive ещё не собирались."
 
     let worker = WorkerClient()
     let bootstrapper = WorkerBootstrapper()
@@ -228,6 +256,19 @@ final class AppModel: ObservableObject {
            !savedDirectory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {
             saveDirectory = URL(fileURLWithPath: savedDirectory, isDirectory: true)
+        }
+        if let distributionRoot = UserDefaults.standard.string(forKey: Self.distributionRootDirectoryKey),
+           !distributionRoot.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            distributionRootDirectory = URL(fileURLWithPath: distributionRoot, isDirectory: true)
+        }
+        if let sortingSource = UserDefaults.standard.string(forKey: Self.sortingSourceDirectoryKey),
+           !sortingSource.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            sortingSourceDirectory = URL(fileURLWithPath: sortingSource, isDirectory: true)
+        }
+        if let savedRules = UserDefaults.standard.string(forKey: Self.folderRoutingRulesKey) {
+            folderRoutingRules = savedRules
         }
         if let savedMediaMode = UserDefaults.standard.string(forKey: Self.mediaSelectionModeKey),
            let mode = MediaSelectionMode(rawValue: savedMediaMode)

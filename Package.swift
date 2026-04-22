@@ -24,6 +24,7 @@ let package = Package(
             path: "Sources/SaveStories",
             resources: [
                 .copy("Resources/bootstrap_worker.sh"),
+                .copy("Resources/google_drive_copy_link.applescript"),
                 .copy("Resources/update_config.json"),
                 .copy("Resources/worker"),
             ]

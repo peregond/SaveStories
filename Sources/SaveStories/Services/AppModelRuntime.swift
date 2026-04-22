@@ -162,6 +162,9 @@ extension AppModel {
         if isDownloadOperation {
             foundStoriesCount = 0
             savedStoriesCount = 0
+            latestSessionDownloadedItems = []
+            postProcessedItems = []
+            postProcessingSummary = "Идёт новая выгрузка. После неё можно будет разложить файлы."
             isDownloadActivityInProgress = true
             refreshSleepPreventionForCurrentState()
             beginLiveDownloadTracking()
@@ -188,6 +191,13 @@ extension AppModel {
     func append(_ response: WorkerResponse) {
         if !response.items.isEmpty {
             downloadedItems = response.items + downloadedItems
+            if isDownloadActivityInProgress {
+                let existingIDs = Set(latestSessionDownloadedItems.map(\.id))
+                let freshItems = response.items.filter { !existingIDs.contains($0.id) }
+                if !freshItems.isEmpty {
+                    latestSessionDownloadedItems.append(contentsOf: freshItems)
+                }
+            }
         }
 
         if let found = Int(response.data["foundCount"] ?? "") {
