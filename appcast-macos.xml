@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.16</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.17</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.16</title>
-      <pubDate>Sun, 12 Apr 2026 20:06:33 GMT</pubDate>
-      <sparkle:version>84</sparkle:version>
-      <sparkle:shortVersionString>0.6.16</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.16</h2>
-<ul><li>Исправлено автообновление macOS со старых версий (включая 0.6.2): возвращён совместимый `CFBundleIdentifier` для корректного перехода через Sparkle</li><li>Для Windows обновлена иконка приложения в более живом emoji-стиле</li><li>В интерфейсе Windows (WinUI) прокрутка страниц `Stories`, `Reels` и `Очередь` теперь единая, а не раздельная по колонкам</li></ul>]]></description>
+      <title>SaveMe 0.6.17</title>
+      <pubDate>Wed, 22 Apr 2026 11:02:39 GMT</pubDate>
+      <sparkle:version>85</sparkle:version>
+      <sparkle:shortVersionString>0.6.17</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.17</h2>
+<ul><li>В macOS добавлен отдельный раздел `Сортировка` с пошаговым сценарием: выбрать папку `Перенос`, папку назначения, при необходимости правила и затем разложить файлы</li><li>После раскладки приложение может собрать готовый список файлов по папкам и скопировать его в буфер обмена</li><li>Для файлов внутри Google Drive добавлено копирование ссылок: сначала через метаданные `drivefs`, а если их нет, через запасной путь через Finder</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.16/SaveMe-macOS-v0.6.16.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.17/SaveMe-macOS-v0.6.17.dmg"
         sparkle:os="macos"
-        length="187313628"
+        length="187402677"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="TE9pDqsaBEOl7qZSLlEbKX6dz7HbsxA9ssN4GMv0nMB9RtyS/Q+Wno7ecX/UESSistW/h5nIFUA6zLtB4R7FDA==" />
+        sparkle:edSignature="63PppRkFTea5BABazQ8uTeSh36gpFk9BM3HPgiwTdWxTeVU2OtcUpLRI8t15A6PRpMntEUr2FVIo2Eo3hu+uBg==" />
     </item>
   </channel>
 </rss>
