@@ -1052,7 +1052,7 @@ struct ContentView: View {
                 sortingStepCard(
                     number: "3",
                     title: "Добавь правила при необходимости",
-                    detail: "Если оставить пусто, будет использоваться имя ника.",
+                    detail: "Укажи страну или полный путь для конкретного блогера.",
                     isActive: sortingHasSource && sortingHasDestination,
                     isDone: sortingRuleCount > 0
                 ) {
@@ -1060,12 +1060,12 @@ struct ContentView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             textEditorCard(
                                 text: $model.folderRoutingRules,
-                                placeholder: "nick = Папка блогера\nnick2 = Germany (DE)/nick2"
+                                placeholder: "nick = Germany (DE)\nnick2 = Australia (AU)/Папка блогера"
                             )
                             .frame(height: 124)
                             .clipShape(RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous))
 
-                            Text("Можно указывать и вложенные папки, например: `nick = Australia (AU)/nick`.")
+                            Text("Если указать только страну, приложение само добавит внутрь папку блогера: `nick = Germany (DE)` → `Germany (DE)/nick`.")
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(quaternaryText)
                                 .fixedSize(horizontal: false, vertical: true)

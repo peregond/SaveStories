@@ -278,8 +278,24 @@ extension AppModel {
     }
 
     private func targetRelativeFolderPath(for username: String, mapping: [String: String]) -> String {
-        let mapped = mapping[username.lowercased()]?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return (mapped?.isEmpty == false ? mapped! : username)
+        guard let mapped = mapping[username.lowercased()]?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !mapped.isEmpty
+        else {
+            return username
+        }
+
+        let sanitized = mapped
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        guard !sanitized.isEmpty else { return username }
+
+        if sanitized.count == 1 {
+            return sanitized[0] + "/" + username
+        }
+
+        return sanitized.joined(separator: "/")
     }
 
     private func sourceUsername(for item: WorkerItem) -> String {
@@ -302,17 +318,33 @@ extension AppModel {
 
         let stem = candidate.deletingPathExtension().lastPathComponent
         let ext = candidate.pathExtension
-        var index = 2
+        let numberedName = splitTrailingNumber(from: stem)
+        var index = numberedName.nextNumber
 
         while true {
-            let suffix = " \(index)"
-            let adjustedName = ext.isEmpty ? "\(stem)\(suffix)" : "\(stem)\(suffix).\(ext)"
+            let adjustedStem = numberedName.prefix + formattedNumber(index, width: numberedName.width)
+            let adjustedName = ext.isEmpty ? adjustedStem : "\(adjustedStem).\(ext)"
             let adjustedURL = directory.appendingPathComponent(adjustedName, isDirectory: false)
             if !fileManager.fileExists(atPath: adjustedURL.path) {
                 return adjustedURL
             }
             index += 1
         }
+    }
+
+    private func splitTrailingNumber(from stem: String) -> (prefix: String, nextNumber: Int, width: Int) {
+        guard let range = stem.range(of: #"\d+$"#, options: .regularExpression) else {
+            return ("\(stem) ", 2, 0)
+        }
+
+        let numberText = String(stem[range])
+        let prefix = String(stem[..<range.lowerBound])
+        return (prefix, (Int(numberText) ?? 1) + 1, numberText.count)
+    }
+
+    private func formattedNumber(_ number: Int, width: Int) -> String {
+        guard width > 0 else { return "\(number)" }
+        return String(format: "%0\(width)d", number)
     }
 
     private func synchronizeDownloadedItems(with updatedItems: [WorkerItem]) {
