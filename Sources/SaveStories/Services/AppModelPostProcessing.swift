@@ -58,7 +58,7 @@ extension AppModel {
                 }
             )
 
-            let report = self.buildGoogleDriveLinkReport(from: outcomes)
+            let report = self.buildDigestReport(from: outcomes)
             let successCount = outcomes.filter { $0.link != nil }.count
             let failureCount = outcomes.count - successCount
 
@@ -205,7 +205,7 @@ extension AppModel {
     }
 
     func parsedFolderRoutingRules() -> [String: String] {
-        folderRoutingRules
+        let mapping: [String: String] = folderRoutingRules
             .split(whereSeparator: \.isNewline)
             .reduce(into: [:]) { partialResult, rawLine in
                 let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -217,6 +217,8 @@ extension AppModel {
                 guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else { return }
                 partialResult[parts[0].lowercased()] = parts[1]
             }
+        rememberBloggers(from: mapping)
+        return mapping
     }
 
     func persistFolderRoutingRules() {
@@ -277,6 +279,44 @@ extension AppModel {
         .joined(separator: "\n\n")
     }
 
+    private func buildDigestReport(from outcomes: [GoogleDriveLinkExporter.ExportOutcome]) -> String {
+        guard !outcomes.isEmpty else { return "" }
+
+        let recordsByID = Dictionary(uniqueKeysWithValues: currentPostProcessingRecords().map { ($0.id, $0) })
+        let groupedByCountry = Dictionary(grouping: outcomes) { outcome in
+            countryFolder(from: recordsByID[outcome.record.id]?.targetFolderName ?? outcome.record.header)
+        }
+        let countries = groupedByCountry.keys.sorted {
+            $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
+        }
+
+        return countries.map { country in
+            let byBlogger = Dictionary(grouping: groupedByCountry[country] ?? []) { outcome in
+                recordsByID[outcome.record.id]?.originalUsername ?? outcome.record.header
+            }
+            let bloggerBlocks = byBlogger.keys.sorted {
+                $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
+            }
+            .map { blogger in
+                let links = (byBlogger[blogger] ?? [])
+                    .sorted { $0.record.filePath.localizedStandardCompare($1.record.filePath) == .orderedAscending }
+                    .map { outcome -> String in
+                        if let link = outcome.link, !link.isEmpty {
+                            return link
+                        }
+                        let filename = URL(fileURLWithPath: outcome.record.filePath).lastPathComponent
+                        return "# не удалось получить ссылку: \(filename)"
+                    }
+                    .joined(separator: "\n")
+                return "\(blogger)\n\(links)"
+            }
+            .joined(separator: "\n\n")
+
+            return "\(country)\n\n\(bloggerBlocks)"
+        }
+        .joined(separator: "\n\n")
+    }
+
     private func targetRelativeFolderPath(for username: String, mapping: [String: String]) -> String {
         guard let mapped = mapping[username.lowercased()]?.trimmingCharacters(in: .whitespacesAndNewlines),
               !mapped.isEmpty
@@ -296,6 +336,77 @@ extension AppModel {
         }
 
         return sanitized.joined(separator: "/")
+    }
+
+    private func countryFolder(from targetRelativeFolder: String) -> String {
+        let components = targetRelativeFolder
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return components.first ?? "Без страны"
+    }
+
+    private func rememberBloggers(from mapping: [String: String]) {
+        guard !mapping.isEmpty else { return }
+
+        let existing = Dictionary(uniqueKeysWithValues: rememberedBloggers.map { ($0.id, $0) })
+        let merged = mapping.reduce(into: existing) { partialResult, entry in
+            let username = entry.key
+            let targetFolder = targetRelativeFolderPath(for: username, mapping: mapping)
+            partialResult[username] = RememberedBlogger(
+                username: username,
+                countryFolder: countryFolder(from: targetFolder),
+                targetFolder: targetFolder,
+                lastUsedAt: Date()
+            )
+        }
+
+        rememberedBloggers = merged.values.sorted {
+            if $0.countryFolder == $1.countryFolder {
+                return $0.username.localizedCaseInsensitiveCompare($1.username) == .orderedAscending
+            }
+            return $0.countryFolder.localizedCaseInsensitiveCompare($1.countryFolder) == .orderedAscending
+        }
+        saveRememberedBloggers()
+    }
+
+    private func rememberBloggers(from records: [PostProcessedItem]) {
+        guard !records.isEmpty else { return }
+
+        var merged = Dictionary(uniqueKeysWithValues: rememberedBloggers.map { ($0.id, $0) })
+        for record in records {
+            merged[record.originalUsername.lowercased()] = RememberedBlogger(
+                username: record.originalUsername,
+                countryFolder: countryFolder(from: record.targetFolderName),
+                targetFolder: record.targetFolderName,
+                lastUsedAt: Date()
+            )
+        }
+
+        rememberedBloggers = merged.values.sorted {
+            if $0.countryFolder == $1.countryFolder {
+                return $0.username.localizedCaseInsensitiveCompare($1.username) == .orderedAscending
+            }
+            return $0.countryFolder.localizedCaseInsensitiveCompare($1.countryFolder) == .orderedAscending
+        }
+        saveRememberedBloggers()
+    }
+
+    func loadRememberedBloggers() {
+        guard let data = UserDefaults.standard.data(forKey: Self.rememberedBloggersKey),
+              let decoded = try? JSONDecoder().decode([RememberedBlogger].self, from: data)
+        else { return }
+        rememberedBloggers = decoded.sorted {
+            if $0.countryFolder == $1.countryFolder {
+                return $0.username.localizedCaseInsensitiveCompare($1.username) == .orderedAscending
+            }
+            return $0.countryFolder.localizedCaseInsensitiveCompare($1.countryFolder) == .orderedAscending
+        }
+    }
+
+    private func saveRememberedBloggers() {
+        guard let data = try? JSONEncoder().encode(rememberedBloggers) else { return }
+        UserDefaults.standard.set(data, forKey: Self.rememberedBloggersKey)
     }
 
     private func sourceUsername(for item: WorkerItem) -> String {
@@ -424,6 +535,7 @@ extension AppModel {
             }
             return $0.targetFolderName.localizedCaseInsensitiveCompare($1.targetFolderName) == .orderedAscending
         }
+        rememberBloggers(from: postProcessedItems)
 
         if movedCount > 0 {
             postProcessingSummary = "Разложено файлов: \(movedCount). Подпапок затронуто: \(Set(movedRecords.map(\.targetFolderName)).count)."

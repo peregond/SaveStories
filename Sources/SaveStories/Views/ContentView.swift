@@ -120,7 +120,13 @@ struct ContentView: View {
     }
 
     var sortingRuleCount: Int {
-        model.parsedFolderRoutingRules().count
+        model.folderRoutingRules
+            .split(whereSeparator: \.isNewline)
+            .filter { rawLine in
+                let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                return !line.isEmpty && !line.hasPrefix("#") && line.contains("=")
+            }
+            .count
     }
 
     var sortingHasSource: Bool {
@@ -1069,6 +1075,22 @@ struct ContentView: View {
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(quaternaryText)
                                 .fixedSize(horizontal: false, vertical: true)
+
+                            Text("Запомнено блогеров: \(model.rememberedBloggers.count). Список обновляется после правил и каждого переноса.")
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                .foregroundStyle(secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            if !model.rememberedBloggers.isEmpty {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    ForEach(model.rememberedBloggers.prefix(6)) { blogger in
+                                        Text("\(blogger.countryFolder): \(blogger.username)")
+                                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                                            .foregroundStyle(quaternaryText)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
                         }
                         .padding(.top, 8)
                     } label: {
@@ -1139,7 +1161,7 @@ struct ContentView: View {
                 sortingStepCard(
                     number: "5",
                     title: "Скопируй готовый результат",
-                    detail: "Можно скопировать список файлов или сразу ссылки Google Drive.",
+                    detail: "Drive-ссылки копируются дайджестом: страна, блогер, ссылки.",
                     isActive: sortingHasResults,
                     isDone: false
                 ) {

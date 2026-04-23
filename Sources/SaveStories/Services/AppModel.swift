@@ -10,6 +10,7 @@ final class AppModel: ObservableObject {
     static let distributionRootDirectoryKey = "SaveStories.distributionRootDirectory"
     static let sortingSourceDirectoryKey = "SaveStories.sortingSourceDirectory"
     static let folderRoutingRulesKey = "SaveStories.folderRoutingRules"
+    static let rememberedBloggersKey = "SaveStories.rememberedBloggers"
     private static let preventSleepDuringDownloadsKey = "SaveStories.preventSleepDuringDownloads"
     private static let actionSoundNames = ["Pop", "Tink", "Glass"]
     private static let successSoundNames = ["Glass", "Hero", "Funk", "Pop"]
@@ -117,6 +118,14 @@ final class AppModel: ObservableObject {
             }
             return "[\(targetFolderName) (\(originalUsername))]"
         }
+    }
+
+    struct RememberedBlogger: Identifiable, Codable, Hashable {
+        var id: String { username.lowercased() }
+        let username: String
+        var countryFolder: String
+        var targetFolder: String
+        var lastUsedAt: Date
     }
 
     enum DownloadMode: String, CaseIterable, Identifiable {
@@ -236,6 +245,7 @@ final class AppModel: ObservableObject {
     @Published var postProcessedItems: [PostProcessedItem] = []
     @Published var postProcessingSummary: String = "Постобработка ещё не запускалась."
     @Published var googleDriveLinkSummary: String = "Ссылки Google Drive ещё не собирались."
+    @Published var rememberedBloggers: [RememberedBlogger] = []
 
     let worker = WorkerClient()
     let bootstrapper = WorkerBootstrapper()
@@ -270,6 +280,7 @@ final class AppModel: ObservableObject {
         if let savedRules = UserDefaults.standard.string(forKey: Self.folderRoutingRulesKey) {
             folderRoutingRules = savedRules
         }
+        loadRememberedBloggers()
         if let savedMediaMode = UserDefaults.standard.string(forKey: Self.mediaSelectionModeKey),
            let mode = MediaSelectionMode(rawValue: savedMediaMode)
         {
