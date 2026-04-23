@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.17</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.18</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.17</title>
-      <pubDate>Wed, 22 Apr 2026 11:02:39 GMT</pubDate>
-      <sparkle:version>85</sparkle:version>
-      <sparkle:shortVersionString>0.6.17</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.17</h2>
-<ul><li>В macOS добавлен отдельный раздел `Сортировка` с пошаговым сценарием: выбрать папку `Перенос`, папку назначения, при необходимости правила и затем разложить файлы</li><li>После раскладки приложение может собрать готовый список файлов по папкам и скопировать его в буфер обмена</li><li>Для файлов внутри Google Drive добавлено копирование ссылок: сначала через метаданные `drivefs`, а если их нет, через запасной путь через Finder</li></ul>]]></description>
+      <title>SaveMe 0.6.18</title>
+      <pubDate>Thu, 23 Apr 2026 12:06:17 GMT</pubDate>
+      <sparkle:version>86</sparkle:version>
+      <sparkle:shortVersionString>0.6.18</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.18</h2>
+<ul><li>В `Сортировке` правило вида `nick = Germany (DE)` теперь раскладывает файлы в `Germany (DE)/nick`, а не прямо в папку страны</li><li>Полные вложенные правила вроде `nick = Australia (AU)/Папка блогера` продолжают работать как явный путь назначения</li><li>При конфликте имён приложение подбирает следующий порядковый номер файла и не перезаписывает существующие файлы</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.17/SaveMe-macOS-v0.6.17.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.18/SaveMe-macOS-v0.6.18.dmg"
         sparkle:os="macos"
-        length="187402677"
+        length="187793480"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="63PppRkFTea5BABazQ8uTeSh36gpFk9BM3HPgiwTdWxTeVU2OtcUpLRI8t15A6PRpMntEUr2FVIo2Eo3hu+uBg==" />
+        sparkle:edSignature="OAvBvPFm/bBvcRg9vHaUfhMf+JB4CVeRoHjxQQfYfQ4FwfsaewW2k5RAX3lRph/FSIsAtJGYI4X4WeBvGQ9xAg==" />
     </item>
   </channel>
 </rss>
