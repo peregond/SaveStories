@@ -12,7 +12,7 @@ public enum BetaTheme
 public sealed class BetaSettingsStore
 {
     private const string FileName = "settings.json";
-    private const int CurrentSchemaVersion = 3;
+    private const int CurrentSchemaVersion = 4;
     private static readonly Lazy<BetaSettingsStore> LazyInstance = new(() => new BetaSettingsStore());
 
     private readonly string _settingsDirectory;
@@ -23,6 +23,10 @@ public sealed class BetaSettingsStore
     public BetaTheme Theme { get; private set; } = BetaTheme.System;
     public bool RuntimePromptShown { get; private set; }
     public string LastUpdateCheckAt { get; private set; } = "";
+    public string SortingSourceDirectory { get; private set; } = "";
+    public string SortingDestinationDirectory { get; private set; } = "";
+    public string SortingRules { get; private set; } = "";
+    public List<RememberedBloggerPayload> RememberedBloggers { get; private set; } = new();
 
     public event EventHandler<BetaTheme>? ThemeChanged;
 
@@ -53,6 +57,10 @@ public sealed class BetaSettingsStore
             }
             RuntimePromptShown = payload?.RuntimePromptShown ?? false;
             LastUpdateCheckAt = payload?.LastUpdateCheckAt ?? "";
+            SortingSourceDirectory = payload?.SortingSourceDirectory ?? "";
+            SortingDestinationDirectory = payload?.SortingDestinationDirectory ?? "";
+            SortingRules = payload?.SortingRules ?? "";
+            RememberedBloggers = payload?.RememberedBloggers ?? new List<RememberedBloggerPayload>();
             if (schemaVersion < CurrentSchemaVersion)
             {
                 Save();
@@ -63,6 +71,10 @@ public sealed class BetaSettingsStore
             Theme = BetaTheme.System;
             RuntimePromptShown = false;
             LastUpdateCheckAt = "";
+            SortingSourceDirectory = "";
+            SortingDestinationDirectory = "";
+            SortingRules = "";
+            RememberedBloggers = new List<RememberedBloggerPayload>();
         }
     }
 
@@ -97,6 +109,30 @@ public sealed class BetaSettingsStore
         Save();
     }
 
+    public void SetSortingSourceDirectory(string path)
+    {
+        SortingSourceDirectory = path ?? "";
+        Save();
+    }
+
+    public void SetSortingDestinationDirectory(string path)
+    {
+        SortingDestinationDirectory = path ?? "";
+        Save();
+    }
+
+    public void SetSortingRules(string rules)
+    {
+        SortingRules = rules ?? "";
+        Save();
+    }
+
+    public void SetRememberedBloggers(IEnumerable<RememberedBloggerPayload> bloggers)
+    {
+        RememberedBloggers = bloggers.ToList();
+        Save();
+    }
+
     private void Save()
     {
         Directory.CreateDirectory(_settingsDirectory);
@@ -111,6 +147,10 @@ public sealed class BetaSettingsStore
             },
             RuntimePromptShown = RuntimePromptShown,
             LastUpdateCheckAt = LastUpdateCheckAt,
+            SortingSourceDirectory = SortingSourceDirectory,
+            SortingDestinationDirectory = SortingDestinationDirectory,
+            SortingRules = SortingRules,
+            RememberedBloggers = RememberedBloggers,
         };
         var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(_settingsPath, json);
@@ -157,5 +197,17 @@ public sealed class BetaSettingsStore
         public string? Theme { get; set; }
         public bool RuntimePromptShown { get; set; }
         public string? LastUpdateCheckAt { get; set; }
+        public string? SortingSourceDirectory { get; set; }
+        public string? SortingDestinationDirectory { get; set; }
+        public string? SortingRules { get; set; }
+        public List<RememberedBloggerPayload>? RememberedBloggers { get; set; }
     }
+}
+
+public sealed class RememberedBloggerPayload
+{
+    public string Username { get; set; } = "";
+    public string CountryFolder { get; set; } = "";
+    public string TargetFolder { get; set; } = "";
+    public DateTimeOffset LastUsedAt { get; set; } = DateTimeOffset.Now;
 }

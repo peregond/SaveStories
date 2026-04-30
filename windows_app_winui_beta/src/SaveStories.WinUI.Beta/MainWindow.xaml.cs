@@ -44,6 +44,9 @@ public sealed partial class MainWindow : Window
             case "reels":
                 ContentFrame.Navigate(typeof(ReelsPage));
                 break;
+            case "sorting":
+                ContentFrame.Navigate(typeof(SortingPage));
+                break;
             case "settings":
                 ContentFrame.Navigate(typeof(SettingsPage));
                 break;

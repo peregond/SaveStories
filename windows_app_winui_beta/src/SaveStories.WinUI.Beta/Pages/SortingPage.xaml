@@ -1,0 +1,107 @@
+<Page
+    x:Class="SaveMe.WinUI.Beta.Pages.SortingPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <ScrollViewer HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+        <Grid Padding="24,16,24,24" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="2*" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Spacing="12">
+                <Border Style="{StaticResource AppCardBorderStyle}">
+                    <StackPanel Spacing="8">
+                        <TextBlock FontSize="20" FontWeight="SemiBold" Text="Сортировка" />
+                        <TextBlock Style="{StaticResource AppSecondaryTextStyle}" Text="Разложить файлы из папки Перенос по странам и блогерам" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource AppCardBorderStyle}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="1. ПАПКА ПЕРЕНОС" />
+                        <TextBlock
+                            x:Name="SourceDirectoryText"
+                            Style="{StaticResource AppSecondaryTextStyle}"
+                            TextWrapping="WrapWholeWords" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Click="OnChangeSourceDirectoryClick" Content="Выбрать папку" />
+                            <Button Click="OnOpenSourceDirectoryClick" Content="Открыть" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource AppCardBorderStyle}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="2. ПАПКА НАЗНАЧЕНИЯ" />
+                        <TextBlock
+                            x:Name="DestinationDirectoryText"
+                            Style="{StaticResource AppSecondaryTextStyle}"
+                            TextWrapping="WrapWholeWords" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Click="OnChangeDestinationDirectoryClick" Content="Выбрать папку" />
+                            <Button Click="OnOpenDestinationDirectoryClick" Content="Открыть" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource AppCardBorderStyle}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="3. ПРАВИЛА" />
+                        <TextBox
+                            x:Name="RulesTextBox"
+                            AcceptsReturn="True"
+                            MinHeight="130"
+                            PlaceholderText="nick = Germany (DE)&#x0a;nick2 = Australia (AU)\Папка блогера"
+                            TextChanged="OnRulesChanged"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            x:Name="RememberedSummaryText"
+                            Style="{StaticResource AppSecondaryTextStyle}"
+                            TextWrapping="WrapWholeWords" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource AppCardBorderStyle}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="4. ПЕРЕНОС" />
+                        <TextBlock
+                            x:Name="SortingStatusText"
+                            Style="{StaticResource AppSecondaryTextStyle}"
+                            Text="Готово к сортировке."
+                            TextWrapping="WrapWholeWords" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Click="OnRunSortingClick" Content="Разложить из папки Перенос" Style="{StaticResource SuccessActionButtonStyle}" />
+                            <Button x:Name="CopyDigestButton" Click="OnCopyDigestClick" Content="Скопировать дайджест" IsEnabled="False" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Spacing="12">
+                <Border Style="{StaticResource AppCardBorderStyle}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ЗАПОМНЕННЫЕ БЛОГЕРЫ" />
+                        <ListView x:Name="RememberedBloggersListView" MaxHeight="260" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource AppCardBorderStyle}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ДАЙДЖЕСТ" />
+                        <TextBox
+                            x:Name="DigestTextBox"
+                            AcceptsReturn="True"
+                            IsReadOnly="True"
+                            MinHeight="320"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</Page>

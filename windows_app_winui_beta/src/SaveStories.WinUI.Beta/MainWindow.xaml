@@ -45,6 +45,7 @@
                 <NavigationViewItem Content="Stories" Icon="Contact" Tag="stories" />
                 <NavigationViewItem Content="Очередь профилей" Icon="Bullets" Tag="queue" />
                 <NavigationViewItem Content="Reels" Icon="Video" Tag="reels" />
+                <NavigationViewItem Content="Сортировка" Icon="Folder" Tag="sorting" />
             </NavigationView.MenuItems>
 
             <NavigationView.FooterMenuItems>
