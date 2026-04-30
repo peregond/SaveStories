@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.19</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.20</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.19</title>
-      <pubDate>Thu, 23 Apr 2026 12:15:06 GMT</pubDate>
-      <sparkle:version>87</sparkle:version>
-      <sparkle:shortVersionString>0.6.19</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.19</h2>
-<ul><li>`Сортировка` теперь запоминает блогеров из правил и фактических переносов, сохраняя страну/папку назначения между запусками</li><li>В правилах показывается счётчик и короткий список уже запомненных блогеров</li><li>Google Drive ссылки теперь копируются дайджестом в формате: страна, блогер, ссылки</li></ul>]]></description>
+      <title>SaveMe 0.6.20</title>
+      <pubDate>Thu, 30 Apr 2026 09:51:33 GMT</pubDate>
+      <sparkle:version>88</sparkle:version>
+      <sparkle:shortVersionString>0.6.20</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.20</h2>
+<ul><li>В Windows-версии добавлен отдельный раздел `Сортировка` для переноса файлов из папки `Перенос`</li><li>Правила вида `nick = Germany (DE)` раскладывают файлы в `Germany (DE)\nick`, а полный путь можно указать явно</li><li>Windows-сортировка запоминает блогеров, переименовывает файлы при конфликтах и копирует дайджест по странам и блогерам</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.19/SaveMe-macOS-v0.6.19.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.20/SaveMe-macOS-v0.6.20.dmg"
         sparkle:os="macos"
-        length="187684835"
+        length="187699277"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="MhaZGntL5FAHCxRBaZfvYDBHpNYici2vYxbNtF0MeDy0zEZjSiDzhkt7/5OMTwuarmouNpcSuNB469OJVC4xDg==" />
+        sparkle:edSignature="d1hhFrPBr3PV4b8tEPRcPPPLuqtMG42x5iIRa4ff5ISgYjpYUpnB/JS3NIKPpAmpIFyKMA2WyzXAST3y6AJtAw==" />
     </item>
   </channel>
 </rss>
