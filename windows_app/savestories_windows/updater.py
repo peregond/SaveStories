@@ -351,4 +351,3 @@ class WindowsUpdater:
         if result.returncode != 0:
             details = (result.stderr or result.stdout or "unknown signature verification error").strip()
             raise WindowsUpdaterError(f"Подпись установщика обновления недействительна. {details}")
-
