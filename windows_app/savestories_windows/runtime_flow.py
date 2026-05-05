@@ -106,7 +106,9 @@ class MainWindowRuntimeFlowMixin:
             f"profile={response.data.get('browserProfile', str(AppPaths.browser_profile()))}",
             f"browsers={response.data.get('playwrightBrowsers', str(AppPaths.playwright_browsers()))}",
             f"manifests={response.data.get('manifests', str(AppPaths.manifests_directory()))}",
+            f"logs={response.data.get('logsDirectory', str(AppPaths.logs_directory()))}",
             f"default_downloads={AppPaths.default_downloads()}",
+            f"health={response.data.get('health', '[]')}",
         ]
         return "\n".join(lines)
 
@@ -365,12 +367,16 @@ class MainWindowRuntimeFlowMixin:
 
     def apply_response(self, response: WorkerResponse) -> None:
         self.set_status("Готово" if response.ok else "Ошибка", response.message)
-        if "foundCount" in response.data:
+        if response.counts is not None:
+            self.found_label.setText(f"Найдено: {response.counts.found}")
+        elif "foundCount" in response.data:
             self.found_label.setText(f"Найдено: {response.data['foundCount']}")
         elif response.status.startswith("download"):
             self.found_label.setText(f"Найдено: {len(response.items)}")
 
-        if "savedCount" in response.data:
+        if response.counts is not None:
+            self.saved_label.setText(f"Сохранено: {response.counts.saved}")
+        elif "savedCount" in response.data:
             self.saved_label.setText(f"Сохранено: {response.data['savedCount']}")
         elif response.status == "download_complete":
             self.saved_label.setText(f"Сохранено: {len(response.items)}")
@@ -563,6 +569,8 @@ class MainWindowRuntimeFlowMixin:
         raw = str(response.data.get("savedCount", "")).strip()
         if raw.isdigit():
             return int(raw)
+        if response.counts is not None:
+            return response.counts.saved
         return len(response.items)
 
     def trigger_celebration(self) -> None:

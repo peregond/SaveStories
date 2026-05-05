@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import process from "node:process";
@@ -17,33 +18,35 @@ import {
   shouldSkipMediaVariant,
 } from "./media_utils.mjs";
 import { downloadReelsCommand } from "./reels_downloader.mjs";
+import {
+  buildWorkerResponse,
+  closePageAfterBatchTimeout,
+  errorMessage,
+  validateDownloadedMedia,
+  withRetry,
+  withTimeout,
+} from "./worker_utils.mjs";
 
 const APP_NAME = "SaveMe";
 const LEGACY_APP_NAMES = ["SaveStories", "DimaSave"];
 const BATCH_JOB_TIMEOUT_MS = 120_000;
 
-function emit(ok, status, message, { data = {}, items = [], logs = [] } = {}) {
-  process.stdout.write(
-    JSON.stringify({
-      ok,
-      status,
-      message,
-      data,
-      items,
-      logs,
-    }),
-  );
+function emit(ok, status, message, options = {}) {
+  const response = buildWorkerResponse(ok, status, message, options);
+  void appendWorkerEvent({
+    type: "response",
+    ok,
+    status,
+    message,
+    category: response.diagnostics?.category || "unknown",
+    counts: response.counts,
+    itemCount: response.items.length,
+  });
+  process.stdout.write(JSON.stringify(response));
 }
 
 function emitProgress(message) {
   process.stderr.write(`${message}\n`);
-}
-
-function errorMessage(error) {
-  if (error instanceof Error) {
-    return error.message || String(error);
-  }
-  return String(error);
 }
 
 function isClosedTargetMessage(message) {
@@ -60,22 +63,6 @@ function isClosedTargetMessage(message) {
 
 function isClosedTargetError(error) {
   return isClosedTargetMessage(errorMessage(error));
-}
-
-async function withTimeout(promise, timeoutMs, timeoutMessage) {
-  let timer = null;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timer) {
-      clearTimeout(timer);
-    }
-  }
 }
 
 async function readRequest() {
@@ -169,12 +156,41 @@ const MANIFESTS_DIRECTORY = process.env.SAVESTORIES_MANIFESTS || path.join(APP_S
 const SESSION_STATE = process.env.SAVESTORIES_SESSION_STATE || path.join(WORKER_ROOT, "storage-state.json");
 const DEFAULT_DOWNLOADS =
   process.env.SAVESTORIES_DEFAULT_DOWNLOADS || (await defaultDownloads(APP_SUPPORT));
+const LOGS_DIRECTORY = process.env.SAVESTORIES_LOGS || path.join(APP_SUPPORT, "logs");
+const WORKER_EVENTS_LOG = path.join(LOGS_DIRECTORY, "worker-events.jsonl");
 
 async function ensureDirectories() {
   await Promise.all(
-    [APP_SUPPORT, WORKER_ROOT, BROWSER_PROFILE, PLAYWRIGHT_BROWSERS, MANIFESTS_DIRECTORY, DEFAULT_DOWNLOADS].map(
+    [APP_SUPPORT, WORKER_ROOT, BROWSER_PROFILE, PLAYWRIGHT_BROWSERS, MANIFESTS_DIRECTORY, DEFAULT_DOWNLOADS, LOGS_DIRECTORY].map(
       (entry) => fs.mkdir(entry, { recursive: true }),
     ),
+  );
+}
+
+async function appendWorkerEvent(event) {
+  try {
+    fsSync.mkdirSync(LOGS_DIRECTORY, { recursive: true });
+    const payload = {
+      timestamp: new Date().toISOString(),
+      ...event,
+    };
+    fsSync.appendFileSync(WORKER_EVENTS_LOG, `${JSON.stringify(payload)}\n`, "utf8");
+  } catch {
+    // Diagnostics must never break downloads.
+  }
+}
+
+async function retryingGoto(page, url, options, logs, label = "goto") {
+  return await withRetry(
+    async () => await page.goto(url, options),
+    {
+      attempts: 2,
+      baseDelayMs: 800,
+      onRetry: ({ attempt, delayMs, error }) => {
+        logs?.push(`${label}_retry=${attempt}:${url}:${errorMessage(error)}`);
+        void appendWorkerEvent({ type: "retry", operation: label, url, attempt, delayMs, error: errorMessage(error) });
+      },
+    },
   );
 }
 
@@ -323,8 +339,11 @@ async function environmentCommand() {
     `session_state=${SESSION_STATE}`,
     `manifests=${MANIFESTS_DIRECTORY}`,
     `default_downloads=${DEFAULT_DOWNLOADS}`,
+    `logs=${LOGS_DIRECTORY}`,
     `node=${process.execPath}`,
   ];
+  const healthChecks = await runHealthChecks();
+  logs.push(...healthChecks.map((check) => `health_${check.name}=${check.ok ? "ok" : "failed"}:${check.message}`));
 
   try {
     const workerPackagePath = path.join(path.dirname(fileURLToPath(import.meta.url)), "package.json");
@@ -340,8 +359,11 @@ async function environmentCommand() {
         playwrightBrowsers: PLAYWRIGHT_BROWSERS,
         sessionState: SESSION_STATE,
         manifests: MANIFESTS_DIRECTORY,
+        logsDirectory: LOGS_DIRECTORY,
+        health: JSON.stringify(healthChecks),
       },
       logs,
+      diagnostics: { health: JSON.stringify(healthChecks) },
     });
   } catch {
     emit(false, "environment_missing", "Playwright не найден. Подготовьте среду в настройках приложения, чтобы установить Chromium.", {
@@ -353,10 +375,71 @@ async function environmentCommand() {
         playwrightBrowsers: PLAYWRIGHT_BROWSERS,
         sessionState: SESSION_STATE,
         manifests: MANIFESTS_DIRECTORY,
+        logsDirectory: LOGS_DIRECTORY,
+        health: JSON.stringify(healthChecks),
       },
       logs,
+      diagnostics: { health: JSON.stringify(healthChecks) },
     });
   }
+}
+
+async function checkHealth(name, action) {
+  try {
+    const message = await action();
+    return { name, ok: true, message: String(message || "OK") };
+  } catch (error) {
+    return { name, ok: false, message: errorMessage(error) };
+  }
+}
+
+async function runHealthChecks() {
+  return await Promise.all([
+    checkHealth("app_support_writable", async () => {
+      await fs.access(APP_SUPPORT, fs.constants.W_OK);
+      return APP_SUPPORT;
+    }),
+    checkHealth("downloads_writable", async () => {
+      await fs.mkdir(DEFAULT_DOWNLOADS, { recursive: true });
+      const probe = path.join(DEFAULT_DOWNLOADS, `.write_probe_${randomUUID()}.tmp`);
+      await fs.writeFile(probe, "ok", "utf8");
+      await fs.rm(probe, { force: true });
+      return DEFAULT_DOWNLOADS;
+    }),
+    checkHealth("node_runtime", async () => process.execPath),
+    checkHealth("playwright_package", async () => {
+      await importPlaywright();
+      return "installed";
+    }),
+    checkHealth("chromium_executable", async () => {
+      const { chromium } = await importPlaywright();
+      return chromium.executablePath();
+    }),
+    checkHealth("session_state", async () => {
+      try {
+        await fs.access(SESSION_STATE);
+        return SESSION_STATE;
+      } catch {
+        return "missing";
+      }
+    }),
+  ]);
+}
+
+async function healthCommand() {
+  await ensureDirectories();
+  const checks = await runHealthChecks();
+  const ok = checks.every((check) => check.ok);
+  emit(ok, ok ? "health_ready" : "health_failed", ok ? "Preflight checks passed." : "Некоторые проверки preflight не прошли.", {
+    data: {
+      runtime: "node",
+      node: process.execPath,
+      health: JSON.stringify(checks),
+      logsDirectory: LOGS_DIRECTORY,
+    },
+    logs: checks.map((check) => `health_${check.name}=${check.ok ? "ok" : "failed"}:${check.message}`),
+    diagnostics: { health: JSON.stringify(checks) },
+  });
 }
 
 async function loginCommand() {
@@ -367,7 +450,7 @@ async function loginCommand() {
   try {
     session = await launchContext(false);
     const page = await session.firstPage();
-    await page.goto("https://www.instagram.com/accounts/login/", { waitUntil: "domcontentloaded" });
+    await retryingGoto(page, "https://www.instagram.com/accounts/login/", { waitUntil: "domcontentloaded" }, logs, "login_goto");
     await page.waitForTimeout(1500);
     logs.push(`opened=${page.url()}`);
 
@@ -411,7 +494,7 @@ async function checkSessionCommand(headless = true) {
     session = await launchContext(headless);
     const page = await session.firstPage();
     await prepareBackgroundWindow(session, page, logs);
-    await page.goto("https://www.instagram.com/", { waitUntil: "domcontentloaded" });
+    await retryingGoto(page, "https://www.instagram.com/", { waitUntil: "domcontentloaded" }, logs, "session_goto");
     const loggedIn = await isLoggedIn(page);
     logs.push(`checked=${page.url()}`);
 
@@ -928,17 +1011,55 @@ async function fetchMediaBytes(sourceUrl, browserContext, refererUrl = null) {
       "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
   };
   if (refererUrl) headers.Referer = refererUrl;
-  const response = await browserContext.request.get(sourceUrl, {
-    headers,
-    timeout: 60_000,
-    failOnStatusCode: true,
-    ignoreHTTPSErrors: true,
-    maxRetries: 1,
-  });
+  const response = await withRetry(
+    async () => await browserContext.request.get(sourceUrl, {
+      headers,
+      timeout: 60_000,
+      failOnStatusCode: true,
+      ignoreHTTPSErrors: true,
+      maxRetries: 1,
+    }),
+    {
+      attempts: 3,
+      baseDelayMs: 700,
+      onRetry: ({ attempt, delayMs, error }) => {
+        void appendWorkerEvent({ type: "retry", operation: "fetch_media", url: sourceUrl, attempt, delayMs, error: errorMessage(error) });
+      },
+    },
+  );
   return {
     body: await response.body(),
     contentType: response.headers()["content-type"] || null,
   };
+}
+
+async function loadManifestIndex(manifestsDirectory) {
+  const sources = new Map();
+  const hashes = new Map();
+  try {
+    await fs.mkdir(manifestsDirectory, { recursive: true });
+    const entries = await fs.readdir(manifestsDirectory);
+    for (const entry of entries) {
+      if (!entry.endsWith(".json")) continue;
+      try {
+        const manifestPath = path.join(manifestsDirectory, entry);
+        const payload = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        const sourceURL = payload.sourceURL || payload.sourceUrl;
+        const sha256 = payload.sha256;
+        if (typeof sourceURL === "string" && sourceURL) {
+          sources.set(normalizeMediaUrl(sourceURL), { ...payload, manifestPath });
+        }
+        if (typeof sha256 === "string" && sha256) {
+          hashes.set(sha256.toLowerCase(), { ...payload, manifestPath });
+        }
+      } catch {
+        // Ignore malformed legacy manifests.
+      }
+    }
+  } catch {
+    // Empty or unavailable manifest directory should not block downloads.
+  }
+  return { sources, hashes };
 }
 
 function extensionFor(contentType, url, mediaType) {
@@ -965,7 +1086,14 @@ function looksLikeFragmentedMp4(body) {
 async function downloadMedia(sourceUrl, destinationDir, mediaType, username, index, browserContext, refererUrl = null) {
   await fs.mkdir(destinationDir, { recursive: true });
   const normalizedUrl = normalizeMediaUrl(sourceUrl);
-  const { body, contentType } = await fetchMediaBytes(normalizedUrl, browserContext, refererUrl);
+  const { body, contentType } = await withRetry(
+    async () => {
+      const fetched = await fetchMediaBytes(normalizedUrl, browserContext, refererUrl);
+      validateDownloadedMedia(fetched.body, mediaType, fetched.contentType);
+      return fetched;
+    },
+    { attempts: 2, baseDelayMs: 600 },
+  );
   if (mediaType === "video" && looksLikeFragmentedMp4(body)) {
     throw new Error("Скачан только фрагмент видео вместо полного файла.");
   }
@@ -973,18 +1101,27 @@ async function downloadMedia(sourceUrl, destinationDir, mediaType, username, ind
   const filename = `${sanitizeFilename(username)}-${String(index).padStart(3, "0")}${suffix}`;
   const localPath = path.join(destinationDir, filename);
   await fs.writeFile(localPath, body);
-  return { localPath, finalSourceUrl: normalizedUrl };
+  return { localPath, finalSourceUrl: normalizedUrl, contentLength: body.length };
 }
 
-async function writeManifest(itemId, pageUrl, sourceUrl, localPath, mediaType, createdAt) {
+async function writeManifest({ itemId, pageUrl, sourceUrl, localPath, mediaType, createdAt, username, storyId = "", sourceKind = "story", contentLength = 0 }) {
   const fileHash = createHash("sha256").update(await fs.readFile(localPath)).digest("hex");
   const payload = {
+    schemaVersion: 2,
     id: itemId,
     createdAt,
+    downloadedAt: createdAt,
+    command: "download_profile_stories",
+    username,
+    storyId,
+    shortcode: "",
+    sourceKind,
     pageURL: pageUrl,
     sourceURL: sourceUrl,
     localPath,
     mediaType,
+    contentLength,
+    diagnosticCategory: "ok",
     sha256: fileHash,
   };
   const manifestPath = path.join(MANIFESTS_DIRECTORY, `${itemId}.json`);
@@ -1014,6 +1151,7 @@ async function persistStoryItems(resolvedItems, destinationDir, username, browse
   const items = [];
   const seenSources = new Set();
   const seenHashes = new Set();
+  const manifestIndex = await loadManifestIndex(MANIFESTS_DIRECTORY);
   let nextIndexValue = await nextStoryIndex(destinationDir, username);
 
   for (const resolved of resolvedItems) {
@@ -1026,7 +1164,12 @@ async function persistStoryItems(resolvedItems, destinationDir, username, browse
       logs.push(`skipped_current_source=${normalizedSource}`);
       continue;
     }
-    const { localPath, finalSourceUrl } = await downloadMedia(
+    if (manifestIndex.sources.has(normalizedSource)) {
+      seenSources.add(normalizedSource);
+      logs.push(`skipped_existing_source=${normalizedSource}`);
+      continue;
+    }
+    const { localPath, finalSourceUrl, contentLength } = await downloadMedia(
       normalizedSource,
       destinationDir,
       resolved.mediaType,
@@ -1036,15 +1179,25 @@ async function persistStoryItems(resolvedItems, destinationDir, username, browse
       resolved.pageUrl,
     );
     const fileHash = createHash("sha256").update(await fs.readFile(localPath)).digest("hex");
-    if (seenHashes.has(fileHash)) {
+    if (seenHashes.has(fileHash) || manifestIndex.hashes.has(fileHash)) {
       await fs.rm(localPath, { force: true });
       seenSources.add(finalSourceUrl);
-      logs.push(`skipped_current_hash=${fileHash}`);
+      logs.push(`${seenHashes.has(fileHash) ? "skipped_current_hash" : "skipped_existing_hash"}=${fileHash}`);
       continue;
     }
     const itemId = randomUUID().replace(/-/g, "");
     const createdAt = new Date().toISOString();
-    const manifestPath = await writeManifest(itemId, resolved.pageUrl, finalSourceUrl, localPath, resolved.mediaType, createdAt);
+    const manifestPath = await writeManifest({
+      itemId,
+      pageUrl: resolved.pageUrl,
+      sourceUrl: finalSourceUrl,
+      localPath,
+      mediaType: resolved.mediaType,
+      createdAt,
+      username,
+      storyId: resolved.itemId,
+      contentLength,
+    });
     items.push({
       id: itemId,
       sourceURL: finalSourceUrl,
@@ -1056,6 +1209,8 @@ async function persistStoryItems(resolvedItems, destinationDir, username, browse
     });
     seenSources.add(finalSourceUrl);
     seenHashes.add(fileHash);
+    manifestIndex.sources.set(finalSourceUrl, { id: itemId, localPath, manifestPath });
+    manifestIndex.hashes.set(fileHash, { id: itemId, localPath, manifestPath });
     nextIndexValue += 1;
     logs.push(`saved=${localPath}`);
     logs.push(`manifest=${manifestPath}`);
@@ -1090,6 +1245,7 @@ async function collectStorySequence(page, destinationDir, username, jsonPayloads
   const seenHashes = new Set();
   const seenSignatures = new Set();
   const items = [];
+  const manifestIndex = await loadManifestIndex(MANIFESTS_DIRECTORY);
   let nextIndexValue = await nextStoryIndex(destinationDir, username);
 
   for (let i = 0; i < 50; i += 1) {
@@ -1110,6 +1266,10 @@ async function collectStorySequence(page, destinationDir, username, jsonPayloads
     if (seenSources.has(normalizedSource)) {
       seenSignatures.add(signature);
       logs.push(`skipped_current_source=${normalizedSource}`);
+    } else if (manifestIndex.sources.has(normalizedSource)) {
+      seenSignatures.add(signature);
+      seenSources.add(normalizedSource);
+      logs.push(`skipped_existing_source=${normalizedSource}`);
     } else {
       if (!shouldPersistMedia(media.mediaType, mediaFilter)) {
         seenSignatures.add(signature);
@@ -1120,7 +1280,7 @@ async function collectStorySequence(page, destinationDir, username, jsonPayloads
         }
         continue;
       }
-      const { localPath, finalSourceUrl } = await downloadMedia(
+      const { localPath, finalSourceUrl, contentLength } = await downloadMedia(
         normalizedSource,
         destinationDir,
         media.mediaType,
@@ -1130,15 +1290,25 @@ async function collectStorySequence(page, destinationDir, username, jsonPayloads
         media.pageUrl,
       );
       const fileHash = createHash("sha256").update(await fs.readFile(localPath)).digest("hex");
-      if (seenHashes.has(fileHash)) {
+      if (seenHashes.has(fileHash) || manifestIndex.hashes.has(fileHash)) {
         await fs.rm(localPath, { force: true });
         seenSignatures.add(signature);
         seenSources.add(finalSourceUrl);
-        logs.push(`skipped_current_hash=${fileHash}`);
+        logs.push(`${seenHashes.has(fileHash) ? "skipped_current_hash" : "skipped_existing_hash"}=${fileHash}`);
       } else {
         const itemId = randomUUID().replace(/-/g, "");
         const createdAt = new Date().toISOString();
-        const manifestPath = await writeManifest(itemId, media.pageUrl, finalSourceUrl, localPath, media.mediaType, createdAt);
+        const manifestPath = await writeManifest({
+          itemId,
+          pageUrl: media.pageUrl,
+          sourceUrl: finalSourceUrl,
+          localPath,
+          mediaType: media.mediaType,
+          createdAt,
+          username,
+          storyId: "",
+          contentLength,
+        });
         items.push({
           id: itemId,
           sourceURL: finalSourceUrl,
@@ -1151,6 +1321,8 @@ async function collectStorySequence(page, destinationDir, username, jsonPayloads
         seenSignatures.add(signature);
         seenSources.add(finalSourceUrl);
         seenHashes.add(fileHash);
+        manifestIndex.sources.set(finalSourceUrl, { id: itemId, localPath, manifestPath });
+        manifestIndex.hashes.set(fileHash, { id: itemId, localPath, manifestPath });
         nextIndexValue += 1;
         logs.push(`saved=${localPath}`);
         logs.push(`manifest=${manifestPath}`);
@@ -1192,7 +1364,7 @@ async function downloadProfileWithPage(page, profileUrl, outputDirectory, mediaF
     const networkCandidates = installNetworkCapture(page, logs);
 
     const profilePageUrl = `https://www.instagram.com/${username}/`;
-    await page.goto(profilePageUrl, { waitUntil: "domcontentloaded" });
+    await retryingGoto(page, profilePageUrl, { waitUntil: "domcontentloaded" }, logs, "profile_goto");
     await ensureLoggedIn(page);
     await persistSessionState(page.context(), logs);
     await page.waitForTimeout(1500);
@@ -1202,7 +1374,7 @@ async function downloadProfileWithPage(page, profileUrl, outputDirectory, mediaF
     const opened = await clickProfileStoryRing(page, username, logs);
     if (!opened) {
       const fallback = `https://www.instagram.com/stories/${username}/`;
-      await page.goto(fallback, { waitUntil: "domcontentloaded" });
+      await retryingGoto(page, fallback, { waitUntil: "domcontentloaded" }, logs, "story_fallback_goto");
       await ensureLoggedIn(page);
       logs.push(`profile_fallback=${fallback}`);
     }
@@ -1230,6 +1402,19 @@ async function downloadProfileWithPage(page, profileUrl, outputDirectory, mediaF
         status: "download_filtered",
         message: `Для профиля ${username} активные stories найдены, но видео для сохранения не обнаружены.`,
         data: { foundCount: String(foundCountAllStories), savedCount: "0" },
+        items: [],
+        logs,
+        username,
+        profileUrl,
+      };
+    }
+
+    if (result.items.length === 0 && result.logs.some((entry) => entry.startsWith("skipped_existing_"))) {
+      return {
+        ok: true,
+        status: "download_duplicate",
+        message: `Для профиля ${username} все найденные stories уже были сохранены ранее.`,
+        data: { foundCount: String(foundCount), savedCount: "0" },
         items: [],
         logs,
         username,
@@ -1401,6 +1586,7 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
           batchResults[job.index] = buildFailureResult(job.normalizedUrl, message);
           processedCount += 1;
           logs.push(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
+          await closePageAfterBatchTimeout(error, page, slot, job.normalizedUrl, logs);
           if (contextClosed || isClosedTargetError(error)) {
             batchAbortMessage ||= message;
             return;
@@ -1531,6 +1717,8 @@ async function main() {
 
     if (command === "environment") {
       await environmentCommand();
+    } else if (command === "health") {
+      await healthCommand();
     } else if (command === "login") {
       await loginCommand();
     } else if (command === "check_session") {

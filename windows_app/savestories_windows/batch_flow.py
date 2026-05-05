@@ -76,22 +76,31 @@ class MainWindowBatchFlowMixin:
         else:
             self.apply_batch_results(response)
 
-        self.batch_found_total = int(response.data.get("foundCount", str(len(response.items))) or 0)
-        self.batch_saved_total = int(response.data.get("savedCount", str(len(response.items))) or 0)
+        self.batch_found_total = response.counts.found if response.counts else int(response.data.get("foundCount", str(len(response.items))) or 0)
+        self.batch_saved_total = response.counts.saved if response.counts else int(response.data.get("savedCount", str(len(response.items))) or 0)
         self.refresh_batch_table()
         self.finish_batch()
 
     def apply_batch_results(self, response: WorkerResponse) -> None:
-        raw = response.data.get("batchResults", "")
-        if not raw:
-            for index in self.batch_pending_indices:
-                self.batch_entries[index].status = "completed" if response.ok else "failed"
-                self.batch_entries[index].message = response.message
-            return
+        payload = [
+            {
+                "url": item.url,
+                "status": item.status,
+                "message": item.message,
+                "foundCount": item.foundCount,
+                "savedCount": item.savedCount,
+            }
+            for item in response.batchResults
+        ]
+        if not payload:
+            raw = response.data.get("batchResults", "")
+            if raw:
+                try:
+                    payload = json.loads(raw)
+                except Exception:
+                    payload = []
 
-        try:
-            payload = json.loads(raw)
-        except Exception:
+        if not payload:
             for index in self.batch_pending_indices:
                 self.batch_entries[index].status = "completed" if response.ok else "failed"
                 self.batch_entries[index].message = response.message

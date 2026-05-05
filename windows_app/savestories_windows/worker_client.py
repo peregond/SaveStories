@@ -9,7 +9,7 @@ from dataclasses import asdict
 from typing import Sequence
 
 from .app_paths import AppPaths
-from .models import WorkerItem, WorkerRequest, WorkerResponse
+from .models import WorkerBatchResult, WorkerCounts, WorkerItem, WorkerRequest, WorkerResponse, WorkerRuntime
 
 
 class WorkerClient:
@@ -25,7 +25,7 @@ class WorkerClient:
 
     def start_detached_login(self, request: WorkerRequest) -> None:
         AppPaths.ensure_directories()
-        command, runtime = self.resolve_command()
+        command, runtime = self.resolve_command(request)
 
         environment = os.environ.copy()
         environment["SAVESTORIES_APP_SUPPORT"] = str(AppPaths.application_support())
@@ -33,6 +33,7 @@ class WorkerClient:
         environment["SAVESTORIES_MANIFESTS"] = str(AppPaths.manifests_directory())
         environment["SAVESTORIES_PLAYWRIGHT_BROWSERS"] = str(AppPaths.playwright_browsers())
         environment["SAVESTORIES_DEFAULT_DOWNLOADS"] = str(AppPaths.default_downloads())
+        environment["SAVESTORIES_LOGS"] = str(AppPaths.logs_directory())
         environment["SAVESTORIES_WORKER_RUNTIME"] = runtime
 
         popen_options = self._windows_popen_options(detached=True)
@@ -54,7 +55,7 @@ class WorkerClient:
 
     def run(self, request: WorkerRequest) -> WorkerResponse:
         AppPaths.ensure_directories()
-        command, runtime = self.resolve_command()
+        command, runtime = self.resolve_command(request)
 
         environment = os.environ.copy()
         environment["SAVESTORIES_APP_SUPPORT"] = str(AppPaths.application_support())
@@ -62,6 +63,7 @@ class WorkerClient:
         environment["SAVESTORIES_MANIFESTS"] = str(AppPaths.manifests_directory())
         environment["SAVESTORIES_PLAYWRIGHT_BROWSERS"] = str(AppPaths.playwright_browsers())
         environment["SAVESTORIES_DEFAULT_DOWNLOADS"] = str(AppPaths.default_downloads())
+        environment["SAVESTORIES_LOGS"] = str(AppPaths.logs_directory())
         environment["SAVESTORIES_WORKER_RUNTIME"] = runtime
 
         popen_options = self._windows_popen_options(detached=False)
@@ -96,17 +98,31 @@ class WorkerClient:
             return WorkerResponse.process_failure(f"Worker returned invalid JSON.\n{raw}")
 
         items = [WorkerItem(**item) for item in payload.get("items", [])]
+        counts_payload = payload.get("counts")
+        counts = WorkerCounts(**counts_payload) if isinstance(counts_payload, dict) else None
+        batch_results = [
+            WorkerBatchResult(**item)
+            for item in payload.get("batchResults", [])
+            if isinstance(item, dict)
+        ]
+        runtime_payload = payload.get("runtime")
+        runtime = WorkerRuntime(**runtime_payload) if isinstance(runtime_payload, dict) else None
         return WorkerResponse(
             ok=payload.get("ok", False),
             status=payload.get("status", "unknown"),
             message=payload.get("message", ""),
+            protocolVersion=payload.get("protocolVersion"),
             data=payload.get("data", {}) or {},
+            counts=counts,
+            batchResults=batch_results,
+            runtime=runtime,
+            diagnostics=payload.get("diagnostics", {}) or {},
             items=items,
             logs=payload.get("logs", []) or [],
         )
 
     @staticmethod
-    def resolve_command() -> tuple[Sequence[str], str]:
+    def resolve_command(request: WorkerRequest | None = None) -> tuple[Sequence[str], str]:
         try:
             script = AppPaths.node_worker_script()
             return ([str(AppPaths.node_executable()), str(script)], "node")
@@ -124,9 +140,7 @@ class WorkerClient:
         if getattr(sys, "frozen", False):
             raise RuntimeError("Не удалось найти встроенный Node runtime. Переустанови приложение.")
 
-        script = AppPaths.worker_script()
-        python_command = WorkerClient.resolve_python_command()
-        return (list(python_command) + [str(script)], "python")
+        raise RuntimeError("Node runtime не найден. Подготовь движок в настройках приложения.")
 
     @staticmethod
     def resolve_python_command() -> Sequence[str]:

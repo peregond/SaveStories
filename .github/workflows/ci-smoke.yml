@@ -23,6 +23,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check whitespace
+        run: git show --check --format=short --no-renames HEAD
+
       - name: Setup Node 24 LTS
         uses: actions/setup-node@v4
         with:
@@ -67,7 +70,8 @@ jobs:
         run: node --check node_worker/bridge.mjs
 
       - name: Run Node worker tests
-        run: node --test node_worker/*.test.mjs
+        working-directory: node_worker
+        run: npm test
 
       - name: Compile Windows Python sources
         run: python -m compileall windows_app/savestories_windows

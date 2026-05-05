@@ -8,6 +8,11 @@ import {
   normalizeMediaUrl,
   sanitizeFilename,
 } from "./media_utils.mjs";
+import {
+  errorMessage,
+  validateDownloadedMedia,
+  withRetry,
+} from "./worker_utils.mjs";
 
 function splitReelInputs(rawUrls) {
   const values = [];
@@ -350,17 +355,52 @@ async function fetchMediaBytes(sourceUrl, browserContext, refererUrl = null) {
       "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
   };
   if (refererUrl) headers.Referer = refererUrl;
-  const response = await browserContext.request.get(sourceUrl, {
-    headers,
-    timeout: 60_000,
-    failOnStatusCode: true,
-    ignoreHTTPSErrors: true,
-    maxRetries: 1,
-  });
+  const response = await withRetry(
+    async () => await browserContext.request.get(sourceUrl, {
+      headers,
+      timeout: 60_000,
+      failOnStatusCode: true,
+      ignoreHTTPSErrors: true,
+      maxRetries: 1,
+    }),
+    {
+      attempts: 3,
+      baseDelayMs: 700,
+    },
+  );
   return {
     body: await response.body(),
     contentType: response.headers()["content-type"] || null,
   };
+}
+
+async function loadManifestIndex(manifestsDirectory) {
+  const sources = new Map();
+  const hashes = new Map();
+  try {
+    await fs.mkdir(manifestsDirectory, { recursive: true });
+    const entries = await fs.readdir(manifestsDirectory);
+    for (const entry of entries) {
+      if (!entry.endsWith(".json")) continue;
+      try {
+        const manifestPath = path.join(manifestsDirectory, entry);
+        const payload = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        const sourceURL = payload.sourceURL || payload.sourceUrl;
+        const sha256 = payload.sha256;
+        if (typeof sourceURL === "string" && sourceURL) {
+          sources.set(normalizeMediaUrl(sourceURL), { ...payload, manifestPath });
+        }
+        if (typeof sha256 === "string" && sha256) {
+          hashes.set(sha256.toLowerCase(), { ...payload, manifestPath });
+        }
+      } catch {
+        // Ignore malformed legacy manifests.
+      }
+    }
+  } catch {
+    // Empty or unavailable manifest directory should not block downloads.
+  }
+  return { sources, hashes };
 }
 
 function extensionFor(contentType, url, mediaType) {
@@ -400,7 +440,14 @@ async function nextReelIndex(destinationDir, username) {
 async function downloadReelMedia(sourceUrl, destinationDir, mediaType, username, index, browserContext, refererUrl = null) {
   await fs.mkdir(destinationDir, { recursive: true });
   const normalizedUrl = normalizeMediaUrl(sourceUrl);
-  const { body, contentType } = await fetchMediaBytes(normalizedUrl, browserContext, refererUrl);
+  const { body, contentType } = await withRetry(
+    async () => {
+      const fetched = await fetchMediaBytes(normalizedUrl, browserContext, refererUrl);
+      validateDownloadedMedia(fetched.body, mediaType, fetched.contentType);
+      return fetched;
+    },
+    { attempts: 2, baseDelayMs: 600 },
+  );
   if (mediaType === "video" && looksLikeFragmentedMp4(body)) {
     throw new Error("Скачан только фрагмент видео из Reels вместо полного файла.");
   }
@@ -408,18 +455,27 @@ async function downloadReelMedia(sourceUrl, destinationDir, mediaType, username,
   const filename = `${sanitizeFilename(username)}-reels-${String(index).padStart(3, "0")}${suffix}`;
   const localPath = path.join(destinationDir, filename);
   await fs.writeFile(localPath, body);
-  return { localPath, finalSourceUrl: normalizedUrl };
+  return { localPath, finalSourceUrl: normalizedUrl, contentLength: body.length };
 }
 
-async function writeManifest(manifestsDirectory, itemId, pageUrl, sourceUrl, localPath, mediaType, createdAt) {
+async function writeManifest(manifestsDirectory, { itemId, pageUrl, sourceUrl, localPath, mediaType, createdAt, username, shortcode, contentLength = 0 }) {
   const fileHash = createHash("sha256").update(await fs.readFile(localPath)).digest("hex");
   const payload = {
+    schemaVersion: 2,
     id: itemId,
     createdAt,
+    downloadedAt: createdAt,
+    command: "download_reels_urls",
+    username,
+    storyId: "",
+    shortcode,
+    sourceKind: "reel",
     pageURL: pageUrl,
     sourceURL: sourceUrl,
     localPath,
     mediaType,
+    contentLength,
+    diagnosticCategory: "ok",
     sha256: fileHash,
   };
   const manifestPath = path.join(manifestsDirectory, `${itemId}.json`);
@@ -428,9 +484,15 @@ async function writeManifest(manifestsDirectory, itemId, pageUrl, sourceUrl, loc
 }
 
 async function persistResolvedReel(resolved, destinationDir, browserContext, manifestsDirectory, logs) {
+  const normalizedSource = normalizeMediaUrl(resolved.sourceUrl);
+  const manifestIndex = await loadManifestIndex(manifestsDirectory);
+  if (manifestIndex.sources.has(normalizedSource)) {
+    logs.push(`skipped_existing_source=${normalizedSource}`);
+    return null;
+  }
   const nextIndexValue = await nextReelIndex(destinationDir, resolved.username);
-  const { localPath, finalSourceUrl } = await downloadReelMedia(
-    resolved.sourceUrl,
+  const { localPath, finalSourceUrl, contentLength } = await downloadReelMedia(
+    normalizedSource,
     destinationDir,
     resolved.mediaType,
     resolved.username,
@@ -438,16 +500,27 @@ async function persistResolvedReel(resolved, destinationDir, browserContext, man
     browserContext,
     resolved.pageUrl,
   );
+  const fileHash = createHash("sha256").update(await fs.readFile(localPath)).digest("hex");
+  if (manifestIndex.hashes.has(fileHash)) {
+    await fs.rm(localPath, { force: true });
+    logs.push(`skipped_existing_hash=${fileHash}`);
+    return null;
+  }
   const itemId = randomUUID().replace(/-/g, "");
   const createdAt = new Date().toISOString();
   const manifestPath = await writeManifest(
     manifestsDirectory,
-    itemId,
-    resolved.pageUrl,
-    finalSourceUrl,
-    localPath,
-    resolved.mediaType,
-    createdAt,
+    {
+      itemId,
+      pageUrl: resolved.pageUrl,
+      sourceUrl: finalSourceUrl,
+      localPath,
+      mediaType: resolved.mediaType,
+      createdAt,
+      username: resolved.username,
+      shortcode: resolved.shortcode,
+      contentLength,
+    },
   );
   logs.push(`saved=${localPath}`);
   logs.push(`manifest=${manifestPath}`);
@@ -482,7 +555,14 @@ async function downloadSingleReelWithPage(page, reelUrl, outputDirectory, deps) 
   try {
     const jsonPayloads = deps.installJsonCapture(page, logs);
     const capturedAfter = Date.now() / 1000;
-    await page.goto(normalizedUrl, { waitUntil: "domcontentloaded" });
+    await withRetry(
+      async () => await page.goto(normalizedUrl, { waitUntil: "domcontentloaded" }),
+      {
+        attempts: 2,
+        baseDelayMs: 800,
+        onRetry: ({ attempt, error }) => logs.push(`reel_goto_retry=${attempt}:${normalizedUrl}:${errorMessage(error)}`),
+      },
+    );
     await deps.ensureLoggedIn(page);
     await deps.persistSessionState(page.context(), logs);
     await page.waitForTimeout(1400);
@@ -504,6 +584,16 @@ async function downloadSingleReelWithPage(page, reelUrl, outputDirectory, deps) 
     const destinationDir = path.join(rootDestination, sanitizeFilename(resolved.username || shortcode));
     logs.push(`reel_download_directory=${destinationDir}`);
     const item = await persistResolvedReel(resolved, destinationDir, page.context(), deps.manifestsDirectory, logs);
+    if (!item) {
+      return {
+        ok: true,
+        status: "download_duplicate",
+        message: `Reels ${resolved.username} уже был сохранён ранее.`,
+        data: { foundCount: "1", savedCount: "0" },
+        items: [],
+        logs,
+      };
+    }
     return {
       ok: true,
       status: "download_complete",
@@ -544,6 +634,7 @@ async function downloadReelsCommand(reelUrls, outputDirectory, headless, deps) {
   const allItems = [];
   const allLogs = [];
   let failures = 0;
+  let duplicates = 0;
 
   try {
     session = await deps.launchContext(headless);
@@ -556,6 +647,9 @@ async function downloadReelsCommand(reelUrls, outputDirectory, headless, deps) {
         allLogs.push(`reel_request=${reelUrl}`);
         allLogs.push(...result.logs);
         allItems.push(...result.items);
+        if (result.status === "download_duplicate") {
+          duplicates += 1;
+        }
         if (!result.ok) {
           failures += 1;
           allLogs.push(`reel_failed=${reelUrl} :: ${result.message}`);
@@ -573,6 +667,21 @@ async function downloadReelsCommand(reelUrls, outputDirectory, headless, deps) {
   const processedCount = normalizedUrls.length;
   const savedCount = allItems.length;
   if (savedCount === 0) {
+    if (duplicates > 0 && failures === 0) {
+      return {
+        ok: true,
+        status: "download_duplicate",
+        message: `Все ссылки на Reels уже были сохранены ранее. Обработано: ${processedCount}.`,
+        data: {
+          foundCount: String(duplicates),
+          savedCount: "0",
+          processedCount: String(processedCount),
+          failedCount: "0",
+        },
+        items: [],
+        logs: allLogs,
+      };
+    }
     return {
       ok: false,
       status: "download_empty",

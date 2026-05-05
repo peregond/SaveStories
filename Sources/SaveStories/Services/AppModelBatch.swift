@@ -154,7 +154,7 @@ extension AppModel {
             self.applyBatchResults(response, pendingItems: pendingItems)
             self.append(response)
 
-            let processedCount = Int(response.data["processedCount"] ?? "") ?? pendingItems.count
+            let processedCount = response.counts?.processed ?? Int(response.data["processedCount"] ?? "") ?? pendingItems.count
             let failedCount = pendingItems.filter { item in
                 self.batchQueue.first(where: { $0.id == item.id })?.status == .failed
             }.count
@@ -308,15 +308,19 @@ extension AppModel {
     }
 
     func applyBatchResults(_ response: WorkerResponse, pendingItems: [BatchProfileItem]) {
-        let found = Int(response.data["foundCount"] ?? "") ?? response.items.count
-        let saved = Int(response.data["savedCount"] ?? "") ?? response.items.count
+        let found = response.counts?.found ?? Int(response.data["foundCount"] ?? "") ?? response.items.count
+        let saved = response.counts?.saved ?? Int(response.data["savedCount"] ?? "") ?? response.items.count
         foundStoriesCount = found
         savedStoriesCount = saved
 
-        guard let raw = response.data["batchResults"],
-              let data = raw.data(using: .utf8),
-              let results = try? JSONDecoder().decode([BatchWorkerResult].self, from: data)
-        else {
+        let results: [BatchWorkerResult]
+        if let structuredResults = response.batchResults, !structuredResults.isEmpty {
+            results = structuredResults
+        } else if let raw = response.data["batchResults"],
+                  let data = raw.data(using: .utf8),
+                  let legacyResults = try? JSONDecoder().decode([BatchWorkerResult].self, from: data) {
+            results = legacyResults
+        } else {
             for item in pendingItems {
                 updateBatchProfile(
                     id: item.id,

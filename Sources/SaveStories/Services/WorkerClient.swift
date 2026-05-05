@@ -138,6 +138,7 @@ final class WorkerClient {
         environment["SAVESTORIES_MANIFESTS"] = AppPaths.manifestsDirectory.path
         environment["SAVESTORIES_PLAYWRIGHT_BROWSERS"] = AppPaths.playwrightBrowsers.path
         environment["SAVESTORIES_DEFAULT_DOWNLOADS"] = AppPaths.defaultDownloads.path
+        environment["SAVESTORIES_LOGS"] = AppPaths.logsDirectory.path
         environment["SAVESTORIES_WORKER_RUNTIME"] = launch.runtime
         if let bundledFrameworks = AppPaths.bundledFrameworksDirectory {
             environment["DYLD_FRAMEWORK_PATH"] = bundledFrameworks.path
@@ -243,12 +244,7 @@ final class WorkerClient {
             return (nodeExecutable, [nodeScript.path], "node")
         }
 
-        let scriptURL = try pythonWorkerScriptURL()
-        if FileManager.default.isExecutableFile(atPath: AppPaths.workerPython.path) {
-            return (AppPaths.workerPython, [scriptURL.path], "python")
-        }
-
-        return (URL(fileURLWithPath: "/usr/bin/env"), ["python3", scriptURL.path], "python")
+        throw WorkerClientError.processLaunchFailed("Node runtime не найден. Подготовьте среду воркера в настройках приложения.")
     }
 
     private func nodeWorkerScriptURL() -> URL? {

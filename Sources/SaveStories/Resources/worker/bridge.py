@@ -24,14 +24,88 @@ APP_NAME = "SaveMe"
 LEGACY_APP_NAMES = ("SaveStories", "DimaSave")
 
 
+def _parse_int(value: object) -> int | None:
+    try:
+        return int(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _counts_from_data(data: dict[str, str], items: list[dict[str, str]]) -> dict[str, int] | None:
+    found = _parse_int(data.get("foundCount"))
+    saved = _parse_int(data.get("savedCount"))
+    processed = _parse_int(data.get("processedCount"))
+    failed = _parse_int(data.get("failedCount"))
+    if found is None and saved is None and processed is None and failed is None:
+        return None
+    return {
+        "found": found if found is not None else len(items),
+        "saved": saved if saved is not None else len(items),
+        "processed": processed if processed is not None else 0,
+        "failed": failed if failed is not None else 0,
+    }
+
+
+def _batch_results_from_data(data: dict[str, str]) -> list[dict[str, object]]:
+    raw = data.get("batchResults")
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return [entry for entry in parsed if isinstance(entry, dict)]
+
+
+def _runtime_from_data(data: dict[str, str]) -> dict[str, str] | None:
+    runtime = data.get("runtime")
+    if not runtime:
+        return None
+    return {
+        "kind": runtime,
+        "executable": data.get("node") or data.get("python") or "",
+        "browserProfile": data.get("browserProfile", ""),
+        "playwrightBrowsers": data.get("playwrightBrowsers", ""),
+        "manifests": data.get("manifests", ""),
+    }
+
+
+def _diagnostic_category(status: str, message: str) -> str:
+    lowered = f"{status} {message}".lower()
+    if "требуется вход" in lowered or "session_missing" in lowered or "login" in lowered:
+        return "session_required"
+    if "превысила лимит" in lowered or "timeout" in lowered:
+        return "timeout"
+    if "browser has been closed" in lowered or "page has been closed" in lowered or "context closed" in lowered:
+        return "browser_closed"
+    if "фрагмент видео" in lowered or "fragmented" in lowered:
+        return "partial_media"
+    if "не найдено" in lowered or "не удалось получить" in lowered or "download_empty" in lowered:
+        return "media_not_found"
+    if "playwright" in lowered or "chromium" in lowered:
+        return "runtime_missing"
+    return "worker_error" if "error" in status or "failed" in status else "ok"
+
+
 def emit(ok: bool, status: str, message: str, *, data: dict[str, str] | None = None,
-         items: list[dict[str, str]] | None = None, logs: list[str] | None = None) -> None:
+         items: list[dict[str, str]] | None = None, logs: list[str] | None = None,
+         diagnostics: dict[str, object] | None = None) -> None:
+    safe_data = data or {}
+    safe_items = items or []
+    safe_diagnostics = {"category": _diagnostic_category(status, message), **(diagnostics or {})}
     payload = {
         "ok": ok,
         "status": status,
         "message": message,
-        "data": data or {},
-        "items": items or [],
+        "protocolVersion": 2,
+        "data": safe_data,
+        "counts": _counts_from_data(safe_data, safe_items),
+        "batchResults": _batch_results_from_data(safe_data),
+        "runtime": _runtime_from_data(safe_data),
+        "diagnostics": safe_diagnostics,
+        "items": safe_items,
         "logs": logs or [],
     }
     sys.stdout.write(json.dumps(payload))

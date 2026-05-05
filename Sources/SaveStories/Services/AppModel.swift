@@ -21,13 +21,7 @@ final class AppModel: ObservableObject {
         return formatter
     }()
 
-    struct BatchWorkerResult: Decodable {
-        let url: String
-        let status: String
-        let message: String
-        let foundCount: Int
-        let savedCount: Int
-    }
+    typealias BatchWorkerResult = WorkerBatchResult
 
     struct RecentBatchList: Identifiable, Codable, Hashable {
         let id: UUID

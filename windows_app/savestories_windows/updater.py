@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -24,6 +25,7 @@ class ReleaseAsset:
     url: str
     size: int
     digest: str
+    checksum_url: str = ""
 
 
 @dataclass
@@ -152,7 +154,9 @@ class WindowsUpdater:
 
         self._emit_progress(progress_callback, 100, f"Скачивание обновления {release.version}: 100%")
 
-        self._verify_digest(installer_path, release.asset.digest)
+        checksum_text = self._download_checksum(release.asset.checksum_url)
+        self._verify_digest(installer_path, release.asset.digest, checksum_text)
+        self._verify_installer_signature(installer_path)
 
         if not installer_path.exists():
             raise WindowsUpdaterError(
@@ -244,6 +248,15 @@ class WindowsUpdater:
             f"SaveStories-Windows-Setup-{normalized_version}.exe",
         ]
         fallback_asset: dict | None = None
+        checksum_by_name = {
+            str(asset.get("name") or ""): str(asset.get("browser_download_url") or "")
+            for asset in assets
+            if str(asset.get("name") or "").endswith(".sha256")
+        }
+
+        def checksum_url_for(name: str) -> str:
+            return checksum_by_name.get(f"{name}.sha256", "")
+
         for asset in assets:
             name = str(asset.get("name") or "")
             if name in expected_names:
@@ -252,6 +265,7 @@ class WindowsUpdater:
                     url=str(asset.get("browser_download_url") or ""),
                     size=int(asset.get("size") or 0),
                     digest=str(asset.get("digest") or ""),
+                    checksum_url=checksum_url_for(name),
                 )
             if (
                 fallback_asset is None
@@ -269,6 +283,7 @@ class WindowsUpdater:
                 url=str(fallback_asset.get("browser_download_url") or ""),
                 size=int(fallback_asset.get("size") or 0),
                 digest=str(fallback_asset.get("digest") or ""),
+                checksum_url=checksum_url_for(str(fallback_asset.get("name") or "")),
             )
 
         available = ", ".join(str(item.get("name") or "") for item in assets) or "пусто"
@@ -287,14 +302,55 @@ class WindowsUpdater:
             numbers.append(0)
         return tuple(numbers[:3])
 
-    def _verify_digest(self, archive_path: Path, digest: str) -> None:
-        if not digest.startswith("sha256:"):
-            return
+    def _download_checksum(self, checksum_url: str) -> str:
+        if not checksum_url:
+            return ""
+        request = urllib.request.Request(
+            checksum_url,
+            headers={"User-Agent": "SaveMe-Updater"},
+        )
+        with urllib.request.urlopen(request, timeout=20) as response:
+            return response.read().decode("utf-8", errors="replace")
 
-        expected = digest.split(":", 1)[1].strip().lower()
+    def _verify_digest(self, archive_path: Path, digest: str, checksum_text: str = "") -> None:
+        expected = ""
+        if digest.startswith("sha256:"):
+            expected = digest.split(":", 1)[1].strip().lower()
+        elif checksum_text:
+            expected = checksum_text.strip().split()[0].lower()
+
+        if not expected:
+            raise WindowsUpdaterError("У релиза нет SHA256 digest для установщика. Автоустановка остановлена.")
+
+        if len(expected) != 64 or any(character not in "0123456789abcdef" for character in expected):
+            raise WindowsUpdaterError("SHA256 digest релиза имеет некорректный формат. Обновление остановлено.")
+
         actual = hashlib.sha256(archive_path.read_bytes()).hexdigest().lower()
         if actual != expected:
             raise WindowsUpdaterError("SHA256 release digest не совпал. Обновление остановлено.")
+
+    def _verify_installer_signature(self, installer_path: Path) -> None:
+        if os.name != "nt":
+            return
+
+        command = [
+            "powershell.exe",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            (
+                "$signature = Get-AuthenticodeSignature -LiteralPath $args[0]; "
+                "if ($signature.Status -ne 'Valid') { "
+                "Write-Error ('Installer signature is not valid: ' + $signature.Status); exit 1 "
+                "}"
+            ),
+            str(installer_path),
+        ]
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            details = (result.stderr or result.stdout or "unknown signature verification error").strip()
+            raise WindowsUpdaterError(f"Подпись установщика обновления недействительна. {details}")
 
 
 

@@ -200,13 +200,13 @@ extension AppModel {
             }
         }
 
-        if let found = Int(response.data["foundCount"] ?? "") {
+        if let found = response.counts?.found ?? Int(response.data["foundCount"] ?? "") {
             foundStoriesCount = found
         } else if response.status == "download_complete" || response.status == "download_empty" {
             foundStoriesCount = response.items.count
         }
 
-        if let saved = Int(response.data["savedCount"] ?? "") {
+        if let saved = response.counts?.saved ?? Int(response.data["savedCount"] ?? "") {
             savedStoriesCount = saved
         } else if response.status == "download_complete" {
             savedStoriesCount = response.items.count
@@ -315,6 +315,8 @@ extension AppModel {
         let profile = response.data["browserProfile"] ?? AppPaths.browserProfile.path
         let browsers = response.data["playwrightBrowsers"] ?? AppPaths.playwrightBrowsers.path
         let manifests = response.data["manifests"] ?? AppPaths.manifestsDirectory.path
+        let logs = response.data["logsDirectory"] ?? AppPaths.logsDirectory.path
+        let health = response.data["health"] ?? "[]"
         let runtimeMode = AppPaths.hasEmbeddedRuntime ? "embedded" : "external"
         return """
         mode=\(runtimeMode)
@@ -324,6 +326,8 @@ extension AppModel {
         profile=\(profile)
         browsers=\(browsers)
         manifests=\(manifests)
+        logs=\(logs)
+        health=\(health)
         """
     }
 

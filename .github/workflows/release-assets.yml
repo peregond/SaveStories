@@ -220,7 +220,10 @@ jobs:
           if (-not $artifact) {
             throw "Windows WinUI installer was not produced."
           }
-          gh release upload $env:RELEASE_TAG $artifact.FullName --clobber
+          $shaPath = "$($artifact.FullName).sha256"
+          $hash = Get-FileHash -Algorithm SHA256 $artifact.FullName
+          "{0}  {1}" -f $hash.Hash.ToLower(), $artifact.Name | Set-Content -Encoding UTF8 $shaPath
+          gh release upload $env:RELEASE_TAG $artifact.FullName $shaPath --clobber
 
   publish-update-feed:
     needs:
