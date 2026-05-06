@@ -53,13 +53,17 @@
                     <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ПОСЛЕДНИЕ ЗАГРУЗКИ" />
                     <ListView x:Name="ReelsDownloadsListView" MaxHeight="140" />
 
-                    <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ЛОГИ" />
-                    <TextBox
-                        x:Name="ReelsLogsTextBox"
-                        AcceptsReturn="True"
-                        MinHeight="180"
-                        IsReadOnly="True"
-                        TextWrapping="Wrap" />
+                    <Expander Header="Диагностика и логи" IsExpanded="False">
+                        <StackPanel Spacing="8">
+                            <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ЛОГИ" />
+                            <TextBox
+                                x:Name="ReelsLogsTextBox"
+                                AcceptsReturn="True"
+                                MinHeight="180"
+                                IsReadOnly="True"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Expander>
                 </StackPanel>
             </Border>
         </Grid>

@@ -1,9 +1,12 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Shapes;
 using SaveMe.WinUI.Beta.Pages;
 using SaveMe.WinUI.Beta.Services;
 using System.Text;
+using Windows.UI;
 using WinRT.Interop;
 
 namespace SaveMe.WinUI.Beta;
@@ -19,6 +22,8 @@ public sealed partial class MainWindow : Window
         AppNav.Loaded += OnRootLoaded;
         BetaSettingsStore.Current.Load();
         VersionBadgeText.Text = AppVersionProvider.CurrentVersion();
+        SetStatusChip(NodeStatusDot, NodeStatusText, "check", StatusTone.Caution);
+        SetStatusChip(SessionStatusDot, SessionStatusText, "check", StatusTone.Caution);
         DiagnosticsService.Current.LogInfo($"Startup version={AppVersionProvider.CurrentVersion()}");
         ApplyTheme(BetaSettingsStore.Current.Theme);
         BetaSettingsStore.Current.ThemeChanged += OnThemeChanged;
@@ -96,6 +101,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var preflight = PreflightService.Current.Run();
+            ApplyPreflightStatus(preflight);
             foreach (var check in preflight.Checks)
             {
                 DiagnosticsService.Current.LogInfo($"preflight {check.Name}: {(check.Ok ? "ok" : "failed")} ({check.Message})");
@@ -103,13 +109,118 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            SetStatusChip(NodeStatusDot, NodeStatusText, "error", StatusTone.Error);
             DiagnosticsService.Current.LogError("Preflight failed", ex);
         }
 
         await PromptRuntimeInstallIfNeededAsync();
         await PromptInstagramLoginIfNeededAsync();
+        await RefreshSessionStatusAsync();
         _startupTasksCompleted = true;
         _ = AutoCheckForUpdatesAsync();
+    }
+
+    private async void OnRefreshStatusClick(object sender, RoutedEventArgs e)
+    {
+        await RefreshTopStatusAsync();
+    }
+
+    private async Task RefreshTopStatusAsync()
+    {
+        RefreshStatusButton.IsEnabled = false;
+        try
+        {
+            try
+            {
+                var preflight = PreflightService.Current.Run();
+                ApplyPreflightStatus(preflight);
+            }
+            catch (Exception ex)
+            {
+                SetStatusChip(NodeStatusDot, NodeStatusText, "error", StatusTone.Error);
+                DiagnosticsService.Current.LogError("Top status preflight failed", ex);
+            }
+
+            await RefreshSessionStatusAsync();
+        }
+        finally
+        {
+            RefreshStatusButton.IsEnabled = true;
+        }
+    }
+
+    private void ApplyPreflightStatus(PreflightResult preflight)
+    {
+        var nodeCoreOk = preflight.Checks
+            .Where(check => check.Name is "Node runtime" or "node_worker")
+            .All(check => check.Ok);
+        var runtimeReady = ChromiumBootstrapService.Current.IsWorkerDependenciesInstalled()
+            && ChromiumBootstrapService.Current.IsChromiumInstalled();
+
+        if (nodeCoreOk && runtimeReady)
+        {
+            SetStatusChip(NodeStatusDot, NodeStatusText, "ready", StatusTone.Success);
+            return;
+        }
+
+        if (nodeCoreOk)
+        {
+            SetStatusChip(NodeStatusDot, NodeStatusText, "setup", StatusTone.Caution);
+            return;
+        }
+
+        SetStatusChip(NodeStatusDot, NodeStatusText, "error", StatusTone.Error);
+    }
+
+    private async Task RefreshSessionStatusAsync()
+    {
+        try
+        {
+            var runtimeReady = ChromiumBootstrapService.Current.IsWorkerDependenciesInstalled()
+                && ChromiumBootstrapService.Current.IsChromiumInstalled();
+            if (!runtimeReady)
+            {
+                SetStatusChip(SessionStatusDot, SessionStatusText, "skip", StatusTone.Neutral);
+                return;
+            }
+
+            var session = await WorkerBridgeService.Current.RunAsync(
+                new WorkerRequest
+                {
+                    Command = "check_session",
+                    Headless = true,
+                });
+            SetStatusChip(
+                SessionStatusDot,
+                SessionStatusText,
+                session.Response.Ok ? "ready" : "login",
+                session.Response.Ok ? StatusTone.Success : StatusTone.Caution);
+        }
+        catch (Exception ex)
+        {
+            SetStatusChip(SessionStatusDot, SessionStatusText, "error", StatusTone.Error);
+            DiagnosticsService.Current.LogError("Top status session check failed", ex);
+        }
+    }
+
+    private static void SetStatusChip(Ellipse dot, TextBlock text, string label, StatusTone tone)
+    {
+        text.Text = label;
+        dot.Fill = new SolidColorBrush(tone switch
+        {
+            StatusTone.Success => Color.FromArgb(255, 16, 124, 16),
+            StatusTone.Error => Color.FromArgb(255, 196, 43, 28),
+            StatusTone.Neutral => Color.FromArgb(255, 138, 136, 134),
+            _ => Color.FromArgb(255, 247, 153, 57),
+        });
+    }
+
+    private enum StatusTone
+    {
+        Success,
+        Caution,
+        Error,
+        Neutral,
     }
 
     private async Task PromptRuntimeInstallIfNeededAsync()

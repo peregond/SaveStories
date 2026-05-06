@@ -58,17 +58,19 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource AppCardBorderStyle}">
-                    <StackPanel Spacing="8">
-                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ЛОГИ" />
-                        <TextBox
-                            x:Name="QueueLogsTextBox"
-                            AcceptsReturn="True"
-                            MinHeight="220"
-                            IsReadOnly="True"
-                            TextWrapping="Wrap" />
-                    </StackPanel>
-                </Border>
+                <Expander Header="Диагностика и логи" IsExpanded="False">
+                    <Border Style="{StaticResource AppCardBorderStyle}">
+                        <StackPanel Spacing="8">
+                            <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ЛОГИ" />
+                            <TextBox
+                                x:Name="QueueLogsTextBox"
+                                AcceptsReturn="True"
+                                MinHeight="220"
+                                IsReadOnly="True"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                </Expander>
             </StackPanel>
         </Grid>
     </ScrollViewer>

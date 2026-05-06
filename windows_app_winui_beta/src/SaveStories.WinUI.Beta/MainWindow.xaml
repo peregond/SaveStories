@@ -13,39 +13,104 @@
         <NavigationView
             x:Name="AppNav"
             Background="Transparent"
+            CompactPaneLength="56"
             IsBackButtonVisible="Collapsed"
+            IsPaneOpen="True"
             IsSettingsVisible="False"
-            PaneDisplayMode="LeftCompact"
+            OpenPaneLength="236"
+            PaneDisplayMode="Left"
             SelectionChanged="OnNavigationSelectionChanged">
 
             <NavigationView.Header>
-                <Grid>
+                <Grid Padding="0,0,8,0" ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock
-                        VerticalAlignment="Center"
-                        FontSize="20"
-                        FontWeight="SemiBold"
-                        Text="SaveMe Windows" />
+                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                        <TextBlock
+                            FontSize="20"
+                            FontWeight="SemiBold"
+                            Text="SaveMe Windows" />
+                        <TextBlock
+                            Opacity="0.65"
+                            Style="{StaticResource AppSecondaryTextStyle}"
+                            Text="Stories и Reels" />
+                    </StackPanel>
                     <Border
                         Grid.Column="1"
-                        Margin="8,0,0,0"
                         Padding="10,4"
                         VerticalAlignment="Center"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                        CornerRadius="12">
+                        CornerRadius="8">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Ellipse
+                                x:Name="NodeStatusDot"
+                                Width="8"
+                                Height="8"
+                                Fill="#FFF79939" />
+                            <TextBlock FontWeight="SemiBold" Text="Node" />
+                            <TextBlock x:Name="NodeStatusText" Opacity="0.75" Text="check" />
+                        </StackPanel>
+                    </Border>
+                    <Border
+                        Grid.Column="2"
+                        Padding="10,4"
+                        VerticalAlignment="Center"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        CornerRadius="8">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Ellipse
+                                x:Name="SessionStatusDot"
+                                Width="8"
+                                Height="8"
+                                Fill="#FFF79939" />
+                            <TextBlock FontWeight="SemiBold" Text="Session" />
+                            <TextBlock x:Name="SessionStatusText" Opacity="0.75" Text="check" />
+                        </StackPanel>
+                    </Border>
+                    <Button
+                        x:Name="RefreshStatusButton"
+                        Grid.Column="3"
+                        Click="OnRefreshStatusClick"
+                        ToolTipService.ToolTip="Проверить Node и Session">
+                        <FontIcon FontSize="16" Glyph="&#xE72C;" />
+                    </Button>
+                    <Border
+                        Grid.Column="4"
+                        Padding="10,4"
+                        VerticalAlignment="Center"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        CornerRadius="8">
                         <TextBlock x:Name="VersionBadgeText" Opacity="0.75" Text="0.0.0" />
                     </Border>
                 </Grid>
             </NavigationView.Header>
 
             <NavigationView.MenuItems>
-                <NavigationViewItem Content="Stories" Icon="Contact" Tag="stories" />
-                <NavigationViewItem Content="Очередь профилей" Icon="Bullets" Tag="queue" />
-                <NavigationViewItem Content="Reels" Icon="Video" Tag="reels" />
-                <NavigationViewItem Content="Сортировка" Icon="Folder" Tag="sorting" />
+                <NavigationViewItem Content="Stories" Tag="stories">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="📱" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Списочная" Tag="queue">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="📋" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Reels" Tag="reels">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="📹" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Сортировка" Tag="sorting">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="🗂️" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
             </NavigationView.MenuItems>
 
             <NavigationView.FooterMenuItems>
