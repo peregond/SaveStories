@@ -8,19 +8,24 @@ struct ContentView: View {
     @State var showingAllRecentLists = false
     @State var showingRuntimeDetails = false
     @State var showingLogsCopiedFeedback = false
+    @State var showingHomeDiagnostics = false
     @State var showingPendingEmptyFolders = false
     @State var sortingRulesExpanded = false
     @State var sortingAdvancedExpanded = false
 
     var isDark: Bool { colorScheme == .dark }
 
-    let sidebarWidth: CGFloat = 296
-    let cardCornerRadius: CGFloat = 26
-    let controlCornerRadius: CGFloat = 18
-    let itemCornerRadius: CGFloat = 20
-    let innerCornerRadius: CGFloat = 16
-    let topContentInset: CGFloat = 30
+    let sidebarWidth: CGFloat = 264
+    let cardCornerRadius: CGFloat = 16
+    let controlCornerRadius: CGFloat = 12
+    let itemCornerRadius: CGFloat = 12
+    let innerCornerRadius: CGFloat = 10
+    let topContentInset: CGFloat = 22
     let homeSummaryCardHeight: CGFloat = 208
+
+    func contentHorizontalPadding(for width: CGFloat) -> CGFloat {
+        width < 760 ? 20 : 28
+    }
 
     func isCompactHomeLayout(for width: CGFloat) -> Bool {
         width < 760
@@ -55,7 +60,9 @@ struct ContentView: View {
     var pillFill: Color { isDark ? Color.white.opacity(0.09) : Color.white.opacity(0.54) }
     var itemFill: Color { isDark ? Color.white.opacity(0.08) : Color.white.opacity(0.60) }
     var settingsIconColor: Color { isDark ? Color.white.opacity(0.84) : Color.black.opacity(0.76) }
-    var secondaryButtonTint: Color { isDark ? Color.white.opacity(0.16) : Color.black.opacity(0.66) }
+    var secondaryButtonTint: Color {
+        isDark ? Color.white.opacity(0.16) : Color(red: 0.36, green: 0.44, blue: 0.50)
+    }
     var prominentButtonTint: Color {
         isDark ? Color(red: 0.18, green: 0.45, blue: 0.62) : Color(red: 0.12, green: 0.37, blue: 0.52)
     }
@@ -88,6 +95,18 @@ struct ContentView: View {
             .count
     }
 
+    var queuedPendingCount: Int {
+        model.batchQueue.filter { $0.status == .pending || $0.status == .running }.count
+    }
+
+    var queuedCompletedCount: Int {
+        model.batchQueue.filter { $0.status == .completed }.count
+    }
+
+    var queuedFailedCount: Int {
+        model.batchQueue.filter { $0.status == .failed }.count
+    }
+
     var isReelsDownloadInProgress: Bool {
         let combined = "\(model.statusTitle) \(model.currentStepLabel)".lowercased()
         return model.isBusy && combined.contains("reels")
@@ -113,6 +132,35 @@ struct ContentView: View {
         case .videoOnly:
             return "Фото пропускаются"
         }
+    }
+
+    var globalStatusTitle: String {
+        if model.isBusy {
+            return "В работе"
+        }
+        if model.statusTitle.lowercased().contains("ошиб") {
+            return "Нужно внимание"
+        }
+        if !model.workerReady {
+            return "Worker не готов"
+        }
+        if !model.sessionReady {
+            return "Нужен вход"
+        }
+        return "Готово"
+    }
+
+    var globalStatusTint: Color {
+        if model.isBusy {
+            return Color.blue.opacity(0.82)
+        }
+        if model.statusTitle.lowercased().contains("ошиб") || !model.workerReady {
+            return Color.red.opacity(0.82)
+        }
+        if !model.sessionReady {
+            return Color.orange.opacity(0.82)
+        }
+        return Color.green.opacity(0.82)
     }
 
     var pendingEmptyFolderNames: [String] {
@@ -282,11 +330,13 @@ struct ContentView: View {
                             model.rememberCurrentBatchList()
                         }
                         .disabled(model.batchQueue.isEmpty)
+                        .opacity(model.batchQueue.isEmpty ? 0.68 : 1)
 
                         ghostButton("Очистить", systemImage: "xmark") {
                             model.batchInput = ""
                         }
                         .disabled(model.batchInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isBusy)
+                        .opacity(model.batchInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isBusy ? 0.68 : 1)
                     }
 
                     VStack(spacing: 10) {
@@ -303,11 +353,13 @@ struct ContentView: View {
                             model.rememberCurrentBatchList()
                         }
                         .disabled(model.batchQueue.isEmpty)
+                        .opacity(model.batchQueue.isEmpty ? 0.68 : 1)
 
                         ghostButton("Очистить", systemImage: "xmark") {
                             model.batchInput = ""
                         }
                         .disabled(model.batchInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isBusy)
+                        .opacity(model.batchInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isBusy ? 0.68 : 1)
                     }
 
                     HStack(spacing: 10) {
@@ -339,15 +391,15 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 14) {
                 if compact {
                     VStack(spacing: 10) {
-                        queueSummaryBadge(text: "В очереди \(model.batchQueue.count)", tint: Color.white.opacity(isDark ? 0.10 : 0.62))
-                        queueSummaryBadge(text: "Наборов \(model.recentBatchLists.count)", tint: Color.white.opacity(isDark ? 0.10 : 0.62))
-                        queueSummaryBadge(text: "Режим: \(model.downloadMode.title)", tint: prominentButtonTint.opacity(isDark ? 0.20 : 0.14))
+                        queueSummaryBadge(text: "Ждёт \(queuedPendingCount)", tint: Color.orange.opacity(isDark ? 0.16 : 0.10))
+                        queueSummaryBadge(text: "Готово \(queuedCompletedCount)", tint: Color.green.opacity(isDark ? 0.16 : 0.10))
+                        queueSummaryBadge(text: "Ошибок \(queuedFailedCount)", tint: Color.red.opacity(isDark ? 0.15 : 0.09))
                     }
                 } else {
                     HStack(spacing: 10) {
-                        queueSummaryBadge(text: "В очереди \(model.batchQueue.count)", tint: Color.white.opacity(isDark ? 0.10 : 0.62))
-                        queueSummaryBadge(text: "Наборов \(model.recentBatchLists.count)", tint: Color.white.opacity(isDark ? 0.10 : 0.62))
-                        queueSummaryBadge(text: "Режим: \(model.downloadMode.title)", tint: prominentButtonTint.opacity(isDark ? 0.20 : 0.14))
+                        queueSummaryBadge(text: "Ждёт \(queuedPendingCount)", tint: Color.orange.opacity(isDark ? 0.16 : 0.10))
+                        queueSummaryBadge(text: "Готово \(queuedCompletedCount)", tint: Color.green.opacity(isDark ? 0.16 : 0.10))
+                        queueSummaryBadge(text: "Ошибок \(queuedFailedCount)", tint: Color.red.opacity(isDark ? 0.15 : 0.09))
                     }
                 }
 
@@ -383,6 +435,7 @@ struct ContentView: View {
                             model.clearBatchQueue()
                         }
                         .disabled(model.batchQueue.isEmpty || model.isBusy)
+                        .opacity(model.batchQueue.isEmpty || model.isBusy ? 0.68 : 1)
 
                         Text("После запуска список сохранится в «Недавних наборах».")
                             .font(.system(size: 12, weight: .medium, design: .rounded))
@@ -394,6 +447,7 @@ struct ContentView: View {
                             model.clearBatchQueue()
                         }
                         .disabled(model.batchQueue.isEmpty || model.isBusy)
+                        .opacity(model.batchQueue.isEmpty || model.isBusy ? 0.68 : 1)
 
                         Spacer(minLength: 0)
 
@@ -760,7 +814,7 @@ struct ContentView: View {
                     .padding(12)
                     .background(fieldBackground)
 
-                downloadModePicker
+                downloadModePicker()
 
                 button("Скачать активные stories", systemImage: "photo.stack.fill", prominent: true) {
                     Task { await model.downloadProfileStories() }
@@ -861,7 +915,7 @@ struct ContentView: View {
     var batchModeCard: some View {
         card("Режим выгрузки") {
             VStack(alignment: .leading, spacing: 12) {
-                downloadModePicker
+                downloadModePicker(showTitle: false)
 
                 Text("Этот режим использует общую сессию Instagram и прогоняет список профилей строго по очереди.")
                     .font(.system(size: 13, weight: .medium, design: .rounded))
@@ -873,7 +927,7 @@ struct ContentView: View {
 
     var mediaFilterCard: some View {
         card("Что сохранять") {
-            mediaSelectionPicker
+            mediaSelectionPicker(showTitle: false)
         }
     }
 
@@ -906,6 +960,101 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    var topStatusBar: some View {
+        ViewThatFits(in: .horizontal) {
+            topStatusBarContent(showChips: true)
+            topStatusBarContent(showChips: false)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(isDark ? 0.055 : 0.44))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(cardStroke, lineWidth: 1)
+        )
+    }
+
+    func topStatusBarContent(showChips: Bool) -> some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 10) {
+                if model.isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Circle()
+                        .fill(globalStatusTint)
+                        .frame(width: 8, height: 8)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(globalStatusTitle)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(primaryText)
+
+                    Text(model.currentStepLabel.isEmpty ? model.statusDetail : model.currentStepLabel)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(tertiaryText)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            if showChips {
+                HStack(spacing: 8) {
+                    topStatusChip(title: "Node", isReady: model.workerReady)
+                    topStatusChip(title: "Session", isReady: model.sessionReady)
+                }
+            }
+
+            Button {
+                Task { await model.refreshEnvironment() }
+            } label: {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .tint(secondaryButtonTint)
+            .help("Проверить среду worker")
+            .disabled(model.isBusy)
+
+            Button {
+                Task { await model.login() }
+            } label: {
+                Image(systemName: model.sessionReady ? "person.crop.circle.badge.checkmark" : "person.crop.circle.badge.exclamationmark")
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .tint(model.sessionReady ? secondaryButtonTint : prominentButtonTint)
+            .help(model.sessionReady ? "Обновить вход Instagram" : "Войти в Instagram")
+            .disabled(model.isBusy)
+        }
+    }
+
+    func topStatusChip(title: String, isReady: Bool) -> some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(isReady ? Color.green.opacity(0.82) : Color.orange.opacity(0.82))
+                .frame(width: 6, height: 6)
+
+            Text(title)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(isReady ? secondaryText : primaryText)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background(
+            Capsule(style: .continuous)
+                .fill((isReady ? Color.green : Color.orange).opacity(isDark ? 0.12 : 0.10))
+        )
     }
 
     var homeStatusBadge: some View {
@@ -1387,6 +1536,115 @@ struct ContentView: View {
         }
     }
 
+    func homeDiagnosticsCard(maxHeight: CGFloat? = nil) -> some View {
+        card("Диагностика", padding: 0) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: model.statusTitle.lowercased().contains("ошиб") ? "exclamationmark.triangle.fill" : "stethoscope")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(globalStatusTint)
+                        .frame(width: 28, height: 28)
+                        .background(
+                            Circle()
+                                .fill(globalStatusTint.opacity(isDark ? 0.14 : 0.10))
+                        )
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(model.statusDetail)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundStyle(primaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text(model.logs.first.map(cleanedLogLine) ?? "Технические сообщения появятся после первой операции.")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(tertiaryText)
+                            .lineLimit(2)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showingHomeDiagnostics.toggle()
+                        }
+                    } label: {
+                        Label(showingHomeDiagnostics ? "Скрыть" : "Открыть", systemImage: showingHomeDiagnostics ? "chevron.up" : "chevron.down")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .tint(secondaryButtonTint)
+                }
+                .padding(.horizontal, 18)
+
+                if showingHomeDiagnostics {
+                    Divider()
+                        .overlay(cardStroke)
+                        .padding(.horizontal, 18)
+
+                    HStack(spacing: 12) {
+                        Text("Последние события")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .textCase(.uppercase)
+                            .foregroundStyle(quaternaryText)
+
+                        Spacer(minLength: 0)
+
+                        Button {
+                            model.copyLogs()
+                            showingLogsCopiedFeedback = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+                                showingLogsCopiedFeedback = false
+                            }
+                        } label: {
+                            Label(showingLogsCopiedFeedback ? "Скопировано" : "Скопировать", systemImage: showingLogsCopiedFeedback ? "checkmark" : "doc.on.doc")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .tint(secondaryButtonTint)
+                    }
+                    .padding(.horizontal, 18)
+
+                    if model.logs.isEmpty {
+                        Text("Лог пока пуст.")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(secondaryText)
+                            .padding(.horizontal, 18)
+                            .padding(.bottom, 18)
+                    } else {
+                        ScrollViewReader { proxy in
+                            ScrollView {
+                                LazyVStack(alignment: .leading, spacing: 10) {
+                                    ForEach(Array(model.logs.reversed().enumerated()), id: \.offset) { index, line in
+                                        Text(cleanedLogLine(line))
+                                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                            .foregroundStyle(logTint(for: line))
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .textSelection(.enabled)
+                                            .id(index)
+                                    }
+                                }
+                                .padding(.horizontal, 18)
+                                .padding(.bottom, 18)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: maxHeight ?? 320, alignment: .topLeading)
+                            .onAppear {
+                                proxy.scrollTo(model.logs.count - 1, anchor: .bottom)
+                            }
+                            .onChange(of: model.logs.count) { _, newCount in
+                                guard newCount > 0 else { return }
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    proxy.scrollTo(newCount - 1, anchor: .bottom)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.top, 18)
+            .padding(.bottom, showingHomeDiagnostics ? 0 : 18)
+        }
+    }
+
     var runtimeCard: some View {
         settingsCard("Техническая информация") {
             VStack(alignment: .leading, spacing: 12) {
@@ -1535,12 +1793,14 @@ struct ContentView: View {
         }
     }
 
-    var downloadModePicker: some View {
+    func downloadModePicker(showTitle: Bool = true) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Режим выгрузки")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .textCase(.uppercase)
-                .foregroundStyle(tertiaryText)
+            if showTitle {
+                Text("Режим выгрузки")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .textCase(.uppercase)
+                    .foregroundStyle(tertiaryText)
+            }
 
             Picker("Режим выгрузки", selection: $model.downloadMode) {
                 ForEach(AppModel.DownloadMode.allCases) { mode in
@@ -1604,12 +1864,14 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.2), value: model.mediaSelectionMode)
     }
 
-    var mediaSelectionPicker: some View {
+    func mediaSelectionPicker(showTitle: Bool = true) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Что сохранять")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .textCase(.uppercase)
-                .foregroundStyle(tertiaryText)
+            if showTitle {
+                Text("Что сохранять")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .textCase(.uppercase)
+                    .foregroundStyle(tertiaryText)
+            }
 
             Picker("Что сохранять", selection: $model.mediaSelectionMode) {
                 ForEach(AppModel.MediaSelectionMode.allCases) { mode in
@@ -1628,10 +1890,10 @@ struct ContentView: View {
     var reelsComposerCard: some View {
         reelsCard("Ссылки на Reels") {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Вставь одну или несколько ссылок — каждую с новой строки. Приложение обработает их по очереди.")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 10) {
+                    queueSummaryPill(title: "Вставлено", value: "\(reelsLinkCount)", tint: Color.white.opacity(isDark ? 0.08 : 0.54))
+                    queueSummaryPill(title: "Сессия", value: model.sessionReady ? "Готова" : "Войти", tint: (model.sessionReady ? Color.green : Color.orange).opacity(isDark ? 0.13 : 0.10))
+                }
 
                 reelsInputEditor
 
@@ -1654,6 +1916,7 @@ struct ContentView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(prominentButtonTint)
                     .disabled(reelsLinkCount == 0 || model.isBusy)
+                    .opacity(reelsLinkCount == 0 || model.isBusy ? 0.72 : 1)
 
                     Button {
                         model.reelsInput = ""
@@ -1664,6 +1927,7 @@ struct ContentView: View {
                     .buttonStyle(.bordered)
                     .tint(secondaryButtonTint)
                     .disabled(model.isBusy || model.reelsInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .opacity(model.isBusy || model.reelsInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.72 : 1)
                 }
 
                 Text("Reels скачиваются отдельным потоком и не зависят от сценария сторис.")
@@ -1673,6 +1937,14 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: model.isBusy)
+    }
+
+    var reelsHero: some View {
+        detailHero(
+            eyebrow: "Reels",
+            title: "Скачать Reels по ссылке",
+            subtitle: "Вставь одну или несколько ссылок на публикации Instagram. Сохраним видео в выбранную папку и покажем последние файлы справа."
+        )
     }
 
     var reelsInputEditor: some View {
@@ -2097,6 +2369,7 @@ struct ContentView: View {
         .buttonStyle(.borderedProminent)
         .tint(queueActionTint)
         .disabled(model.batchQueue.isEmpty || model.isBusy)
+        .opacity(model.batchQueue.isEmpty || model.isBusy ? 0.72 : 1)
     }
 
     var storiesStopButton: some View {
@@ -2109,6 +2382,7 @@ struct ContentView: View {
         .buttonStyle(.bordered)
         .tint(Color.red.opacity(0.82))
         .disabled(!model.batchIsRunning)
+        .opacity(model.batchIsRunning ? 1 : 0.72)
     }
 
     func ghostButton(_ title: String, systemImage: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
@@ -2596,10 +2870,21 @@ struct ContentView: View {
 
     func batchQueueItem(_ item: AppModel.BatchProfileItem) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Circle()
-                .fill(statusColor(for: item.status))
-                .frame(width: 10, height: 10)
-                .padding(.top, 6)
+            ZStack {
+                Circle()
+                    .fill(statusColor(for: item.status).opacity(isDark ? 0.22 : 0.14))
+
+                if item.status == .running {
+                    ProgressView()
+                        .controlSize(.small)
+                        .scaleEffect(0.62)
+                } else {
+                    Image(systemName: statusSystemImage(for: item.status))
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(statusColor(for: item.status))
+                }
+            }
+            .frame(width: 30, height: 30)
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .top) {
@@ -2608,11 +2893,17 @@ struct ContentView: View {
                             .font(.system(size: 13, weight: .semibold, design: .monospaced))
                             .foregroundStyle(primaryText)
                             .textSelection(.enabled)
+                            .lineLimit(2)
 
-                        Text(item.status.title)
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .textCase(.uppercase)
-                            .foregroundStyle(tertiaryText)
+                        HStack(spacing: 8) {
+                            statusBadge(for: item.status)
+
+                            if item.status == .running, !model.batchCurrentURL.isEmpty {
+                                Text("текущий профиль")
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(tertiaryText)
+                            }
+                        }
                     }
 
                     Spacer(minLength: 8)
@@ -2644,8 +2935,40 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                .fill(itemFill)
+                .fill(item.status == .running ? prominentButtonTint.opacity(isDark ? 0.18 : 0.09) : itemFill)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
+                .strokeBorder(statusColor(for: item.status).opacity(item.status == .pending ? 0.08 : 0.24), lineWidth: 1)
+        )
+    }
+
+    func statusBadge(for status: AppModel.BatchProfileItem.Status) -> some View {
+        Text(status.title)
+            .font(.system(size: 11, weight: .bold, design: .rounded))
+            .textCase(.uppercase)
+            .foregroundStyle(statusColor(for: status))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(statusColor(for: status).opacity(isDark ? 0.14 : 0.10))
+            )
+    }
+
+    func statusSystemImage(for status: AppModel.BatchProfileItem.Status) -> String {
+        switch status {
+        case .pending:
+            return "clock"
+        case .running:
+            return "arrow.down.circle"
+        case .completed:
+            return "checkmark"
+        case .failed:
+            return "exclamationmark"
+        case .stopped:
+            return "pause"
+        }
     }
 
     func statusColor(for status: AppModel.BatchProfileItem.Status) -> Color {

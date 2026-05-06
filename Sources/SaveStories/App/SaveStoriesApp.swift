@@ -8,7 +8,7 @@ struct SaveMeApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(model)
-                .frame(minWidth: 1180, minHeight: 760)
+                .frame(minWidth: 940, minHeight: 720)
                 .task {
                     await model.prepare()
                 }

@@ -4,6 +4,7 @@ extension ContentView {
     var homeTwoView: some View {
         GeometryReader { proxy in
             let compact = isCompactHomeLayout(for: proxy.size.width)
+            let horizontalPadding = contentHorizontalPadding(for: proxy.size.width)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
@@ -17,7 +18,7 @@ extension ContentView {
                                 .frame(maxWidth: .infinity, minHeight: homeSummaryCardHeight, alignment: .topLeading)
                             homeTwoComposerCard(compact: true)
                             recentListsCard(compact: true)
-                            logsCard(maxHeight: 320)
+                            homeDiagnosticsCard(maxHeight: 320)
                             homeTwoQueueCard(compact: true)
                         }
                     } else {
@@ -37,14 +38,14 @@ extension ContentView {
 
                             VStack(alignment: .leading, spacing: 20) {
                                 recentListsCard(compact: false)
-                                logsCard(maxHeight: 320)
+                                homeDiagnosticsCard(maxHeight: 320)
                             }
                             .frame(maxWidth: .infinity, alignment: .top)
                         }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
-                .padding(.horizontal, 28)
+                .padding(.horizontal, horizontalPadding)
                 .padding(.bottom, 28)
                 .padding(.top, 4)
             }
@@ -52,56 +53,92 @@ extension ContentView {
     }
 
     var batchView: some View {
-        HStack(spacing: 24) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    detailHero(
-                        eyebrow: "Списочная выгрузка",
-                        title: "Пакетная очередь профилей",
-                        subtitle: "Добавь сразу несколько ссылок или usernames. Приложение последовательно выгрузит stories для каждого профиля."
-                    )
-                    batchInputCard
-                    batchQueueCard
-                    destinationCard
-                    batchModeCard
-                    mediaFilterCard
-                }
-                .padding(.vertical, 4)
-            }
-            .frame(maxWidth: 560, maxHeight: .infinity, alignment: .topLeading)
+        GeometryReader { proxy in
+            let compact = proxy.size.width < 980
+            let horizontalPadding = contentHorizontalPadding(for: proxy.size.width)
 
-            activityPanel
+            if compact {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        batchMainColumn
+                        activityPanel
+                    }
+                    .padding(.horizontal, horizontalPadding)
+                    .padding(.bottom, 28)
+                    .padding(.top, 4)
+                }
+            } else {
+                HStack(spacing: 24) {
+                    ScrollView {
+                        batchMainColumn
+                            .padding(.vertical, 4)
+                    }
+                    .frame(maxWidth: 560, maxHeight: .infinity, alignment: .topLeading)
+
+                    activityPanel
+                }
+                .padding(.horizontal, horizontalPadding)
+                .padding(.bottom, 28)
+            }
         }
-        .padding(.horizontal, 28)
-        .padding(.bottom, 28)
+    }
+
+    var batchMainColumn: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            detailHero(
+                eyebrow: "Списочная выгрузка",
+                title: "Пакетная очередь профилей",
+                subtitle: "Добавь сразу несколько ссылок или usernames. Приложение последовательно выгрузит stories для каждого профиля."
+            )
+            batchInputCard
+            batchQueueCard
+            destinationCard
+            batchModeCard
+            mediaFilterCard
+        }
     }
 
     var reelsView: some View {
-        HStack(spacing: 24) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    detailHero(
-                        eyebrow: "Reels",
-                        title: "Скачать Reels по ссылке",
-                        subtitle: "Выгрузка Reels тут"
-                    )
+        GeometryReader { proxy in
+            let compact = proxy.size.width < 980
+            let horizontalPadding = contentHorizontalPadding(for: proxy.size.width)
 
-                    reelsComposerCard
-                    reelsDestinationCard
+            if compact {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        reelsHero
+                        reelsComposerCard
+                        reelsDestinationCard
+                        reelsActivityPanel
+                    }
+                    .padding(.horizontal, horizontalPadding)
+                    .padding(.bottom, 28)
+                    .padding(.top, 4)
                 }
-                .padding(.vertical, 4)
-            }
-            .frame(maxWidth: 560, maxHeight: .infinity, alignment: .topLeading)
+            } else {
+                HStack(spacing: 24) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 18) {
+                            reelsHero
+                            reelsComposerCard
+                            reelsDestinationCard
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .frame(maxWidth: 560, maxHeight: .infinity, alignment: .topLeading)
 
-            reelsActivityPanel
+                    reelsActivityPanel
+                }
+                .padding(.horizontal, horizontalPadding)
+                .padding(.bottom, 28)
+            }
         }
-        .padding(.horizontal, 28)
-        .padding(.bottom, 28)
     }
 
     var sortingView: some View {
         GeometryReader { proxy in
             let compact = proxy.size.width < 980
+            let horizontalPadding = contentHorizontalPadding(for: proxy.size.width)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
@@ -126,7 +163,7 @@ extension ContentView {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
-                .padding(.horizontal, 28)
+                .padding(.horizontal, horizontalPadding)
                 .padding(.bottom, 28)
                 .padding(.top, 4)
             }
@@ -136,6 +173,7 @@ extension ContentView {
     var settingsView: some View {
         GeometryReader { proxy in
             let compact = proxy.size.width < 1040
+            let horizontalPadding = contentHorizontalPadding(for: proxy.size.width)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
@@ -173,7 +211,7 @@ extension ContentView {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
-                .padding(.horizontal, 28)
+                .padding(.horizontal, horizontalPadding)
                 .padding(.bottom, 28)
                 .padding(.top, 4)
             }
