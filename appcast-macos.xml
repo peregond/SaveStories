@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.21</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.22</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.21</title>
-      <pubDate>Tue, 05 May 2026 15:53:20 GMT</pubDate>
-      <sparkle:version>92</sparkle:version>
-      <sparkle:shortVersionString>0.6.21</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.21</h2>
-<ul><li>Добавлен структурный worker protocol v2 с `counts`, `batchResults`, `runtime` и `diagnostics` при сохранении обратной совместимости</li><li>Усилены пакетные выгрузки: timeout изолирует зависшую страницу, добавлены retries/backoff и JSONL diagnostics</li><li>Добавлены preflight/health checks для runtime, Playwright, Chromium, папок и session state</li><li>Добавлен manifest schema v2, дедупликация между запусками и базовая integrity-проверка скачанных media</li><li>Windows updater теперь требует SHA256 и проверяет подпись installer перед автоустановкой</li></ul>]]></description>
+      <title>SaveMe 0.6.22</title>
+      <pubDate>Wed, 06 May 2026 10:18:38 GMT</pubDate>
+      <sparkle:version>93</sparkle:version>
+      <sparkle:shortVersionString>0.6.22</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.22</h2>
+<ul><li>Обновлён macOS-интерфейс: более компактный sidebar, верхняя status bar и единое место для состояния Node/Session</li><li>Главный экран стал чище: логи спрятаны в раскрываемую диагностику, очередь получила более понятные счётчики и статусы</li><li>Улучшен Reels-экран: новый hero, счётчики ссылок/сессии и адаптивная раскладка</li><li>Добавлена поддержка более узкого окна macOS: минимальная ширина снижена до 940 px, основные экраны складываются в одну колонку</li><li>Разделы в левом меню получили emoji-иконки для более быстрого визуального сканирования</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.21/SaveMe-macOS-v0.6.21.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.22/SaveMe-macOS-v0.6.22.dmg"
         sparkle:os="macos"
-        length="187599753"
+        length="187657879"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="V6hnS4asmuz7Izsc/glDm/YkLWrxUXdI4eaHtxmWSl5a1tIz90cVcGg1N0qIKF9aq2tq/4cy/TSekI/Mb47cAw==" />
+        sparkle:edSignature="jXEIEDNCaG3lHWLjCOgdZNxZgOTIXJ8akJwv1W8M7IklQ+QSQDQvh4Gpqiysv8+ZlyE+99cELZj5cBO+YbVbAw==" />
     </item>
   </channel>
 </rss>
