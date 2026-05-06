@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.24</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.25</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.24</title>
-      <pubDate>Wed, 06 May 2026 11:41:23 GMT</pubDate>
-      <sparkle:version>95</sparkle:version>
-      <sparkle:shortVersionString>0.6.24</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.24</h2>
-<ul><li>Исправлен macOS-запрет сна во время активной загрузки: теперь приложение удерживает не только сон системы, но и выключение дисплея</li><li>Настройка в macOS-интерфейсе уточнена: «Не давать Mac засыпать и гасить экран»</li><li>Добавлен тест, который фиксирует обе power assertion опции для длинных выгрузок</li></ul>]]></description>
+      <title>SaveMe 0.6.25</title>
+      <pubDate>Wed, 06 May 2026 13:45:46 GMT</pubDate>
+      <sparkle:version>96</sparkle:version>
+      <sparkle:shortVersionString>0.6.25</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.25</h2>
+<ul><li>Усилен macOS-запрет сна во время активной загрузки: приложение удерживает и сон системы, и выключение дисплея</li><li>Cleanup загрузочной операции переведён на гарантированный `defer`, чтобы power assertion снимался только после завершения или остановки операции</li><li>Настройка в macOS-интерфейсе уточнена: «Не давать Mac засыпать и гасить экран»</li><li>Добавлен тест, который фиксирует обе power assertion опции для длинных выгрузок</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.24/SaveMe-macOS-v0.6.24.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.25/SaveMe-macOS-v0.6.25.dmg"
         sparkle:os="macos"
-        length="187704781"
+        length="187749136"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="noeQKgeNfmvQEaMEqW11pF34MsI7u4YH7Z2V+oWfpYDohFZIYp5Ug2AD9/zoIRxTrvHsX+efrYGjRJLYcYWeCA==" />
+        sparkle:edSignature="YDAmw95YjLiRVsFn1DnJTw5F32G5jDWU0sqaWTL+ZKsGHG10bfkTOExNmxYsLeLT1TLcXVYs//k7dj7PDT9dCw==" />
     </item>
   </channel>
 </rss>
