@@ -1,6 +1,6 @@
 {
   "name": "savestories-node-worker",
-  "version": "0.6.24",
+  "version": "0.6.25",
   "private": true,
   "type": "module",
   "engines": {

@@ -174,23 +174,27 @@ extension AppModel {
             refreshSleepPreventionForCurrentState()
             beginLiveDownloadTracking()
         }
+
+        defer {
+            isBusy = false
+            stopLiveDownloadTracking()
+            if isDownloadOperation {
+                isDownloadActivityInProgress = false
+                refreshSleepPreventionForCurrentState()
+            }
+            refreshLiveDownloadTracking()
+            if statusTitle == "Готово" {
+                currentStepLabel = "Операция завершена."
+            } else if statusTitle == "Ошибка" {
+                currentStepLabel = "Операция завершилась ошибкой."
+            }
+            if !batchIsRunning {
+                batchCurrentURL = ""
+            }
+        }
+
         appendLog(message)
         await task()
-        isBusy = false
-        stopLiveDownloadTracking()
-        if isDownloadOperation {
-            isDownloadActivityInProgress = false
-            refreshSleepPreventionForCurrentState()
-        }
-        refreshLiveDownloadTracking()
-        if statusTitle == "Готово" {
-            currentStepLabel = "Операция завершена."
-        } else if statusTitle == "Ошибка" {
-            currentStepLabel = "Операция завершилась ошибкой."
-        }
-        if !batchIsRunning {
-            batchCurrentURL = ""
-        }
     }
 
     func append(_ response: WorkerResponse) {
