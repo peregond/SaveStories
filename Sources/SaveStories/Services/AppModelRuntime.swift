@@ -2,6 +2,11 @@ import AppKit
 import Foundation
 
 extension AppModel {
+    static let sleepPreventionActivityOptions: ProcessInfo.ActivityOptions = [
+        .idleSystemSleepDisabled,
+        .idleDisplaySleepDisabled
+    ]
+
     func prepare() async {
         guard !hasPrepared else { return }
         hasPrepared = true
@@ -433,7 +438,7 @@ extension AppModel {
     private func beginSleepPrevention() {
         guard sleepPreventionActivity == nil else { return }
         sleepPreventionActivity = ProcessInfo.processInfo.beginActivity(
-            options: [.idleSystemSleepDisabled],
+            options: Self.sleepPreventionActivityOptions,
             reason: "SaveMe download in progress"
         )
     }

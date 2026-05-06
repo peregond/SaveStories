@@ -1719,7 +1719,7 @@ struct ContentView: View {
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(model.preventSleepDuringDownloads ? prominentButtonTint : secondaryText)
 
-                        Text("Не давать Mac засыпать")
+                        Text("Не давать Mac засыпать и гасить экран")
                             .font(.system(size: 14, weight: .semibold, design: .rounded))
                             .foregroundStyle(primaryText)
                     }
@@ -1729,7 +1729,7 @@ struct ContentView: View {
                 if !model.preventSleepDuringDownloads {
                     statusInlineNote(
                         title: "Внимание",
-                        message: "Если Mac уснёт во время длинной выгрузки, скачивание stories или Reels может прерваться."
+                        message: "Если Mac уснёт или заблокирует экран во время длинной выгрузки, скачивание stories или Reels может прерваться."
                     )
                     .transition(.opacity)
                 }

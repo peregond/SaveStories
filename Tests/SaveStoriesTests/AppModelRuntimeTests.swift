@@ -3,6 +3,11 @@ import XCTest
 
 @MainActor
 final class AppModelRuntimeTests: XCTestCase {
+    func testSleepPreventionDisablesSystemAndDisplaySleep() {
+        XCTAssertTrue(AppModel.sleepPreventionActivityOptions.contains(.idleSystemSleepDisabled))
+        XCTAssertTrue(AppModel.sleepPreventionActivityOptions.contains(.idleDisplaySleepDisabled))
+    }
+
     func testAppendForSuccessfulDownloadPrependsItemsUpdatesCountsAndCelebrates() {
         let model = AppModel()
         model.downloadedItems = [
