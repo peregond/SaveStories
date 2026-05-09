@@ -1,9 +1,12 @@
 using Microsoft.UI.Xaml.Controls;
+using SaveMe.WinUI.Beta;
 using SaveMe.WinUI.Beta.Services;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using Windows.Storage.Pickers;
+using WinRT.Interop;
 
 namespace SaveMe.WinUI.Beta.Pages;
 
@@ -279,49 +282,27 @@ public sealed partial class StoriesPage : Page
 
     private async void OnChangeOutputDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        var pathInput = new TextBox
-        {
-            Text = _outputDirectory,
-            PlaceholderText = "C:\\Users\\...\\Downloads\\SaveMe",
-            MinWidth = 420,
-        };
-
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot,
-            Title = "Папка сохранения",
-            Content = new StackPanel
-            {
-                Spacing = 8,
-                Children =
-                {
-                    new TextBlock
-                    {
-                        Text = "Укажи полный путь для сохранения файлов.",
-                        Opacity = 0.8,
-                    },
-                    pathInput
-                }
-            },
-            PrimaryButtonText = "Сохранить",
-            CloseButtonText = "Отмена",
-            DefaultButton = ContentDialogButton.Primary,
-        };
-
-        var result = await dialog.ShowAsync();
-        if (result != ContentDialogResult.Primary)
-        {
-            return;
-        }
-
-        var newPath = pathInput.Text?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(newPath))
-        {
-            return;
-        }
-
         try
         {
+            var picker = new FolderPicker
+            {
+                SuggestedStartLocation = PickerLocationId.Downloads,
+                CommitButtonText = "Выбрать папку",
+            };
+            picker.FileTypeFilter.Add("*");
+
+            if (App.MainWindow is not null)
+            {
+                InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
+            }
+
+            var folder = await picker.PickSingleFolderAsync();
+            var newPath = folder?.Path ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(newPath))
+            {
+                return;
+            }
+
             Directory.CreateDirectory(newPath);
             _outputDirectory = newPath;
             OutputDirectoryText.Text = _outputDirectory;

@@ -1,7 +1,10 @@
 using Microsoft.UI.Xaml.Controls;
+using SaveMe.WinUI.Beta;
 using SaveMe.WinUI.Beta.Services;
 using System.Diagnostics;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Storage.Pickers;
+using WinRT.Interop;
 
 namespace SaveMe.WinUI.Beta.Pages;
 
@@ -21,7 +24,7 @@ public sealed partial class SortingPage : Page
 
     private async void OnChangeSourceDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        var path = await PromptPathAsync("Папка Перенос", BetaSettingsStore.Current.SortingSourceDirectory);
+        var path = await PickFolderAsync("Папка Перенос");
         if (string.IsNullOrWhiteSpace(path))
         {
             return;
@@ -34,7 +37,7 @@ public sealed partial class SortingPage : Page
 
     private async void OnChangeDestinationDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        var path = await PromptPathAsync("Папка назначения", BetaSettingsStore.Current.SortingDestinationDirectory);
+        var path = await PickFolderAsync("Папка назначения");
         if (string.IsNullOrWhiteSpace(path))
         {
             return;
@@ -104,27 +107,31 @@ public sealed partial class SortingPage : Page
         SortingStatusText.Text = "Дайджест скопирован в буфер обмена.";
     }
 
-    private async Task<string?> PromptPathAsync(string title, string currentValue)
+    private async Task<string?> PickFolderAsync(string title)
     {
-        var pathInput = new TextBox
+        try
         {
-            Text = currentValue,
-            PlaceholderText = "C:\\Users\\...\\Google Drive\\...",
-            MinWidth = 420,
-        };
+            var picker = new FolderPicker
+            {
+                SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+                CommitButtonText = title,
+            };
+            picker.FileTypeFilter.Add("*");
 
-        var dialog = new ContentDialog
+            if (App.MainWindow is not null)
+            {
+                InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
+            }
+
+            var folder = await picker.PickSingleFolderAsync();
+            return folder?.Path;
+        }
+        catch (Exception ex)
         {
-            XamlRoot = XamlRoot,
-            Title = title,
-            Content = pathInput,
-            PrimaryButtonText = "Сохранить",
-            CloseButtonText = "Отмена",
-            DefaultButton = ContentDialogButton.Primary,
-        };
-
-        var result = await dialog.ShowAsync();
-        return result == ContentDialogResult.Primary ? pathInput.Text?.Trim() : null;
+            SortingStatusText.Text = $"Не удалось открыть выбор папки: {ex.Message}";
+            DiagnosticsService.Current.LogError("Windows folder picker failed", ex);
+            return null;
+        }
     }
 
     private void RefreshRememberedBloggers()

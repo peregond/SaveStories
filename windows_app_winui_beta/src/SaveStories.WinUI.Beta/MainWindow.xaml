@@ -93,22 +93,22 @@
             <NavigationView.MenuItems>
                 <NavigationViewItem Content="Stories" Tag="stories">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="📱" />
+                        <FontIcon FontFamily="Segoe UI Emoji" FontSize="16" Glyph="📱" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Content="Списочная" Tag="queue">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="📋" />
+                        <FontIcon FontFamily="Segoe UI Emoji" FontSize="16" Glyph="📋" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Content="Reels" Tag="reels">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="📹" />
+                        <FontIcon FontFamily="Segoe UI Emoji" FontSize="16" Glyph="📹" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Content="Сортировка" Tag="sorting">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="🗂️" />
+                        <FontIcon FontFamily="Segoe UI Emoji" FontSize="16" Glyph="🗂️" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>

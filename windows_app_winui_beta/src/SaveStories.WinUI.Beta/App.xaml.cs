@@ -10,6 +10,8 @@ public partial class App : Application
 {
     private Window? _window;
 
+    public static Window? MainWindow { get; private set; }
+
     public App()
     {
         InitializeComponent();
@@ -23,12 +25,14 @@ public partial class App : Application
         try
         {
             _window = new MainWindow();
+            MainWindow = _window;
             _window.Activate();
         }
         catch (Exception ex)
         {
             DiagnosticsService.Current.LogError("Startup.MainWindowFailed", ex);
             _window = BuildFatalWindow(ex);
+            MainWindow = _window;
             _window.Activate();
         }
     }
