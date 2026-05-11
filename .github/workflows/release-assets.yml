@@ -73,12 +73,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$RELEASE_TAG" "dist/release/SaveMe-macOS-${RELEASE_TAG}.dmg" --clobber
 
-      - name: Upload macOS asset as workflow artifact
-        uses: actions/upload-artifact@v5
-        with:
-          name: macos-release-asset
-          path: dist/release/SaveMe-macOS-${{ env.RELEASE_TAG }}.dmg
-
   build-windows-winui:
     needs: create-release
     runs-on: windows-latest
@@ -210,11 +204,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Download macOS release artifact
-        uses: actions/download-artifact@v5
-        with:
-          name: macos-release-asset
-          path: dist/release
+      - name: Download macOS release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist/release
+          gh release download "$RELEASE_TAG" \
+            --pattern "SaveMe-macOS-${RELEASE_TAG}.dmg" \
+            --dir dist/release \
+            --clobber
 
       - name: Setup Node 24 LTS
         uses: actions/setup-node@v6

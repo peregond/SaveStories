@@ -1,7 +1,8 @@
-## SaveMe 0.6.32
+## SaveMe 0.6.33
 
 - Windows WinUI installer больше не включает Node внутрь установщика: первый запуск докачивает Node 24 LTS, зависимости worker и Chromium через onboarding.
 - Windows onboarding теперь показывает этапы установки и понятнее подсвечивает упавший шаг, если загрузка или установка остановилась.
 - Добавлен CI smoke-тест, который защищает облегчённую Windows-схему от регрессии.
 - GitHub Actions для артефактов обновлены на Node 24-совместимые версии.
 - В релизных workflow включён официальный Node 24 opt-in для JavaScript actions.
+- Релизный workflow больше не использует artifact actions для передачи macOS DMG между задачами.
