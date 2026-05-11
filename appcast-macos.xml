@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.31</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.32</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.31</title>
-      <pubDate>Mon, 11 May 2026 20:46:35 GMT</pubDate>
-      <sparkle:version>102</sparkle:version>
-      <sparkle:shortVersionString>0.6.31</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.31</h2>
-<ul><li>Windows WinUI installer больше не включает Node внутрь установщика: первый запуск докачивает Node 24 LTS, зависимости worker и Chromium через onboarding.</li><li>Windows onboarding теперь показывает этапы установки и понятнее подсвечивает упавший шаг, если загрузка или установка остановилась.</li><li>Добавлен CI smoke-тест, который защищает облегчённую Windows-схему от регрессии.</li><li>GitHub Actions для артефактов обновлены на Node 24-совместимые версии.</li></ul>]]></description>
+      <title>SaveMe 0.6.32</title>
+      <pubDate>Mon, 11 May 2026 20:50:22 GMT</pubDate>
+      <sparkle:version>103</sparkle:version>
+      <sparkle:shortVersionString>0.6.32</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.32</h2>
+<ul><li>Windows WinUI installer больше не включает Node внутрь установщика: первый запуск докачивает Node 24 LTS, зависимости worker и Chromium через onboarding.</li><li>Windows onboarding теперь показывает этапы установки и понятнее подсвечивает упавший шаг, если загрузка или установка остановилась.</li><li>Добавлен CI smoke-тест, который защищает облегчённую Windows-схему от регрессии.</li><li>GitHub Actions для артефактов обновлены на Node 24-совместимые версии.</li><li>В релизных workflow включён официальный Node 24 opt-in для JavaScript actions.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.31/SaveMe-macOS-v0.6.31.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.32/SaveMe-macOS-v0.6.32.dmg"
         sparkle:os="macos"
-        length="3168839"
+        length="3168833"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="OOdIiyAx5DV8dP6M4Eq3zfF/dyUVT5p7Ftvrt0y+urEzzzFvNrXteX1mPaNSThSJN5zlh2TvLLbUmw9pNALKAA==" />
+        sparkle:edSignature="CAZK+OciH50Pm99yJLkHd8JDu44BHqhvc5/3Wb1ndqlSoUnKBfDRDtuVYCg7AoyKiShfPb7Siok2xnJ7U+pHDA==" />
     </item>
   </channel>
 </rss>
