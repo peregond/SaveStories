@@ -66,7 +66,7 @@ if [ "$use_system_node" -ne 1 ]; then
       exit 1
     fi
     node_url="$node_base_url/$node_archive"
-    curl -L --fail "$node_url" -o "$temp_dir/node.tar.gz"
+    curl -fsSL "$node_url" -o "$temp_dir/node.tar.gz"
     tar -xzf "$temp_dir/node.tar.gz" -C "$temp_dir"
     rm -rf "$NODE_ROOT"
     mkdir -p "$NODE_ROOT"
@@ -101,6 +101,10 @@ if [ "$WORKER_DIR" != "$WORKER_ROOT" ]; then
   printf 'Копирую worker...\n'
   rsync -a --delete \
     --exclude node_modules \
+    --exclude node \
+    --exclude ms-playwright \
+    --exclude browser-profile \
+    --exclude .venv \
     --exclude .DS_Store \
     "$WORKER_DIR"/ "$WORKER_ROOT"/
 fi

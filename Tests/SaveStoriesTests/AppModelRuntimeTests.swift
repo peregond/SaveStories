@@ -96,4 +96,42 @@ final class AppModelRuntimeTests: XCTestCase {
         model.handleWorkerProgress("playwright=/tmp/ms-playwright")
         XCTAssertEqual(model.currentStepLabel, "Проверяю runtime и зависимости.")
     }
+
+    func testRuntimeSetupProgressMapsInstallerStages() {
+        let model = AppModel()
+
+        model.applyRuntimeSetupProgress("Готовлю папку worker: /tmp/worker")
+        XCTAssertEqual(model.runtimeSetupStage, .folders)
+        XCTAssertEqual(model.runtimeSetupMessage, "Готовлю локальную папку для движка.")
+
+        model.applyRuntimeSetupProgress("Скачиваю Node 24 LTS...")
+        XCTAssertEqual(model.runtimeSetupStage, .node)
+        XCTAssertEqual(model.runtimeSetupMessage, "Скачиваю Node 24 LTS.")
+
+        model.applyRuntimeSetupProgress("Копирую worker...")
+        XCTAssertEqual(model.runtimeSetupStage, .worker)
+
+        model.applyRuntimeSetupProgress("Устанавливаю npm зависимости...")
+        XCTAssertEqual(model.runtimeSetupStage, .packages)
+
+        model.applyRuntimeSetupProgress("Скачиваю Chromium...")
+        XCTAssertEqual(model.runtimeSetupStage, .browser)
+    }
+
+    func testRuntimeSetupFailureSummaryRemovesTransferProgressNoise() {
+        let model = AppModel()
+        let summary = model.runtimeSetupFailureSummary(from: """
+        % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+        Dload  Upload   Total   Spent    Left  Speed
+        0 49.0M    0 77793    0     0   194k      0  0:04:18 --:--:--  193k
+        rsync(3354): warning: /Users/test/worker/node/lib: not empty, cannot delete
+        Не удалось установить зависимости.
+        """)
+
+        XCTAssertFalse(summary.contains("% Total"))
+        XCTAssertFalse(summary.contains("Dload"))
+        XCTAssertFalse(summary.contains("49.0M"))
+        XCTAssertTrue(summary.contains("rsync"))
+        XCTAssertTrue(summary.contains("Не удалось установить зависимости."))
+    }
 }

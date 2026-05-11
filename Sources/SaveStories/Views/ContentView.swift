@@ -427,11 +427,16 @@ struct ContentView: View {
 
     func runtimeOnboardingStatus(for stage: AppModel.RuntimeSetupStage) -> RuntimeOnboardingStatus {
         if model.runtimeSetupStage == .failed {
-            let reached = runtimeOnboardingOrder(stage) <= runtimeOnboardingOrder(.browser)
+            let failedStage = model.runtimeSetupFailedStage ?? .folders
+            let stageOrder = runtimeOnboardingOrder(stage)
+            let failedOrder = runtimeOnboardingOrder(failedStage)
+            if stageOrder < failedOrder {
+                return RuntimeOnboardingStatus(symbol: "checkmark", tint: Color.green.opacity(0.86), isCurrent: false, isSpinning: false)
+            }
             return RuntimeOnboardingStatus(
-                symbol: reached ? "exclamationmark" : "circle",
-                tint: reached ? Color.red.opacity(0.82) : tertiaryText,
-                isCurrent: reached,
+                symbol: stageOrder == failedOrder ? "exclamationmark" : "circle",
+                tint: stageOrder == failedOrder ? Color.red.opacity(0.82) : tertiaryText,
+                isCurrent: stageOrder == failedOrder,
                 isSpinning: false
             )
         }

@@ -281,6 +281,7 @@ final class AppModel: ObservableObject {
     @Published var showLoginPrompt = false
     @Published var showRuntimeOnboarding = false
     @Published var runtimeSetupStage: RuntimeSetupStage = .welcome
+    @Published var runtimeSetupFailedStage: RuntimeSetupStage?
     @Published var runtimeSetupMessage = "Подготовим движок, без которого приложение не сможет скачивать stories."
     @Published var runtimeSetupErrorMessage: String?
     @Published var showEmptyFolderCleanupPrompt = false

@@ -23,6 +23,7 @@ extension AppModel {
         await refreshEnvironment()
         if !workerReady && !hasEmbeddedRuntime && !runtimeOnboardingDismissed {
             runtimeSetupStage = .welcome
+            runtimeSetupFailedStage = nil
             runtimeSetupErrorMessage = nil
             runtimeSetupMessage = "Нужно один раз докачать движок: Node, Playwright и Chromium."
             showRuntimeOnboarding = true
@@ -62,6 +63,7 @@ extension AppModel {
         await perform("Подготовка среды воркера") {
             do {
                 self.runtimeSetupStage = .folders
+                self.runtimeSetupFailedStage = nil
                 self.runtimeSetupErrorMessage = nil
                 self.runtimeSetupMessage = "Готовлю папки приложения."
                 self.showRuntimeOnboarding = true
@@ -81,12 +83,14 @@ extension AppModel {
                 self.append(response)
                 if self.workerReady {
                     self.runtimeSetupStage = .ready
+                    self.runtimeSetupFailedStage = nil
                     self.runtimeSetupMessage = "Движок установлен. Можно входить в Instagram и начинать выгрузку."
                     UserDefaults.standard.set(true, forKey: Self.runtimeOnboardingDismissedKey)
                 }
             } catch {
+                self.runtimeSetupFailedStage = self.runtimeSetupStage
                 self.runtimeSetupStage = .failed
-                self.runtimeSetupErrorMessage = error.localizedDescription
+                self.runtimeSetupErrorMessage = self.runtimeSetupFailureSummary(from: error.localizedDescription)
                 self.runtimeSetupMessage = "Установка остановилась. Проверь интернет и попробуй ещё раз."
                 self.workerReady = false
                 self.statusTitle = "Ошибка"
@@ -341,7 +345,7 @@ extension AppModel {
         runtimeSummary = buildRuntimeSummary(from: response)
     }
 
-    private func applyRuntimeSetupProgress(_ line: String) {
+    func applyRuntimeSetupProgress(_ line: String) {
         let lowered = line.lowercased()
 
         if lowered.contains("application support") || lowered.contains("папк") {
@@ -360,6 +364,26 @@ extension AppModel {
             runtimeSetupStage = .browser
             runtimeSetupMessage = "Скачиваю Chromium для автоматической выгрузки."
         }
+    }
+
+    func runtimeSetupFailureSummary(from rawMessage: String) -> String {
+        let cleanedLines = rawMessage
+            .split(whereSeparator: \.isNewline)
+            .map(String.init)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .filter { line in
+                let lowered = line.lowercased()
+                if lowered.hasPrefix("% total") { return false }
+                if lowered.contains("dload") && lowered.contains("upload") { return false }
+                if lowered.contains("time") && lowered.contains("current") { return false }
+                if lowered.contains("--:--:--") { return false }
+                if lowered.range(of: #"^[\d\s.:-]+[kmg]?\s*$"#, options: .regularExpression) != nil { return false }
+                return true
+            }
+
+        let selected = cleanedLines.suffix(4).joined(separator: "\n")
+        return selected.isEmpty ? "Не удалось подготовить среду. Проверь интернет и попробуй ещё раз." : selected
     }
 
     private func buildRuntimeSummary(from response: WorkerResponse) -> String {
