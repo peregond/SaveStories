@@ -110,8 +110,35 @@ public static class ShellFolderService
 
     [ComImport]
     [Guid("DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7")]
-    private sealed class FileOpenDialog
+    private sealed class FileOpenDialog : IFileOpenDialog
     {
+        [PreserveSig]
+        public extern int Show(IntPtr parent);
+        public extern void SetFileTypes(uint cFileTypes, IntPtr rgFilterSpec);
+        public extern void SetFileTypeIndex(uint iFileType);
+        public extern void GetFileTypeIndex(out uint piFileType);
+        public extern void Advise(IntPtr pfde, out uint pdwCookie);
+        public extern void Unadvise(uint dwCookie);
+        public extern void SetOptions(uint fos);
+        public extern void GetOptions(out uint pfos);
+        public extern void SetDefaultFolder(IShellItem psi);
+        public extern void SetFolder(IShellItem psi);
+        public extern void GetFolder(out IShellItem ppsi);
+        public extern void GetCurrentSelection(out IShellItem ppsi);
+        public extern void SetFileName(string pszName);
+        public extern void GetFileName(out string pszName);
+        public extern void SetTitle(string pszTitle);
+        public extern void SetOkButtonLabel(string pszText);
+        public extern void SetFileNameLabel(string pszLabel);
+        public extern void GetResult(out IShellItem ppsi);
+        public extern void AddPlace(IShellItem psi, uint fdap);
+        public extern void SetDefaultExtension(string pszDefaultExtension);
+        public extern void Close(int hr);
+        public extern void SetClientGuid(ref Guid guid);
+        public extern void ClearClientData();
+        public extern void SetFilter(IntPtr pFilter);
+        public extern void GetResults(out IntPtr ppenum);
+        public extern void GetSelectedItems(out IntPtr ppsai);
     }
 
     [ComImport]
