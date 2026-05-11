@@ -154,7 +154,8 @@ public sealed partial class MainWindow : Window
         var nodeCoreOk = preflight.Checks
             .Where(check => check.Name is "Node runtime" or "node_worker")
             .All(check => check.Ok);
-        var runtimeReady = ChromiumBootstrapService.Current.IsWorkerDependenciesInstalled()
+        var runtimeReady = ChromiumBootstrapService.Current.IsNodeRuntimeInstalled()
+            && ChromiumBootstrapService.Current.IsWorkerDependenciesInstalled()
             && ChromiumBootstrapService.Current.IsChromiumInstalled();
 
         if (nodeCoreOk && runtimeReady)
@@ -176,7 +177,8 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            var runtimeReady = ChromiumBootstrapService.Current.IsWorkerDependenciesInstalled()
+            var runtimeReady = ChromiumBootstrapService.Current.IsNodeRuntimeInstalled()
+                && ChromiumBootstrapService.Current.IsWorkerDependenciesInstalled()
                 && ChromiumBootstrapService.Current.IsChromiumInstalled();
             if (!runtimeReady)
             {
@@ -223,14 +225,19 @@ public sealed partial class MainWindow : Window
         Neutral,
     }
 
+    private enum RuntimeSetupStage
+    {
+        Node,
+        Worker,
+        Dependencies,
+        Chromium,
+        Ready,
+    }
+
     private async Task PromptRuntimeInstallIfNeededAsync()
     {
-        if (BetaSettingsStore.Current.RuntimePromptShown)
-        {
-            return;
-        }
-
-        var runtimeReady = ChromiumBootstrapService.Current.IsWorkerDependenciesInstalled()
+        var runtimeReady = ChromiumBootstrapService.Current.IsNodeRuntimeInstalled()
+            && ChromiumBootstrapService.Current.IsWorkerDependenciesInstalled()
             && ChromiumBootstrapService.Current.IsChromiumInstalled();
         if (runtimeReady)
         {
@@ -273,13 +280,14 @@ public sealed partial class MainWindow : Window
             Text = "Подготавливаю установку модулей...",
             TextWrapping = TextWrapping.WrapWholeWords,
         };
+        var stageRows = CreateRuntimeStageRows();
         var detailsText = new TextBox
         {
             IsReadOnly = true,
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
-            MinHeight = 100,
-            MaxHeight = 180,
+            MinHeight = 88,
+            MaxHeight = 150,
             PlaceholderText = "Ход установки появится здесь.",
         };
         var logs = new Queue<string>();
@@ -294,6 +302,7 @@ public sealed partial class MainWindow : Window
                 {
                     new ProgressRing { IsActive = true, Width = 24, Height = 24 },
                     statusText,
+                    stageRows.container,
                     detailsText,
                 }
             },
@@ -306,6 +315,11 @@ public sealed partial class MainWindow : Window
             if (!string.IsNullOrWhiteSpace(cleaned))
             {
                 statusText.Text = cleaned;
+                var stage = RuntimeSetupStageFromProgress(cleaned);
+                if (stage is not null)
+                {
+                    UpdateRuntimeStageRows(stageRows.rows, stage.Value, failed: false);
+                }
                 logs.Enqueue(cleaned);
                 while (logs.Count > 120)
                 {
@@ -320,6 +334,8 @@ public sealed partial class MainWindow : Window
         try
         {
             var result = await ChromiumBootstrapService.Current.EnsureRuntimeInstalledAsync(progress);
+            statusText.Text = result;
+            UpdateRuntimeStageRows(stageRows.rows, RuntimeSetupStage.Ready, failed: false);
             progressDialog.Hide();
             await showTask;
 
@@ -335,18 +351,136 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            var currentStage = RuntimeSetupStageFromProgress(statusText.Text) ?? RuntimeSetupStage.Node;
+            UpdateRuntimeStageRows(stageRows.rows, currentStage, failed: true);
             progressDialog.Hide();
             await showTask;
             var errorDialog = new ContentDialog
             {
                 XamlRoot = root.XamlRoot,
                 Title = "Ошибка установки модулей",
-                Content = ex.Message,
+                Content = BuildRuntimeInstallErrorMessage(statusText.Text, ex.Message),
                 CloseButtonText = "ОК"
             };
             await errorDialog.ShowAsync();
             return false;
         }
+    }
+
+    private static (StackPanel container, Dictionary<RuntimeSetupStage, TextBlock> rows) CreateRuntimeStageRows()
+    {
+        var rows = new Dictionary<RuntimeSetupStage, TextBlock>();
+        var container = new StackPanel
+        {
+            Spacing = 6,
+        };
+
+        foreach (var stage in new[]
+        {
+            RuntimeSetupStage.Node,
+            RuntimeSetupStage.Worker,
+            RuntimeSetupStage.Dependencies,
+            RuntimeSetupStage.Chromium,
+            RuntimeSetupStage.Ready,
+        })
+        {
+            var row = new TextBlock
+            {
+                TextWrapping = TextWrapping.WrapWholeWords,
+            };
+            rows[stage] = row;
+            container.Children.Add(row);
+        }
+
+        UpdateRuntimeStageRows(rows, RuntimeSetupStage.Node, failed: false);
+        return (container, rows);
+    }
+
+    private static void UpdateRuntimeStageRows(
+        IReadOnlyDictionary<RuntimeSetupStage, TextBlock> rows,
+        RuntimeSetupStage currentStage,
+        bool failed)
+    {
+        foreach (var entry in rows)
+        {
+            var stage = entry.Key;
+            var row = entry.Value;
+            var label = RuntimeStageLabel(stage);
+            if (failed && stage == currentStage)
+            {
+                row.Text = $"! {label} - ошибка";
+                row.Opacity = 1.0;
+            }
+            else if ((int)stage < (int)currentStage)
+            {
+                row.Text = $"✓ {label}";
+                row.Opacity = 0.82;
+            }
+            else if (stage == currentStage)
+            {
+                row.Text = $"• {label} - выполняется";
+                row.Opacity = 1.0;
+            }
+            else
+            {
+                row.Text = $"○ {label}";
+                row.Opacity = 0.58;
+            }
+        }
+    }
+
+    private static string RuntimeStageLabel(RuntimeSetupStage stage)
+    {
+        return stage switch
+        {
+            RuntimeSetupStage.Node => "Node 24 LTS",
+            RuntimeSetupStage.Worker => "Worker",
+            RuntimeSetupStage.Dependencies => "Playwright",
+            RuntimeSetupStage.Chromium => "Chromium",
+            RuntimeSetupStage.Ready => "Готово",
+            _ => "Установка",
+        };
+    }
+
+    private static RuntimeSetupStage? RuntimeSetupStageFromProgress(string? line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return null;
+        }
+
+        if (line.Contains("Node 24", StringComparison.OrdinalIgnoreCase))
+        {
+            return RuntimeSetupStage.Node;
+        }
+        if (line.Contains("worker", StringComparison.OrdinalIgnoreCase))
+        {
+            return RuntimeSetupStage.Worker;
+        }
+        if (line.Contains("Chromium", StringComparison.OrdinalIgnoreCase)
+            || line.Contains("chromium", StringComparison.OrdinalIgnoreCase))
+        {
+            return RuntimeSetupStage.Chromium;
+        }
+        if (line.Contains("зависим", StringComparison.OrdinalIgnoreCase)
+            || line.Contains("npm", StringComparison.OrdinalIgnoreCase)
+            || line.Contains("Playwright", StringComparison.OrdinalIgnoreCase))
+        {
+            return RuntimeSetupStage.Dependencies;
+        }
+
+        return null;
+    }
+
+    private static string BuildRuntimeInstallErrorMessage(string lastStep, string error)
+    {
+        var cleanError = NormalizeProgressLine(error);
+        if (cleanError.Length > 1200)
+        {
+            cleanError = cleanError[..1200] + "...";
+        }
+
+        return $"Остановилось на этапе: {lastStep}\n\n{cleanError}\n\nМожно повторить установку из настроек приложения.";
     }
 
     private static string NormalizeProgressLine(string? line)
@@ -380,7 +514,8 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var runtimeReady = ChromiumBootstrapService.Current.IsWorkerDependenciesInstalled()
+        var runtimeReady = ChromiumBootstrapService.Current.IsNodeRuntimeInstalled()
+            && ChromiumBootstrapService.Current.IsWorkerDependenciesInstalled()
             && ChromiumBootstrapService.Current.IsChromiumInstalled();
         if (!runtimeReady)
         {

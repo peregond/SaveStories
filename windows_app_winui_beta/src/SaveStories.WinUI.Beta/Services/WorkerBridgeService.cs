@@ -86,20 +86,20 @@ public sealed class WorkerBridgeService
         CancellationToken cancellationToken,
         TimeSpan timeout)
     {
-        var repoRoot = ResolveRepoRoot();
-        var workerScript = Path.Combine(repoRoot, "node_worker", "bridge.mjs");
+        var workerScript = ResolveWorkerScript();
         if (!File.Exists(workerScript))
         {
-            throw new InvalidOperationException("Не найден node_worker/bridge.mjs рядом с приложением.");
+            throw new InvalidOperationException("Не найден worker/bridge.mjs. Запусти установку движка при первом запуске или в настройках.");
         }
 
         EnsureRuntimeDirectories();
+        var workerDirectory = Path.GetDirectoryName(workerScript) ?? ResolveRepoRoot();
 
         var startInfo = new ProcessStartInfo
         {
             FileName = NodeRuntimeResolver.ResolveNodeExecutable(),
             Arguments = $"\"{workerScript}\"",
-            WorkingDirectory = repoRoot,
+            WorkingDirectory = workerDirectory,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -253,5 +253,16 @@ public sealed class WorkerBridgeService
         }
 
         throw new InvalidOperationException("Не удалось найти рабочую папку с node_worker рядом с приложением.");
+    }
+
+    private static string ResolveWorkerScript()
+    {
+        var installedWorker = Path.Combine(NodeRuntimeResolver.WorkerRoot(), "bridge.mjs");
+        if (File.Exists(installedWorker))
+        {
+            return installedWorker;
+        }
+
+        return Path.Combine(ResolveRepoRoot(), "node_worker", "bridge.mjs");
     }
 }

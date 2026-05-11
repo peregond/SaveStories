@@ -2,8 +2,35 @@ namespace SaveMe.WinUI.Beta.Services;
 
 internal static class NodeRuntimeResolver
 {
+    public static string WorkerRoot()
+    {
+        var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return Path.Combine(root, "SaveMe", "worker");
+    }
+
+    public static string InstalledNodeRoot()
+    {
+        return Path.Combine(WorkerRoot(), "node");
+    }
+
+    public static string InstalledNodeExecutablePath()
+    {
+        return Path.Combine(InstalledNodeRoot(), "node.exe");
+    }
+
+    public static string InstalledNpmCliPath()
+    {
+        return Path.Combine(InstalledNodeRoot(), "node_modules", "npm", "bin", "npm-cli.js");
+    }
+
     public static string ResolveNodeExecutable()
     {
+        var installedNode = InstalledNodeExecutablePath();
+        if (File.Exists(installedNode))
+        {
+            return installedNode;
+        }
+
         var bundledNode = GetBundledNodeExecutablePath();
         if (File.Exists(bundledNode))
         {
@@ -17,12 +44,19 @@ internal static class NodeRuntimeResolver
         }
 
         throw new InvalidOperationException(
-            "Node.js runtime не найден. Переустанови приложение из актуального .exe или установи Node.js 24+."
+            "Node.js runtime не найден. Запусти установку движка при первом запуске или в настройках приложения."
         );
     }
 
     public static (string fileName, string arguments) ResolveNpmInstallCommand(string npmArguments)
     {
+        var installedNode = InstalledNodeExecutablePath();
+        var installedNpmCli = InstalledNpmCliPath();
+        if (File.Exists(installedNode) && File.Exists(installedNpmCli))
+        {
+            return (installedNode, $"\"{installedNpmCli}\" {npmArguments}");
+        }
+
         var bundledNode = GetBundledNodeExecutablePath();
         var bundledNpmCli = GetBundledNpmCliPath();
         if (File.Exists(bundledNode) && File.Exists(bundledNpmCli))
@@ -37,7 +71,7 @@ internal static class NodeRuntimeResolver
         }
 
         throw new InvalidOperationException(
-            "npm не найден. Переустанови приложение из актуального .exe или установи Node.js 24+."
+            "npm не найден. Запусти установку движка при первом запуске или в настройках приложения."
         );
     }
 

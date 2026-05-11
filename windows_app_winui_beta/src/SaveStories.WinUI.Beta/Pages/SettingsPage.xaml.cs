@@ -22,9 +22,10 @@ public sealed partial class SettingsPage : Page
         UpdateSummaryText.Text = WindowsUpdaterService.Current.Summary;
         ChromiumSummaryText.Text = ChromiumBootstrapService.Current.GetBootstrapSummary();
         ChromiumPathText.Text = $"Папка: {ChromiumBootstrapService.Current.GetTargetDirectory()}";
+        var nodeInstalled = ChromiumBootstrapService.Current.IsNodeRuntimeInstalled();
         var dependenciesInstalled = ChromiumBootstrapService.Current.IsWorkerDependenciesInstalled();
         var chromiumInstalled = ChromiumBootstrapService.Current.IsChromiumInstalled();
-        ChromiumStatusText.Text = dependenciesInstalled && chromiumInstalled
+        ChromiumStatusText.Text = nodeInstalled && dependenciesInstalled && chromiumInstalled
             ? "Состояние: runtime модули уже установлены."
             : "Состояние: нужно докачать runtime модули.";
         ChromiumLogText.Text = "Лог установки появится здесь.";

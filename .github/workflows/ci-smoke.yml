@@ -8,10 +8,13 @@ on:
     paths:
       - "Sources/**"
       - "windows_app/**"
+      - "windows_app_winui_beta/**"
       - "node_worker/**"
       - "scripts/**"
       - "Package.swift"
       - "Package.resolved"
+      - ".github/workflows/release-assets.yml"
+      - ".github/workflows/winui-beta-build.yml"
       - ".github/workflows/ci-smoke.yml"
 
 jobs:

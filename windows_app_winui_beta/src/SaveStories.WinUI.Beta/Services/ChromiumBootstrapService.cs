@@ -1,10 +1,15 @@
 using System.Diagnostics;
+using System.IO.Compression;
+using System.Net.Http;
 using System.Text;
 
 namespace SaveMe.WinUI.Beta.Services;
 
 public sealed class ChromiumBootstrapService
 {
+    private const string NodeVersion = "v24.11.0";
+    private const string NodeArchiveName = $"node-{NodeVersion}-win-x64.zip";
+    private static readonly HttpClient Http = new();
     private static readonly Lazy<ChromiumBootstrapService> LazyInstance = new(() => new ChromiumBootstrapService());
 
     public static ChromiumBootstrapService Current => LazyInstance.Value;
@@ -15,7 +20,7 @@ public sealed class ChromiumBootstrapService
 
     public string GetBootstrapSummary()
     {
-        return "После установки .exe приложение может докачать runtime модули (node зависимости и Chromium).";
+        return "После установки .exe приложение докачивает Node 24 LTS, node зависимости и Chromium в локальную папку пользователя.";
     }
 
     public string GetTargetDirectory()
@@ -37,29 +42,39 @@ public sealed class ChromiumBootstrapService
 
     public bool IsWorkerDependenciesInstalled()
     {
-        var repoRoot = ResolveRepoRoot();
-        var cliPath = Path.Combine(repoRoot, "node_worker", "node_modules", "playwright", "cli.js");
+        var cliPath = Path.Combine(GetWorkerDirectory(), "node_modules", "playwright", "cli.js");
         return File.Exists(cliPath);
+    }
+
+    public bool IsNodeRuntimeInstalled()
+    {
+        return File.Exists(NodeRuntimeResolver.InstalledNodeExecutablePath())
+            && File.Exists(NodeRuntimeResolver.InstalledNpmCliPath());
+    }
+
+    public string GetWorkerDirectory()
+    {
+        return NodeRuntimeResolver.WorkerRoot();
     }
 
     public async Task<string> EnsureRuntimeInstalledAsync(IProgress<string>? progress = null, CancellationToken cancellationToken = default)
     {
-        var repoRoot = ResolveRepoRoot();
-        var nodeWorkerDir = Path.Combine(repoRoot, "node_worker");
-        if (!Directory.Exists(nodeWorkerDir))
-        {
-            throw new InvalidOperationException("Не найдена папка node_worker рядом с приложением.");
-        }
+        Directory.CreateDirectory(GetWorkerDirectory());
+        Directory.CreateDirectory(GetTargetDirectory());
 
-        var cliPath = Path.Combine(nodeWorkerDir, "node_modules", "playwright", "cli.js");
+        await EnsureNodeRuntimeInstalledAsync(progress, cancellationToken);
+        CopyWorkerToAppSupport(progress);
+
+        var workerDir = GetWorkerDirectory();
+        var cliPath = Path.Combine(workerDir, "node_modules", "playwright", "cli.js");
         if (!File.Exists(cliPath))
         {
-            progress?.Report("Устанавливаю зависимости node_worker (npm ci --omit=dev)...");
+            progress?.Report("Устанавливаю зависимости Playwright...");
             var npmInstall = NodeRuntimeResolver.ResolveNpmInstallCommand("ci --omit=dev");
             await RunProcessAsync(
                 fileName: npmInstall.fileName,
                 arguments: npmInstall.arguments,
-                workingDirectory: nodeWorkerDir,
+                workingDirectory: workerDir,
                 env: null,
                 progress: progress,
                 cancellationToken: cancellationToken);
@@ -75,18 +90,17 @@ public sealed class ChromiumBootstrapService
             return "Chromium уже установлен.";
         }
 
-        var repoRoot = ResolveRepoRoot();
-        var nodeWorkerDir = Path.Combine(repoRoot, "node_worker");
+        var nodeWorkerDir = GetWorkerDirectory();
         var cliPath = Path.Combine(nodeWorkerDir, "node_modules", "playwright", "cli.js");
 
         if (!Directory.Exists(nodeWorkerDir))
         {
-            throw new InvalidOperationException("Не найдена папка node_worker рядом с приложением.");
+            throw new InvalidOperationException("Не найдена локальная папка worker. Запусти установку движка ещё раз.");
         }
 
         if (!File.Exists(cliPath))
         {
-            throw new InvalidOperationException("Не найден playwright CLI. Запусти установку модулей из окна настройки.");
+            throw new InvalidOperationException("Не найден Playwright CLI. Запусти установку движка ещё раз.");
         }
 
         Directory.CreateDirectory(GetTargetDirectory());
@@ -110,6 +124,125 @@ public sealed class ChromiumBootstrapService
         }
 
         return "Chromium успешно установлен.";
+    }
+
+    public async Task EnsureNodeRuntimeInstalledAsync(IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+    {
+        var nodeExe = NodeRuntimeResolver.InstalledNodeExecutablePath();
+        var npmCli = NodeRuntimeResolver.InstalledNpmCliPath();
+        if (File.Exists(nodeExe) && File.Exists(npmCli))
+        {
+            progress?.Report("Node 24 LTS уже установлен.");
+            return;
+        }
+
+        var nodeUrl = $"https://nodejs.org/dist/{NodeVersion}/{NodeArchiveName}";
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"SaveMe-node-{Guid.NewGuid():N}");
+        var zipPath = Path.Combine(tempRoot, NodeArchiveName);
+        var extractRoot = Path.Combine(tempRoot, "extract");
+
+        try
+        {
+            progress?.Report("Скачиваю Node 24 LTS...");
+            Directory.CreateDirectory(tempRoot);
+            await using (var stream = await Http.GetStreamAsync(nodeUrl, cancellationToken))
+            await using (var file = File.Create(zipPath))
+            {
+                await stream.CopyToAsync(file, cancellationToken);
+            }
+
+            progress?.Report("Распаковываю Node 24 LTS...");
+            ZipFile.ExtractToDirectory(zipPath, extractRoot, overwriteFiles: true);
+            var extractedNode = Directory.GetDirectories(extractRoot, "node-*").FirstOrDefault()
+                ?? throw new InvalidOperationException("Не удалось распаковать Node runtime.");
+
+            var targetRoot = NodeRuntimeResolver.InstalledNodeRoot();
+            if (Directory.Exists(targetRoot))
+            {
+                Directory.Delete(targetRoot, recursive: true);
+            }
+            Directory.CreateDirectory(Path.GetDirectoryName(targetRoot)!);
+            CopyDirectory(extractedNode, targetRoot, overwrite: true);
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(tempRoot))
+                {
+                    Directory.Delete(tempRoot, recursive: true);
+                }
+            }
+            catch
+            {
+                // Best-effort cleanup only.
+            }
+        }
+
+        if (!File.Exists(nodeExe) || !File.Exists(npmCli))
+        {
+            throw new InvalidOperationException("Node runtime скачан, но node.exe или npm-cli.js не найдены.");
+        }
+    }
+
+    private static void CopyWorkerToAppSupport(IProgress<string>? progress)
+    {
+        var sourceWorkerDir = Path.Combine(ResolveRepoRoot(), "node_worker");
+        if (!Directory.Exists(sourceWorkerDir))
+        {
+            throw new InvalidOperationException("Не найдена папка node_worker рядом с приложением.");
+        }
+
+        var targetWorkerDir = NodeRuntimeResolver.WorkerRoot();
+        Directory.CreateDirectory(targetWorkerDir);
+        progress?.Report("Копирую worker...");
+        CopyDirectory(
+            sourceWorkerDir,
+            targetWorkerDir,
+            overwrite: true,
+            excludedRootNames: new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "node",
+                "node_modules",
+                "ms-playwright",
+                "browser-profile",
+                ".venv",
+                ".cache",
+                "logs",
+            });
+    }
+
+    private static void CopyDirectory(
+        string sourceDirectory,
+        string targetDirectory,
+        bool overwrite,
+        ISet<string>? excludedRootNames = null)
+    {
+        Directory.CreateDirectory(targetDirectory);
+
+        foreach (var file in Directory.EnumerateFiles(sourceDirectory))
+        {
+            var fileName = Path.GetFileName(file);
+            if (excludedRootNames?.Contains(fileName) == true)
+            {
+                continue;
+            }
+            File.Copy(file, Path.Combine(targetDirectory, fileName), overwrite);
+        }
+
+        foreach (var directory in Directory.EnumerateDirectories(sourceDirectory))
+        {
+            var directoryName = Path.GetFileName(directory);
+            if (excludedRootNames?.Contains(directoryName) == true)
+            {
+                continue;
+            }
+            CopyDirectory(
+                directory,
+                Path.Combine(targetDirectory, directoryName),
+                overwrite,
+                excludedRootNames: null);
+        }
     }
 
     private static string ResolveRepoRoot()
