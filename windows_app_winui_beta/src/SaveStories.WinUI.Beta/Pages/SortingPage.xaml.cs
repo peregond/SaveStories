@@ -1,10 +1,7 @@
 using Microsoft.UI.Xaml.Controls;
 using SaveMe.WinUI.Beta;
 using SaveMe.WinUI.Beta.Services;
-using System.Diagnostics;
 using Windows.ApplicationModel.DataTransfer;
-using Windows.Storage.Pickers;
-using WinRT.Interop;
 
 namespace SaveMe.WinUI.Beta.Pages;
 
@@ -24,7 +21,7 @@ public sealed partial class SortingPage : Page
 
     private async void OnChangeSourceDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        var path = await PickFolderAsync("Папка Перенос");
+        var path = await PickFolderAsync("Папка Перенос", BetaSettingsStore.Current.SortingSourceDirectory);
         if (string.IsNullOrWhiteSpace(path))
         {
             return;
@@ -37,7 +34,7 @@ public sealed partial class SortingPage : Page
 
     private async void OnChangeDestinationDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        var path = await PickFolderAsync("Папка назначения");
+        var path = await PickFolderAsync("Папка назначения", BetaSettingsStore.Current.SortingDestinationDirectory);
         if (string.IsNullOrWhiteSpace(path))
         {
             return;
@@ -107,24 +104,13 @@ public sealed partial class SortingPage : Page
         SortingStatusText.Text = "Дайджест скопирован в буфер обмена.";
     }
 
-    private async Task<string?> PickFolderAsync(string title)
+    private async Task<string?> PickFolderAsync(string title, string? initialDirectory)
     {
+        await Task.Yield();
+
         try
         {
-            var picker = new FolderPicker
-            {
-                SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
-                CommitButtonText = title,
-            };
-            picker.FileTypeFilter.Add("*");
-
-            if (App.MainWindow is not null)
-            {
-                InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
-            }
-
-            var folder = await picker.PickSingleFolderAsync();
-            return folder?.Path;
+            return ShellFolderService.PickFolder(App.MainWindow, title, initialDirectory);
         }
         catch (Exception ex)
         {
@@ -153,19 +139,16 @@ public sealed partial class SortingPage : Page
         return string.IsNullOrWhiteSpace(value) ? "Папка ещё не выбрана." : value;
     }
 
-    private static void OpenDirectory(string path)
+    private void OpenDirectory(string path)
     {
-        if (string.IsNullOrWhiteSpace(path))
+        try
         {
-            return;
+            ShellFolderService.OpenFolder(path);
         }
-
-        Directory.CreateDirectory(path);
-        Process.Start(new ProcessStartInfo
+        catch (Exception ex)
         {
-            FileName = "explorer.exe",
-            Arguments = path,
-            UseShellExecute = true
-        });
+            SortingStatusText.Text = $"Не удалось открыть папку: {ex.Message}";
+            DiagnosticsService.Current.LogError("Windows open folder failed", ex);
+        }
     }
 }

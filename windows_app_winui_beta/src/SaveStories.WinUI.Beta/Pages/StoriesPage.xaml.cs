@@ -2,11 +2,8 @@ using Microsoft.UI.Xaml.Controls;
 using SaveMe.WinUI.Beta;
 using SaveMe.WinUI.Beta.Services;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
-using Windows.Storage.Pickers;
-using WinRT.Interop;
 
 namespace SaveMe.WinUI.Beta.Pages;
 
@@ -284,20 +281,8 @@ public sealed partial class StoriesPage : Page
     {
         try
         {
-            var picker = new FolderPicker
-            {
-                SuggestedStartLocation = PickerLocationId.Downloads,
-                CommitButtonText = "Выбрать папку",
-            };
-            picker.FileTypeFilter.Add("*");
-
-            if (App.MainWindow is not null)
-            {
-                InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
-            }
-
-            var folder = await picker.PickSingleFolderAsync();
-            var newPath = folder?.Path ?? string.Empty;
+            await Task.Yield();
+            var newPath = ShellFolderService.PickFolder(App.MainWindow, "Папка сохранения", _outputDirectory) ?? string.Empty;
             if (string.IsNullOrWhiteSpace(newPath))
             {
                 return;
@@ -318,13 +303,7 @@ public sealed partial class StoriesPage : Page
     {
         try
         {
-            Directory.CreateDirectory(_outputDirectory);
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "explorer.exe",
-                Arguments = _outputDirectory,
-                UseShellExecute = true
-            });
+            ShellFolderService.OpenFolder(_outputDirectory);
         }
         catch (Exception ex)
         {
