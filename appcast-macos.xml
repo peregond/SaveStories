@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.28</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.29</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.28</title>
-      <pubDate>Mon, 11 May 2026 20:07:21 GMT</pubDate>
-      <sparkle:version>99</sparkle:version>
-      <sparkle:shortVersionString>0.6.28</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.28</h2>
-<ul><li>macOS DMG стал лёгким: Node, Playwright и Chromium больше не встраиваются в приложение по умолчанию</li><li>Первый запуск показывает onboarding установки движка и проводит по этапам докачки runtime-компонентов</li><li>Установленный runtime теперь хранится в Application Support и используется приложением при последующих запусках</li></ul>]]></description>
+      <title>SaveMe 0.6.29</title>
+      <pubDate>Mon, 11 May 2026 20:23:17 GMT</pubDate>
+      <sparkle:version>100</sparkle:version>
+      <sparkle:shortVersionString>0.6.29</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.29</h2>
+<ul><li>Исправлен onboarding установки движка на macOS: повторная установка больше не пытается удалить уже скачанный Node runtime</li><li>Экран установки теперь показывает ошибку только на фактически упавшем этапе, а не красит все шаги сразу</li><li>Сообщение об ошибке очищается от технического шума загрузки, чтобы было понятно, что именно пошло не так</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.28/SaveMe-macOS-v0.6.28.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.29/SaveMe-macOS-v0.6.29.dmg"
         sparkle:os="macos"
-        length="3165848"
+        length="3168687"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="ZV9NtqLij1Sllw4EsBPBH5JnQE6H7ZfgqGo1eTVyXEd5SbAQ4yztJcotzEnnI0ACS+2zK3L+m0rMt4OjXQv4CQ==" />
+        sparkle:edSignature="0/FOtaWzCwQ7oskkPjT1EXOfWs8Fhp4BvyJxj0iBgEpl9RsvDFCJC3c7eWChn1oaffyXiZddIfA8vbSE58NADw==" />
     </item>
   </channel>
 </rss>
