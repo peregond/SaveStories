@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.30</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.31</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.30</title>
-      <pubDate>Mon, 11 May 2026 20:41:49 GMT</pubDate>
-      <sparkle:version>101</sparkle:version>
-      <sparkle:shortVersionString>0.6.30</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.30</h2>
-<ul><li>Windows WinUI installer больше не включает Node внутрь установщика: первый запуск докачивает Node 24 LTS, зависимости worker и Chromium через onboarding.</li><li>Windows onboarding теперь показывает этапы установки и понятнее подсвечивает упавший шаг, если загрузка или установка остановилась.</li><li>Добавлен CI smoke-тест, который защищает облегчённую Windows-схему от регрессии.</li></ul>]]></description>
+      <title>SaveMe 0.6.31</title>
+      <pubDate>Mon, 11 May 2026 20:46:35 GMT</pubDate>
+      <sparkle:version>102</sparkle:version>
+      <sparkle:shortVersionString>0.6.31</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.31</h2>
+<ul><li>Windows WinUI installer больше не включает Node внутрь установщика: первый запуск докачивает Node 24 LTS, зависимости worker и Chromium через onboarding.</li><li>Windows onboarding теперь показывает этапы установки и понятнее подсвечивает упавший шаг, если загрузка или установка остановилась.</li><li>Добавлен CI smoke-тест, который защищает облегчённую Windows-схему от регрессии.</li><li>GitHub Actions для артефактов обновлены на Node 24-совместимые версии.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.30/SaveMe-macOS-v0.6.30.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.31/SaveMe-macOS-v0.6.31.dmg"
         sparkle:os="macos"
-        length="3166991"
+        length="3168839"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="9NCRHyvt58mppL5BclweaX9377XN//Zbi16r2k7itPy5eNcIVrR91zUwEtJAhwquX88bBqZDO97BdngfOFMxCw==" />
+        sparkle:edSignature="OOdIiyAx5DV8dP6M4Eq3zfF/dyUVT5p7Ftvrt0y+urEzzzFvNrXteX1mPaNSThSJN5zlh2TvLLbUmw9pNALKAA==" />
     </item>
   </channel>
 </rss>
