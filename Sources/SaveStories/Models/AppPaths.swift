@@ -48,15 +48,38 @@ enum AppPaths {
             : runtimeFallback
     }
 
-    private static var installedWorkerRoot: URL? {
+    static var installedWorkerRoot: URL? {
         let fileManager = FileManager.default
-        let candidate = preferredApplicationSupport.appendingPathComponent("worker", isDirectory: true)
+        let candidate = applicationSupport.appendingPathComponent("worker", isDirectory: true)
+        let nodeWorker = candidate.appendingPathComponent("bridge.mjs", isDirectory: false)
+        let nodeModules = candidate
+            .appendingPathComponent("node_modules", isDirectory: true)
+            .appendingPathComponent("playwright", isDirectory: true)
         let python = candidate
             .appendingPathComponent(".venv", isDirectory: true)
             .appendingPathComponent("bin", isDirectory: true)
             .appendingPathComponent("python3", isDirectory: false)
 
+        if fileManager.fileExists(atPath: nodeWorker.path) && fileManager.fileExists(atPath: nodeModules.path) {
+            return candidate
+        }
+
         return fileManager.fileExists(atPath: python.path) ? candidate : nil
+    }
+
+    static var installedNodeExecutable: URL? {
+        let candidates = [
+            workerRoot
+                .appendingPathComponent("node", isDirectory: true)
+                .appendingPathComponent("bin", isDirectory: true)
+                .appendingPathComponent("node", isDirectory: false),
+            installedWorkerRoot?
+                .appendingPathComponent("node", isDirectory: true)
+                .appendingPathComponent("bin", isDirectory: true)
+                .appendingPathComponent("node", isDirectory: false),
+        ]
+
+        return candidates.compactMap(existingFile(at:)).first
     }
 
     static var workerRoot: URL {

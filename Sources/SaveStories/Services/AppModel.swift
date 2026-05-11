@@ -12,6 +12,7 @@ final class AppModel: ObservableObject {
     static let folderRoutingRulesKey = "SaveStories.folderRoutingRules"
     static let rememberedBloggersKey = "SaveStories.rememberedBloggers"
     private static let preventSleepDuringDownloadsKey = "SaveStories.preventSleepDuringDownloads"
+    static let runtimeOnboardingDismissedKey = "SaveStories.runtimeOnboardingDismissed"
     private static let actionSoundNames = ["Pop", "Tink", "Glass"]
     private static let successSoundNames = ["Glass", "Hero", "Funk", "Pop"]
     private static let logDateFormatter: DateFormatter = {
@@ -181,6 +182,61 @@ final class AppModel: ObservableObject {
         }
     }
 
+    enum RuntimeSetupStage: String, CaseIterable, Identifiable {
+        case welcome
+        case folders
+        case node
+        case worker
+        case packages
+        case browser
+        case ready
+        case failed
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .welcome:
+                "Подготовка"
+            case .folders:
+                "Папки приложения"
+            case .node:
+                "Node 24 LTS"
+            case .worker:
+                "Worker"
+            case .packages:
+                "Playwright"
+            case .browser:
+                "Chromium"
+            case .ready:
+                "Готово"
+            case .failed:
+                "Нужно повторить"
+            }
+        }
+
+        var detail: String {
+            switch self {
+            case .welcome:
+                "Сейчас приложение докачает компоненты для работы."
+            case .folders:
+                "Готовим локальное хранилище."
+            case .node:
+                "Проверяем или скачиваем Node."
+            case .worker:
+                "Копируем рабочий модуль."
+            case .packages:
+                "Ставим зависимости."
+            case .browser:
+                "Скачиваем браузер для выгрузки."
+            case .ready:
+                "Движок установлен."
+            case .failed:
+                "Установка не завершилась."
+            }
+        }
+    }
+
     @Published var profileURL: String = ""
     @Published var batchInput: String = ""
     @Published var reelsInput: String = ""
@@ -223,6 +279,10 @@ final class AppModel: ObservableObject {
     @Published var workerReady = false
     @Published var sessionReady = false
     @Published var showLoginPrompt = false
+    @Published var showRuntimeOnboarding = false
+    @Published var runtimeSetupStage: RuntimeSetupStage = .welcome
+    @Published var runtimeSetupMessage = "Подготовим движок, без которого приложение не сможет скачивать stories."
+    @Published var runtimeSetupErrorMessage: String?
     @Published var showEmptyFolderCleanupPrompt = false
     @Published var emptyFolderCleanupReport: EmptyFolderCleanupReport?
     @Published var recentBatchLists: [RecentBatchList] = []
@@ -252,6 +312,9 @@ final class AppModel: ObservableObject {
     var isDownloadActivityInProgress = false
     var pendingEmptyStoryFolders: [URL] = []
     var hasEmbeddedRuntime: Bool { AppPaths.hasEmbeddedRuntime }
+    var runtimeOnboardingDismissed: Bool {
+        UserDefaults.standard.bool(forKey: Self.runtimeOnboardingDismissedKey)
+    }
 
     init() {
         updateSummary = appUpdater.summary
@@ -313,5 +376,10 @@ final class AppModel: ObservableObject {
 
     func appendLog(_ message: String) {
         logs.insert("\(Self.logDateFormatter.string(from: Date()))  \(message)", at: 0)
+    }
+
+    func dismissRuntimeOnboarding() {
+        showRuntimeOnboarding = false
+        UserDefaults.standard.set(true, forKey: Self.runtimeOnboardingDismissedKey)
     }
 }

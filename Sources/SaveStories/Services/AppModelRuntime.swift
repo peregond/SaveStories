@@ -21,7 +21,14 @@ extension AppModel {
         }
 
         await refreshEnvironment()
+        if !workerReady && !hasEmbeddedRuntime && !runtimeOnboardingDismissed {
+            runtimeSetupStage = .welcome
+            runtimeSetupErrorMessage = nil
+            runtimeSetupMessage = "Нужно один раз докачать движок: Node, Playwright и Chromium."
+            showRuntimeOnboarding = true
+        }
         if workerReady {
+            showRuntimeOnboarding = false
             await refreshStartupSession()
         }
     }
@@ -54,17 +61,33 @@ extension AppModel {
     func bootstrapEnvironment() async {
         await perform("Подготовка среды воркера") {
             do {
-                let output = try await self.bootstrapper.run()
+                self.runtimeSetupStage = .folders
+                self.runtimeSetupErrorMessage = nil
+                self.runtimeSetupMessage = "Готовлю папки приложения."
+                self.showRuntimeOnboarding = true
+
+                let output = try await self.bootstrapper.run { line in
+                    self.applyRuntimeSetupProgress(line)
+                    self.appendLog(line)
+                }
                 output
                     .split(separator: "\n")
                     .map(String.init)
                     .filter { !$0.isEmpty }
-                    .forEach { self.appendLog($0) }
+                    .forEach { self.applyRuntimeSetupProgress($0) }
 
                 let response = await self.environmentResponse()
                 self.applyEnvironment(response)
                 self.append(response)
+                if self.workerReady {
+                    self.runtimeSetupStage = .ready
+                    self.runtimeSetupMessage = "Движок установлен. Можно входить в Instagram и начинать выгрузку."
+                    UserDefaults.standard.set(true, forKey: Self.runtimeOnboardingDismissedKey)
+                }
             } catch {
+                self.runtimeSetupStage = .failed
+                self.runtimeSetupErrorMessage = error.localizedDescription
+                self.runtimeSetupMessage = "Установка остановилась. Проверь интернет и попробуй ещё раз."
                 self.workerReady = false
                 self.statusTitle = "Ошибка"
                 self.statusDetail = error.localizedDescription
@@ -316,6 +339,27 @@ extension AppModel {
         workerReady = response.ok
         workerSummary = response.message
         runtimeSummary = buildRuntimeSummary(from: response)
+    }
+
+    private func applyRuntimeSetupProgress(_ line: String) {
+        let lowered = line.lowercased()
+
+        if lowered.contains("application support") || lowered.contains("папк") {
+            runtimeSetupStage = .folders
+            runtimeSetupMessage = "Готовлю локальную папку для движка."
+        } else if lowered.contains("node") {
+            runtimeSetupStage = .node
+            runtimeSetupMessage = lowered.contains("скач") ? "Скачиваю Node 24 LTS." : "Проверяю Node 24 LTS."
+        } else if lowered.contains("worker") {
+            runtimeSetupStage = .worker
+            runtimeSetupMessage = "Копирую worker в локальную папку приложения."
+        } else if lowered.contains("npm") || lowered.contains("playwright") {
+            runtimeSetupStage = .packages
+            runtimeSetupMessage = "Устанавливаю Playwright и npm-зависимости."
+        } else if lowered.contains("chromium") || lowered.contains("browser") {
+            runtimeSetupStage = .browser
+            runtimeSetupMessage = "Скачиваю Chromium для автоматической выгрузки."
+        }
     }
 
     private func buildRuntimeSummary(from response: WorkerResponse) -> String {

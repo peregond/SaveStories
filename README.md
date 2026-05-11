@@ -4,7 +4,7 @@
 
 Текущее состояние репозитория:
 
-- версия исходников: `0.6.27`
+- версия исходников: `0.6.28`
 - платформы: `macOS` и `Windows`
 - общий runtime: `Node 24 LTS + Playwright + Chromium`
 
@@ -65,12 +65,12 @@ macOS-версия собирается как `.app` и пакуется в `.d
 
 Что внутри release-сборки:
 
-- встроенный runtime worker
-- встроенный `Playwright`
-- встроенный `Chromium`
+- нативное macOS-приложение
+- исходники worker для последующей установки
+- скрипт подготовки runtime
 - `Sparkle` для автообновлений
 
-То есть release-сборка рассчитана на автономный запуск без ручной установки зависимостей.
+Тяжёлые компоненты (`Node 24 LTS`, `Playwright`, `Chromium`) не входят в `.dmg` по умолчанию. При первом запуске приложение показывает onboarding установки движка и скачивает всё необходимое в `~/Library/Application Support/SaveMe/worker`.
 
 Локальный запуск из исходников:
 
@@ -156,11 +156,11 @@ Workflow:
 
 ```bash
 git add .
-git commit -m "Prepare v0.6.27 release"
+git commit -m "Prepare v0.6.28 release"
 git pull --rebase origin main
 git push origin main
-git tag v0.6.27
-git push origin v0.6.27
+git tag v0.6.28
+git push origin v0.6.28
 ```
 
 После этого GitHub Actions:
@@ -205,8 +205,15 @@ git push origin v0.6.27
 export APPLE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
 export APPLE_NOTARY_PROFILE="savestories-notary"
 export SAVESTORIES_BUNDLE_ID="com.example.savestories"
-export SAVESTORIES_VERSION="0.6.27"
-export SAVESTORIES_BUILD="75"
+export SAVESTORIES_VERSION="0.6.28"
+export SAVESTORIES_BUILD="76"
+./scripts/build_release_dmg.sh
+```
+
+По умолчанию macOS `.dmg` собирается лёгким: без встроенных Node/Playwright/Chromium. Для старого автономного варианта можно явно включить embedding:
+
+```bash
+export SAVESTORIES_EMBED_RUNTIME=1
 ./scripts/build_release_dmg.sh
 ```
 

@@ -72,5 +72,4 @@ The `.dmg` distributes the native app bundle itself. On first launch the user ca
 
 That step still requires:
 
-- `python3` available on the target machine
-- internet access for `pip install playwright` and Chromium download
+- internet access for Node 24 LTS, npm packages, and Chromium download

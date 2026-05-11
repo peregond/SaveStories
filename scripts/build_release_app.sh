@@ -31,6 +31,7 @@ NPM_SOURCE_EXECUTABLE="${SAVESTORIES_NPM_EXECUTABLE:-$(command -v npm || true)}"
 NODE_SOURCE_WORKER_DIR="$ROOT/node_worker"
 NODE_BUILD_RUNTIME_DIR="$BUILD_DIR/node-runtime"
 NODE_BUILD_PLAYWRIGHT_DIR="$NODE_BUILD_RUNTIME_DIR/ms-playwright"
+EMBED_RUNTIME="${SAVESTORIES_EMBED_RUNTIME:-0}"
 LEGACY_RELEASE_APP_CANDIDATES=(
   "$ROOT/dist/release/SaveMe.app"
   "/Applications/SaveMe.app"
@@ -165,10 +166,18 @@ if [ ! -f "$NODE_SOURCE_WORKER_DIR/package.json" ]; then
   exit 1
 fi
 
-rm -rf "$EMBEDDED_RUNTIME_DIR" "$NODE_BUILD_RUNTIME_DIR"
-mkdir -p "$EMBEDDED_PLAYWRIGHT_DIR" "$EMBEDDED_NODE_BIN_DIR" "$NODE_BUILD_PLAYWRIGHT_DIR"
+rm -rf "$EMBEDDED_RUNTIME_DIR" "$NODE_BUILD_RUNTIME_DIR" "$NODE_WORKER_DIR"
+mkdir -p "$NODE_WORKER_DIR"
+rsync -a --delete \
+  --exclude node_modules \
+  --exclude .DS_Store \
+  "$NODE_SOURCE_WORKER_DIR"/ "$NODE_WORKER_DIR"/
+
+mkdir -p "$NODE_BUILD_PLAYWRIGHT_DIR"
 USED_LEGACY_RUNTIME=0
-if [ -n "$NODE_SOURCE_EXECUTABLE" ] && [ -x "$NODE_SOURCE_EXECUTABLE" ] && [ -n "$NPM_SOURCE_EXECUTABLE" ] && [ -x "$NPM_SOURCE_EXECUTABLE" ] && node_runtime_is_bundleable "$NODE_SOURCE_EXECUTABLE"; then
+EMBEDDED_RUNTIME_LABEL="downloaded on first setup"
+if [ "$EMBED_RUNTIME" = "1" ] && [ -n "$NODE_SOURCE_EXECUTABLE" ] && [ -x "$NODE_SOURCE_EXECUTABLE" ] && [ -n "$NPM_SOURCE_EXECUTABLE" ] && [ -x "$NPM_SOURCE_EXECUTABLE" ] && node_runtime_is_bundleable "$NODE_SOURCE_EXECUTABLE"; then
+  mkdir -p "$EMBEDDED_PLAYWRIGHT_DIR" "$EMBEDDED_NODE_BIN_DIR"
   (
     cd "$NODE_SOURCE_WORKER_DIR"
     PLAYWRIGHT_BROWSERS_PATH="$NODE_BUILD_PLAYWRIGHT_DIR" "$NPM_SOURCE_EXECUTABLE" install --no-fund --no-audit
@@ -187,7 +196,8 @@ if [ -n "$NODE_SOURCE_EXECUTABLE" ] && [ -x "$NODE_SOURCE_EXECUTABLE" ] && [ -n 
   rm -rf "$NODE_WORKER_DIR"/node_modules/playwright-core/.local-browsers \
          "$NODE_WORKER_DIR"/node_modules/playwright/.cache \
          "$NODE_WORKER_DIR"/node_modules/playwright-core/.cache
-else
+  EMBEDDED_RUNTIME_LABEL="embedded Node worker"
+elif [ "$EMBED_RUNTIME" = "1" ]; then
   if [ -n "$NODE_SOURCE_EXECUTABLE" ] && [ -x "$NODE_SOURCE_EXECUTABLE" ] && ! node_runtime_is_bundleable "$NODE_SOURCE_EXECUTABLE"; then
     printf 'Local Node runtime is not a standalone binary suitable for embedding in release builds:\n%s\nOnly runtimes linked exclusively against system libraries are supported. Falling back to legacy Python runtime.\n' "$NODE_SOURCE_EXECUTABLE"
   fi
@@ -212,6 +222,7 @@ else
   cp -R "$LEGACY_RUNTIME_APP/Contents/Frameworks/Python.framework" "$FRAMEWORKS_DIR/"
   cp -R "$LEGACY_RUNTIME_APP/Contents/SharedSupport/runtime/site-packages" "$EMBEDDED_RUNTIME_DIR/"
   cp -R "$LEGACY_RUNTIME_APP/Contents/SharedSupport/runtime/ms-playwright" "$EMBEDDED_RUNTIME_DIR/"
+  EMBEDDED_RUNTIME_LABEL="embedded legacy Python fallback"
 fi
 
 if [ -n "$SIGN_IDENTITY" ]; then
@@ -223,11 +234,7 @@ else
 fi
 
 printf '\nRelease app created at:\n%s\n' "$APP_DIR"
-if [ "$USED_LEGACY_RUNTIME" -eq 1 ]; then
-  printf 'Embedded runtime: legacy Python fallback\n'
-else
-  printf 'Embedded runtime: Node worker\n'
-fi
+printf 'Runtime: %s\n' "$EMBEDDED_RUNTIME_LABEL"
 if [ -n "$SIGN_IDENTITY" ]; then
   printf 'Signing identity: %s\n' "$SIGN_IDENTITY"
 else

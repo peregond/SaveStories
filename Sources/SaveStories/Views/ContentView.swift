@@ -205,6 +205,17 @@ struct ContentView: View {
                     .zIndex(4)
             }
 
+            if model.showRuntimeOnboarding {
+                Color.black.opacity(isDark ? 0.48 : 0.28)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .zIndex(7)
+
+                runtimeOnboardingOverlay
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    .zIndex(8)
+            }
+
             if model.showEmptyFolderCleanupPrompt {
                 Color.black.opacity(isDark ? 0.42 : 0.24)
                     .ignoresSafeArea()
@@ -248,6 +259,221 @@ struct ContentView: View {
                     showingConfetti = false
                 }
             }
+        }
+    }
+
+    var runtimeOnboardingOverlay: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top, spacing: 16) {
+                Image(systemName: runtimeOnboardingIcon)
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(runtimeOnboardingTint)
+                    .frame(width: 48, height: 48)
+                    .background(
+                        Circle()
+                            .fill(runtimeOnboardingTint.opacity(isDark ? 0.20 : 0.14))
+                    )
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Первый запуск")
+                        .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        .foregroundStyle(primaryText)
+
+                    Text("Перед началом нужно один раз докачать движок для выгрузки: Node, Playwright и Chromium.")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(runtimeOnboardingStages, id: \.self) { stage in
+                    runtimeOnboardingStageRow(stage)
+                }
+            }
+
+            statusInlineNote(
+                title: model.runtimeSetupStage == .failed ? "Ошибка установки" : "Состояние",
+                message: model.runtimeSetupErrorMessage ?? model.runtimeSetupMessage
+            )
+
+            HStack(spacing: 10) {
+                if model.runtimeSetupStage == .ready {
+                    Button {
+                        model.dismissRuntimeOnboarding()
+                        Task { await model.login() }
+                    } label: {
+                        Label("Войти в Instagram", systemImage: "person.crop.circle.badge.checkmark")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(prominentButtonTint)
+
+                    Button {
+                        model.dismissRuntimeOnboarding()
+                    } label: {
+                        Text("Позже")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(secondaryButtonTint)
+                } else {
+                    Button {
+                        Task { await model.bootstrapEnvironment() }
+                    } label: {
+                        HStack(spacing: 8) {
+                            if model.isBusy && model.runtimeSetupStage != .failed {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Image(systemName: "arrow.down.circle")
+                            }
+                            Text(model.runtimeSetupStage == .failed ? "Повторить установку" : "Установить движок")
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(prominentButtonTint)
+                    .disabled(model.isBusy && model.runtimeSetupStage != .failed)
+
+                    Button {
+                        model.dismissRuntimeOnboarding()
+                    } label: {
+                        Text("Не сейчас")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(secondaryButtonTint)
+                    .disabled(model.isBusy)
+                }
+            }
+        }
+        .padding(24)
+        .frame(width: 520, alignment: .leading)
+        .cardBackground(cornerRadius: cardCornerRadius, fill: cardFill, stroke: cardStroke)
+        .padding(24)
+    }
+
+    var runtimeOnboardingStages: [AppModel.RuntimeSetupStage] {
+        [.folders, .node, .worker, .packages, .browser, .ready]
+    }
+
+    var runtimeOnboardingIcon: String {
+        switch model.runtimeSetupStage {
+        case .ready:
+            "checkmark.circle.fill"
+        case .failed:
+            "exclamationmark.triangle.fill"
+        default:
+            "arrow.down.circle.fill"
+        }
+    }
+
+    var runtimeOnboardingTint: Color {
+        switch model.runtimeSetupStage {
+        case .ready:
+            Color.green.opacity(0.86)
+        case .failed:
+            Color.red.opacity(0.82)
+        default:
+            prominentButtonTint
+        }
+    }
+
+    func runtimeOnboardingStageRow(_ stage: AppModel.RuntimeSetupStage) -> some View {
+        let status = runtimeOnboardingStatus(for: stage)
+        return HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(status.tint.opacity(isDark ? 0.20 : 0.14))
+                    .frame(width: 30, height: 30)
+
+                if status.isSpinning {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: status.symbol)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(status.tint)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(stage.title)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(primaryText)
+
+                Text(stage.detail)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(tertiaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
+                .fill(status.tint.opacity(status.isCurrent ? (isDark ? 0.12 : 0.08) : 0.04))
+        )
+    }
+
+    struct RuntimeOnboardingStatus {
+        let symbol: String
+        let tint: Color
+        let isCurrent: Bool
+        let isSpinning: Bool
+    }
+
+    func runtimeOnboardingStatus(for stage: AppModel.RuntimeSetupStage) -> RuntimeOnboardingStatus {
+        if model.runtimeSetupStage == .failed {
+            let reached = runtimeOnboardingOrder(stage) <= runtimeOnboardingOrder(.browser)
+            return RuntimeOnboardingStatus(
+                symbol: reached ? "exclamationmark" : "circle",
+                tint: reached ? Color.red.opacity(0.82) : tertiaryText,
+                isCurrent: reached,
+                isSpinning: false
+            )
+        }
+
+        if model.runtimeSetupStage == .ready {
+            return RuntimeOnboardingStatus(
+                symbol: "checkmark",
+                tint: Color.green.opacity(0.86),
+                isCurrent: stage == .ready,
+                isSpinning: false
+            )
+        }
+
+        let currentOrder = runtimeOnboardingOrder(model.runtimeSetupStage)
+        let stageOrder = runtimeOnboardingOrder(stage)
+        if stageOrder < currentOrder {
+            return RuntimeOnboardingStatus(symbol: "checkmark", tint: Color.green.opacity(0.86), isCurrent: false, isSpinning: false)
+        }
+        if stageOrder == currentOrder && model.runtimeSetupStage != .welcome {
+            return RuntimeOnboardingStatus(symbol: "circle", tint: prominentButtonTint, isCurrent: true, isSpinning: model.isBusy)
+        }
+        return RuntimeOnboardingStatus(symbol: "circle", tint: tertiaryText, isCurrent: false, isSpinning: false)
+    }
+
+    func runtimeOnboardingOrder(_ stage: AppModel.RuntimeSetupStage) -> Int {
+        switch stage {
+        case .welcome:
+            0
+        case .folders:
+            1
+        case .node:
+            2
+        case .worker:
+            3
+        case .packages:
+            4
+        case .browser:
+            5
+        case .ready:
+            6
+        case .failed:
+            7
         }
     }
 

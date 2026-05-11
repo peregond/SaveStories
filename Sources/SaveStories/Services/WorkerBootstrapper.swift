@@ -1,5 +1,44 @@
 import Foundation
 
+private final class BootstrapOutputBuffer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var output = ""
+    private var hasResumed = false
+
+    func append(_ data: Data, progress: @escaping @MainActor @Sendable (String) -> Void) {
+        guard let text = String(data: data, encoding: .utf8), !text.isEmpty else { return }
+        lock.lock()
+        output += text
+        lock.unlock()
+
+        let lines = text
+            .split(whereSeparator: \.isNewline)
+            .map(String.init)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        for line in lines {
+            Task { @MainActor in
+                progress(line)
+            }
+        }
+    }
+
+    func snapshot() -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        return output.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func markResumedIfNeeded() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !hasResumed else { return false }
+        hasResumed = true
+        return true
+    }
+}
+
 struct WorkerBootstrapper {
     enum BootstrapError: LocalizedError {
         case bootstrapScriptNotFound
@@ -15,7 +54,7 @@ struct WorkerBootstrapper {
         }
     }
 
-    func run() async throws -> String {
+    func run(progress: @escaping @MainActor @Sendable (String) -> Void = { _ in }) async throws -> String {
         try AppPaths.ensureDirectories()
 
         if AppPaths.hasEmbeddedRuntime {
@@ -36,24 +75,44 @@ struct WorkerBootstrapper {
         process.environment = environment
 
         return try await withCheckedThrowingContinuation { continuation in
+            let buffer = BootstrapOutputBuffer()
+
+            stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
+                buffer.append(handle.availableData, progress: progress)
+            }
+            stderrPipe.fileHandleForReading.readabilityHandler = { handle in
+                buffer.append(handle.availableData, progress: progress)
+            }
+
             process.terminationHandler = { process in
+                stdoutPipe.fileHandleForReading.readabilityHandler = nil
+                stderrPipe.fileHandleForReading.readabilityHandler = nil
                 let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
                 let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-                let stdoutText = String(data: stdoutData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                let stderrText = String(data: stderrData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                buffer.append(stdoutData, progress: progress)
+                buffer.append(stderrData, progress: progress)
+                let outputText = buffer.snapshot()
 
-                if process.terminationStatus == 0 {
-                    continuation.resume(returning: stdoutText.isEmpty ? "Среда подготовлена." : stdoutText)
+                guard buffer.markResumedIfNeeded() else {
                     return
                 }
 
-                let message = stderrText.isEmpty ? stdoutText : stderrText
-                continuation.resume(throwing: BootstrapError.processFailed(message.isEmpty ? "Не удалось подготовить среду." : message))
+                if process.terminationStatus == 0 {
+                    continuation.resume(returning: outputText.isEmpty ? "Среда подготовлена." : outputText)
+                    return
+                }
+
+                continuation.resume(throwing: BootstrapError.processFailed(outputText.isEmpty ? "Не удалось подготовить среду." : outputText))
             }
 
             do {
                 try process.run()
             } catch {
+                stdoutPipe.fileHandleForReading.readabilityHandler = nil
+                stderrPipe.fileHandleForReading.readabilityHandler = nil
+                guard buffer.markResumedIfNeeded() else {
+                    return
+                }
                 continuation.resume(throwing: BootstrapError.processFailed("Не удалось запустить подготовку среды: \(error.localizedDescription)"))
             }
         }

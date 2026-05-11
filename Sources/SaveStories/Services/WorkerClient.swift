@@ -235,6 +235,11 @@ final class WorkerClient {
 
     private func workerLaunchConfiguration() throws -> (executable: URL, arguments: [String], runtime: String) {
         if let nodeScript = nodeWorkerScriptURL(),
+           let installedNode = AppPaths.installedNodeExecutable {
+            return (installedNode, [nodeScript.path], "node")
+        }
+
+        if let nodeScript = nodeWorkerScriptURL(),
            let bundledNode = AppPaths.bundledNodeExecutable {
             return (bundledNode, [nodeScript.path], "node")
         }
@@ -249,6 +254,8 @@ final class WorkerClient {
 
     private func nodeWorkerScriptURL() -> URL? {
         let candidates = [
+            AppPaths.workerRoot
+                .appendingPathComponent("bridge.mjs", isDirectory: false),
             Bundle.main.sharedSupportURL?
                 .appendingPathComponent("node_worker", isDirectory: true)
                 .appendingPathComponent("bridge.mjs", isDirectory: false),
