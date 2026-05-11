@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.27</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.28</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.27</title>
-      <pubDate>Mon, 11 May 2026 11:22:00 GMT</pubDate>
-      <sparkle:version>98</sparkle:version>
-      <sparkle:shortVersionString>0.6.27</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.27</h2>
-<ul><li>Исправлены кнопки выбора папки в Windows WinUI для разделов Stories и Сортировка</li><li>Исправлены кнопки открытия папок в Windows WinUI: пути с пробелами и кириллицей теперь открываются через системный shell</li><li>Выбор папок переведён на стабильный системный Windows folder dialog для installer/unpackaged-сборки</li></ul>]]></description>
+      <title>SaveMe 0.6.28</title>
+      <pubDate>Mon, 11 May 2026 20:07:21 GMT</pubDate>
+      <sparkle:version>99</sparkle:version>
+      <sparkle:shortVersionString>0.6.28</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.28</h2>
+<ul><li>macOS DMG стал лёгким: Node, Playwright и Chromium больше не встраиваются в приложение по умолчанию</li><li>Первый запуск показывает onboarding установки движка и проводит по этапам докачки runtime-компонентов</li><li>Установленный runtime теперь хранится в Application Support и используется приложением при последующих запусках</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.27/SaveMe-macOS-v0.6.27.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.28/SaveMe-macOS-v0.6.28.dmg"
         sparkle:os="macos"
-        length="187697857"
+        length="3165848"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="It1PsC/+1lmw0aMFQrtYCll1QKbu625mJBF13Axx7JEEOU9o8J3SPvSsHrfIwJnwp5qIvMUfYV+ulSdMQsH4DA==" />
+        sparkle:edSignature="ZV9NtqLij1Sllw4EsBPBH5JnQE6H7ZfgqGo1eTVyXEd5SbAQ4yztJcotzEnnI0ACS+2zK3L+m0rMt4OjXQv4CQ==" />
     </item>
   </channel>
 </rss>
