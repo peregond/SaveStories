@@ -39,7 +39,7 @@ public sealed partial class StoriesPage : Page
 
     private void OnAddProfilesClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        var lines = ParseInputLines(ProfilesInputTextBox.Text);
+        var lines = ProfileInputParser.ParseProfiles(ProfilesInputTextBox.Text);
         var added = AddQueueItems(lines);
 
         ProfilesInputTextBox.Text = string.Empty;
@@ -83,7 +83,7 @@ public sealed partial class StoriesPage : Page
 
         if (_queue.Count == 0)
         {
-            var lines = ParseInputLines(ProfilesInputTextBox.Text);
+            var lines = ProfileInputParser.ParseProfiles(ProfilesInputTextBox.Text);
             AddQueueItems(lines);
             ProfilesInputTextBox.Text = string.Empty;
             RefreshQueueSummary();
@@ -165,6 +165,18 @@ public sealed partial class StoriesPage : Page
         StatusTitleText.Text = "Остановка";
         StatusDetailText.Text = "Отправлен запрос на остановку текущей задачи.";
         AppendLog("Запрошена остановка текущей задачи.");
+    }
+
+    private void OnClearQueueClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (_isRunning)
+        {
+            return;
+        }
+
+        _queue.Clear();
+        RefreshQueueSummary();
+        AppendLog("Очередь очищена.");
     }
 
     private void ApplyWorkerResult(WorkerResponse response)
@@ -375,16 +387,6 @@ public sealed partial class StoriesPage : Page
         {
             // ignore malformed batch results
         }
-    }
-
-    private static List<string> ParseInputLines(string input)
-    {
-        return input
-            .Split('\n')
-            .Select(x => x.Trim())
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
     }
 
     private async Task PromptLoginFromSessionCheckAsync()

@@ -29,16 +29,25 @@
                             AcceptsReturn="True"
                             MinHeight="160"
                             PlaceholderText="По одному username или ссылке на строку." />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Click="OnAddProfilesClick" Content="Добавить" />
-                            <Button Click="OnClearInputClick" Content="Очистить" />
-                            <Button Click="OnCheckSessionClick" Content="Проверить сессию" />
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button x:Name="DownloadButton" Click="OnDownloadClick" Content="Скачать" Style="{StaticResource SuccessActionButtonStyle}" />
-                            <Button x:Name="CancelButton" Click="OnStopClick" Content="Остановить" IsEnabled="False" Style="{StaticResource DangerActionButtonStyle}" />
-                            <Button x:Name="RetryFailedButton" Click="OnRetryFailedClick" Content="Повторить неудачные" IsEnabled="False" />
-                        </StackPanel>
+                        <Grid ColumnSpacing="8" RowSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Button Grid.Row="0" Grid.Column="0" HorizontalAlignment="Stretch" Click="OnAddProfilesClick" Content="Добавить" />
+                            <Button Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnClearInputClick" Content="Очистить ввод" />
+                            <Button Grid.Row="0" Grid.Column="2" HorizontalAlignment="Stretch" Click="OnCheckSessionClick" Content="Проверить сессию" />
+                            <Button x:Name="DownloadButton" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch" Click="OnDownloadClick" Content="Скачать" Style="{StaticResource SuccessActionButtonStyle}" />
+                            <Button x:Name="CancelButton" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnStopClick" Content="Остановить" IsEnabled="False" Style="{StaticResource DangerActionButtonStyle}" />
+                            <Button Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch" Click="OnClearQueueClick" Content="Очистить очередь" />
+                            <Button x:Name="RetryFailedButton" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" Click="OnRetryFailedClick" Content="Повторить неудачные" IsEnabled="False" />
+                        </Grid>
 
                         <Border Style="{StaticResource AppCardBorderStyle}" Padding="10">
                             <StackPanel Spacing="8">

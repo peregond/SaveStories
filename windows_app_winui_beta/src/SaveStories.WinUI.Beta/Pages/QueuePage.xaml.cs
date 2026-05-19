@@ -31,7 +31,7 @@ public sealed partial class QueuePage : Page
 
     private void OnAddProfilesClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        var lines = ParseInputLines(QueueInputTextBox.Text);
+        var lines = ProfileInputParser.ParseProfiles(QueueInputTextBox.Text);
         var added = AddQueueItems(lines);
 
         QueueInputTextBox.Text = string.Empty;
@@ -86,7 +86,7 @@ public sealed partial class QueuePage : Page
 
         if (_queue.Count == 0)
         {
-            var lines = ParseInputLines(QueueInputTextBox.Text);
+            var lines = ProfileInputParser.ParseProfiles(QueueInputTextBox.Text);
             AddQueueItems(lines);
             QueueInputTextBox.Text = string.Empty;
             RefreshQueueSummary();
@@ -297,16 +297,6 @@ public sealed partial class QueuePage : Page
         {
             // ignore malformed batch results
         }
-    }
-
-    private static List<string> ParseInputLines(string input)
-    {
-        return input
-            .Split('\n')
-            .Select(x => x.Trim())
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
     }
 
     private async Task PromptLoginFromSessionCheckAsync()

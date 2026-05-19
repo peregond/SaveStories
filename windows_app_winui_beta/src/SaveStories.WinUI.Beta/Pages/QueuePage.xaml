@@ -25,17 +25,25 @@
                             AcceptsReturn="True"
                             MinHeight="160"
                             PlaceholderText="По одному username или ссылке на строку." />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Click="OnAddProfilesClick" Content="Добавить в очередь" />
-                            <Button Click="OnClearInputClick" Content="Очистить" />
-                            <Button Click="OnCheckSessionClick" Content="Проверить сессию" />
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button x:Name="RunQueueButton" Click="OnRunQueueClick" Content="Скачать очередь" />
-                            <Button x:Name="StopQueueButton" Click="OnStopQueueClick" Content="Остановить" IsEnabled="False" />
-                            <Button x:Name="RetryFailedQueueButton" Click="OnRetryFailedClick" Content="Повторить неудачные" IsEnabled="False" />
-                            <Button Click="OnClearQueueClick" Content="Очистить очередь" />
-                        </StackPanel>
+                        <Grid ColumnSpacing="8" RowSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Button Grid.Row="0" Grid.Column="0" HorizontalAlignment="Stretch" Click="OnAddProfilesClick" Content="Добавить" />
+                            <Button Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnClearInputClick" Content="Очистить ввод" />
+                            <Button Grid.Row="0" Grid.Column="2" HorizontalAlignment="Stretch" Click="OnCheckSessionClick" Content="Проверить сессию" />
+                            <Button x:Name="RunQueueButton" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch" Click="OnRunQueueClick" Content="Скачать очередь" />
+                            <Button x:Name="StopQueueButton" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnStopQueueClick" Content="Остановить" IsEnabled="False" />
+                            <Button Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch" Click="OnClearQueueClick" Content="Очистить очередь" />
+                            <Button x:Name="RetryFailedQueueButton" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" Click="OnRetryFailedClick" Content="Повторить неудачные" IsEnabled="False" />
+                        </Grid>
                         <TextBlock x:Name="QueueSummaryText" Style="{StaticResource AppSecondaryTextStyle}" Text="Очередь: 0 профилей." />
                         <ListView x:Name="QueueListView" MaxHeight="180" />
                     </StackPanel>
