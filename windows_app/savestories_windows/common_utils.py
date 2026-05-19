@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 
@@ -10,17 +11,17 @@ def normalize_profile_link(raw: str) -> str:
         return trimmed
     if "instagram.com" in trimmed:
         return trimmed
-    username = trimmed.strip("@/ ")
+    username = trimmed.strip("@/ ").strip("*,;:!?/\\")
+    username = re.sub(r"[^A-Za-z0-9._]", "", username)
     return f"https://www.instagram.com/{username}/"
 
 
 def parse_batch_links(raw: str) -> list[str]:
     links: list[str] = []
-    for line in raw.splitlines():
-        for part in line.split(","):
-            value = part.strip()
-            if value:
-                links.append(normalize_profile_link(value))
+    for part in re.split(r"[\s,;]+", raw):
+        value = part.strip()
+        if value:
+            links.append(normalize_profile_link(value))
     return links
 
 

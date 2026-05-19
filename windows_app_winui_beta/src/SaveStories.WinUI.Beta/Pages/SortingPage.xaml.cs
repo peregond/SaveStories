@@ -19,9 +19,9 @@ public sealed partial class SortingPage : Page
         RefreshRememberedBloggers();
     }
 
-    private async void OnChangeSourceDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    private void OnChangeSourceDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        var path = await PickFolderAsync("Папка Перенос", BetaSettingsStore.Current.SortingSourceDirectory);
+        var path = PickFolder("Папка Перенос", BetaSettingsStore.Current.SortingSourceDirectory);
         if (string.IsNullOrWhiteSpace(path))
         {
             return;
@@ -32,9 +32,9 @@ public sealed partial class SortingPage : Page
         SourceDirectoryText.Text = DisplayPath(path);
     }
 
-    private async void OnChangeDestinationDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    private void OnChangeDestinationDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        var path = await PickFolderAsync("Папка назначения", BetaSettingsStore.Current.SortingDestinationDirectory);
+        var path = PickFolder("Папка назначения", BetaSettingsStore.Current.SortingDestinationDirectory);
         if (string.IsNullOrWhiteSpace(path))
         {
             return;
@@ -104,10 +104,8 @@ public sealed partial class SortingPage : Page
         SortingStatusText.Text = "Дайджест скопирован в буфер обмена.";
     }
 
-    private async Task<string?> PickFolderAsync(string title, string? initialDirectory)
+    private string? PickFolder(string title, string? initialDirectory)
     {
-        await Task.Yield();
-
         try
         {
             return ShellFolderService.PickFolder(App.MainWindow, title, initialDirectory);

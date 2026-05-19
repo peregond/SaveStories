@@ -18,11 +18,11 @@ final class AppModelBatchTests: XCTestCase {
     func testParsedBatchLinksSplitsNewlinesCommasAndWhitespace() {
         let model = AppModel()
 
-        let parsed = model.parsedBatchLinks(from: " alice \nhttps://www.instagram.com/bob/ , @carol,,\n\n dima ")
+        let parsed = model.parsedBatchLinks(from: " alice \nhttps://www.instagram.com/bob/ , @carol,,\n\n dima @upngo____;@stoffer__ ")
 
         XCTAssertEqual(
             parsed,
-            ["alice", "https://www.instagram.com/bob/", "@carol", "dima"]
+            ["alice", "https://www.instagram.com/bob/", "@carol", "dima", "@upngo____", "@stoffer__"]
         )
     }
 
@@ -32,6 +32,14 @@ final class AppModelBatchTests: XCTestCase {
         XCTAssertEqual(
             model.normalizedProfileLink(" @alice/ "),
             "https://www.instagram.com/alice/"
+        )
+        XCTAssertEqual(
+            model.normalizedProfileLink("@upngo____"),
+            "https://www.instagram.com/upngo____/"
+        )
+        XCTAssertEqual(
+            model.normalizedProfileLink("@*berthi*"),
+            "https://www.instagram.com/berthi/"
         )
         XCTAssertEqual(
             model.normalizedProfileLink("https://www.instagram.com/bob/"),

@@ -79,7 +79,7 @@ public static partial class ProfileInputParser
     {
         var username = CleanToken(raw)
             .TrimStart('@')
-            .Trim('*', '_', '.', ',', ';', ':', '!', '?', '/', '\\');
+            .Trim('*', ',', ';', ':', '!', '?', '/', '\\');
 
         return InstagramUsernameChars().Replace(username, string.Empty);
     }

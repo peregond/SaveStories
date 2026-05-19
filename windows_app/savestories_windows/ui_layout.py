@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
+from .common_utils import parse_batch_links
 from .ui_support import SettingsDialog, app_version, scaled
 
 
@@ -1480,8 +1481,7 @@ class MainWindowLayoutMixin:
     def _update_home2_input_overlay(self) -> None:
         if not hasattr(self, "home2_batch_input"):
             return
-        lines = [line.strip() for line in self.home2_batch_input.toPlainText().splitlines() if line.strip()]
-        count = len(lines)
+        count = len(parse_batch_links(self.home2_batch_input.toPlainText()))
         suffix = "профиль" if count == 1 else "профилей"
         if hasattr(self, "home2_input_counter"):
             self.home2_input_counter.setText(f"{count} {suffix}")

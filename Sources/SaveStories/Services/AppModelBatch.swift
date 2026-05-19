@@ -237,9 +237,8 @@ extension AppModel {
 
     func parsedBatchLinks(from input: String) -> [String] {
         input
-            .split(whereSeparator: \.isNewline)
-            .flatMap { chunk in
-                chunk.split(separator: ",")
+            .split { separator in
+                separator.isWhitespace || separator == "," || separator == ";"
             }
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
@@ -253,7 +252,11 @@ extension AppModel {
             return trimmed
         }
 
-        let username = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "@/"))
+        var username = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "@/"))
+        username = username.trimmingCharacters(in: CharacterSet(charactersIn: "*,;:!?/\\"))
+        username = username.filter { character in
+            character.isLetter || character.isNumber || character == "." || character == "_"
+        }
         return "https://www.instagram.com/\(username)/"
     }
 

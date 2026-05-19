@@ -18,6 +18,8 @@ from savestories_windows.common_utils import (
 class CommonUtilsTests(unittest.TestCase):
     def test_normalize_profile_link(self) -> None:
         self.assertEqual(normalize_profile_link(" @alice/ "), "https://www.instagram.com/alice/")
+        self.assertEqual(normalize_profile_link("@upngo____"), "https://www.instagram.com/upngo____/")
+        self.assertEqual(normalize_profile_link("@*berthi*"), "https://www.instagram.com/berthi/")
         self.assertEqual(
             normalize_profile_link("https://www.instagram.com/bob/"),
             "https://www.instagram.com/bob/",
@@ -30,6 +32,15 @@ class CommonUtilsTests(unittest.TestCase):
                 "https://www.instagram.com/alice/",
                 "https://www.instagram.com/bob/",
                 "https://www.instagram.com/carol/",
+            ],
+        )
+        self.assertEqual(
+            parse_batch_links("@timmes198 @smileyboys.comm\n@upngo____;@stoffer__"),
+            [
+                "https://www.instagram.com/timmes198/",
+                "https://www.instagram.com/smileyboys.comm/",
+                "https://www.instagram.com/upngo____/",
+                "https://www.instagram.com/stoffer__/",
             ],
         )
 
