@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.36</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.37</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.36</title>
-      <pubDate>Tue, 19 May 2026 14:33:41 GMT</pubDate>
-      <sparkle:version>107</sparkle:version>
-      <sparkle:shortVersionString>0.6.36</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.36</h2>
-<ul><li>Windows WinUI теперь использует фирменную иконку SaveMe из SVG.</li><li>Кнопки папки сохранения в Stories снова открывают выбор папки через WinUI folder picker.</li><li>`Очистить список профилей` теперь отображается прямо над списком профилей в Stories и Queue.</li><li>Генератор Windows `.ico` умеет собирать иконку из SVG/PNG-источника.</li></ul>]]></description>
+      <title>SaveMe 0.6.37</title>
+      <pubDate>Tue, 19 May 2026 14:42:57 GMT</pubDate>
+      <sparkle:version>108</sparkle:version>
+      <sparkle:shortVersionString>0.6.37</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.37</h2>
+<ul><li>Windows Stories: кнопка `Изменить папку` переведена на надежный desktop folder dialog.</li><li>Диалог выбора папки теперь привязан к главному окну приложения и должен открываться сразу после клика.</li><li>Windows WinUI сборка подключает Windows Forms только для системного выбора папки.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.36/SaveMe-macOS-v0.6.36.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.37/SaveMe-macOS-v0.6.37.dmg"
         sparkle:os="macos"
-        length="3166971"
+        length="3167638"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="lKhdPtnCB8V0AKXScPfYzVL7UoTNWUxtz/FO0cgYW0UbVnYTSgrGclW9MgPaAnHxczdBgO7KAUBg/KCkPQ7jBA==" />
+        sparkle:edSignature="IsHaod/mImXIzCye583Y25GrReviE3tqPIs2/x8QriVQV9Z2SdgvpGfUfriFjLLKnDesQ7xgBwcqHwdaKH/9Dw==" />
     </item>
   </channel>
 </rss>
