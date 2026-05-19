@@ -1,7 +1,7 @@
 using Microsoft.UI.Xaml;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Forms = System.Windows.Forms;
+using System.Text;
 using WinRT.Interop;
 
 namespace SaveMe.WinUI.Beta.Services;
@@ -10,20 +10,29 @@ public static class ShellFolderService
 {
     public static string? PickFolder(Window? owner, string title, string? initialDirectory = null)
     {
-        using var dialog = new Forms.FolderBrowserDialog
+        var hwnd = owner is null ? IntPtr.Zero : WindowNative.GetWindowHandle(owner);
+        var browseInfo = new BROWSEINFO
         {
-            Description = title,
-            InitialDirectory = ExistingDirectoryOrDefault(initialDirectory),
-            ShowNewFolderButton = true,
-            UseDescriptionForTitle = true,
+            hwndOwner = hwnd,
+            lpszTitle = title,
+            ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE | BIF_EDITBOX | BIF_USENEWUI,
         };
 
-        var hwnd = owner is null ? IntPtr.Zero : WindowNative.GetWindowHandle(owner);
-        var result = hwnd == IntPtr.Zero
-            ? dialog.ShowDialog()
-            : dialog.ShowDialog(new WindowHandle(hwnd));
+        var pidl = SHBrowseForFolder(ref browseInfo);
+        if (pidl == IntPtr.Zero)
+        {
+            return null;
+        }
 
-        return result == Forms.DialogResult.OK ? dialog.SelectedPath : null;
+        try
+        {
+            var path = new StringBuilder(260);
+            return SHGetPathFromIDList(pidl, path) ? path.ToString() : null;
+        }
+        finally
+        {
+            CoTaskMemFree(pidl);
+        }
     }
 
     public static string? PickFolderWithFileOpenDialog(Window? owner, string title, string? initialDirectory = null)
@@ -113,17 +122,38 @@ public static class ShellFolderService
             : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
     }
 
-    private sealed class WindowHandle(IntPtr handle) : Forms.IWin32Window
-    {
-        public IntPtr Handle { get; } = handle;
-    }
-
     private const int HRESULT_CANCELLED = unchecked((int)0x800704C7);
     private const uint SIGDN_FILESYSPATH = 0x80058000;
     private const uint FOS_PICKFOLDERS = 0x00000020;
     private const uint FOS_FORCEFILESYSTEM = 0x00000040;
     private const uint FOS_PATHMUSTEXIST = 0x00000800;
     private const uint FOS_NOCHANGEDIR = 0x00000008;
+    private const uint BIF_RETURNONLYFSDIRS = 0x00000001;
+    private const uint BIF_EDITBOX = 0x00000010;
+    private const uint BIF_NEWDIALOGSTYLE = 0x00000040;
+    private const uint BIF_USENEWUI = BIF_EDITBOX | BIF_NEWDIALOGSTYLE;
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct BROWSEINFO
+    {
+        public IntPtr hwndOwner;
+        public IntPtr pidlRoot;
+        public IntPtr pszDisplayName;
+        public string lpszTitle;
+        public uint ulFlags;
+        public IntPtr lpfn;
+        public IntPtr lParam;
+        public int iImage;
+    }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr SHBrowseForFolder(ref BROWSEINFO lpbi);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool SHGetPathFromIDList(IntPtr pidl, StringBuilder pszPath);
+
+    [DllImport("ole32.dll")]
+    private static extern void CoTaskMemFree(IntPtr pv);
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
     private static extern int SHCreateItemFromParsingName(
