@@ -3,18 +3,16 @@ import Foundation
 
 extension AppModel {
     func chooseSortingSourceDirectory() {
-        let panel = NSOpenPanel()
-        panel.canCreateDirectories = false
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.prompt = "Выбрать"
-        panel.directoryURL = sortingSourceDirectory ?? saveDirectory
+        guard !isBusy else {
+            appendLog("Выбор папки источника пропущен: дождись завершения текущей операции.")
+            return
+        }
 
-        if panel.runModal() == .OK, let url = panel.url {
-            sortingSourceDirectory = url
+        presentDirectoryChooser(initialDirectory: sortingSourceDirectory ?? saveDirectory, canCreateDirectories: false) { url in
+            self.sortingSourceDirectory = url
             UserDefaults.standard.set(url.path, forKey: Self.sortingSourceDirectoryKey)
-            postProcessingSummary = "Источник сортировки выбран: \(url.lastPathComponent)."
-            appendLog("Папка источника сортировки изменена на \(url.path).")
+            self.postProcessingSummary = "Источник сортировки выбран: \(url.lastPathComponent)."
+            self.appendLog("Папка источника сортировки изменена на \(url.path).")
         }
     }
 
@@ -86,18 +84,16 @@ extension AppModel {
     }
 
     func chooseDistributionRootDirectory() {
-        let panel = NSOpenPanel()
-        panel.canCreateDirectories = true
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.prompt = "Выбрать"
-        panel.directoryURL = distributionRootDirectory ?? saveDirectory
+        guard !isBusy else {
+            appendLog("Выбор папки раскладки пропущен: дождись завершения текущей операции.")
+            return
+        }
 
-        if panel.runModal() == .OK, let url = panel.url {
-            distributionRootDirectory = url
+        presentDirectoryChooser(initialDirectory: distributionRootDirectory ?? saveDirectory, canCreateDirectories: true) { url in
+            self.distributionRootDirectory = url
             UserDefaults.standard.set(url.path, forKey: Self.distributionRootDirectoryKey)
-            postProcessingSummary = "Папка раскладки выбрана: \(url.lastPathComponent)."
-            appendLog("Папка раскладки изменена на \(url.path).")
+            self.postProcessingSummary = "Папка раскладки выбрана: \(url.lastPathComponent)."
+            self.appendLog("Папка раскладки изменена на \(url.path).")
         }
     }
 

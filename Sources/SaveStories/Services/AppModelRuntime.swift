@@ -35,19 +35,65 @@ extension AppModel {
     }
 
     func chooseSaveDirectory() {
+        guard !isBusy else {
+            appendLog("Выбор папки пропущен: дождись завершения текущей операции.")
+            return
+        }
+
+        presentDirectoryChooser(initialDirectory: saveDirectory, canCreateDirectories: true) { url in
+            self.saveDirectory = url
+            UserDefaults.standard.set(url.path, forKey: Self.saveDirectoryKey)
+            self.resetLiveDownloadTrackingBaseline()
+            self.appendLog("Папка сохранения изменена на \(url.path).")
+        }
+    }
+
+    func presentDirectoryChooser(
+        initialDirectory: URL?,
+        canCreateDirectories: Bool,
+        onSelection: @escaping @MainActor (URL) -> Void
+    ) {
         let panel = NSOpenPanel()
-        panel.canCreateDirectories = true
+        panel.canCreateDirectories = canCreateDirectories
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.prompt = "Выбрать"
-        panel.directoryURL = saveDirectory
+        panel.directoryURL = existingDirectoryURL(from: initialDirectory)
 
-        if panel.runModal() == .OK, let url = panel.url {
-            saveDirectory = url
-            UserDefaults.standard.set(url.path, forKey: Self.saveDirectoryKey)
-            resetLiveDownloadTrackingBaseline()
-            appendLog("Папка сохранения изменена на \(url.path).")
+        NSApp.activate(ignoringOtherApps: true)
+
+        let completion: (NSApplication.ModalResponse) -> Void = { response in
+            guard response == .OK, let url = panel.url else { return }
+            Task { @MainActor in
+                onSelection(url)
+            }
         }
+
+        if let window = NSApp.keyWindow ?? NSApp.mainWindow {
+            panel.beginSheetModal(for: window, completionHandler: completion)
+        } else {
+            panel.begin(completionHandler: completion)
+        }
+    }
+
+    private func existingDirectoryURL(from url: URL?) -> URL {
+        let fileManager = FileManager.default
+        let candidates = [
+            url,
+            url?.deletingLastPathComponent(),
+            Optional(AppPaths.defaultDownloads),
+            Optional(AppPaths.defaultDownloads.deletingLastPathComponent()),
+            Optional(FileManager.default.homeDirectoryForCurrentUser)
+        ]
+
+        for candidate in candidates.compactMap({ $0 }) {
+            var isDirectory: ObjCBool = false
+            if fileManager.fileExists(atPath: candidate.path, isDirectory: &isDirectory), isDirectory.boolValue {
+                return candidate
+            }
+        }
+
+        return FileManager.default.homeDirectoryForCurrentUser
     }
 
     func refreshEnvironment() async {
