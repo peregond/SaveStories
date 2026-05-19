@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.34</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.35</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.34</title>
-      <pubDate>Tue, 19 May 2026 12:02:48 GMT</pubDate>
-      <sparkle:version>105</sparkle:version>
-      <sparkle:shortVersionString>0.6.34</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.34</h2>
-<ul><li>Исправлено зависание macOS при выборе папки на новом устройстве во время первичной подготовки приложения.</li><li>Выбор папок теперь открывается как неблокирующая системная панель и не стартует во время активной операции.</li><li>Sparkle больше не показывает системный prompt авто-проверки обновлений на старте, чтобы он не конфликтовал с onboarding и выбором папки.</li><li>Ручная проверка обновлений остается доступной из меню приложения.</li></ul>]]></description>
+      <title>SaveMe 0.6.35</title>
+      <pubDate>Tue, 19 May 2026 14:22:59 GMT</pubDate>
+      <sparkle:version>106</sparkle:version>
+      <sparkle:shortVersionString>0.6.35</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.35</h2>
+<ul><li>Исправлен ввод нескольких Instagram-профилей в Windows WinUI: список теперь корректно разбирается по строкам, пустым строкам, пробелам, запятым и `;`.</li><li>`@username` на Windows теперь приводится к нормальной ссылке Instagram так же, как на macOS.</li><li>Во вкладках очереди и stories кнопки действий разложены сеткой, чтобы `Очистить очередь` не пропадала за краем окна.</li><li>Вкладка Stories на Windows получила отдельную кнопку очистки очереди.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.34/SaveMe-macOS-v0.6.34.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.35/SaveMe-macOS-v0.6.35.dmg"
         sparkle:os="macos"
-        length="3166925"
+        length="3167863"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="LbPXkD1tbu1DtIsSkQwdJUr5UKl0oKg0KLG9kmp/H/AweEXpfSBeQH5/LD37yRo7ehSQEZYGswU+QzUY6P6zCg==" />
+        sparkle:edSignature="zgSVDC08zYOwh+0+XAI3CB0BvWLMujy3NZaPDxkvG31k70OqTnHIZ2YH9AJ9AObAp8dFQVJ1bh0jTiKLzE7jCQ==" />
     </item>
   </channel>
 </rss>
