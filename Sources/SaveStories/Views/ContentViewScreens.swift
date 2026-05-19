@@ -323,7 +323,7 @@ extension ContentView {
     }
 
     var homeStatusCard: some View {
-        card("Состояние") {
+        card("Состояние", minHeight: homeSummaryCardHeight) {
             VStack(alignment: .leading, spacing: 14) {
                 homeStatusBadge
 
@@ -335,11 +335,11 @@ extension ContentView {
                 stepTracker
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 224, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     var homeResultCard: some View {
-        card("Результат") {
+        card("Результат", minHeight: homeSummaryCardHeight) {
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                 homeResultTile(title: "Профилей", value: model.foundStoriesCount, accent: Color.orange.opacity(0.78))
                 homeResultTile(title: "Сохранено", value: model.savedStoriesCount, accent: Color.green.opacity(0.78))
@@ -347,7 +347,7 @@ extension ContentView {
                 homeResultTile(title: "Папок", value: model.liveCreatedFolderCount, accent: Color.mint.opacity(0.78))
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 224, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     var statusRail: some View {

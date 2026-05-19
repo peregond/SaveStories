@@ -12,6 +12,7 @@ struct ContentView: View {
     @State var showingPendingEmptyFolders = false
     @State var sortingRulesExpanded = false
     @State var sortingAdvancedExpanded = false
+    @State var storiesInputExpanded = false
 
     var isDark: Bool { colorScheme == .dark }
 
@@ -21,7 +22,7 @@ struct ContentView: View {
     let itemCornerRadius: CGFloat = 12
     let innerCornerRadius: CGFloat = 10
     let topContentInset: CGFloat = 22
-    let homeSummaryCardHeight: CGFloat = 208
+    let homeSummaryCardHeight: CGFloat = 224
 
     func contentHorizontalPadding(for width: CGFloat) -> CGFloat {
         width < 760 ? 20 : 28
@@ -88,11 +89,7 @@ struct ContentView: View {
     }
 
     var batchProfileInputCount: Int {
-        model.batchInput
-            .split(whereSeparator: \.isNewline)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .count
+        model.parsedBatchLinks(from: model.batchInput).count
     }
 
     var queuedPendingCount: Int {
@@ -571,6 +568,7 @@ struct ContentView: View {
                     }
 
                     VStack(spacing: 10) {
+                        storiesClearQueueButton
                         storiesDownloadButton
                         storiesStopButton
                     }
@@ -594,6 +592,7 @@ struct ContentView: View {
                     }
 
                     HStack(spacing: 10) {
+                        storiesClearQueueButton
                         storiesDownloadButton
                         storiesStopButton
                     }
@@ -2528,7 +2527,7 @@ struct ContentView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 12)
                 .background(Color.clear)
-                .frame(minHeight: 180)
+                .frame(height: storiesInputExpanded ? 360 : 132)
 
             if model.batchInput.isEmpty {
                 Text("По одной ссылке или username на строку.\nНапример:\ndian.vegas1\nhttps://www.instagram.com/stevensetu/\nleftlanepapi")
@@ -2572,6 +2571,29 @@ struct ContentView: View {
                 .padding(.bottom, 12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         }
+        .overlay(alignment: .bottomLeading) {
+            if shouldShowStoriesInputExpandButton {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        storiesInputExpanded.toggle()
+                    }
+                } label: {
+                    Label(storiesInputExpanded ? "Свернуть" : "Раскрыть", systemImage: storiesInputExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .labelStyle(.titleAndIcon)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.white.opacity(isDark ? 0.08 : 0.72))
+                        )
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(secondaryText)
+                .padding(.leading, 12)
+                .padding(.bottom, 12)
+            }
+        }
         .background(fieldBackground)
         .overlay(
             RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
@@ -2579,6 +2601,11 @@ struct ContentView: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous))
         .animation(.easeInOut(duration: 0.2), value: batchProfileInputCount)
+        .animation(.easeInOut(duration: 0.18), value: storiesInputExpanded)
+    }
+
+    var shouldShowStoriesInputExpandButton: Bool {
+        batchProfileInputCount > 5 || model.batchInput.count > 180 || storiesInputExpanded
     }
 
     var storiesDownloadButton: some View {
@@ -2614,6 +2641,19 @@ struct ContentView: View {
         .tint(Color.red.opacity(0.82))
         .disabled(!model.batchIsRunning)
         .opacity(model.batchIsRunning ? 1 : 0.72)
+    }
+
+    var storiesClearQueueButton: some View {
+        Button {
+            model.clearBatchQueue()
+        } label: {
+            Label("Очистить очередь", systemImage: "trash")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .tint(Color.red.opacity(0.78))
+        .disabled(model.batchQueue.isEmpty || model.isBusy)
+        .opacity(model.batchQueue.isEmpty || model.isBusy ? 0.68 : 1)
     }
 
     func ghostButton(_ title: String, systemImage: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
@@ -3022,7 +3062,12 @@ struct ContentView: View {
         .cardBackground(cornerRadius: cardCornerRadius, fill: cardFill, stroke: cardStroke)
     }
 
-    func card<Content: View>(_ title: String, padding: CGFloat = 18, @ViewBuilder content: () -> Content) -> some View {
+    func card<Content: View>(
+        _ title: String,
+        padding: CGFloat = 18,
+        minHeight: CGFloat? = nil,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
                 .font(.system(size: 13, weight: .bold, design: .rounded))
@@ -3035,7 +3080,7 @@ struct ContentView: View {
                 .padding(.horizontal, padding)
                 .padding(.bottom, padding == 0 ? 18 : padding)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
         .background(cardBackground)
         .overlay(
             RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
