@@ -44,7 +44,14 @@
                             <Button Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch" Click="OnClearQueueClick" Content="Очистить очередь" />
                             <Button x:Name="RetryFailedQueueButton" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" Click="OnRetryFailedClick" Content="Повторить неудачные" IsEnabled="False" />
                         </Grid>
-                        <TextBlock x:Name="QueueSummaryText" Style="{StaticResource AppSecondaryTextStyle}" Text="Очередь: 0 профилей." />
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="QueueSummaryText" Grid.Column="0" VerticalAlignment="Center" Style="{StaticResource AppSecondaryTextStyle}" Text="Очередь: 0 профилей." />
+                            <Button Grid.Column="1" Click="OnClearQueueClick" Content="Очистить список профилей" />
+                        </Grid>
                         <ListView x:Name="QueueListView" MaxHeight="180" />
                     </StackPanel>
                 </Border>

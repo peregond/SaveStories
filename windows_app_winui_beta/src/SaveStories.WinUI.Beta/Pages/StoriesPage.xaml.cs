@@ -114,6 +114,8 @@ public sealed partial class StoriesPage : Page
         _isRunning = true;
         DownloadButton.IsEnabled = false;
         CancelButton.IsEnabled = true;
+        ChangeOutputDirectoryButton.IsEnabled = false;
+        OpenOutputDirectoryButton.IsEnabled = false;
         RetryFailedButton.IsEnabled = false;
         StatusTitleText.Text = "Загружаю";
         StatusDetailText.Text = runningMessage;
@@ -150,6 +152,8 @@ public sealed partial class StoriesPage : Page
             _isRunning = false;
             DownloadButton.IsEnabled = true;
             CancelButton.IsEnabled = false;
+            ChangeOutputDirectoryButton.IsEnabled = true;
+            OpenOutputDirectoryButton.IsEnabled = true;
         }
     }
 
@@ -291,10 +295,15 @@ public sealed partial class StoriesPage : Page
 
     private async void OnChangeOutputDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
+        if (_isRunning)
+        {
+            return;
+        }
+
         try
         {
-            await Task.Yield();
-            var newPath = ShellFolderService.PickFolder(App.MainWindow, "Папка сохранения", _outputDirectory) ?? string.Empty;
+            ChangeOutputDirectoryButton.IsEnabled = false;
+            var newPath = await ShellFolderService.PickFolderAsync(App.MainWindow, "Папка сохранения", _outputDirectory) ?? string.Empty;
             if (string.IsNullOrWhiteSpace(newPath))
             {
                 return;
@@ -309,10 +318,19 @@ public sealed partial class StoriesPage : Page
         {
             AppendLog($"[folder_error] {ex.Message}");
         }
+        finally
+        {
+            ChangeOutputDirectoryButton.IsEnabled = true;
+        }
     }
 
     private void OnOpenOutputDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
+        if (_isRunning)
+        {
+            return;
+        }
+
         try
         {
             ShellFolderService.OpenFolder(_outputDirectory);

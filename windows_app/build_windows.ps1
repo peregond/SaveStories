@@ -8,6 +8,7 @@ $runtimeBrowsers = Join-Path $runtime "ms-playwright"
 $runtimeNode = Join-Path $runtime "node"
 $versionFile = Join-Path $root "VERSION"
 $iconPath = Join-Path $root "packaging\\AppBundle\\SaveStories.ico"
+$iconSourcePath = Join-Path $root "packaging\\AppBundle\\SaveMe.svg"
 $version = if (Test-Path $versionFile) { (Get-Content $versionFile -Raw).Trim() } else { "0.6.0" }
 $nodeWorkerDir = Join-Path $root "node_worker"
 $versionParts = $version.Split(".")
@@ -45,7 +46,11 @@ New-Item -ItemType Directory -Force -Path $runtimeNode | Out-Null
 New-Item -ItemType Directory -Force -Path (Split-Path $versionInfoPath) | Out-Null
 $env:PLAYWRIGHT_BROWSERS_PATH = $runtimeBrowsers
 if (-not (Test-Path $iconPath)) {
-    & "$venv\\Scripts\\python.exe" (Join-Path $root "packaging\\generate_windows_icon.py") $iconPath
+    if (Test-Path $iconSourcePath) {
+        & "$venv\\Scripts\\python.exe" (Join-Path $root "packaging\\generate_windows_icon.py") $iconPath $iconSourcePath
+    } else {
+        & "$venv\\Scripts\\python.exe" (Join-Path $root "packaging\\generate_windows_icon.py") $iconPath
+    }
 }
 
 Push-Location $nodeWorkerDir

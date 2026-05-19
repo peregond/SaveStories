@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import struct
+import subprocess
 import sys
+import tempfile
 import zlib
 from pathlib import Path
 
@@ -35,14 +37,54 @@ def solid_png(size: int, rgba: tuple[int, int, int, int]) -> bytes:
     )
 
 
+def rasterized_pngs(source: Path) -> list[bytes]:
+    with tempfile.TemporaryDirectory(prefix="saveme-icon-") as tmp:
+        tmp_dir = Path(tmp)
+        full_size_png = tmp_dir / "icon-source.png"
+        subprocess.run(
+            [
+                "sips",
+                "-s",
+                "format",
+                "png",
+                str(source),
+                "--out",
+                str(full_size_png),
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        images: list[bytes] = []
+        for size in ICO_SIZES:
+            output = tmp_dir / f"icon-{size}.png"
+            subprocess.run(
+                [
+                    "sips",
+                    "-z",
+                    str(size),
+                    str(size),
+                    str(full_size_png),
+                    "--out",
+                    str(output),
+                ],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            images.append(output.read_bytes())
+        return images
+
+
 def main() -> None:
-    if len(sys.argv) != 2:
-        raise SystemExit("usage: generate_windows_icon.py <output.ico>")
+    if len(sys.argv) not in {2, 3}:
+        raise SystemExit("usage: generate_windows_icon.py <output.ico> [source.svg|source.png]")
 
     output = Path(sys.argv[1])
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    images = [solid_png(size, LIME) for size in ICO_SIZES]
+    images = rasterized_pngs(Path(sys.argv[2])) if len(sys.argv) == 3 else [solid_png(size, LIME) for size in ICO_SIZES]
     header = struct.pack("<HHH", 0, 1, len(images))
     directory = bytearray()
     offset = 6 + 16 * len(images)
