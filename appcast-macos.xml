@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.38</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.39</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.38</title>
-      <pubDate>Tue, 19 May 2026 14:46:12 GMT</pubDate>
-      <sparkle:version>109</sparkle:version>
-      <sparkle:shortVersionString>0.6.38</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.38</h2>
-<ul><li>Windows Stories: кнопка `Изменить папку` переведена на Win32 folder dialog без WinUI picker и без Windows Forms/WPF зависимостей.</li><li>Диалог выбора папки привязан к главному окну приложения и должен открываться сразу после клика.</li><li>Исправлена сборка Windows после неудачного `0.6.37`.</li></ul>]]></description>
+      <title>SaveMe 0.6.39</title>
+      <pubDate>Tue, 19 May 2026 20:43:27 GMT</pubDate>
+      <sparkle:version>110</sparkle:version>
+      <sparkle:shortVersionString>0.6.39</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.39</h2>
+<ul><li>Windows: исправлен разбор списков профилей с пробелами, `;` и username с подчёркиваниями на конце.</li><li>Windows: счётчик списка профилей теперь считает фактические профили, а не только строки.</li><li>Windows: кнопки выбора папок используют Win32 folder dialog с текущей папкой как стартовой.</li><li>macOS: разбор пакетного списка профилей синхронизирован с Windows и сохраняет username вроде `@upngo____`.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.38/SaveMe-macOS-v0.6.38.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.39/SaveMe-macOS-v0.6.39.dmg"
         sparkle:os="macos"
-        length="3167835"
+        length="3167455"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="9ASTn9maNCGg+CS25N1OaXX01RVEs1V7195Q7zRFXKDBfv8yiQws+Vlzm8ehj9hgQWaDUotXL5/h6DZgnucZCQ==" />
+        sparkle:edSignature="JADNzJTzcfdDgLaj0U8f1TlXyxuV9WfvKTpJZE9BOMCMpuayst+Y0omSdFSPgiXiXPEKCIrHBadpIoe7vP91Bw==" />
     </item>
   </channel>
 </rss>
