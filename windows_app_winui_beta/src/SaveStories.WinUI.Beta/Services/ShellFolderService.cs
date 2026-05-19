@@ -1,32 +1,32 @@
 using Microsoft.UI.Xaml;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Windows.Storage.Pickers;
+using Forms = System.Windows.Forms;
 using WinRT.Interop;
 
 namespace SaveMe.WinUI.Beta.Services;
 
 public static class ShellFolderService
 {
-    public static async Task<string?> PickFolderAsync(Window? owner, string title, string? initialDirectory = null)
+    public static string? PickFolder(Window? owner, string title, string? initialDirectory = null)
     {
-        var picker = new FolderPicker
+        using var dialog = new Forms.FolderBrowserDialog
         {
-            SuggestedStartLocation = PickerLocationId.Downloads,
-            CommitButtonText = "Выбрать папку",
+            Description = title,
+            InitialDirectory = ExistingDirectoryOrDefault(initialDirectory),
+            ShowNewFolderButton = true,
+            UseDescriptionForTitle = true,
         };
-        picker.FileTypeFilter.Add("*");
 
-        if (owner is not null)
-        {
-            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(owner));
-        }
+        var hwnd = owner is null ? IntPtr.Zero : WindowNative.GetWindowHandle(owner);
+        var result = hwnd == IntPtr.Zero
+            ? dialog.ShowDialog()
+            : dialog.ShowDialog(new WindowHandle(hwnd));
 
-        var folder = await picker.PickSingleFolderAsync();
-        return folder?.Path;
+        return result == Forms.DialogResult.OK ? dialog.SelectedPath : null;
     }
 
-    public static string? PickFolder(Window? owner, string title, string? initialDirectory = null)
+    public static string? PickFolderWithFileOpenDialog(Window? owner, string title, string? initialDirectory = null)
     {
         var dialog = (IFileOpenDialog)new FileOpenDialog();
 
@@ -111,6 +111,11 @@ public static class ShellFolderService
         return Directory.Exists(downloads)
             ? downloads
             : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+    }
+
+    private sealed class WindowHandle(IntPtr handle) : Forms.IWin32Window
+    {
+        public IntPtr Handle { get; } = handle;
     }
 
     private const int HRESULT_CANCELLED = unchecked((int)0x800704C7);

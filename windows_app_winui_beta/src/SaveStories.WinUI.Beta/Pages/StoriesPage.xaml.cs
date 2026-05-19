@@ -293,7 +293,7 @@ public sealed partial class StoriesPage : Page
         RefreshQueueSummary();
     }
 
-    private async void OnChangeOutputDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    private void OnChangeOutputDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         if (_isRunning)
         {
@@ -303,7 +303,7 @@ public sealed partial class StoriesPage : Page
         try
         {
             ChangeOutputDirectoryButton.IsEnabled = false;
-            var newPath = await ShellFolderService.PickFolderAsync(App.MainWindow, "Папка сохранения", _outputDirectory) ?? string.Empty;
+            var newPath = ShellFolderService.PickFolder(App.MainWindow, "Папка сохранения", _outputDirectory) ?? string.Empty;
             if (string.IsNullOrWhiteSpace(newPath))
             {
                 return;
