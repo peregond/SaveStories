@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.35</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.36</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.35</title>
-      <pubDate>Tue, 19 May 2026 14:22:59 GMT</pubDate>
-      <sparkle:version>106</sparkle:version>
-      <sparkle:shortVersionString>0.6.35</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.35</h2>
-<ul><li>Исправлен ввод нескольких Instagram-профилей в Windows WinUI: список теперь корректно разбирается по строкам, пустым строкам, пробелам, запятым и `;`.</li><li>`@username` на Windows теперь приводится к нормальной ссылке Instagram так же, как на macOS.</li><li>Во вкладках очереди и stories кнопки действий разложены сеткой, чтобы `Очистить очередь` не пропадала за краем окна.</li><li>Вкладка Stories на Windows получила отдельную кнопку очистки очереди.</li></ul>]]></description>
+      <title>SaveMe 0.6.36</title>
+      <pubDate>Tue, 19 May 2026 14:33:41 GMT</pubDate>
+      <sparkle:version>107</sparkle:version>
+      <sparkle:shortVersionString>0.6.36</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.36</h2>
+<ul><li>Windows WinUI теперь использует фирменную иконку SaveMe из SVG.</li><li>Кнопки папки сохранения в Stories снова открывают выбор папки через WinUI folder picker.</li><li>`Очистить список профилей` теперь отображается прямо над списком профилей в Stories и Queue.</li><li>Генератор Windows `.ico` умеет собирать иконку из SVG/PNG-источника.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.35/SaveMe-macOS-v0.6.35.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.36/SaveMe-macOS-v0.6.36.dmg"
         sparkle:os="macos"
-        length="3167863"
+        length="3166971"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="zgSVDC08zYOwh+0+XAI3CB0BvWLMujy3NZaPDxkvG31k70OqTnHIZ2YH9AJ9AObAp8dFQVJ1bh0jTiKLzE7jCQ==" />
+        sparkle:edSignature="lKhdPtnCB8V0AKXScPfYzVL7UoTNWUxtz/FO0cgYW0UbVnYTSgrGclW9MgPaAnHxczdBgO7KAUBg/KCkPQ7jBA==" />
     </item>
   </channel>
 </rss>
