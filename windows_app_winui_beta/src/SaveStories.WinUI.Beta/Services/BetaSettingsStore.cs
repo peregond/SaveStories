@@ -12,7 +12,7 @@ public enum BetaTheme
 public sealed class BetaSettingsStore
 {
     private const string FileName = "settings.json";
-    private const int CurrentSchemaVersion = 5;
+    private const int CurrentSchemaVersion = 6;
     private static readonly Lazy<BetaSettingsStore> LazyInstance = new(() => new BetaSettingsStore());
 
     private readonly string _settingsDirectory;
@@ -27,6 +27,7 @@ public sealed class BetaSettingsStore
     public string SortingDestinationDirectory { get; private set; } = "";
     public string SortingRules { get; private set; } = "";
     public bool NotionInfluencerSourceEnabled { get; private set; }
+    public bool NotionRoutingRulesSourceEnabled { get; private set; }
     public List<RememberedBloggerPayload> RememberedBloggers { get; private set; } = new();
 
     public event EventHandler<BetaTheme>? ThemeChanged;
@@ -62,6 +63,7 @@ public sealed class BetaSettingsStore
             SortingDestinationDirectory = payload?.SortingDestinationDirectory ?? "";
             SortingRules = payload?.SortingRules ?? "";
             NotionInfluencerSourceEnabled = payload?.NotionInfluencerSourceEnabled ?? false;
+            NotionRoutingRulesSourceEnabled = payload?.NotionRoutingRulesSourceEnabled ?? false;
             RememberedBloggers = payload?.RememberedBloggers ?? new List<RememberedBloggerPayload>();
             if (schemaVersion < CurrentSchemaVersion)
             {
@@ -77,6 +79,7 @@ public sealed class BetaSettingsStore
             SortingDestinationDirectory = "";
             SortingRules = "";
             NotionInfluencerSourceEnabled = false;
+            NotionRoutingRulesSourceEnabled = false;
             RememberedBloggers = new List<RememberedBloggerPayload>();
         }
     }
@@ -142,6 +145,12 @@ public sealed class BetaSettingsStore
         Save();
     }
 
+    public void SetNotionRoutingRulesSourceEnabled(bool enabled)
+    {
+        NotionRoutingRulesSourceEnabled = enabled;
+        Save();
+    }
+
     private void Save()
     {
         Directory.CreateDirectory(_settingsDirectory);
@@ -160,6 +169,7 @@ public sealed class BetaSettingsStore
             SortingDestinationDirectory = SortingDestinationDirectory,
             SortingRules = SortingRules,
             NotionInfluencerSourceEnabled = NotionInfluencerSourceEnabled,
+            NotionRoutingRulesSourceEnabled = NotionRoutingRulesSourceEnabled,
             RememberedBloggers = RememberedBloggers,
         };
         var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
@@ -211,6 +221,7 @@ public sealed class BetaSettingsStore
         public string? SortingDestinationDirectory { get; set; }
         public string? SortingRules { get; set; }
         public bool NotionInfluencerSourceEnabled { get; set; }
+        public bool NotionRoutingRulesSourceEnabled { get; set; }
         public List<RememberedBloggerPayload>? RememberedBloggers { get; set; }
     }
 }

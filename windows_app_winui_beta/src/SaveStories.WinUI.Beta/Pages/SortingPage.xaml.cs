@@ -7,8 +7,10 @@ namespace SaveMe.WinUI.Beta.Pages;
 
 public sealed partial class SortingPage : Page
 {
+    private readonly NotionRoutingRulesSource _notionRoutingRulesSource = new();
     private List<SortedFileRecord> _lastRecords = new();
     private string _lastDigest = "";
+    private bool _isRefreshingNotionRules;
 
     public SortingPage()
     {
@@ -16,6 +18,8 @@ public sealed partial class SortingPage : Page
         SourceDirectoryText.Text = DisplayPath(BetaSettingsStore.Current.SortingSourceDirectory);
         DestinationDirectoryText.Text = DisplayPath(BetaSettingsStore.Current.SortingDestinationDirectory);
         RulesTextBox.Text = BetaSettingsStore.Current.SortingRules;
+        NotionRoutingRulesToggle.IsOn = BetaSettingsStore.Current.NotionRoutingRulesSourceEnabled;
+        UpdateNotionRoutingRulesSummary();
         RefreshRememberedBloggers();
     }
 
@@ -62,7 +66,7 @@ public sealed partial class SortingPage : Page
         RefreshRememberedBloggers();
     }
 
-    private void OnRunSortingClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    private async void OnRunSortingClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         var source = BetaSettingsStore.Current.SortingSourceDirectory;
         var destination = BetaSettingsStore.Current.SortingDestinationDirectory;
@@ -70,6 +74,15 @@ public sealed partial class SortingPage : Page
         {
             SortingStatusText.Text = "Сначала выбери папку Перенос и папку назначения.";
             return;
+        }
+
+        if (NotionRoutingRulesToggle.IsOn)
+        {
+            var refreshed = await RefreshNotionRoutingRulesAsync();
+            if (!refreshed)
+            {
+                return;
+            }
         }
 
         try
@@ -104,6 +117,65 @@ public sealed partial class SortingPage : Page
         SortingStatusText.Text = "Дайджест скопирован в буфер обмена.";
     }
 
+    private void OnNotionRoutingRulesToggleToggled(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        BetaSettingsStore.Current.SetNotionRoutingRulesSourceEnabled(NotionRoutingRulesToggle.IsOn);
+        UpdateNotionRoutingRulesSummary();
+    }
+
+    private async void OnRefreshNotionRoutingRulesClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        await RefreshNotionRoutingRulesAsync();
+    }
+
+    private async Task<bool> RefreshNotionRoutingRulesAsync()
+    {
+        if (_isRefreshingNotionRules)
+        {
+            return false;
+        }
+
+        _isRefreshingNotionRules = true;
+        RefreshNotionRoutingRulesButton.IsEnabled = false;
+        NotionRoutingRulesToggle.IsEnabled = false;
+        NotionRoutingRulesSummaryText.Text = "Загружаю правила из Notion...";
+        SortingStatusText.Text = "Загружаю правила сортировки из Notion...";
+
+        try
+        {
+            var rules = await _notionRoutingRulesSource.FetchRulesAsync();
+            if (string.IsNullOrWhiteSpace(rules))
+            {
+                NotionRoutingRulesSummaryText.Text = "В Notion не найдено правил.";
+                SortingStatusText.Text = NotionRoutingRulesSummaryText.Text;
+                return false;
+            }
+
+            RulesTextBox.Text = rules;
+            BetaSettingsStore.Current.SetSortingRules(rules);
+            SortingService.Current.ParseRules(rules);
+            RefreshRememberedBloggers();
+
+            var count = rules.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Length;
+            NotionRoutingRulesSummaryText.Text = $"Notion обновлён: {count} правил.";
+            SortingStatusText.Text = NotionRoutingRulesSummaryText.Text;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            NotionRoutingRulesSummaryText.Text = $"Не удалось обновить Notion: {ex.Message}";
+            SortingStatusText.Text = NotionRoutingRulesSummaryText.Text;
+            DiagnosticsService.Current.LogError("Windows Notion routing rules refresh failed", ex);
+            return false;
+        }
+        finally
+        {
+            _isRefreshingNotionRules = false;
+            RefreshNotionRoutingRulesButton.IsEnabled = true;
+            NotionRoutingRulesToggle.IsEnabled = true;
+        }
+    }
+
     private string? PickFolder(string title, string? initialDirectory)
     {
         try
@@ -130,6 +202,13 @@ public sealed partial class SortingPage : Page
         RememberedBloggersListView.ItemsSource = remembered
             .Select(blogger => $"{blogger.CountryFolder}: {blogger.Username}")
             .ToList();
+    }
+
+    private void UpdateNotionRoutingRulesSummary()
+    {
+        NotionRoutingRulesSummaryText.Text = NotionRoutingRulesToggle.IsOn
+            ? "Перед сортировкой правила обновятся из Notion."
+            : "Автоправила Notion выключены.";
     }
 
     private static string DisplayPath(string value)

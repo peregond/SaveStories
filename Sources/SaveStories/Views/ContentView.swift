@@ -1442,6 +1442,8 @@ struct ContentView: View {
                     isActive: sortingHasSource && sortingHasDestination,
                     isDone: sortingRuleCount > 0
                 ) {
+                    notionRoutingRulesSourceControl
+
                     DisclosureGroup(isExpanded: $sortingRulesExpanded) {
                         VStack(alignment: .leading, spacing: 10) {
                             textEditorCard(
@@ -2651,6 +2653,57 @@ struct ContentView: View {
                 .controlSize(.small)
                 .tint(secondaryButtonTint)
                 .disabled(model.isBusy || model.isRefreshingNotionInfluencers)
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
+                .fill(itemFill)
+        )
+    }
+
+    var notionRoutingRulesSourceControl: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Toggle(isOn: $model.notionRoutingRulesSourceEnabled) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Обновлять правила из Notion")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(primaryText)
+
+                    Text("Перед запуском сортировки приложение скачает свежие правила и заменит список ниже.")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(tertiaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .toggleStyle(.switch)
+            .tint(prominentButtonTint)
+            .disabled(model.isBusy || model.isRefreshingNotionRoutingRules)
+
+            HStack(spacing: 10) {
+                if model.isRefreshingNotionRoutingRules {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: model.notionRoutingRulesSourceEnabled ? "arrow.triangle.2.circlepath.circle.fill" : "link.circle")
+                        .foregroundStyle(model.notionRoutingRulesSourceEnabled ? prominentButtonTint : tertiaryText)
+                }
+
+                Text(model.notionRoutingRulesSourceSummary)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Button {
+                    Task { await model.refreshNotionRoutingRules() }
+                } label: {
+                    Text("Обновить")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .tint(secondaryButtonTint)
+                .disabled(model.isBusy || model.isRefreshingNotionRoutingRules)
             }
         }
         .padding(12)

@@ -102,8 +102,17 @@ extension AppModel {
         NSWorkspace.shared.activateFileViewerSelecting([distributionRootDirectory])
     }
 
-    func distributeFilesFromSortingSource() {
+    func distributeFilesFromSortingSource(skipNotionRefresh: Bool = false) {
         guard !isBusy else { return }
+        if notionRoutingRulesSourceEnabled && !skipNotionRefresh {
+            Task {
+                let refreshed = await refreshNotionRoutingRules()
+                if refreshed {
+                    distributeFilesFromSortingSource(skipNotionRefresh: true)
+                }
+            }
+            return
+        }
         guard let sortingSourceDirectory else {
             postProcessingSummary = "Сначала выбери папку-источник, например Перенос."
             appendLog("Сортировка остановлена: не выбрана папка Перенос.")
@@ -397,6 +406,44 @@ extension AppModel {
                 return $0.username.localizedCaseInsensitiveCompare($1.username) == .orderedAscending
             }
             return $0.countryFolder.localizedCaseInsensitiveCompare($1.countryFolder) == .orderedAscending
+        }
+    }
+
+    @discardableResult
+    func refreshNotionRoutingRules() async -> Bool {
+        guard !isBusy, !isRefreshingNotionRoutingRules else { return false }
+
+        isRefreshingNotionRoutingRules = true
+        notionRoutingRulesSourceSummary = "Загружаю правила сортировки из Notion..."
+        postProcessingSummary = "Загружаю правила сортировки из Notion..."
+        currentStepLabel = "Получаю правила сортировки из Notion."
+        defer { isRefreshingNotionRoutingRules = false }
+
+        do {
+            let rules = try await NotionRoutingRulesSource().fetchRules()
+            guard !rules.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                notionRoutingRulesSourceSummary = "В Notion не найдено правил сортировки."
+                postProcessingSummary = notionRoutingRulesSourceSummary
+                appendLog("В Notion не найдено правил сортировки.")
+                return false
+            }
+
+            folderRoutingRules = rules
+            persistFolderRoutingRules()
+            let count = rules.split(whereSeparator: \.isNewline).count
+            notionRoutingRulesSourceSummary = "Notion обновлён: \(count) правил."
+            postProcessingSummary = notionRoutingRulesSourceSummary
+            currentStepLabel = "Правила Notion загружены."
+            appendLog("Правила сортировки заменены Notion-списком: \(count).")
+            return true
+        } catch {
+            notionRoutingRulesSourceSummary = "Не удалось обновить правила Notion: \(error.localizedDescription)"
+            postProcessingSummary = notionRoutingRulesSourceSummary
+            statusTitle = "Ошибка Notion"
+            statusDetail = notionRoutingRulesSourceSummary
+            currentStepLabel = "Правила Notion не загружены."
+            appendLog("Не удалось загрузить правила Notion: \(error.localizedDescription)")
+            return false
         }
     }
 

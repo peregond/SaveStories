@@ -13,6 +13,7 @@ final class AppModel: ObservableObject {
     static let rememberedBloggersKey = "SaveStories.rememberedBloggers"
     private static let preventSleepDuringDownloadsKey = "SaveStories.preventSleepDuringDownloads"
     private static let notionInfluencerSourceEnabledKey = "SaveStories.notionInfluencerSourceEnabled"
+    private static let notionRoutingRulesSourceEnabledKey = "SaveStories.notionRoutingRulesSourceEnabled"
     static let runtimeOnboardingDismissedKey = "SaveStories.runtimeOnboardingDismissed"
     private static let actionSoundNames = ["Pop", "Tink", "Glass"]
     private static let successSoundNames = ["Glass", "Hero", "Funk", "Pop"]
@@ -266,6 +267,16 @@ final class AppModel: ObservableObject {
     }
     @Published var notionInfluencerSourceSummary = "Автосписок Notion выключен."
     @Published var isRefreshingNotionInfluencers = false
+    @Published var notionRoutingRulesSourceEnabled = false {
+        didSet {
+            UserDefaults.standard.set(notionRoutingRulesSourceEnabled, forKey: Self.notionRoutingRulesSourceEnabledKey)
+            notionRoutingRulesSourceSummary = notionRoutingRulesSourceEnabled
+                ? "Перед сортировкой правила обновятся из Notion."
+                : "Автоправила Notion выключены."
+        }
+    }
+    @Published var notionRoutingRulesSourceSummary = "Автоправила Notion выключены."
+    @Published var isRefreshingNotionRoutingRules = false
     @Published var saveDirectory: URL = AppPaths.defaultDownloads
     @Published var distributionRootDirectory: URL?
     @Published var sortingSourceDirectory: URL?
@@ -364,6 +375,10 @@ final class AppModel: ObservableObject {
         notionInfluencerSourceSummary = notionInfluencerSourceEnabled
             ? "Перед запуском очередь обновится из Notion."
             : "Автосписок Notion выключен."
+        notionRoutingRulesSourceEnabled = UserDefaults.standard.bool(forKey: Self.notionRoutingRulesSourceEnabledKey)
+        notionRoutingRulesSourceSummary = notionRoutingRulesSourceEnabled
+            ? "Перед сортировкой правила обновятся из Notion."
+            : "Автоправила Notion выключены."
         loadRecentBatchLists()
     }
 

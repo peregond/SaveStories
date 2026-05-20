@@ -52,11 +52,41 @@
                 <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="10">
                         <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="3. ПРАВИЛА" />
+                        <Border Style="{StaticResource AppCardBorderStyle}" Padding="10">
+                            <StackPanel Spacing="8">
+                                <ToggleSwitch
+                                    x:Name="NotionRoutingRulesToggle"
+                                    Header="Обновлять правила из Notion"
+                                    OffContent="Выключено"
+                                    OnContent="Включено"
+                                    Toggled="OnNotionRoutingRulesToggleToggled" />
+                                <TextBlock
+                                    Style="{StaticResource AppSecondaryTextStyle}"
+                                    Text="Перед запуском сортировки приложение скачает свежие правила и заменит список ниже."
+                                    TextWrapping="WrapWholeWords" />
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock
+                                        x:Name="NotionRoutingRulesSummaryText"
+                                        Grid.Column="0"
+                                        Style="{StaticResource AppSecondaryTextStyle}"
+                                        TextWrapping="WrapWholeWords" />
+                                    <Button
+                                        x:Name="RefreshNotionRoutingRulesButton"
+                                        Grid.Column="1"
+                                        Click="OnRefreshNotionRoutingRulesClick"
+                                        Content="Обновить" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
                         <TextBox
                             x:Name="RulesTextBox"
                             AcceptsReturn="True"
                             MinHeight="130"
-                            PlaceholderText="nick = Germany (DE)&#x0a;nick2 = Australia (AU)\Папка блогера"
+                            PlaceholderText="nick = Germany (DE)&#x0a;nick2 = Australia (AU)/Папка блогера"
                             TextChanged="OnRulesChanged"
                             TextWrapping="Wrap" />
                         <TextBlock
