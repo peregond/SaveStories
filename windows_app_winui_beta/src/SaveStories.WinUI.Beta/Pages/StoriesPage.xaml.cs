@@ -14,8 +14,10 @@ public sealed partial class StoriesPage : Page
     private readonly List<string> _pendingLogs = new();
     private readonly StringBuilder _logBuilder = new();
     private readonly List<string> _lastFailedProfiles = new();
+    private readonly NotionInfluencerSource _notionInfluencerSource = new();
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _logFlushTimer;
     private bool _isRunning;
+    private bool _isRefreshingNotionInfluencers;
     private CancellationTokenSource? _runCts;
     private string _outputDirectory;
     private const int MaxLogLines = 1500;
@@ -26,6 +28,7 @@ public sealed partial class StoriesPage : Page
         QueueListView.ItemsSource = _queue;
         HeadlessModeRadio.IsChecked = true;
         SaveVideoOnlyRadio.IsChecked = true;
+        NotionInfluencerToggle.IsOn = BetaSettingsStore.Current.NotionInfluencerSourceEnabled;
         _outputDirectory = WorkerBridgeService.Current.GetDefaultDownloadsDirectory();
         OutputDirectoryText.Text = _outputDirectory;
         _logFlushTimer = DispatcherQueue.CreateTimer();
@@ -34,6 +37,7 @@ public sealed partial class StoriesPage : Page
         _logFlushTimer.Tick += (_, _) => FlushPendingLogs();
         UpdateModeDescription();
         UpdateMediaDescription();
+        UpdateNotionInfluencerSummary();
         RefreshQueueSummary();
     }
 
@@ -81,6 +85,15 @@ public sealed partial class StoriesPage : Page
             return;
         }
 
+        if (NotionInfluencerToggle.IsOn)
+        {
+            var refreshed = await RefreshNotionInfluencersAsync(replaceQueue: true);
+            if (!refreshed)
+            {
+                return;
+            }
+        }
+
         if (_queue.Count == 0)
         {
             var lines = ProfileInputParser.ParseProfiles(ProfilesInputTextBox.Text);
@@ -116,6 +129,8 @@ public sealed partial class StoriesPage : Page
         CancelButton.IsEnabled = true;
         ChangeOutputDirectoryButton.IsEnabled = false;
         OpenOutputDirectoryButton.IsEnabled = false;
+        RefreshNotionInfluencersButton.IsEnabled = false;
+        NotionInfluencerToggle.IsEnabled = false;
         RetryFailedButton.IsEnabled = false;
         StatusTitleText.Text = "Загружаю";
         StatusDetailText.Text = runningMessage;
@@ -154,6 +169,8 @@ public sealed partial class StoriesPage : Page
             CancelButton.IsEnabled = false;
             ChangeOutputDirectoryButton.IsEnabled = true;
             OpenOutputDirectoryButton.IsEnabled = true;
+            RefreshNotionInfluencersButton.IsEnabled = true;
+            NotionInfluencerToggle.IsEnabled = true;
         }
     }
 
@@ -181,6 +198,83 @@ public sealed partial class StoriesPage : Page
         _queue.Clear();
         RefreshQueueSummary();
         AppendLog("Очередь очищена.");
+    }
+
+    private void OnNotionInfluencerToggleToggled(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        BetaSettingsStore.Current.SetNotionInfluencerSourceEnabled(NotionInfluencerToggle.IsOn);
+        UpdateNotionInfluencerSummary();
+    }
+
+    private async void OnRefreshNotionInfluencersClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        await RefreshNotionInfluencersAsync(replaceQueue: true);
+    }
+
+    private async Task<bool> RefreshNotionInfluencersAsync(bool replaceQueue)
+    {
+        if (_isRunning || _isRefreshingNotionInfluencers)
+        {
+            return false;
+        }
+
+        _isRefreshingNotionInfluencers = true;
+        RefreshNotionInfluencersButton.IsEnabled = false;
+        NotionInfluencerToggle.IsEnabled = false;
+        DownloadButton.IsEnabled = false;
+        NotionInfluencerSummaryText.Text = "Загружаю свежий список из Notion...";
+        StatusTitleText.Text = "Notion";
+        StatusDetailText.Text = "Получаю список инфлюенсеров из Notion.";
+        AppendLog("Загружаю свежий список инфлюенсеров из Notion.");
+
+        try
+        {
+            var profiles = await _notionInfluencerSource.FetchProfilesAsync();
+            if (profiles.Count == 0)
+            {
+                NotionInfluencerSummaryText.Text = "В Notion не найдено профилей.";
+                StatusTitleText.Text = "Ошибка Notion";
+                StatusDetailText.Text = "В Notion-списке не найдено профилей.";
+                AppendLog("В Notion-списке не найдено профилей.");
+                return false;
+            }
+
+            if (replaceQueue)
+            {
+                _queue.Clear();
+                foreach (var profile in profiles)
+                {
+                    _queue.Add(profile);
+                }
+                AppendLog($"Очередь заменена свежим Notion-списком: {profiles.Count} профилей.");
+            }
+            else
+            {
+                var added = AddQueueItems(profiles);
+                AppendLog($"Из Notion-списка добавлено новых профилей: {added}.");
+            }
+
+            NotionInfluencerSummaryText.Text = $"Notion обновлён в {DateTime.Now:HH:mm}: {profiles.Count} профилей.";
+            StatusTitleText.Text = "Готово";
+            StatusDetailText.Text = "Список Notion загружен.";
+            RefreshQueueSummary();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            NotionInfluencerSummaryText.Text = $"Не удалось обновить Notion: {ex.Message}";
+            StatusTitleText.Text = "Ошибка Notion";
+            StatusDetailText.Text = NotionInfluencerSummaryText.Text;
+            AppendLog($"[notion_error] {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            _isRefreshingNotionInfluencers = false;
+            RefreshNotionInfluencersButton.IsEnabled = true;
+            NotionInfluencerToggle.IsEnabled = true;
+            DownloadButton.IsEnabled = !_isRunning;
+        }
     }
 
     private void ApplyWorkerResult(WorkerResponse response)
@@ -230,6 +324,13 @@ public sealed partial class StoriesPage : Page
         var modeLabel = IsHeadlessMode() ? "в фоне" : "видимо";
         var mediaLabel = SaveVideoOnlyRadio.IsChecked == true ? "только видео" : "фото и видео";
         QueueSummaryText.Text = $"Очередь: {_queue.Count} профилей · режим: {modeLabel} · контент: {mediaLabel}.";
+    }
+
+    private void UpdateNotionInfluencerSummary()
+    {
+        NotionInfluencerSummaryText.Text = NotionInfluencerToggle.IsOn
+            ? "Перед запуском очередь обновится из Notion."
+            : "Автосписок Notion выключен.";
     }
 
     private int AddQueueItems(IEnumerable<string> lines)

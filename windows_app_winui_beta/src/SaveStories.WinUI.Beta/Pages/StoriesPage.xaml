@@ -29,6 +29,38 @@
                             AcceptsReturn="True"
                             MinHeight="160"
                             PlaceholderText="По одному username или ссылке на строку." />
+                        <Border Style="{StaticResource AppCardBorderStyle}" Padding="10">
+                            <StackPanel Spacing="8">
+                                <ToggleSwitch
+                                    x:Name="NotionInfluencerToggle"
+                                    Header="Обновлять очередь из Notion"
+                                    OffContent="Выключено"
+                                    OnContent="Включено"
+                                    Toggled="OnNotionInfluencerToggleToggled" />
+                                <TextBlock
+                                    Text="Перед запуском Stories приложение заново скачает список инфлюенсеров и заменит очередь."
+                                    Style="{StaticResource AppSecondaryTextStyle}"
+                                    TextWrapping="WrapWholeWords" />
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock
+                                        x:Name="NotionInfluencerSummaryText"
+                                        Grid.Column="0"
+                                        VerticalAlignment="Center"
+                                        Style="{StaticResource AppSecondaryTextStyle}"
+                                        Text="Автосписок Notion выключен."
+                                        TextWrapping="WrapWholeWords" />
+                                    <Button
+                                        x:Name="RefreshNotionInfluencersButton"
+                                        Grid.Column="1"
+                                        Click="OnRefreshNotionInfluencersClick"
+                                        Content="Обновить" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
                         <Grid ColumnSpacing="8" RowSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />

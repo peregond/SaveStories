@@ -12,7 +12,7 @@ public enum BetaTheme
 public sealed class BetaSettingsStore
 {
     private const string FileName = "settings.json";
-    private const int CurrentSchemaVersion = 4;
+    private const int CurrentSchemaVersion = 5;
     private static readonly Lazy<BetaSettingsStore> LazyInstance = new(() => new BetaSettingsStore());
 
     private readonly string _settingsDirectory;
@@ -26,6 +26,7 @@ public sealed class BetaSettingsStore
     public string SortingSourceDirectory { get; private set; } = "";
     public string SortingDestinationDirectory { get; private set; } = "";
     public string SortingRules { get; private set; } = "";
+    public bool NotionInfluencerSourceEnabled { get; private set; }
     public List<RememberedBloggerPayload> RememberedBloggers { get; private set; } = new();
 
     public event EventHandler<BetaTheme>? ThemeChanged;
@@ -60,6 +61,7 @@ public sealed class BetaSettingsStore
             SortingSourceDirectory = payload?.SortingSourceDirectory ?? "";
             SortingDestinationDirectory = payload?.SortingDestinationDirectory ?? "";
             SortingRules = payload?.SortingRules ?? "";
+            NotionInfluencerSourceEnabled = payload?.NotionInfluencerSourceEnabled ?? false;
             RememberedBloggers = payload?.RememberedBloggers ?? new List<RememberedBloggerPayload>();
             if (schemaVersion < CurrentSchemaVersion)
             {
@@ -74,6 +76,7 @@ public sealed class BetaSettingsStore
             SortingSourceDirectory = "";
             SortingDestinationDirectory = "";
             SortingRules = "";
+            NotionInfluencerSourceEnabled = false;
             RememberedBloggers = new List<RememberedBloggerPayload>();
         }
     }
@@ -133,6 +136,12 @@ public sealed class BetaSettingsStore
         Save();
     }
 
+    public void SetNotionInfluencerSourceEnabled(bool enabled)
+    {
+        NotionInfluencerSourceEnabled = enabled;
+        Save();
+    }
+
     private void Save()
     {
         Directory.CreateDirectory(_settingsDirectory);
@@ -150,6 +159,7 @@ public sealed class BetaSettingsStore
             SortingSourceDirectory = SortingSourceDirectory,
             SortingDestinationDirectory = SortingDestinationDirectory,
             SortingRules = SortingRules,
+            NotionInfluencerSourceEnabled = NotionInfluencerSourceEnabled,
             RememberedBloggers = RememberedBloggers,
         };
         var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
@@ -200,6 +210,7 @@ public sealed class BetaSettingsStore
         public string? SortingSourceDirectory { get; set; }
         public string? SortingDestinationDirectory { get; set; }
         public string? SortingRules { get; set; }
+        public bool NotionInfluencerSourceEnabled { get; set; }
         public List<RememberedBloggerPayload>? RememberedBloggers { get; set; }
     }
 }
