@@ -89,7 +89,62 @@ extension AppModel {
         appendLog("Недавний список удалён.")
     }
 
+    @discardableResult
+    func refreshNotionInfluencerQueue(replaceQueue: Bool = true) async -> Bool {
+        guard !isBusy else { return false }
+
+        isRefreshingNotionInfluencers = true
+        notionInfluencerSourceSummary = "Загружаю свежий список из Notion..."
+        currentStepLabel = "Получаю список инфлюенсеров из Notion."
+        defer { isRefreshingNotionInfluencers = false }
+
+        do {
+            let profiles = try await NotionInfluencerSource().fetchProfiles()
+            guard !profiles.isEmpty else {
+                notionInfluencerSourceSummary = "В Notion не найдено профилей."
+                appendLog("В Notion-списке не найдено профилей.")
+                return false
+            }
+
+            if replaceQueue {
+                batchQueue = profiles.map {
+                    BatchProfileItem(url: normalizedProfileLink($0), message: "Загружено из Notion-списка.")
+                }
+                resetBatchProgress()
+                appendLog("Очередь заменена свежим Notion-списком: \(profiles.count) профилей.")
+            } else {
+                let existing = Set(batchQueue.map { normalizedProfileLink($0.url).lowercased() })
+                var seen = existing
+                let newItems = profiles
+                    .map(normalizedProfileLink)
+                    .filter { seen.insert($0.lowercased()).inserted }
+                    .map { BatchProfileItem(url: $0, message: "Добавлено из Notion-списка.") }
+
+                batchQueue.append(contentsOf: newItems)
+                appendLog("Из Notion-списка добавлено новых профилей: \(newItems.count).")
+            }
+
+            let timestamp = Date().formatted(date: .omitted, time: .shortened)
+            notionInfluencerSourceSummary = "Notion обновлён в \(timestamp): \(profiles.count) профилей."
+            currentStepLabel = "Список Notion загружен."
+            return true
+        } catch {
+            notionInfluencerSourceSummary = "Не удалось обновить Notion: \(error.localizedDescription)"
+            statusTitle = "Ошибка Notion"
+            statusDetail = notionInfluencerSourceSummary
+            lastResult = notionInfluencerSourceSummary
+            currentStepLabel = "Notion-список не загружен."
+            appendLog("Не удалось загрузить Notion-список: \(error.localizedDescription)")
+            return false
+        }
+    }
+
     func runBatchDownloads() async {
+        if notionInfluencerSourceEnabled {
+            let refreshed = await refreshNotionInfluencerQueue(replaceQueue: true)
+            guard refreshed else { return }
+        }
+
         let pendingItems = batchQueue.filter { $0.status == .pending || $0.status == .failed }
         guard !pendingItems.isEmpty else {
             appendLog("В очереди нет ссылок для пакетной выгрузки.")

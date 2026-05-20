@@ -12,6 +12,7 @@ final class AppModel: ObservableObject {
     static let folderRoutingRulesKey = "SaveStories.folderRoutingRules"
     static let rememberedBloggersKey = "SaveStories.rememberedBloggers"
     private static let preventSleepDuringDownloadsKey = "SaveStories.preventSleepDuringDownloads"
+    private static let notionInfluencerSourceEnabledKey = "SaveStories.notionInfluencerSourceEnabled"
     static let runtimeOnboardingDismissedKey = "SaveStories.runtimeOnboardingDismissed"
     private static let actionSoundNames = ["Pop", "Tink", "Glass"]
     private static let successSoundNames = ["Glass", "Hero", "Funk", "Pop"]
@@ -253,6 +254,18 @@ final class AppModel: ObservableObject {
             refreshSleepPreventionForCurrentState()
         }
     }
+    @Published var notionInfluencerSourceEnabled = false {
+        didSet {
+            UserDefaults.standard.set(notionInfluencerSourceEnabled, forKey: Self.notionInfluencerSourceEnabledKey)
+            if notionInfluencerSourceEnabled {
+                notionInfluencerSourceSummary = "Перед запуском очередь обновится из Notion."
+            } else {
+                notionInfluencerSourceSummary = "Автосписок Notion выключен."
+            }
+        }
+    }
+    @Published var notionInfluencerSourceSummary = "Автосписок Notion выключен."
+    @Published var isRefreshingNotionInfluencers = false
     @Published var saveDirectory: URL = AppPaths.defaultDownloads
     @Published var distributionRootDirectory: URL?
     @Published var sortingSourceDirectory: URL?
@@ -347,6 +360,10 @@ final class AppModel: ObservableObject {
         if UserDefaults.standard.object(forKey: Self.preventSleepDuringDownloadsKey) != nil {
             preventSleepDuringDownloads = UserDefaults.standard.bool(forKey: Self.preventSleepDuringDownloadsKey)
         }
+        notionInfluencerSourceEnabled = UserDefaults.standard.bool(forKey: Self.notionInfluencerSourceEnabledKey)
+        notionInfluencerSourceSummary = notionInfluencerSourceEnabled
+            ? "Перед запуском очередь обновится из Notion."
+            : "Автосписок Notion выключен."
         loadRecentBatchLists()
     }
 
