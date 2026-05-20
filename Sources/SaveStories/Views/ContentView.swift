@@ -1387,7 +1387,7 @@ struct ContentView: View {
 
                 sortingStepCard(
                     number: "1",
-                    title: "Выбери папку Перенос",
+                    title: "Укажи, где находится папка «На перенос»",
                     detail: "Отсюда приложение возьмёт файлы для раскладки.",
                     isActive: true,
                     isDone: sortingHasSource
@@ -1412,7 +1412,7 @@ struct ContentView: View {
 
                 sortingStepCard(
                     number: "2",
-                    title: "Выбери папку назначения",
+                    title: "Выбери папку WhiteList INF Исходники",
                     detail: "Сюда файлы будут разложены по подпапкам.",
                     isActive: sortingHasSource,
                     isDone: sortingHasDestination

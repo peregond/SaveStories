@@ -23,7 +23,7 @@
 
                 <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="10">
-                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="1. ПАПКА ПЕРЕНОС" />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="1. УКАЖИ, ГДЕ НАХОДИТСЯ ПАПКА «НА ПЕРЕНОС»" />
                         <TextBlock
                             x:Name="SourceDirectoryText"
                             Style="{StaticResource AppSecondaryTextStyle}"
@@ -37,7 +37,7 @@
 
                 <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="10">
-                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="2. ПАПКА НАЗНАЧЕНИЯ" />
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="2. ВЫБЕРИ ПАПКУ WHITELIST INF ИСХОДНИКИ" />
                         <TextBlock
                             x:Name="DestinationDirectoryText"
                             Style="{StaticResource AppSecondaryTextStyle}"

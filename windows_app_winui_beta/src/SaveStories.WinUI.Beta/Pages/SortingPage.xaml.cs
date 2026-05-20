@@ -21,7 +21,7 @@ public sealed partial class SortingPage : Page
 
     private void OnChangeSourceDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        var path = PickFolder("Папка Перенос", BetaSettingsStore.Current.SortingSourceDirectory);
+        var path = PickFolder("Папка «На перенос»", BetaSettingsStore.Current.SortingSourceDirectory);
         if (string.IsNullOrWhiteSpace(path))
         {
             return;
@@ -34,7 +34,7 @@ public sealed partial class SortingPage : Page
 
     private void OnChangeDestinationDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        var path = PickFolder("Папка назначения", BetaSettingsStore.Current.SortingDestinationDirectory);
+        var path = PickFolder("WhiteList INF Исходники", BetaSettingsStore.Current.SortingDestinationDirectory);
         if (string.IsNullOrWhiteSpace(path))
         {
             return;
