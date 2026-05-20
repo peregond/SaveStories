@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.43</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.44</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.43</title>
-      <pubDate>Wed, 20 May 2026 09:36:06 GMT</pubDate>
-      <sparkle:version>114</sparkle:version>
-      <sparkle:shortVersionString>0.6.43</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.43</h2>
-<ul><li>Windows Stories: добавлена опция `Обновлять очередь из Notion`.</li><li>Windows Stories: перед запуском Stories очередь заменяется свежим списком инфлюенсеров с Notion-страницы, если опция включена.</li><li>Windows Stories: добавлена ручная кнопка `Обновить` для загрузки Notion-списка без запуска скачивания.</li></ul>]]></description>
+      <title>SaveMe 0.6.44</title>
+      <pubDate>Wed, 20 May 2026 09:46:13 GMT</pubDate>
+      <sparkle:version>115</sparkle:version>
+      <sparkle:shortVersionString>0.6.44</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.44</h2>
+<ul><li>macOS Sorting: добавлена опция `Обновлять правила из Notion`.</li><li>Windows Sorting: добавлена такая же опция и ручная кнопка `Обновить`.</li><li>Перед сортировкой правила заменяются свежим списком с Notion-страницы, если тумблер включён.</li><li>Правила с алиасами через `:` разворачиваются в отдельные строки; комментарии в скобках и `*...*` очищаются.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.43/SaveMe-macOS-v0.6.43.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.44/SaveMe-macOS-v0.6.44.dmg"
         sparkle:os="macos"
-        length="3255437"
+        length="3274494"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="qLG0JX81f5KYN3P4p0O+Xymxs1guuIQLMzQ4SDlaVj4XsK2FJ2Zx8Cjl4jeNyRhSN7kkCAWZtlBXLovuMCgYDQ==" />
+        sparkle:edSignature="1vq34+O5llyNEA3a3O1Yxd7zz/Jz+fIvUH+MpOi+N8CPXeRPHlRHt4uec/5Lc8a/saEINmTvZ6rvBAxtbhSqDw==" />
     </item>
   </channel>
 </rss>
