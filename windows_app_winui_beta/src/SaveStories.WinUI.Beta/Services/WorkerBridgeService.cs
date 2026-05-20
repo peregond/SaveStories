@@ -182,9 +182,10 @@ public sealed class WorkerBridgeService
         }
 
         WorkerResponse response;
+        var stdoutJson = ExtractFirstJsonObject(stdout, out var stdoutJsonEndIndex);
         try
         {
-            response = JsonSerializer.Deserialize<WorkerResponse>(stdout) ?? new WorkerResponse
+            response = JsonSerializer.Deserialize<WorkerResponse>(stdoutJson) ?? new WorkerResponse
             {
                 Ok = false,
                 Status = "parse_error",
@@ -200,6 +201,14 @@ public sealed class WorkerBridgeService
                 Message = $"Не удалось распарсить ответ worker: {ex.Message}",
                 Logs = new List<string> { stdout },
             };
+        }
+
+        var stdoutTail = stdoutJsonEndIndex < stdout.Length
+            ? stdout[stdoutJsonEndIndex..].Trim()
+            : "";
+        if (!string.IsNullOrWhiteSpace(stdoutTail))
+        {
+            response.Logs.Add($"worker_stdout_tail={stdoutTail}");
         }
 
         if (!string.IsNullOrWhiteSpace(stderr))
@@ -264,5 +273,63 @@ public sealed class WorkerBridgeService
         }
 
         return Path.Combine(ResolveRepoRoot(), "node_worker", "bridge.mjs");
+    }
+
+    private static string ExtractFirstJsonObject(string stdout, out int endIndex)
+    {
+        var start = stdout.IndexOf('{');
+        if (start < 0)
+        {
+            endIndex = stdout.Length;
+            return stdout.Trim();
+        }
+
+        var depth = 0;
+        var inString = false;
+        var escaped = false;
+
+        for (var index = start; index < stdout.Length; index++)
+        {
+            var current = stdout[index];
+            if (inString)
+            {
+                if (escaped)
+                {
+                    escaped = false;
+                }
+                else if (current == '\\')
+                {
+                    escaped = true;
+                }
+                else if (current == '"')
+                {
+                    inString = false;
+                }
+                continue;
+            }
+
+            if (current == '"')
+            {
+                inString = true;
+                continue;
+            }
+
+            if (current == '{')
+            {
+                depth++;
+            }
+            else if (current == '}')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    endIndex = index + 1;
+                    return stdout[start..(index + 1)];
+                }
+            }
+        }
+
+        endIndex = stdout.Length;
+        return stdout[start..].Trim();
     }
 }

@@ -49,6 +49,16 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("NodeRuntimeResolver.WorkerRoot()", bridge)
         self.assertIn("Path.GetDirectoryName(workerScript)", bridge)
 
+    def test_winui_worker_extracts_json_from_noisy_stdout(self) -> None:
+        bridge = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/WorkerBridgeService.cs"
+        )
+
+        self.assertIn("ExtractFirstJsonObject", bridge)
+        self.assertIn("JsonSerializer.Deserialize<WorkerResponse>(stdoutJson)", bridge)
+        self.assertIn("worker_stdout_tail=", bridge)
+        self.assertNotIn("JsonSerializer.Deserialize<WorkerResponse>(stdout)", bridge)
+
     def test_first_run_onboarding_shows_runtime_stages(self) -> None:
         main_window = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/MainWindow.xaml.cs")
 
