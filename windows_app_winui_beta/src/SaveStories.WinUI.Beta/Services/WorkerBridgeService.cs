@@ -45,12 +45,13 @@ public sealed class WorkerBridgeService
     public async Task<WorkerRunResult> RunAsync(
         WorkerRequest request,
         CancellationToken cancellationToken = default,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        IProgress<string>? progress = null)
     {
         await _runGate.WaitAsync(cancellationToken);
         try
         {
-            return await RunCoreAsync(request, cancellationToken, timeout ?? DefaultTimeout);
+            return await RunCoreAsync(request, cancellationToken, timeout ?? DefaultTimeout, progress);
         }
         finally
         {
@@ -84,7 +85,8 @@ public sealed class WorkerBridgeService
     private async Task<WorkerRunResult> RunCoreAsync(
         WorkerRequest request,
         CancellationToken cancellationToken,
-        TimeSpan timeout)
+        TimeSpan timeout,
+        IProgress<string>? progress)
     {
         var workerScript = ResolveWorkerScript();
         if (!File.Exists(workerScript))
@@ -151,7 +153,19 @@ public sealed class WorkerBridgeService
         });
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
-        var stderrTask = process.StandardError.ReadToEndAsync();
+        var stderrLines = new List<string>();
+        var stderrTask = Task.Run(async () =>
+        {
+            while (await process.StandardError.ReadLineAsync() is { } line)
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+                stderrLines.Add(line.Trim());
+                progress?.Report(line.Trim());
+            }
+        }, CancellationToken.None);
         try
         {
             await process.WaitForExitAsync(linkedCts.Token);
@@ -162,7 +176,8 @@ public sealed class WorkerBridgeService
         }
 
         var stdout = await stdoutTask;
-        var stderr = await stderrTask;
+        await stderrTask;
+        var stderr = string.Join(Environment.NewLine, stderrLines);
 
         if (string.IsNullOrWhiteSpace(stdout))
         {
@@ -213,7 +228,7 @@ public sealed class WorkerBridgeService
 
         if (!string.IsNullOrWhiteSpace(stderr))
         {
-            foreach (var line in stderr.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            foreach (var line in stderrLines)
             {
                 response.Logs.Add(line);
             }

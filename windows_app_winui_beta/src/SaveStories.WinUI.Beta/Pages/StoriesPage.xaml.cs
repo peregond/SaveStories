@@ -20,6 +20,7 @@ public sealed partial class StoriesPage : Page
     private bool _isRefreshingNotionInfluencers;
     private CancellationTokenSource? _runCts;
     private string _outputDirectory;
+    private int _liveProcessedProfiles;
     private const int MaxLogLines = 1500;
 
     public StoriesPage()
@@ -134,11 +135,20 @@ public sealed partial class StoriesPage : Page
         RetryFailedButton.IsEnabled = false;
         StatusTitleText.Text = "Загружаю";
         StatusDetailText.Text = runningMessage;
+        _liveProcessedProfiles = 0;
+        if (string.Equals(request.Command, "download_profile_batch", StringComparison.OrdinalIgnoreCase))
+        {
+            ResultSummaryText.Text = $"Профилей: {_queue.Count}  ·  Обработано: 0/{_queue.Count}  ·  Идёт запуск...";
+        }
         AppendLog(runningMessage);
 
         try
         {
-            var result = await WorkerBridgeService.Current.RunAsync(request, _runCts.Token);
+            var progress = new Progress<string>(line =>
+            {
+                DispatcherQueue.TryEnqueue(() => HandleWorkerProgress(line));
+            });
+            var result = await WorkerBridgeService.Current.RunAsync(request, _runCts.Token, progress: progress);
             ApplyWorkerResult(result.Response);
         }
         catch (OperationCanceledException)
@@ -172,6 +182,51 @@ public sealed partial class StoriesPage : Page
             RefreshNotionInfluencersButton.IsEnabled = true;
             NotionInfluencerToggle.IsEnabled = true;
         }
+    }
+
+    private void HandleWorkerProgress(string line)
+    {
+        AppendLog(line);
+
+        if (line.StartsWith("batch_slot_", StringComparison.OrdinalIgnoreCase)
+            && line.Contains("_start=", StringComparison.OrdinalIgnoreCase))
+        {
+            var profile = DisplayProfileFromProgress(line);
+            StatusTitleText.Text = "Загружаю";
+            StatusDetailText.Text = $"Сейчас обрабатывается: {profile}";
+            ResultSummaryText.Text = $"Профилей: {_queue.Count}  ·  Обработано: {_liveProcessedProfiles}/{_queue.Count}  ·  Сейчас: {profile}";
+            return;
+        }
+
+        if (line.StartsWith("batch_slot_", StringComparison.OrdinalIgnoreCase)
+            && line.Contains("_done=", StringComparison.OrdinalIgnoreCase))
+        {
+            _liveProcessedProfiles = Math.Min(_queue.Count, _liveProcessedProfiles + 1);
+            var profile = DisplayProfileFromProgress(line);
+            StatusTitleText.Text = "Загружаю";
+            StatusDetailText.Text = $"Готов профиль: {profile}";
+            ResultSummaryText.Text = $"Профилей: {_queue.Count}  ·  Обработано: {_liveProcessedProfiles}/{_queue.Count}  ·  Последний: {profile}";
+        }
+    }
+
+    private static string DisplayProfileFromProgress(string line)
+    {
+        var separator = line.IndexOf('=');
+        if (separator < 0 || separator >= line.Length - 1)
+        {
+            return line;
+        }
+
+        var value = line[(separator + 1)..].Trim();
+        if (Uri.TryCreate(value, UriKind.Absolute, out var uri))
+        {
+            var username = uri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(username))
+            {
+                return username;
+            }
+        }
+        return value;
     }
 
     private async void OnStopClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)

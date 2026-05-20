@@ -59,6 +59,18 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("worker_stdout_tail=", bridge)
         self.assertNotIn("JsonSerializer.Deserialize<WorkerResponse>(stdout)", bridge)
 
+    def test_winui_stories_updates_result_from_worker_progress(self) -> None:
+        page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml.cs")
+        bridge = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/WorkerBridgeService.cs"
+        )
+
+        self.assertIn("IProgress<string>? progress", bridge)
+        self.assertIn("progress?.Report", bridge)
+        self.assertIn("HandleWorkerProgress", page)
+        self.assertIn("batch_slot_", page)
+        self.assertIn("Обработано: {_liveProcessedProfiles}/{_queue.Count}", page)
+
     def test_first_run_onboarding_shows_runtime_stages(self) -> None:
         main_window = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/MainWindow.xaml.cs")
 
