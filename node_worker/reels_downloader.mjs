@@ -660,7 +660,11 @@ async function downloadReelsCommand(reelUrls, outputDirectory, headless, deps) {
     }
   } finally {
     if (session) {
-      await session.close();
+      try {
+        await session.close();
+      } catch (error) {
+        allLogs.push(`session_close_error=${errorMessage(error)}`);
+      }
     }
   }
 

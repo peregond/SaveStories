@@ -91,11 +91,11 @@ class WorkerClient:
             stderr_text = stderr_data.decode("utf-8", errors="replace").strip() or "Worker returned no output."
             return WorkerResponse.process_failure(stderr_text)
 
+        stdout_text = stdout_data.decode("utf-8", errors="replace")
         try:
-            payload = json.loads(stdout_data.decode("utf-8"))
+            payload, stdout_tail = self._load_first_json_object(stdout_text)
         except Exception:
-            raw = stdout_data.decode("utf-8", errors="replace")
-            return WorkerResponse.process_failure(f"Worker returned invalid JSON.\n{raw}")
+            return WorkerResponse.process_failure(f"Worker returned invalid JSON.\n{stdout_text}")
 
         items = [WorkerItem(**item) for item in payload.get("items", [])]
         counts_payload = payload.get("counts")
@@ -118,8 +118,19 @@ class WorkerClient:
             runtime=runtime,
             diagnostics=payload.get("diagnostics", {}) or {},
             items=items,
-            logs=payload.get("logs", []) or [],
+            logs=(payload.get("logs", []) or []) + ([f"worker_stdout_tail={stdout_tail}"] if stdout_tail else []),
         )
+
+    @staticmethod
+    def _load_first_json_object(stdout_text: str) -> tuple[dict, str]:
+        decoder = json.JSONDecoder()
+        start = stdout_text.find("{")
+        if start < 0:
+            raise ValueError("Worker stdout does not contain a JSON object.")
+        payload, end = decoder.raw_decode(stdout_text[start:])
+        if not isinstance(payload, dict):
+            raise ValueError("Worker JSON response must be an object.")
+        return payload, stdout_text[start + end :].strip()
 
     @staticmethod
     def resolve_command(request: WorkerRequest | None = None) -> tuple[Sequence[str], str]:

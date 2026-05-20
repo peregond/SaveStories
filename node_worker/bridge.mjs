@@ -30,8 +30,14 @@ import {
 const APP_NAME = "SaveMe";
 const LEGACY_APP_NAMES = ["SaveStories", "DimaSave"];
 const BATCH_JOB_TIMEOUT_MS = 120_000;
+let didEmitResponse = false;
 
 function emit(ok, status, message, options = {}) {
+  if (didEmitResponse) {
+    emitProgress(`suppressed_extra_response=${status} :: ${message}`);
+    return;
+  }
+  didEmitResponse = true;
   const response = buildWorkerResponse(ok, status, message, options);
   void appendWorkerEvent({
     type: "response",
@@ -63,6 +69,21 @@ function isClosedTargetMessage(message) {
 
 function isClosedTargetError(error) {
   return isClosedTargetMessage(errorMessage(error));
+}
+
+async function closeSessionSafely(session, logs = null) {
+  if (!session) {
+    return;
+  }
+  try {
+    await session.close();
+  } catch (error) {
+    const message = errorMessage(error);
+    if (logs) {
+      logs.push(`session_close_error=${message}`);
+    }
+    emitProgress(`session_close_error=${message}`);
+  }
 }
 
 async function readRequest() {
@@ -479,9 +500,7 @@ async function loginCommand() {
   } catch (error) {
     emit(false, "login_error", String(error), { logs });
   } finally {
-    if (session) {
-      await session.close();
-    }
+    await closeSessionSafely(session, logs);
   }
 }
 
@@ -513,9 +532,7 @@ async function checkSessionCommand(headless = true) {
   } catch (error) {
     emit(false, "session_error", String(error), { logs });
   } finally {
-    if (session) {
-      await session.close();
-    }
+    await closeSessionSafely(session, logs);
   }
 }
 
@@ -1474,7 +1491,7 @@ async function profileCommand(profileUrl, outputDirectory, headless = true, medi
       logs: result.logs,
     });
   } finally {
-    if (session) await session.close();
+    await closeSessionSafely(session);
   }
 }
 
@@ -1701,7 +1718,7 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
       logs,
     });
   } finally {
-    if (session) await session.close();
+    await closeSessionSafely(session, logs);
   }
 }
 

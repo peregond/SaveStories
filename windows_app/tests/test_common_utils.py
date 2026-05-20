@@ -13,6 +13,7 @@ from savestories_windows.common_utils import (
     snapshot_download_counts,
     suggested_recent_list_title,
 )
+from savestories_windows.worker_client import WorkerClient
 
 
 class CommonUtilsTests(unittest.TestCase):
@@ -82,6 +83,14 @@ class CommonUtilsTests(unittest.TestCase):
 
         self.assertEqual(files, 2)
         self.assertEqual(folders, 2)
+
+    def test_worker_client_loads_first_json_from_noisy_stdout(self) -> None:
+        payload, tail = WorkerClient._load_first_json_object(
+            'noise before {"ok": true, "status": "done", "message": "ok", "logs": []}{"ok": false}'
+        )
+
+        self.assertEqual(payload["status"], "done")
+        self.assertEqual(tail, '{"ok": false}')
 
 
 if __name__ == "__main__":
