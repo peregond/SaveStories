@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.41</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.42</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.41</title>
-      <pubDate>Wed, 20 May 2026 07:09:50 GMT</pubDate>
-      <sparkle:version>112</sparkle:version>
-      <sparkle:shortVersionString>0.6.41</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.41</h2>
-<ul><li>macOS Stories: добавлена опция `Обновлять очередь из Notion`.</li><li>При включённой опции перед запуском Stories очередь заменяется свежим списком инфлюенсеров с Notion-страницы.</li><li>Добавлена ручная кнопка `Обновить` для загрузки Notion-списка без запуска скачивания.</li><li>Парсер Notion поддерживает Instagram-ссылки, `@username`, подчёркивания и rich text форматирование Notion.</li></ul>]]></description>
+      <title>SaveMe 0.6.42</title>
+      <pubDate>Wed, 20 May 2026 07:55:17 GMT</pubDate>
+      <sparkle:version>113</sparkle:version>
+      <sparkle:shortVersionString>0.6.42</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.42</h2>
+<ul><li>macOS Sorting: переименованы заголовки выбора папок.</li><li>Windows Sorting: переименованы заголовки выбора папок и названия диалогов выбора папки.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.41/SaveMe-macOS-v0.6.41.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.42/SaveMe-macOS-v0.6.42.dmg"
         sparkle:os="macos"
-        length="3255423"
+        length="3255105"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="0vLMBhqMLXLcwdDJsDRSw1+Bs5z8zHi2mEZVCMCz9CnNxbv8JdGhV745OLd2phUMD91l9gqyvXG5wH2OJSKwAg==" />
+        sparkle:edSignature="LksavtcmpwtAJEGQayKst55v5Payn5JJ7SIymVvrEJmNC54yOborJBoTW2SnWIu1BvnMotJBzVpFGMJEBKrcBQ==" />
     </item>
   </channel>
 </rss>
