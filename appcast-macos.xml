@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.46</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.47</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.46</title>
-      <pubDate>Wed, 20 May 2026 14:33:17 GMT</pubDate>
-      <sparkle:version>117</sparkle:version>
-      <sparkle:shortVersionString>0.6.46</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.46</h2>
-<ul><li>Windows Stories: исправлен корневой сценарий, где worker мог отдать два JSON-ответа за один запуск после ошибки закрытия браузерной сессии.</li><li>Node worker: повторный ответ теперь подавляется, а ошибки закрытия сессии уходят в диагностические логи и не ломают успешный результат.</li><li>Windows legacy client: добавлен такой же устойчивый разбор первого JSON-ответа из шумного stdout.</li></ul>]]></description>
+      <title>SaveMe 0.6.47</title>
+      <pubDate>Wed, 20 May 2026 14:46:48 GMT</pubDate>
+      <sparkle:version>118</sparkle:version>
+      <sparkle:shortVersionString>0.6.47</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.47</h2>
+<ul><li>Windows Stories: блок `Результат` теперь обновляется во время выгрузки, а не только после финального ответа worker.</li><li>Windows worker bridge: stderr-прогресс читается потоково и передаётся в UI для строк `batch_slot_*_start/done`.</li><li>Во время загрузки видно текущий профиль и счётчик обработанных профилей.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.46/SaveMe-macOS-v0.6.46.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.47/SaveMe-macOS-v0.6.47.dmg"
         sparkle:os="macos"
-        length="3273831"
+        length="3274220"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="KLZLwAYRSKQCmmKui3yfL5qxqtdzRpUG3UqJbDs3WIRijhIV8EK0k3HBz9Yor+JVHMyzL3c9+dnvPaeM4bsfBg==" />
+        sparkle:edSignature="kfgxb1tqlnZPzhYSxsiqBxs9jeuxYYv8wutl1fqlS1/Dio+xmutyLWu8o4mLYyrrCqN1laf4i7zMue4VaSTHAQ==" />
     </item>
   </channel>
 </rss>
