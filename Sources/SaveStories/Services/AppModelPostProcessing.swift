@@ -30,6 +30,7 @@ extension AppModel {
         presentDirectoryChooser(initialDirectory: emptyFolderCleanupDirectory ?? sortingSourceDirectory ?? saveDirectory, canCreateDirectories: false) { url in
             self.emptyFolderCleanupDirectory = url
             UserDefaults.standard.set(url.path, forKey: Self.emptyFolderCleanupDirectoryKey)
+            self.emptyFolderCleanupSummary = "Папка для очистки выбрана: \(url.lastPathComponent)."
             self.postProcessingSummary = "Папка для очистки выбрана: \(url.lastPathComponent)."
             self.appendLog("Папка для очистки пустых подпапок изменена на \(url.path).")
         }
@@ -43,13 +44,15 @@ extension AppModel {
     func removeEmptyFoldersInCleanupDirectory() {
         guard !isBusy else { return }
         guard let emptyFolderCleanupDirectory else {
+            emptyFolderCleanupSummary = "Сначала выбери папку, внутри которой нужно удалить пустые подпапки."
             postProcessingSummary = "Сначала выбери папку, внутри которой нужно удалить пустые подпапки."
             appendLog("Очистка пустых папок пропущена: папка не выбрана.")
             return
         }
 
-        let emptyFolders = emptySubfolders(in: emptyFolderCleanupDirectory)
-        guard !emptyFolders.isEmpty else {
+        let candidateFolders = cleanupCandidateSubfolders(in: emptyFolderCleanupDirectory)
+        guard !candidateFolders.isEmpty else {
+            emptyFolderCleanupSummary = "В выбранной папке нет подпапок для проверки."
             postProcessingSummary = "Пустых папок в выбранной папке не найдено."
             appendLog("Очистка пустых папок: в \(emptyFolderCleanupDirectory.path) ничего не найдено.")
             return
@@ -59,7 +62,7 @@ extension AppModel {
         var removedNames: [String] = []
         var failedCount = 0
 
-        for folder in emptyFolders {
+        for folder in candidateFolders {
             do {
                 if isEffectivelyEmptyDirectory(folder) {
                     try manager.removeItem(at: folder)
@@ -74,6 +77,9 @@ extension AppModel {
         let message = failedCount == 0
             ? "Удалено пустых папок: \(removedNames.count)."
             : "Удалено пустых папок: \(removedNames.count). Ошибок: \(failedCount)."
+        emptyFolderCleanupSummary = removedNames.isEmpty && failedCount == 0
+            ? "Пустых папок в выбранной папке не найдено."
+            : message
         postProcessingSummary = message
         statusTitle = failedCount == 0 ? "Готово" : "Завершено с ошибками"
         statusDetail = message
@@ -163,7 +169,7 @@ extension AppModel {
         NSWorkspace.shared.activateFileViewerSelecting([distributionRootDirectory])
     }
 
-    private func emptySubfolders(in root: URL) -> [URL] {
+    private func cleanupCandidateSubfolders(in root: URL) -> [URL] {
         let manager = FileManager.default
         guard let enumerator = manager.enumerator(
             at: root,
@@ -186,7 +192,6 @@ extension AppModel {
             .sorted { lhs, rhs in
                 lhs.pathComponents.count > rhs.pathComponents.count
             }
-            .filter { isEffectivelyEmptyDirectory($0) }
     }
 
     func distributeFilesFromSortingSource(skipNotionRefresh: Bool = false) {

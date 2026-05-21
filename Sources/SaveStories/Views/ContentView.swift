@@ -1413,6 +1413,11 @@ struct ContentView: View {
                         model.removeEmptyFoldersInCleanupDirectory()
                     }
                     .disabled(model.emptyFolderCleanupDirectory == nil)
+
+                    Text(model.emptyFolderCleanupSummary)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 sortingStepCard(

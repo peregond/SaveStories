@@ -37,6 +37,11 @@
                             <Button Click="OnOpenEmptyFolderCleanupDirectoryClick" Content="Открыть" />
                             <Button Click="OnDeleteEmptyFoldersClick" Content="Удалить пустые папки" />
                         </StackPanel>
+                        <TextBlock
+                            x:Name="EmptyFolderCleanupStatusText"
+                            Style="{StaticResource AppSecondaryTextStyle}"
+                            Text="Очистка пустых папок ещё не запускалась."
+                            TextWrapping="WrapWholeWords" />
                     </StackPanel>
                 </Border>
 

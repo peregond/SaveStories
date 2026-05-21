@@ -48,6 +48,7 @@ public sealed partial class SortingPage : Page
         Directory.CreateDirectory(path);
         BetaSettingsStore.Current.SetEmptyFolderCleanupDirectory(path);
         EmptyFolderCleanupDirectoryText.Text = DisplayPath(path);
+        EmptyFolderCleanupStatusText.Text = "Папка для очистки выбрана.";
         SortingStatusText.Text = "Папка для очистки выбрана.";
     }
 
@@ -84,21 +85,24 @@ public sealed partial class SortingPage : Page
         var root = BetaSettingsStore.Current.EmptyFolderCleanupDirectory;
         if (string.IsNullOrWhiteSpace(root))
         {
+            EmptyFolderCleanupStatusText.Text = "Сначала выбери папку для очистки.";
             SortingStatusText.Text = "Сначала выбери папку для очистки.";
             return;
         }
 
-        var emptyFolders = FindEmptySubfolders(root).ToList();
-        if (emptyFolders.Count == 0)
+        var candidateFolders = FindCleanupCandidateSubfolders(root).ToList();
+        if (candidateFolders.Count == 0)
         {
+            EmptyFolderCleanupStatusText.Text = "В выбранной папке нет подпапок для проверки.";
             SortingStatusText.Text = "Пустых папок в выбранной папке не найдено.";
             return;
         }
 
-        var preview = string.Join(Environment.NewLine, emptyFolders.Select(Path.GetFileName).Where(name => !string.IsNullOrWhiteSpace(name)).Take(12));
-        if (emptyFolders.Count > 12)
+        EmptyFolderCleanupStatusText.Text = $"Проверю подпапок: {candidateFolders.Count}. Жду подтверждения.";
+        var preview = string.Join(Environment.NewLine, candidateFolders.Select(Path.GetFileName).Where(name => !string.IsNullOrWhiteSpace(name)).Take(12));
+        if (candidateFolders.Count > 12)
         {
-            preview += $"{Environment.NewLine}и ещё {emptyFolders.Count - 12}";
+            preview += $"{Environment.NewLine}и ещё {candidateFolders.Count - 12}";
         }
 
         var dialog = new ContentDialog
@@ -106,7 +110,7 @@ public sealed partial class SortingPage : Page
             Title = "Удалить пустые папки?",
             Content = new TextBlock
             {
-                Text = $"Будут удалены пустые подпапки внутри выбранной папки. Сама выбранная папка останется на месте.{Environment.NewLine}{Environment.NewLine}{preview}",
+                Text = $"Приложение проверит подпапки внутри выбранной папки и удалит только пустые. Сама выбранная папка останется на месте.{Environment.NewLine}{Environment.NewLine}{preview}",
                 TextWrapping = Microsoft.UI.Xaml.TextWrapping.WrapWholeWords,
             },
             PrimaryButtonText = "Удалить",
@@ -116,19 +120,20 @@ public sealed partial class SortingPage : Page
 
         if (await dialog.ShowAsync() != ContentDialogResult.Primary)
         {
+            EmptyFolderCleanupStatusText.Text = "Очистка пустых папок отменена.";
             SortingStatusText.Text = "Очистка пустых папок отменена.";
             return;
         }
 
         var removed = 0;
         var failed = 0;
-        foreach (var folder in emptyFolders)
+        foreach (var folder in candidateFolders)
         {
             try
             {
                 if (IsEffectivelyEmptyDirectory(folder))
                 {
-                    Directory.Delete(folder, recursive: false);
+                    Directory.Delete(folder, recursive: true);
                     removed++;
                 }
             }
@@ -139,9 +144,10 @@ public sealed partial class SortingPage : Page
             }
         }
 
-        SortingStatusText.Text = failed == 0
+        EmptyFolderCleanupStatusText.Text = failed == 0
             ? $"Удалено пустых папок: {removed}."
             : $"Удалено пустых папок: {removed}. Ошибок: {failed}.";
+        SortingStatusText.Text = EmptyFolderCleanupStatusText.Text;
     }
 
     private void OnRulesChanged(object sender, TextChangedEventArgs e)
@@ -314,7 +320,7 @@ public sealed partial class SortingPage : Page
         }
     }
 
-    private static IEnumerable<string> FindEmptySubfolders(string root)
+    private static IEnumerable<string> FindCleanupCandidateSubfolders(string root)
     {
         if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
         {
@@ -325,7 +331,6 @@ public sealed partial class SortingPage : Page
         {
             return Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories)
                 .OrderByDescending(path => path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Length)
-                .Where(IsEffectivelyEmptyDirectory)
                 .ToList();
         }
         catch
@@ -338,7 +343,38 @@ public sealed partial class SortingPage : Page
     {
         try
         {
-            return !Directory.EnumerateFileSystemEntries(directory).Any();
+            foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
+            {
+                if (IsIgnorableFilesystemEntry(entry))
+                {
+                    continue;
+                }
+
+                return false;
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsIgnorableFilesystemEntry(string path)
+    {
+        try
+        {
+            var name = Path.GetFileName(path);
+            if (string.Equals(name, ".DS_Store", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "desktop.ini", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "Thumbs.db", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var attributes = File.GetAttributes(path);
+            return attributes.HasFlag(FileAttributes.Hidden) || attributes.HasFlag(FileAttributes.System);
         }
         catch
         {

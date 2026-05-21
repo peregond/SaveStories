@@ -96,8 +96,10 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("SetEmptyFolderCleanupDirectory", settings)
         self.assertIn("0. УДАЛИТЬ ПУСТЫЕ ПАПКИ", xaml)
         self.assertIn("OnDeleteEmptyFoldersClick", page)
-        self.assertIn("FindEmptySubfolders", page)
-        self.assertIn("Directory.Delete(folder, recursive: false)", page)
+        self.assertIn("EmptyFolderCleanupStatusText", xaml)
+        self.assertIn("FindCleanupCandidateSubfolders", page)
+        self.assertIn("IsIgnorableFilesystemEntry", page)
+        self.assertIn("Directory.Delete(folder, recursive: true)", page)
 
     def test_first_run_onboarding_shows_runtime_stages(self) -> None:
         main_window = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/MainWindow.xaml.cs")

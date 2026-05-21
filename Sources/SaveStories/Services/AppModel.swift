@@ -325,6 +325,7 @@ final class AppModel: ObservableObject {
     @Published var latestSessionDownloadedItems: [WorkerItem] = []
     @Published var postProcessedItems: [PostProcessedItem] = []
     @Published var postProcessingSummary: String = "Постобработка ещё не запускалась."
+    @Published var emptyFolderCleanupSummary: String = "Очистка пустых папок ещё не запускалась."
     @Published var googleDriveLinkSummary: String = "Ссылки Google Drive ещё не собирались."
     @Published var rememberedBloggers: [RememberedBlogger] = []
 

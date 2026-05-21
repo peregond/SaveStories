@@ -360,9 +360,20 @@ extension AppModel {
 
         for case let item as URL in enumerator {
             guard item != directory else { continue }
+            if isIgnorableFilesystemEntry(item) {
+                continue
+            }
             return false
         }
         return true
+    }
+
+    private func isIgnorableFilesystemEntry(_ url: URL) -> Bool {
+        if url.lastPathComponent == ".DS_Store" {
+            return true
+        }
+        let values = try? url.resourceValues(forKeys: [.isHiddenKey])
+        return values?.isHidden == true
     }
 
     func applyBatchResults(_ response: WorkerResponse, pendingItems: [BatchProfileItem]) {
