@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.51</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.52</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.51</title>
-      <pubDate>Thu, 21 May 2026 12:39:47 GMT</pubDate>
-      <sparkle:version>122</sparkle:version>
-      <sparkle:shortVersionString>0.6.51</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.51</h2>
-<ul><li>Windows Sort: блок результата теперь повторяет macOS-логику кнопок `Скопировать список` и `Скопировать ссылки`.</li><li>Windows Sort: `Скопировать ссылки` собирает Google Drive digest в формате `страна -&gt; блогер -&gt; ссылки` и копирует его в буфер обмена.</li><li>Windows Sort: перенос теперь пропускает скрытые и системные папки/файлы, как macOS.</li></ul>]]></description>
+      <title>SaveMe 0.6.52</title>
+      <pubDate>Thu, 21 May 2026 12:41:36 GMT</pubDate>
+      <sparkle:version>123</sparkle:version>
+      <sparkle:shortVersionString>0.6.52</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.52</h2>
+<ul><li>macOS и Windows: очистка пустых папок в разделе `Сортировка` больше никогда не трогает папку `На перенос` и всё, что лежит внутри неё.</li><li>Windows Sort: блок результата повторяет macOS-логику кнопок `Скопировать список` и `Скопировать ссылки`.</li><li>Windows Sort: `Скопировать ссылки` собирает Google Drive digest в формате `страна -&gt; блогер -&gt; ссылки` и копирует его в буфер обмена.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.51/SaveMe-macOS-v0.6.51.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.52/SaveMe-macOS-v0.6.52.dmg"
         sparkle:os="macos"
-        length="3300364"
+        length="3300831"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="nEHjjUawCEibIm4anor1X2ajLAO87iyp6D/uXUsYvZDsI/p2/EYiTpD6Xn+NDSEWqz7XMZp3ONDElPlrQKhEDA==" />
+        sparkle:edSignature="3rCXHm2QZWb0zd59e/rhdfrowuLE48IlEvwJ1jskLIAY2pzecV2HILBB+pFS1feyXA3ENHyFP8J0vmzdGzjVBg==" />
     </item>
   </channel>
 </rss>
