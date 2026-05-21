@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.47</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.48</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.47</title>
-      <pubDate>Wed, 20 May 2026 14:46:48 GMT</pubDate>
-      <sparkle:version>118</sparkle:version>
-      <sparkle:shortVersionString>0.6.47</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.47</h2>
-<ul><li>Windows Stories: блок `Результат` теперь обновляется во время выгрузки, а не только после финального ответа worker.</li><li>Windows worker bridge: stderr-прогресс читается потоково и передаётся в UI для строк `batch_slot_*_start/done`.</li><li>Во время загрузки видно текущий профиль и счётчик обработанных профилей.</li></ul>]]></description>
+      <title>SaveMe 0.6.48</title>
+      <pubDate>Thu, 21 May 2026 11:44:11 GMT</pubDate>
+      <sparkle:version>119</sparkle:version>
+      <sparkle:shortVersionString>0.6.48</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.48</h2>
+<ul><li>Windows Stories: выбранная `Папка сохранения` теперь сохраняется в настройках и не сбрасывается после выгрузки или пересоздания страницы.</li><li>Windows Stories: после batch-выгрузки приложение предлагает удалить пустые папки профилей, если они найдены в папке сохранения.</li><li>Windows Stories: добавлен отчёт в статус и логи после удаления пустых папок.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.47/SaveMe-macOS-v0.6.47.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.48/SaveMe-macOS-v0.6.48.dmg"
         sparkle:os="macos"
-        length="3274220"
+        length="3274833"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="kfgxb1tqlnZPzhYSxsiqBxs9jeuxYYv8wutl1fqlS1/Dio+xmutyLWu8o4mLYyrrCqN1laf4i7zMue4VaSTHAQ==" />
+        sparkle:edSignature="1P2JuyTRzucZATMTWajv53y1Q/N8DX75J8+Dq3XKJYuIrxwluH5WI9D6h+zlGt/ynzkkjmYmiYD4CPb306wVDA==" />
     </item>
   </channel>
 </rss>
