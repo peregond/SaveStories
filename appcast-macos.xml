@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.49</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.50</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.49</title>
-      <pubDate>Thu, 21 May 2026 11:52:12 GMT</pubDate>
-      <sparkle:version>120</sparkle:version>
-      <sparkle:shortVersionString>0.6.49</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.49</h2>
-<ul><li>macOS и Windows: в разделе `Сортировка` добавлен отдельный пункт `Удалить пустые папки`.</li><li>macOS и Windows: новая опция работает независимо от сортировки, хранит выбранную папку и рекурсивно удаляет пустые подпапки внутри неё.</li><li>Windows: перед удалением пустых папок показывается подтверждение со списком найденных папок.</li></ul>]]></description>
+      <title>SaveMe 0.6.50</title>
+      <pubDate>Thu, 21 May 2026 12:11:57 GMT</pubDate>
+      <sparkle:version>121</sparkle:version>
+      <sparkle:shortVersionString>0.6.50</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.50</h2>
+<ul><li>macOS и Windows: исправлена кнопка `Удалить пустые папки` в разделе `Сортировка`.</li><li>macOS и Windows: очистка теперь проходит снизу вверх и удаляет родительские папки, которые стали пустыми после удаления вложенных.</li><li>Windows: скрытые служебные файлы вроде `desktop.ini`, `Thumbs.db` и `.DS_Store` больше не мешают удалить визуально пустую папку.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.49/SaveMe-macOS-v0.6.49.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.50/SaveMe-macOS-v0.6.50.dmg"
         sparkle:os="macos"
-        length="3297144"
+        length="3300540"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="zjq/RMxBl/UfgX4BBRT2f8RA3IBcXj2oJcefMnQEQryX7vd1bd9lUuXOA+0EyjXLnIhlR5kmyXTkDSALK6kuAA==" />
+        sparkle:edSignature="Cp3DbKi+3ktMgdIlxXt3oq04scIQa+jtBR7R7ZzC0BovXLMeFbWgNWHv6pWyLE0lE2thlEQ/DHy9hLQj5aCLAg==" />
     </item>
   </channel>
 </rss>
