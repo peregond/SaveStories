@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.50</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.51</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.50</title>
-      <pubDate>Thu, 21 May 2026 12:11:57 GMT</pubDate>
-      <sparkle:version>121</sparkle:version>
-      <sparkle:shortVersionString>0.6.50</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.50</h2>
-<ul><li>macOS и Windows: исправлена кнопка `Удалить пустые папки` в разделе `Сортировка`.</li><li>macOS и Windows: очистка теперь проходит снизу вверх и удаляет родительские папки, которые стали пустыми после удаления вложенных.</li><li>Windows: скрытые служебные файлы вроде `desktop.ini`, `Thumbs.db` и `.DS_Store` больше не мешают удалить визуально пустую папку.</li></ul>]]></description>
+      <title>SaveMe 0.6.51</title>
+      <pubDate>Thu, 21 May 2026 12:39:47 GMT</pubDate>
+      <sparkle:version>122</sparkle:version>
+      <sparkle:shortVersionString>0.6.51</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.51</h2>
+<ul><li>Windows Sort: блок результата теперь повторяет macOS-логику кнопок `Скопировать список` и `Скопировать ссылки`.</li><li>Windows Sort: `Скопировать ссылки` собирает Google Drive digest в формате `страна -&gt; блогер -&gt; ссылки` и копирует его в буфер обмена.</li><li>Windows Sort: перенос теперь пропускает скрытые и системные папки/файлы, как macOS.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.50/SaveMe-macOS-v0.6.50.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.51/SaveMe-macOS-v0.6.51.dmg"
         sparkle:os="macos"
-        length="3300540"
+        length="3300364"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="Cp3DbKi+3ktMgdIlxXt3oq04scIQa+jtBR7R7ZzC0BovXLMeFbWgNWHv6pWyLE0lE2thlEQ/DHy9hLQj5aCLAg==" />
+        sparkle:edSignature="nEHjjUawCEibIm4anor1X2ajLAO87iyp6D/uXUsYvZDsI/p2/EYiTpD6Xn+NDSEWqz7XMZp3ONDElPlrQKhEDA==" />
     </item>
   </channel>
 </rss>
