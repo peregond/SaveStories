@@ -30,7 +30,7 @@
                             TextWrapping="WrapWholeWords" />
                         <TextBlock
                             Style="{StaticResource AppSecondaryTextStyle}"
-                            Text="Работает отдельно от сортировки: выбери папку и очисти пустые подпапки внутри неё."
+                            Text="Работает отдельно от сортировки и не трогает папку «На перенос»."
                             TextWrapping="WrapWholeWords" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Click="OnChangeEmptyFolderCleanupDirectoryClick" Content="Выбрать папку" />

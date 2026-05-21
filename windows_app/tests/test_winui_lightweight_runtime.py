@@ -99,6 +99,8 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("EmptyFolderCleanupStatusText", xaml)
         self.assertIn("FindCleanupCandidateSubfolders", page)
         self.assertIn("IsIgnorableFilesystemEntry", page)
+        self.assertIn("IsProtectedTransferDirectory", page)
+        self.assertIn("На перенос", page)
         self.assertIn("Directory.Delete(folder, recursive: true)", page)
 
     def test_winui_sorting_has_google_drive_link_digest_buttons(self) -> None:

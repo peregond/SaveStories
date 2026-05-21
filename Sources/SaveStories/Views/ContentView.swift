@@ -1388,7 +1388,7 @@ struct ContentView: View {
                 sortingStepCard(
                     number: "0",
                     title: "Удалить пустые папки",
-                    detail: "Работает отдельно от сортировки: выбери папку и очисти пустые подпапки внутри неё.",
+                    detail: "Работает отдельно от сортировки и не трогает папку «На перенос».",
                     isActive: true,
                     isDone: model.emptyFolderCleanupDirectory != nil
                 ) {

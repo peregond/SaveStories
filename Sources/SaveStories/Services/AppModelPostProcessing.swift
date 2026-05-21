@@ -189,9 +189,16 @@ extension AppModel {
         }
 
         return folders
+            .filter { !isProtectedTransferDirectory($0) }
             .sorted { lhs, rhs in
                 lhs.pathComponents.count > rhs.pathComponents.count
             }
+    }
+
+    private func isProtectedTransferDirectory(_ url: URL) -> Bool {
+        url.pathComponents.contains { component in
+            component.caseInsensitiveCompare("На перенос") == .orderedSame
+        }
     }
 
     func distributeFilesFromSortingSource(skipNotionRefresh: Bool = false) {

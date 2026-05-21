@@ -387,6 +387,7 @@ public sealed partial class SortingPage : Page
         try
         {
             return Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories)
+                .Where(path => !IsProtectedTransferDirectory(path))
                 .OrderByDescending(path => path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Length)
                 .ToList();
         }
@@ -432,6 +433,20 @@ public sealed partial class SortingPage : Page
 
             var attributes = File.GetAttributes(path);
             return attributes.HasFlag(FileAttributes.Hidden) || attributes.HasFlag(FileAttributes.System);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsProtectedTransferDirectory(string path)
+    {
+        try
+        {
+            return Path.GetFullPath(path)
+                .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                .Any(component => string.Equals(component, "На перенос", StringComparison.OrdinalIgnoreCase));
         }
         catch
         {
