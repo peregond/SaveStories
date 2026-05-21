@@ -71,6 +71,20 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("batch_slot_", page)
         self.assertIn("Обработано: {_liveProcessedProfiles}/{_queue.Count}", page)
 
+    def test_winui_stories_persists_output_directory_and_offers_empty_cleanup(self) -> None:
+        page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml.cs")
+        settings = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/BetaSettingsStore.cs"
+        )
+
+        self.assertIn("StoriesOutputDirectory", settings)
+        self.assertIn("SetStoriesOutputDirectory", settings)
+        self.assertIn("BetaSettingsStore.Current.StoriesOutputDirectory", page)
+        self.assertIn("BetaSettingsStore.Current.SetStoriesOutputDirectory", page)
+        self.assertIn("OfferEmptyFolderCleanupAsync", page)
+        self.assertIn("FindEmptyStoryFolders", page)
+        self.assertIn("Удалить пустые папки?", page)
+
     def test_first_run_onboarding_shows_runtime_stages(self) -> None:
         main_window = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/MainWindow.xaml.cs")
 

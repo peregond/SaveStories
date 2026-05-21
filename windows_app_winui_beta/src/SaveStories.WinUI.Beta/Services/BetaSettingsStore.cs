@@ -12,7 +12,7 @@ public enum BetaTheme
 public sealed class BetaSettingsStore
 {
     private const string FileName = "settings.json";
-    private const int CurrentSchemaVersion = 6;
+    private const int CurrentSchemaVersion = 7;
     private static readonly Lazy<BetaSettingsStore> LazyInstance = new(() => new BetaSettingsStore());
 
     private readonly string _settingsDirectory;
@@ -23,6 +23,7 @@ public sealed class BetaSettingsStore
     public BetaTheme Theme { get; private set; } = BetaTheme.System;
     public bool RuntimePromptShown { get; private set; }
     public string LastUpdateCheckAt { get; private set; } = "";
+    public string StoriesOutputDirectory { get; private set; } = "";
     public string SortingSourceDirectory { get; private set; } = "";
     public string SortingDestinationDirectory { get; private set; } = "";
     public string SortingRules { get; private set; } = "";
@@ -59,6 +60,7 @@ public sealed class BetaSettingsStore
             }
             RuntimePromptShown = payload?.RuntimePromptShown ?? false;
             LastUpdateCheckAt = payload?.LastUpdateCheckAt ?? "";
+            StoriesOutputDirectory = payload?.StoriesOutputDirectory ?? "";
             SortingSourceDirectory = payload?.SortingSourceDirectory ?? "";
             SortingDestinationDirectory = payload?.SortingDestinationDirectory ?? "";
             SortingRules = payload?.SortingRules ?? "";
@@ -75,6 +77,7 @@ public sealed class BetaSettingsStore
             Theme = BetaTheme.System;
             RuntimePromptShown = false;
             LastUpdateCheckAt = "";
+            StoriesOutputDirectory = "";
             SortingSourceDirectory = "";
             SortingDestinationDirectory = "";
             SortingRules = "";
@@ -112,6 +115,12 @@ public sealed class BetaSettingsStore
     public void SetLastUpdateCheckAt(string isoDateTime)
     {
         LastUpdateCheckAt = isoDateTime ?? "";
+        Save();
+    }
+
+    public void SetStoriesOutputDirectory(string path)
+    {
+        StoriesOutputDirectory = path ?? "";
         Save();
     }
 
@@ -165,6 +174,7 @@ public sealed class BetaSettingsStore
             },
             RuntimePromptShown = RuntimePromptShown,
             LastUpdateCheckAt = LastUpdateCheckAt,
+            StoriesOutputDirectory = StoriesOutputDirectory,
             SortingSourceDirectory = SortingSourceDirectory,
             SortingDestinationDirectory = SortingDestinationDirectory,
             SortingRules = SortingRules,
@@ -217,6 +227,7 @@ public sealed class BetaSettingsStore
         public string? Theme { get; set; }
         public bool RuntimePromptShown { get; set; }
         public string? LastUpdateCheckAt { get; set; }
+        public string? StoriesOutputDirectory { get; set; }
         public string? SortingSourceDirectory { get; set; }
         public string? SortingDestinationDirectory { get; set; }
         public string? SortingRules { get; set; }

@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml;
 using SaveMe.WinUI.Beta;
 using SaveMe.WinUI.Beta.Services;
 using System.Collections.ObjectModel;
@@ -30,7 +31,10 @@ public sealed partial class StoriesPage : Page
         HeadlessModeRadio.IsChecked = true;
         SaveVideoOnlyRadio.IsChecked = true;
         NotionInfluencerToggle.IsOn = BetaSettingsStore.Current.NotionInfluencerSourceEnabled;
-        _outputDirectory = WorkerBridgeService.Current.GetDefaultDownloadsDirectory();
+        _outputDirectory = string.IsNullOrWhiteSpace(BetaSettingsStore.Current.StoriesOutputDirectory)
+            ? WorkerBridgeService.Current.GetDefaultDownloadsDirectory()
+            : BetaSettingsStore.Current.StoriesOutputDirectory;
+        Directory.CreateDirectory(_outputDirectory);
         OutputDirectoryText.Text = _outputDirectory;
         _logFlushTimer = DispatcherQueue.CreateTimer();
         _logFlushTimer.Interval = TimeSpan.FromMilliseconds(120);
@@ -150,6 +154,10 @@ public sealed partial class StoriesPage : Page
             });
             var result = await WorkerBridgeService.Current.RunAsync(request, _runCts.Token, progress: progress);
             ApplyWorkerResult(result.Response);
+            if (string.Equals(request.Command, "download_profile_batch", StringComparison.OrdinalIgnoreCase))
+            {
+                await OfferEmptyFolderCleanupAsync();
+            }
         }
         catch (OperationCanceledException)
         {
@@ -467,6 +475,7 @@ public sealed partial class StoriesPage : Page
 
             Directory.CreateDirectory(newPath);
             _outputDirectory = newPath;
+            BetaSettingsStore.Current.SetStoriesOutputDirectory(_outputDirectory);
             OutputDirectoryText.Text = _outputDirectory;
             AppendLog($"Папка сохранения обновлена: {_outputDirectory}");
         }
@@ -494,6 +503,94 @@ public sealed partial class StoriesPage : Page
         catch (Exception ex)
         {
             AppendLog($"[open_folder_error] {ex.Message}");
+        }
+    }
+
+    private async Task OfferEmptyFolderCleanupAsync()
+    {
+        var emptyFolders = FindEmptyStoryFolders(_outputDirectory).ToList();
+        if (emptyFolders.Count == 0)
+        {
+            AppendLog("Пустых папок после выгрузки stories не найдено.");
+            return;
+        }
+
+        AppendLog($"Найдены пустые папки после выгрузки stories: {emptyFolders.Count}.");
+        var preview = string.Join(Environment.NewLine, emptyFolders.Select(Path.GetFileName).Where(name => !string.IsNullOrWhiteSpace(name)).Take(12));
+        if (emptyFolders.Count > 12)
+        {
+            preview += $"{Environment.NewLine}и ещё {emptyFolders.Count - 12}";
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Удалить пустые папки?",
+            Content = new ScrollViewer
+            {
+                MaxHeight = 260,
+                Content = new TextBlock
+                {
+                    Text = $"После выгрузки stories найдены пустые папки профилей. Удалить их и оставить только папки с файлами?{Environment.NewLine}{Environment.NewLine}{preview}",
+                    TextWrapping = TextWrapping.WrapWholeWords,
+                },
+            },
+            PrimaryButtonText = "Удалить",
+            CloseButtonText = "Не удалять",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result != ContentDialogResult.Primary)
+        {
+            AppendLog("Удаление пустых папок пропущено.");
+            return;
+        }
+
+        var removed = new List<string>();
+        foreach (var folder in emptyFolders)
+        {
+            try
+            {
+                Directory.Delete(folder, recursive: false);
+                removed.Add(Path.GetFileName(folder));
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"[empty_folder_cleanup_error] {Path.GetFileName(folder)}: {ex.Message}");
+            }
+        }
+
+        StatusTitleText.Text = "Готово";
+        StatusDetailText.Text = removed.Count == 0
+            ? "Пустые папки не удалены."
+            : $"Удалено пустых папок: {removed.Count}.";
+        AppendLog(removed.Count == 0
+            ? "Пустые папки не удалены."
+            : $"Удалены пустые папки после выгрузки stories: {string.Join(", ", removed)}.");
+    }
+
+    private static IEnumerable<string> FindEmptyStoryFolders(string root)
+    {
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+        {
+            return Enumerable.Empty<string>();
+        }
+
+        return Directory.EnumerateDirectories(root)
+            .Where(IsEffectivelyEmptyDirectory)
+            .ToList();
+    }
+
+    private static bool IsEffectivelyEmptyDirectory(string directory)
+    {
+        try
+        {
+            return !Directory.EnumerateFileSystemEntries(directory).Any();
+        }
+        catch
+        {
+            return false;
         }
     }
 
