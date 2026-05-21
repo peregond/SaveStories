@@ -101,6 +101,30 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("IsIgnorableFilesystemEntry", page)
         self.assertIn("Directory.Delete(folder, recursive: true)", page)
 
+    def test_winui_sorting_has_google_drive_link_digest_buttons(self) -> None:
+        page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SortingPage.xaml.cs")
+        xaml = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SortingPage.xaml")
+        service = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/SortingService.cs")
+        exporter = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/GoogleDriveLinkExporter.cs")
+
+        self.assertIn("5. СКОПИРУЙ ГОТОВЫЙ РЕЗУЛЬТАТ", xaml)
+        self.assertIn("Скопировать список", xaml)
+        self.assertIn("Скопировать ссылки", xaml)
+        self.assertIn("OnCopyLinksClick", page)
+        self.assertIn("BuildPostProcessedReport", service)
+        self.assertIn("BuildGoogleDriveDigest", service)
+        self.assertIn("com.google.drivefs.item-id", exporter)
+        self.assertIn("https://drive.google.com/open?id=", exporter)
+
+    def test_winui_sorting_transfer_matches_macos_visible_file_rules(self) -> None:
+        service = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/SortingService.cs")
+
+        self.assertIn(".Where(IsVisibleDirectory)", service)
+        self.assertIn(".Where(IsVisibleRegularFile)", service)
+        self.assertIn("attributes.HasFlag(FileAttributes.Hidden)", service)
+        self.assertIn("attributes.HasFlag(FileAttributes.System)", service)
+        self.assertIn("ReportHeader", service)
+
     def test_first_run_onboarding_shows_runtime_stages(self) -> None:
         main_window = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/MainWindow.xaml.cs")
 

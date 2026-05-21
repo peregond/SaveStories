@@ -8,8 +8,10 @@ namespace SaveMe.WinUI.Beta.Pages;
 public sealed partial class SortingPage : Page
 {
     private readonly NotionRoutingRulesSource _notionRoutingRulesSource = new();
+    private readonly GoogleDriveLinkExporter _googleDriveLinkExporter = new();
     private List<SortedFileRecord> _lastRecords = new();
     private string _lastDigest = "";
+    private string _lastLinksDigest = "";
     private bool _isRefreshingNotionRules;
 
     public SortingPage()
@@ -180,9 +182,15 @@ public sealed partial class SortingPage : Page
         {
             var result = SortingService.Current.DistributeFromSource(source, destination, RulesTextBox.Text);
             _lastRecords = result.Records.ToList();
-            _lastDigest = SortingService.Current.BuildDigest(_lastRecords);
+            _lastDigest = SortingService.Current.BuildPostProcessedReport(_lastRecords);
+            _lastLinksDigest = "";
             DigestTextBox.Text = _lastDigest;
-            CopyDigestButton.IsEnabled = !string.IsNullOrWhiteSpace(_lastDigest);
+            var hasResult = !string.IsNullOrWhiteSpace(_lastDigest);
+            CopyDigestButton.IsEnabled = hasResult;
+            CopyLinksButton.IsEnabled = hasResult;
+            GoogleDriveLinkStatusText.Text = hasResult
+                ? "Список готов. Можно скопировать локальный список или собрать Drive-ссылки."
+                : "Ссылки Google Drive ещё не собирались.";
             SortingStatusText.Text = result.FailedItems.Count == 0
                 ? result.Summary
                 : $"{result.Summary} Ошибок: {result.FailedItems.Count}.";
@@ -205,7 +213,56 @@ public sealed partial class SortingPage : Page
         var data = new DataPackage();
         data.SetText(_lastDigest);
         Clipboard.SetContent(data);
-        SortingStatusText.Text = "Дайджест скопирован в буфер обмена.";
+        GoogleDriveLinkStatusText.Text = "Список папок и файлов скопирован в буфер обмена.";
+        SortingStatusText.Text = GoogleDriveLinkStatusText.Text;
+    }
+
+    private async void OnCopyLinksClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (_lastRecords.Count == 0)
+        {
+            GoogleDriveLinkStatusText.Text = "Нет результата сортировки для сбора ссылок.";
+            SortingStatusText.Text = GoogleDriveLinkStatusText.Text;
+            return;
+        }
+
+        CopyLinksButton.IsEnabled = false;
+        GoogleDriveLinkStatusText.Text = $"Собираю Google Drive ссылки для {_lastRecords.Count} файлов...";
+        SortingStatusText.Text = GoogleDriveLinkStatusText.Text;
+
+        try
+        {
+            var outcomes = await _googleDriveLinkExporter.ExportLinksAsync(_lastRecords);
+            _lastLinksDigest = SortingService.Current.BuildGoogleDriveDigest(outcomes);
+            if (string.IsNullOrWhiteSpace(_lastLinksDigest))
+            {
+                GoogleDriveLinkStatusText.Text = "Не удалось собрать Drive-ссылки: дайджест пуст.";
+                SortingStatusText.Text = GoogleDriveLinkStatusText.Text;
+                return;
+            }
+
+            var data = new DataPackage();
+            data.SetText(_lastLinksDigest);
+            Clipboard.SetContent(data);
+            DigestTextBox.Text = _lastLinksDigest;
+
+            var successCount = outcomes.Count(outcome => !string.IsNullOrWhiteSpace(outcome.Link));
+            var failureCount = outcomes.Count - successCount;
+            GoogleDriveLinkStatusText.Text = failureCount == 0
+                ? $"Google Drive ссылки собраны: {successCount}. Результат скопирован в буфер."
+                : $"Ссылки собраны: {successCount}. Ошибок: {failureCount}. Сводка скопирована в буфер.";
+            SortingStatusText.Text = GoogleDriveLinkStatusText.Text;
+        }
+        catch (Exception ex)
+        {
+            GoogleDriveLinkStatusText.Text = $"Не удалось собрать Drive-ссылки: {ex.Message}";
+            SortingStatusText.Text = GoogleDriveLinkStatusText.Text;
+            DiagnosticsService.Current.LogError("Windows Google Drive link export failed", ex);
+        }
+        finally
+        {
+            CopyLinksButton.IsEnabled = _lastRecords.Count > 0;
+        }
     }
 
     private void OnNotionRoutingRulesToggleToggled(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)

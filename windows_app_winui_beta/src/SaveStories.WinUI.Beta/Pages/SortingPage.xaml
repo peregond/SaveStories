@@ -130,7 +130,25 @@
                             TextWrapping="WrapWholeWords" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Click="OnRunSortingClick" Content="Разложить из папки Перенос" Style="{StaticResource SuccessActionButtonStyle}" />
-                            <Button x:Name="CopyDigestButton" Click="OnCopyDigestClick" Content="Скопировать дайджест" IsEnabled="False" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource AppCardBorderStyle}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="5. СКОПИРУЙ ГОТОВЫЙ РЕЗУЛЬТАТ" />
+                        <TextBlock
+                            Text="Drive-ссылки копируются дайджестом: страна, блогер, ссылки."
+                            Style="{StaticResource AppSecondaryTextStyle}"
+                            TextWrapping="WrapWholeWords" />
+                        <TextBlock
+                            x:Name="GoogleDriveLinkStatusText"
+                            Text="Ссылки Google Drive ещё не собирались."
+                            Style="{StaticResource AppSecondaryTextStyle}"
+                            TextWrapping="WrapWholeWords" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="CopyDigestButton" Click="OnCopyDigestClick" Content="Скопировать список" IsEnabled="False" />
+                            <Button x:Name="CopyLinksButton" Click="OnCopyLinksClick" Content="Скопировать ссылки" IsEnabled="False" />
                         </StackPanel>
                     </StackPanel>
                 </Border>

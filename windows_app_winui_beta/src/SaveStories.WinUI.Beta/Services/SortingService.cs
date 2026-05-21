@@ -62,10 +62,12 @@ public sealed class SortingService
 
         Directory.CreateDirectory(destinationRoot);
 
-        foreach (var creatorDirectory in Directory.EnumerateDirectories(sourceDirectory))
+        foreach (var creatorDirectory in Directory.EnumerateDirectories(sourceDirectory)
+            .Where(IsVisibleDirectory))
         {
             var creatorName = Path.GetFileName(creatorDirectory);
-            foreach (var filePath in Directory.EnumerateFiles(creatorDirectory))
+            foreach (var filePath in Directory.EnumerateFiles(creatorDirectory)
+                .Where(IsVisibleRegularFile))
             {
                 inputs.Add(new SortingInput(
                     Id: filePath,
@@ -98,6 +100,54 @@ public sealed class SortingService
                         var links = bloggerGroup
                             .OrderBy(record => record.CurrentPath, StringComparer.OrdinalIgnoreCase)
                             .Select(record => record.CurrentPath);
+                        return $"{bloggerGroup.Key}{Environment.NewLine}{string.Join(Environment.NewLine, links)}";
+                    });
+                return $"{countryGroup.Key}{Environment.NewLine}{Environment.NewLine}{string.Join($"{Environment.NewLine}{Environment.NewLine}", bloggerBlocks)}";
+            });
+
+        return string.Join($"{Environment.NewLine}{Environment.NewLine}", blocks);
+    }
+
+    public string BuildPostProcessedReport(IEnumerable<SortedFileRecord> records)
+    {
+        var blocks = records
+            .GroupBy(ReportHeader, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var files = group
+                    .OrderBy(record => record.CurrentPath, StringComparer.OrdinalIgnoreCase)
+                    .Select(record => record.CurrentPath);
+                return $"{group.Key}{Environment.NewLine}{string.Join(Environment.NewLine, files)}";
+            });
+
+        return string.Join($"{Environment.NewLine}{Environment.NewLine}", blocks);
+    }
+
+    public string BuildGoogleDriveDigest(IEnumerable<GoogleDriveLinkOutcome> outcomes)
+    {
+        var blocks = outcomes
+            .GroupBy(outcome => outcome.Record.CountryFolder, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(countryGroup =>
+            {
+                var bloggerBlocks = countryGroup
+                    .GroupBy(outcome => outcome.Record.Blogger, StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(bloggerGroup =>
+                    {
+                        var links = bloggerGroup
+                            .OrderBy(outcome => outcome.Record.CurrentPath, StringComparer.OrdinalIgnoreCase)
+                            .Select(outcome =>
+                            {
+                                if (!string.IsNullOrWhiteSpace(outcome.Link))
+                                {
+                                    return outcome.Link;
+                                }
+
+                                var fileName = Path.GetFileName(outcome.Record.CurrentPath);
+                                return $"# не удалось получить ссылку: {fileName}";
+                            });
                         return $"{bloggerGroup.Key}{Environment.NewLine}{string.Join(Environment.NewLine, links)}";
                     });
                 return $"{countryGroup.Key}{Environment.NewLine}{Environment.NewLine}{string.Join($"{Environment.NewLine}{Environment.NewLine}", bloggerBlocks)}";
@@ -192,6 +242,13 @@ public sealed class SortingService
         return Path.Combine(parts.ToArray());
     }
 
+    private static string ReportHeader(SortedFileRecord record)
+    {
+        return string.Equals(record.TargetRelativeFolder, record.Blogger, StringComparison.OrdinalIgnoreCase)
+            ? $"[{record.TargetRelativeFolder}]"
+            : $"[{record.TargetRelativeFolder} ({record.Blogger})]";
+    }
+
     private static string CountryFolder(string targetRelativeFolder)
     {
         return SplitPath(targetRelativeFolder).FirstOrDefault(part => !string.IsNullOrWhiteSpace(part)) ?? "Без страны";
@@ -250,6 +307,36 @@ public sealed class SortingService
             Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
             Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
             StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsVisibleDirectory(string path)
+    {
+        try
+        {
+            var attributes = File.GetAttributes(path);
+            return attributes.HasFlag(FileAttributes.Directory) &&
+                !attributes.HasFlag(FileAttributes.Hidden) &&
+                !attributes.HasFlag(FileAttributes.System);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsVisibleRegularFile(string path)
+    {
+        try
+        {
+            var attributes = File.GetAttributes(path);
+            return !attributes.HasFlag(FileAttributes.Directory) &&
+                !attributes.HasFlag(FileAttributes.Hidden) &&
+                !attributes.HasFlag(FileAttributes.System);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static void RememberBloggers(IEnumerable<RememberedBloggerPayload> bloggers)
