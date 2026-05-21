@@ -15,6 +15,7 @@ public sealed partial class SortingPage : Page
     public SortingPage()
     {
         InitializeComponent();
+        EmptyFolderCleanupDirectoryText.Text = DisplayPath(BetaSettingsStore.Current.EmptyFolderCleanupDirectory);
         SourceDirectoryText.Text = DisplayPath(BetaSettingsStore.Current.SortingSourceDirectory);
         DestinationDirectoryText.Text = DisplayPath(BetaSettingsStore.Current.SortingDestinationDirectory);
         RulesTextBox.Text = BetaSettingsStore.Current.SortingRules;
@@ -34,6 +35,20 @@ public sealed partial class SortingPage : Page
         Directory.CreateDirectory(path);
         BetaSettingsStore.Current.SetSortingSourceDirectory(path);
         SourceDirectoryText.Text = DisplayPath(path);
+    }
+
+    private void OnChangeEmptyFolderCleanupDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        var path = PickFolder("Папка для очистки пустых подпапок", BetaSettingsStore.Current.EmptyFolderCleanupDirectory);
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(path);
+        BetaSettingsStore.Current.SetEmptyFolderCleanupDirectory(path);
+        EmptyFolderCleanupDirectoryText.Text = DisplayPath(path);
+        SortingStatusText.Text = "Папка для очистки выбрана.";
     }
 
     private void OnChangeDestinationDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
@@ -57,6 +72,76 @@ public sealed partial class SortingPage : Page
     private void OnOpenDestinationDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         OpenDirectory(BetaSettingsStore.Current.SortingDestinationDirectory);
+    }
+
+    private void OnOpenEmptyFolderCleanupDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        OpenDirectory(BetaSettingsStore.Current.EmptyFolderCleanupDirectory);
+    }
+
+    private async void OnDeleteEmptyFoldersClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        var root = BetaSettingsStore.Current.EmptyFolderCleanupDirectory;
+        if (string.IsNullOrWhiteSpace(root))
+        {
+            SortingStatusText.Text = "Сначала выбери папку для очистки.";
+            return;
+        }
+
+        var emptyFolders = FindEmptySubfolders(root).ToList();
+        if (emptyFolders.Count == 0)
+        {
+            SortingStatusText.Text = "Пустых папок в выбранной папке не найдено.";
+            return;
+        }
+
+        var preview = string.Join(Environment.NewLine, emptyFolders.Select(Path.GetFileName).Where(name => !string.IsNullOrWhiteSpace(name)).Take(12));
+        if (emptyFolders.Count > 12)
+        {
+            preview += $"{Environment.NewLine}и ещё {emptyFolders.Count - 12}";
+        }
+
+        var dialog = new ContentDialog
+        {
+            Title = "Удалить пустые папки?",
+            Content = new TextBlock
+            {
+                Text = $"Будут удалены пустые подпапки внутри выбранной папки. Сама выбранная папка останется на месте.{Environment.NewLine}{Environment.NewLine}{preview}",
+                TextWrapping = Microsoft.UI.Xaml.TextWrapping.WrapWholeWords,
+            },
+            PrimaryButtonText = "Удалить",
+            CloseButtonText = "Не удалять",
+            XamlRoot = XamlRoot,
+        };
+
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            SortingStatusText.Text = "Очистка пустых папок отменена.";
+            return;
+        }
+
+        var removed = 0;
+        var failed = 0;
+        foreach (var folder in emptyFolders)
+        {
+            try
+            {
+                if (IsEffectivelyEmptyDirectory(folder))
+                {
+                    Directory.Delete(folder, recursive: false);
+                    removed++;
+                }
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                DiagnosticsService.Current.LogError($"Windows empty folder cleanup failed for {folder}", ex);
+            }
+        }
+
+        SortingStatusText.Text = failed == 0
+            ? $"Удалено пустых папок: {removed}."
+            : $"Удалено пустых папок: {removed}. Ошибок: {failed}.";
     }
 
     private void OnRulesChanged(object sender, TextChangedEventArgs e)
@@ -226,6 +311,38 @@ public sealed partial class SortingPage : Page
         {
             SortingStatusText.Text = $"Не удалось открыть папку: {ex.Message}";
             DiagnosticsService.Current.LogError("Windows open folder failed", ex);
+        }
+    }
+
+    private static IEnumerable<string> FindEmptySubfolders(string root)
+    {
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+        {
+            return Enumerable.Empty<string>();
+        }
+
+        try
+        {
+            return Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories)
+                .OrderByDescending(path => path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Length)
+                .Where(IsEffectivelyEmptyDirectory)
+                .ToList();
+        }
+        catch
+        {
+            return Enumerable.Empty<string>();
+        }
+    }
+
+    private static bool IsEffectivelyEmptyDirectory(string directory)
+    {
+        try
+        {
+            return !Directory.EnumerateFileSystemEntries(directory).Any();
+        }
+        catch
+        {
+            return false;
         }
     }
 }

@@ -1386,6 +1386,36 @@ struct ContentView: View {
                 sortingOverviewCard
 
                 sortingStepCard(
+                    number: "0",
+                    title: "Удалить пустые папки",
+                    detail: "Работает отдельно от сортировки: выбери папку и очисти пустые подпапки внутри неё.",
+                    isActive: true,
+                    isDone: model.emptyFolderCleanupDirectory != nil
+                ) {
+                    horizontalMonospaceField(
+                        model.emptyFolderCleanupDirectory?.path ?? "Папка ещё не выбрана.",
+                        fontSize: 12
+                    )
+                    .frame(height: 52)
+
+                    HStack(spacing: 10) {
+                        button("Выбрать папку", systemImage: "folder.badge.gearshape", prominent: true) {
+                            model.chooseEmptyFolderCleanupDirectory()
+                        }
+
+                        button("Открыть", systemImage: "folder") {
+                            model.openEmptyFolderCleanupDirectory()
+                        }
+                        .disabled(model.emptyFolderCleanupDirectory == nil)
+                    }
+
+                    button("Удалить пустые папки", systemImage: "trash", prominent: false) {
+                        model.removeEmptyFoldersInCleanupDirectory()
+                    }
+                    .disabled(model.emptyFolderCleanupDirectory == nil)
+                }
+
+                sortingStepCard(
                     number: "1",
                     title: "Укажи, где находится папка «На перенос»",
                     detail: "Отсюда приложение возьмёт файлы для раскладки.",

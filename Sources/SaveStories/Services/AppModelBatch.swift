@@ -347,7 +347,7 @@ extension AppModel {
         }
     }
 
-    private func isEffectivelyEmptyDirectory(_ directory: URL) -> Bool {
+    func isEffectivelyEmptyDirectory(_ directory: URL) -> Bool {
         let manager = FileManager.default
         guard let enumerator = manager.enumerator(
             at: directory,

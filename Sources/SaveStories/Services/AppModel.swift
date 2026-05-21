@@ -9,6 +9,7 @@ final class AppModel: ObservableObject {
     static let saveDirectoryKey = "SaveStories.saveDirectory"
     static let distributionRootDirectoryKey = "SaveStories.distributionRootDirectory"
     static let sortingSourceDirectoryKey = "SaveStories.sortingSourceDirectory"
+    static let emptyFolderCleanupDirectoryKey = "SaveStories.emptyFolderCleanupDirectory"
     static let folderRoutingRulesKey = "SaveStories.folderRoutingRules"
     static let rememberedBloggersKey = "SaveStories.rememberedBloggers"
     private static let preventSleepDuringDownloadsKey = "SaveStories.preventSleepDuringDownloads"
@@ -280,6 +281,7 @@ final class AppModel: ObservableObject {
     @Published var saveDirectory: URL = AppPaths.defaultDownloads
     @Published var distributionRootDirectory: URL?
     @Published var sortingSourceDirectory: URL?
+    @Published var emptyFolderCleanupDirectory: URL?
     @Published var folderRoutingRules: String = "" {
         didSet {
             UserDefaults.standard.set(folderRoutingRules, forKey: Self.folderRoutingRulesKey)
@@ -358,6 +360,11 @@ final class AppModel: ObservableObject {
            !sortingSource.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {
             sortingSourceDirectory = URL(fileURLWithPath: sortingSource, isDirectory: true)
+        }
+        if let cleanupDirectory = UserDefaults.standard.string(forKey: Self.emptyFolderCleanupDirectoryKey),
+           !cleanupDirectory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            emptyFolderCleanupDirectory = URL(fileURLWithPath: cleanupDirectory, isDirectory: true)
         }
         if let savedRules = UserDefaults.standard.string(forKey: Self.folderRoutingRulesKey) {
             folderRoutingRules = savedRules

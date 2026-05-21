@@ -21,6 +21,67 @@ extension AppModel {
         NSWorkspace.shared.activateFileViewerSelecting([sortingSourceDirectory])
     }
 
+    func chooseEmptyFolderCleanupDirectory() {
+        guard !isBusy else {
+            appendLog("Выбор папки для очистки пропущен: дождись завершения текущей операции.")
+            return
+        }
+
+        presentDirectoryChooser(initialDirectory: emptyFolderCleanupDirectory ?? sortingSourceDirectory ?? saveDirectory, canCreateDirectories: false) { url in
+            self.emptyFolderCleanupDirectory = url
+            UserDefaults.standard.set(url.path, forKey: Self.emptyFolderCleanupDirectoryKey)
+            self.postProcessingSummary = "Папка для очистки выбрана: \(url.lastPathComponent)."
+            self.appendLog("Папка для очистки пустых подпапок изменена на \(url.path).")
+        }
+    }
+
+    func openEmptyFolderCleanupDirectory() {
+        guard let emptyFolderCleanupDirectory else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([emptyFolderCleanupDirectory])
+    }
+
+    func removeEmptyFoldersInCleanupDirectory() {
+        guard !isBusy else { return }
+        guard let emptyFolderCleanupDirectory else {
+            postProcessingSummary = "Сначала выбери папку, внутри которой нужно удалить пустые подпапки."
+            appendLog("Очистка пустых папок пропущена: папка не выбрана.")
+            return
+        }
+
+        let emptyFolders = emptySubfolders(in: emptyFolderCleanupDirectory)
+        guard !emptyFolders.isEmpty else {
+            postProcessingSummary = "Пустых папок в выбранной папке не найдено."
+            appendLog("Очистка пустых папок: в \(emptyFolderCleanupDirectory.path) ничего не найдено.")
+            return
+        }
+
+        let manager = FileManager.default
+        var removedNames: [String] = []
+        var failedCount = 0
+
+        for folder in emptyFolders {
+            do {
+                if isEffectivelyEmptyDirectory(folder) {
+                    try manager.removeItem(at: folder)
+                    removedNames.append(folder.lastPathComponent)
+                }
+            } catch {
+                failedCount += 1
+                appendLog("Не удалось удалить пустую папку \(folder.path): \(error.localizedDescription)")
+            }
+        }
+
+        let message = failedCount == 0
+            ? "Удалено пустых папок: \(removedNames.count)."
+            : "Удалено пустых папок: \(removedNames.count). Ошибок: \(failedCount)."
+        postProcessingSummary = message
+        statusTitle = failedCount == 0 ? "Готово" : "Завершено с ошибками"
+        statusDetail = message
+        lastResult = message
+        currentStepLabel = "Очистка пустых папок завершена."
+        appendLog("\(message) Папка: \(emptyFolderCleanupDirectory.path).")
+    }
+
     func openSystemSettings() {
         guard let settingsURL = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"),
               NSWorkspace.shared.open(settingsURL)
@@ -100,6 +161,32 @@ extension AppModel {
     func openDistributionRootDirectory() {
         guard let distributionRootDirectory else { return }
         NSWorkspace.shared.activateFileViewerSelecting([distributionRootDirectory])
+    }
+
+    private func emptySubfolders(in root: URL) -> [URL] {
+        let manager = FileManager.default
+        guard let enumerator = manager.enumerator(
+            at: root,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles],
+            errorHandler: nil
+        ) else {
+            return []
+        }
+
+        var folders: [URL] = []
+        for case let item as URL in enumerator {
+            guard (try? item.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else {
+                continue
+            }
+            folders.append(item)
+        }
+
+        return folders
+            .sorted { lhs, rhs in
+                lhs.pathComponents.count > rhs.pathComponents.count
+            }
+            .filter { isEffectivelyEmptyDirectory($0) }
     }
 
     func distributeFilesFromSortingSource(skipNotionRefresh: Bool = false) {
