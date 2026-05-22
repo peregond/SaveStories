@@ -170,7 +170,7 @@
 
                 <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
-                        <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ДАЙДЖЕСТ" />
+                        <TextBlock x:Name="DigestTitleText" Style="{StaticResource AppSectionHeaderTextStyle}" Text="ДАЙДЖЕСТ" />
                         <TextBox
                             x:Name="DigestTextBox"
                             AcceptsReturn="True"

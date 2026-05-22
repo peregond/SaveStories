@@ -172,12 +172,13 @@ public sealed partial class SortingPage : Page
             _lastRecords = result.Records.ToList();
             _lastDigest = SortingService.Current.BuildPostProcessedReport(_lastRecords);
             _lastLinksDigest = "";
+            DigestTitleText.Text = "ЛОКАЛЬНЫЙ СПИСОК";
             DigestTextBox.Text = _lastDigest;
             var hasResult = !string.IsNullOrWhiteSpace(_lastDigest);
             CopyDigestButton.IsEnabled = hasResult;
             CopyLinksButton.IsEnabled = hasResult;
             GoogleDriveLinkStatusText.Text = hasResult
-                ? "Список готов. Можно скопировать локальный список или собрать Drive-ссылки."
+                ? "Локальный список готов. Для Google Drive нажми «Скопировать ссылки»."
                 : "Ссылки Google Drive ещё не собирались.";
             SortingStatusText.Text = result.FailedItems.Count == 0
                 ? result.Summary
@@ -227,12 +228,13 @@ public sealed partial class SortingPage : Page
             LatestDownloadStore.Current.UpdatePaths(_lastRecords);
             _lastDigest = SortingService.Current.BuildPostProcessedReport(_lastRecords);
             _lastLinksDigest = "";
+            DigestTitleText.Text = "ЛОКАЛЬНЫЙ СПИСОК";
             DigestTextBox.Text = _lastDigest;
             var hasResult = !string.IsNullOrWhiteSpace(_lastDigest);
             CopyDigestButton.IsEnabled = hasResult;
             CopyLinksButton.IsEnabled = hasResult;
             GoogleDriveLinkStatusText.Text = hasResult
-                ? "Список готов. Можно скопировать локальный список или собрать Drive-ссылки."
+                ? "Локальный список готов. Для Google Drive нажми «Скопировать ссылки»."
                 : "Ссылки Google Drive ещё не собирались.";
             SortingStatusText.Text = result.FailedItems.Count == 0
                 ? result.Summary
@@ -288,6 +290,7 @@ public sealed partial class SortingPage : Page
             var data = new DataPackage();
             data.SetText(_lastLinksDigest);
             Clipboard.SetContent(data);
+            DigestTitleText.Text = "GOOGLE DRIVE ДАЙДЖЕСТ";
             DigestTextBox.Text = _lastLinksDigest;
 
             var successCount = outcomes.Count(outcome => !string.IsNullOrWhiteSpace(outcome.Link));
