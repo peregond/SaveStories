@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.54</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.55</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.54</title>
-      <pubDate>Fri, 22 May 2026 10:05:26 GMT</pubDate>
-      <sparkle:version>125</sparkle:version>
-      <sparkle:shortVersionString>0.6.54</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.54</h2>
+      <title>SaveMe 0.6.55</title>
+      <pubDate>Fri, 22 May 2026 10:06:48 GMT</pubDate>
+      <sparkle:version>126</sparkle:version>
+      <sparkle:shortVersionString>0.6.55</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.55</h2>
 <ul><li>Windows Stories: таймаут batch-выгрузки теперь зависит от размера очереди, поэтому длинные списки больше не обрываются через 20 минут.</li><li>Windows Stories и Sort: очистка пустых папок теперь использует одну общую функцию, предлагает удалить только реально пустые папки и не трогает `На перенос`.</li><li>Windows Stories: в блоке результата добавлен live-счётчик загруженных файлов и созданных папок.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.54/SaveMe-macOS-v0.6.54.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.55/SaveMe-macOS-v0.6.55.dmg"
         sparkle:os="macos"
-        length="3298780"
+        length="3299038"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="TquB72R0aYJvtncB8v7fFegTxWI3vMWjIW0qBuyGNU/YxgrMnbyfm8rl3jAnvMREGEO3mDbyHJ3pc/hfAnkQCw==" />
+        sparkle:edSignature="sqIFmVtc8SrQpWJSyazQeYapA4tnRJEMHPb9GEjMQgQpkMFsxMjhJ+fAZ689sqYwTc7YcFkwpKiY5g+1ERkfBQ==" />
     </item>
   </channel>
 </rss>
