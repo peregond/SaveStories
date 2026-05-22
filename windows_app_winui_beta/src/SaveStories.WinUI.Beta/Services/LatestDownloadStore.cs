@@ -18,7 +18,7 @@ public sealed class LatestDownloadStore
         {
             lock (_gate)
             {
-                return _items.Select(Clone).ToList();
+                return _items.Select(item => Clone(item)).ToList();
             }
         }
     }
