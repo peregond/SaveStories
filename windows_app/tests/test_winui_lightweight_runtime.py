@@ -77,6 +77,7 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("BuildWorkerTimeout", page)
         self.assertIn('request.Command, "download_profile_batch"', page)
         self.assertIn("request.Urls.Count", page)
+        self.assertIn("request.Headless == true", page)
         self.assertIn("Math.Clamp(20 + profileCount * minutesPerProfile, 30, 720)", page)
         self.assertIn("timeout: workerTimeout", page)
         self.assertIn("batch_timeout_minutes=", page)

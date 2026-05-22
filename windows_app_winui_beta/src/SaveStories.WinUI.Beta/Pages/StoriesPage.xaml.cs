@@ -229,7 +229,7 @@ public sealed partial class StoriesPage : Page
         }
 
         var profileCount = Math.Max(1, request.Urls.Count);
-        var minutesPerProfile = request.Headless ? 1.5 : 3.0;
+        var minutesPerProfile = request.Headless == true ? 1.5 : 3.0;
         var timeoutMinutes = Math.Clamp(20 + profileCount * minutesPerProfile, 30, 720);
         return TimeSpan.FromMinutes(timeoutMinutes);
     }
