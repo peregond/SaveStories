@@ -125,7 +125,7 @@ public static class EmptyFolderCleanupService
         }
     }
 
-    private static bool IsIgnorableFilesystemEntry(string path)
+    public static bool IsIgnorableFilesystemEntry(string path)
     {
         try
         {
@@ -137,8 +137,7 @@ public static class EmptyFolderCleanupService
                 return true;
             }
 
-            var attributes = File.GetAttributes(path);
-            return attributes.HasFlag(FileAttributes.Hidden) || attributes.HasFlag(FileAttributes.System);
+            return false;
         }
         catch
         {

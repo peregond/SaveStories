@@ -76,7 +76,7 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
 
         self.assertIn("BuildWorkerTimeout", page)
         self.assertIn('request.Command, "download_profile_batch"', page)
-        self.assertIn("request.Urls.Count", page)
+        self.assertIn("request.Urls?.Count ?? 0", page)
         self.assertIn("request.Headless == true", page)
         self.assertIn("Math.Clamp(20 + profileCount * minutesPerProfile, 30, 720)", page)
         self.assertIn("timeout: workerTimeout", page)
@@ -91,6 +91,7 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("RefreshLiveDownloadStats", page)
         self.assertIn("SnapshotOutputDirectory", page)
         self.assertIn("SupportedMediaExtensions", page)
+        self.assertIn("EmptyFolderCleanupService.IsIgnorableFilesystemEntry", page)
         self.assertIn("_liveStatsTimer", page)
         self.assertIn("Файлов загружено:", page)
 
@@ -139,10 +140,13 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
 
         self.assertIn("FindDeletableEmptyFolders", cleanup)
         self.assertIn("DeleteEmptyFolders", cleanup)
+        self.assertIn("public static bool IsIgnorableFilesystemEntry", cleanup)
         self.assertIn("IsEffectivelyEmptyDirectoryAfterDeletingKnownEmptyChildren", cleanup)
         self.assertIn("IsProtectedTransferDirectory", cleanup)
         self.assertIn("На перенос", cleanup)
         self.assertIn("Directory.Delete(folder, recursive: true)", cleanup)
+        self.assertNotIn("FileAttributes.Hidden", cleanup)
+        self.assertNotIn("FileAttributes.System", cleanup)
         self.assertNotIn("private static bool IsProtectedTransferDirectory", stories_page)
         self.assertNotIn("private static bool IsProtectedTransferDirectory", sorting_page)
 

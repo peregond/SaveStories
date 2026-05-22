@@ -228,7 +228,7 @@ public sealed partial class StoriesPage : Page
             return TimeSpan.FromMinutes(20);
         }
 
-        var profileCount = Math.Max(1, request.Urls.Count);
+        var profileCount = Math.Max(1, request.Urls?.Count ?? 0);
         var minutesPerProfile = request.Headless == true ? 1.5 : 3.0;
         var timeoutMinutes = Math.Clamp(20 + profileCount * minutesPerProfile, 30, 720);
         return TimeSpan.FromMinutes(timeoutMinutes);
@@ -447,7 +447,7 @@ public sealed partial class StoriesPage : Page
         try
         {
             folders = Directory.EnumerateDirectories(root)
-                .Count(path => !IsIgnorableFilesystemEntry(path));
+                .Count(path => !EmptyFolderCleanupService.IsIgnorableFilesystemEntry(path));
         }
         catch
         {
@@ -458,7 +458,7 @@ public sealed partial class StoriesPage : Page
         {
             foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
             {
-                if (IsIgnorableFilesystemEntry(file))
+                if (EmptyFolderCleanupService.IsIgnorableFilesystemEntry(file))
                 {
                     continue;
                 }
