@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.53</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.54</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.53</title>
-      <pubDate>Fri, 22 May 2026 10:01:30 GMT</pubDate>
-      <sparkle:version>124</sparkle:version>
-      <sparkle:shortVersionString>0.6.53</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.53</h2>
-<ul><li>Windows Stories: таймаут batch-выгрузки теперь зависит от размера очереди, поэтому длинные списки больше не обрываются через 20 минут.</li><li>Windows Stories: автоматическая очистка после выгрузки предлагает удалить только реально пустые папки и не трогает `На перенос`.</li><li>Windows Stories: в блоке результата добавлен live-счётчик загруженных файлов и созданных папок.</li></ul>]]></description>
+      <title>SaveMe 0.6.54</title>
+      <pubDate>Fri, 22 May 2026 10:05:26 GMT</pubDate>
+      <sparkle:version>125</sparkle:version>
+      <sparkle:shortVersionString>0.6.54</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.54</h2>
+<ul><li>Windows Stories: таймаут batch-выгрузки теперь зависит от размера очереди, поэтому длинные списки больше не обрываются через 20 минут.</li><li>Windows Stories и Sort: очистка пустых папок теперь использует одну общую функцию, предлагает удалить только реально пустые папки и не трогает `На перенос`.</li><li>Windows Stories: в блоке результата добавлен live-счётчик загруженных файлов и созданных папок.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.53/SaveMe-macOS-v0.6.53.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.54/SaveMe-macOS-v0.6.54.dmg"
         sparkle:os="macos"
-        length="3299734"
+        length="3298780"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="rdwwxXkYtrcBZrxgJswjjRcA0OrD0JVMJ+wkvxMZxAKVA1aQZMugEIe+8PnLUC/Amlu8mltcP82uohFEO8dCBA==" />
+        sparkle:edSignature="TquB72R0aYJvtncB8v7fFegTxWI3vMWjIW0qBuyGNU/YxgrMnbyfm8rl3jAnvMREGEO3mDbyHJ3pc/hfAnkQCw==" />
     </item>
   </channel>
 </rss>
