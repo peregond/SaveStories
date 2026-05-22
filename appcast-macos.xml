@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.59</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.60</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.59</title>
-      <pubDate>Fri, 22 May 2026 14:59:56 GMT</pubDate>
-      <sparkle:version>130</sparkle:version>
-      <sparkle:shortVersionString>0.6.59</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.59</h2>
-<ul><li>Windows Stories: таймаут batch-выгрузки теперь зависит от размера очереди, поэтому длинные списки больше не обрываются через 20 минут.</li><li>Windows Stories: поле списка профилей теперь не растягивает экран, показывает счётчик профилей и раскрывается отдельной кнопкой.</li><li>Windows Stories: карточки `Состояние` и `Результат` получили одинаковую минимальную высоту.</li><li>Windows Sort: добавлена функция `Из последней загрузки`, как на macOS, с общим буфером последних скачанных файлов.</li><li>Windows Stories и Sort: очистка пустых папок теперь использует одну общую функцию, предлагает удалить только реально пустые папки и не трогает `На перенос`.</li><li>Windows Stories: в блоке результата добавлен live-счётчик загруженных файлов и созданных папок.</li><li>Windows Stories: исправлена Windows-сборка после выноса очистки пустых папок в общий сервис.</li><li>macOS Stories и Sort: очистка пустых папок тоже переведена на один общий сервис с теми же правилами безопасности.</li></ul>]]></description>
+      <title>SaveMe 0.6.60</title>
+      <pubDate>Fri, 22 May 2026 15:25:12 GMT</pubDate>
+      <sparkle:version>131</sparkle:version>
+      <sparkle:shortVersionString>0.6.60</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.60</h2>
+<ul><li>Windows Stories: таймаут batch-выгрузки теперь зависит от размера очереди, поэтому длинные списки больше не обрываются через 20 минут.</li><li>Windows Stories: поле списка профилей теперь не растягивает экран, показывает счётчик профилей и раскрывается отдельной кнопкой.</li><li>Windows Stories: карточки `Состояние` и `Результат` получили одинаковую минимальную высоту.</li><li>Windows Sort: добавлена функция `Из последней загрузки`, как на macOS, с общим буфером последних скачанных файлов.</li><li>Windows Sort: сбор Google Drive ссылок теперь ждёт Drive-метаданные после переноса файлов, поддерживает `item-id` и `url` metadata и явно отделяет локальный список от Drive-дайджеста.</li><li>Windows Stories и Sort: очистка пустых папок теперь использует одну общую функцию, предлагает удалить только реально пустые папки и не трогает `На перенос`.</li><li>Windows Stories: в блоке результата добавлен live-счётчик загруженных файлов и созданных папок.</li><li>Windows Stories: исправлена Windows-сборка после выноса очистки пустых папок в общий сервис.</li><li>macOS Stories и Sort: очистка пустых папок тоже переведена на один общий сервис с теми же правилами безопасности.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.59/SaveMe-macOS-v0.6.59.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.60/SaveMe-macOS-v0.6.60.dmg"
         sparkle:os="macos"
-        length="3303838"
+        length="3304034"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="RYw+bKyY1PI7DSICTW5rNMjFJnbTGS0reQNAk1Aa10L7h0Hnt0LNSeGjuhuyvvxy7l2s1CSVDSNhuVxvDrH/Cw==" />
+        sparkle:edSignature="5BU9qRxYOSIKjHLCe904eOkadTeFb6X5Zqfzf2B1Y+8FruL71xiuJBv1feUooaIktji7nch/KfKVMXrnHlrQBg==" />
     </item>
   </channel>
 </rss>
