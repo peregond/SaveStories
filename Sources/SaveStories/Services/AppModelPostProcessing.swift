@@ -50,7 +50,7 @@ extension AppModel {
             return
         }
 
-        let candidateFolders = cleanupCandidateSubfolders(in: emptyFolderCleanupDirectory)
+        let candidateFolders = EmptyFolderCleanupService.findDeletableEmptyFolders(in: emptyFolderCleanupDirectory)
         guard !candidateFolders.isEmpty else {
             emptyFolderCleanupSummary = "В выбранной папке нет подпапок для проверки."
             postProcessingSummary = "Пустых папок в выбранной папке не найдено."
@@ -58,22 +58,13 @@ extension AppModel {
             return
         }
 
-        let manager = FileManager.default
-        var removedNames: [String] = []
-        var failedCount = 0
-
-        for folder in candidateFolders {
-            do {
-                if isEffectivelyEmptyDirectory(folder) {
-                    try manager.removeItem(at: folder)
-                    removedNames.append(folder.lastPathComponent)
-                }
-            } catch {
-                failedCount += 1
-                appendLog("Не удалось удалить пустую папку \(folder.path): \(error.localizedDescription)")
-            }
+        let cleanup = EmptyFolderCleanupService.deleteEmptyFolders(candidateFolders)
+        for folder in cleanup.failedFolders {
+            appendLog("Не удалось удалить пустую папку \(folder.path).")
         }
 
+        let removedNames = cleanup.removedFolderNames
+        let failedCount = cleanup.failedFolders.count
         let message = failedCount == 0
             ? "Удалено пустых папок: \(removedNames.count)."
             : "Удалено пустых папок: \(removedNames.count). Ошибок: \(failedCount)."
@@ -167,38 +158,6 @@ extension AppModel {
     func openDistributionRootDirectory() {
         guard let distributionRootDirectory else { return }
         NSWorkspace.shared.activateFileViewerSelecting([distributionRootDirectory])
-    }
-
-    private func cleanupCandidateSubfolders(in root: URL) -> [URL] {
-        let manager = FileManager.default
-        guard let enumerator = manager.enumerator(
-            at: root,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles],
-            errorHandler: nil
-        ) else {
-            return []
-        }
-
-        var folders: [URL] = []
-        for case let item as URL in enumerator {
-            guard (try? item.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else {
-                continue
-            }
-            folders.append(item)
-        }
-
-        return folders
-            .filter { !isProtectedTransferDirectory($0) }
-            .sorted { lhs, rhs in
-                lhs.pathComponents.count > rhs.pathComponents.count
-            }
-    }
-
-    private func isProtectedTransferDirectory(_ url: URL) -> Bool {
-        url.pathComponents.contains { component in
-            component.caseInsensitiveCompare("На перенос") == .orderedSame
-        }
     }
 
     func distributeFilesFromSortingSource(skipNotionRefresh: Bool = false) {

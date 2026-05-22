@@ -273,17 +273,12 @@ extension AppModel {
             return
         }
 
-        let manager = FileManager.default
-        var removedNames: [String] = []
-        for folder in folders {
-            do {
-                try manager.removeItem(at: folder)
-                removedNames.append(folder.lastPathComponent)
-            } catch {
-                appendLog("Не удалось удалить пустую папку \(folder.lastPathComponent): \(error.localizedDescription)")
-            }
+        let cleanup = EmptyFolderCleanupService.deleteEmptyFolders(folders)
+        for folder in cleanup.failedFolders {
+            appendLog("Не удалось удалить пустую папку \(folder.lastPathComponent).")
         }
 
+        let removedNames = cleanup.removedFolderNames
         if !removedNames.isEmpty {
             appendLog("Удалены пустые папки после выгрузки stories: \(removedNames.joined(separator: ", ")).")
         }
@@ -322,58 +317,11 @@ extension AppModel {
     }
 
     func prepareEmptyStoryFolderCleanupPrompt() {
-        let emptyFolders = emptyStoryFolders(in: saveDirectory)
+        let emptyFolders = EmptyFolderCleanupService.findDeletableEmptyFolders(in: saveDirectory)
         guard !emptyFolders.isEmpty else { return }
         pendingEmptyStoryFolders = emptyFolders
         showEmptyFolderCleanupPrompt = true
         appendLog("Найдены пустые папки после выгрузки stories: \(emptyFolders.count).")
-    }
-
-    func emptyStoryFolders(in root: URL) -> [URL] {
-        let manager = FileManager.default
-        guard let children = try? manager.contentsOfDirectory(
-            at: root,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            return []
-        }
-
-        return children.filter { candidate in
-            guard (try? candidate.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else {
-                return false
-            }
-            return isEffectivelyEmptyDirectory(candidate)
-        }
-    }
-
-    func isEffectivelyEmptyDirectory(_ directory: URL) -> Bool {
-        let manager = FileManager.default
-        guard let enumerator = manager.enumerator(
-            at: directory,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles],
-            errorHandler: nil
-        ) else {
-            return false
-        }
-
-        for case let item as URL in enumerator {
-            guard item != directory else { continue }
-            if isIgnorableFilesystemEntry(item) {
-                continue
-            }
-            return false
-        }
-        return true
-    }
-
-    private func isIgnorableFilesystemEntry(_ url: URL) -> Bool {
-        if url.lastPathComponent == ".DS_Store" {
-            return true
-        }
-        let values = try? url.resourceValues(forKeys: [.isHiddenKey])
-        return values?.isHidden == true
     }
 
     func applyBatchResults(_ response: WorkerResponse, pendingItems: [BatchProfileItem]) {
