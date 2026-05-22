@@ -85,6 +85,31 @@ public sealed class SortingService
         return Distribute(inputs, destinationRoot);
     }
 
+    public SortingResult DistributeDownloadedItems(IEnumerable<WorkerItem> items, string destinationRoot, string rules)
+    {
+        var mapping = ParseRules(rules);
+        var inputs = items
+            .Where(item => !string.IsNullOrWhiteSpace(item.LocalPath))
+            .Select(item =>
+            {
+                var blogger = SourceUsername(item);
+                return new SortingInput(
+                    Id: string.IsNullOrWhiteSpace(item.Id) ? item.LocalPath : item.Id,
+                    Blogger: blogger,
+                    CurrentPath: item.LocalPath,
+                    TargetRelativeFolder: TargetRelativeFolder(blogger, mapping));
+            })
+            .ToList();
+
+        if (inputs.Count == 0)
+        {
+            return SortingResult.Failed("Нет файлов из последней выгрузки для раскладки.");
+        }
+
+        Directory.CreateDirectory(destinationRoot);
+        return Distribute(inputs, destinationRoot);
+    }
+
     public string BuildDigest(IEnumerable<SortedFileRecord> records)
     {
         var blocks = records
@@ -252,6 +277,26 @@ public sealed class SortingService
     private static string CountryFolder(string targetRelativeFolder)
     {
         return SplitPath(targetRelativeFolder).FirstOrDefault(part => !string.IsNullOrWhiteSpace(part)) ?? "Без страны";
+    }
+
+    private static string SourceUsername(WorkerItem item)
+    {
+        var parent = Path.GetFileName(Path.GetDirectoryName(item.LocalPath) ?? "");
+        if (!string.IsNullOrWhiteSpace(parent))
+        {
+            return parent;
+        }
+
+        if (Uri.TryCreate(item.SourceUrl, UriKind.Absolute, out var uri))
+        {
+            var username = uri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(username))
+            {
+                return username;
+            }
+        }
+
+        return "Без профиля";
     }
 
     private static string[] SplitPath(string value)

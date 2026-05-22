@@ -130,7 +130,13 @@
                             TextWrapping="WrapWholeWords" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Click="OnRunSortingClick" Content="Разложить из папки Перенос" Style="{StaticResource SuccessActionButtonStyle}" />
+                            <Button Click="OnRunLatestDownloadSortingClick" Content="Из последней загрузки" />
                         </StackPanel>
+                        <TextBlock
+                            x:Name="LatestDownloadSummaryText"
+                            Style="{StaticResource AppSecondaryTextStyle}"
+                            Text="Файлов из последней выгрузки пока нет."
+                            TextWrapping="WrapWholeWords" />
                     </StackPanel>
                 </Border>
 

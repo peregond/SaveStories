@@ -20,6 +20,7 @@ public sealed partial class StoriesPage : Page
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _liveStatsTimer;
     private bool _isRunning;
     private bool _isRefreshingNotionInfluencers;
+    private bool _profilesInputExpanded;
     private CancellationTokenSource? _runCts;
     private string _outputDirectory;
     private int _liveProcessedProfiles;
@@ -60,6 +61,7 @@ public sealed partial class StoriesPage : Page
         UpdateModeDescription();
         UpdateMediaDescription();
         UpdateNotionInfluencerSummary();
+        UpdateProfilesInputState();
         RefreshQueueSummary();
     }
 
@@ -76,6 +78,7 @@ public sealed partial class StoriesPage : Page
     private void OnClearInputClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         ProfilesInputTextBox.Text = string.Empty;
+        UpdateProfilesInputState();
     }
 
     private async void OnCheckSessionClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
@@ -121,6 +124,7 @@ public sealed partial class StoriesPage : Page
             var lines = ProfileInputParser.ParseProfiles(ProfilesInputTextBox.Text);
             AddQueueItems(lines);
             ProfilesInputTextBox.Text = string.Empty;
+            UpdateProfilesInputState();
             RefreshQueueSummary();
         }
 
@@ -177,6 +181,10 @@ public sealed partial class StoriesPage : Page
                 AppendLog($"batch_timeout_minutes={workerTimeout.TotalMinutes:0}");
             }
             var result = await WorkerBridgeService.Current.RunAsync(request, _runCts.Token, timeout: workerTimeout, progress: progress);
+            if (string.Equals(request.Command, "download_profile_batch", StringComparison.OrdinalIgnoreCase))
+            {
+                LatestDownloadStore.Current.Replace(result.Response.Items);
+            }
             ApplyWorkerResult(result.Response);
             if (string.Equals(request.Command, "download_profile_batch", StringComparison.OrdinalIgnoreCase))
             {
@@ -305,6 +313,17 @@ public sealed partial class StoriesPage : Page
         _queue.Clear();
         RefreshQueueSummary();
         AppendLog("Очередь очищена.");
+    }
+
+    private void OnProfilesInputChanged(object sender, TextChangedEventArgs e)
+    {
+        UpdateProfilesInputState();
+    }
+
+    private void OnToggleProfilesInputClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        _profilesInputExpanded = !_profilesInputExpanded;
+        UpdateProfilesInputState();
     }
 
     private void OnNotionInfluencerToggleToggled(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
@@ -498,6 +517,21 @@ public sealed partial class StoriesPage : Page
         NotionInfluencerSummaryText.Text = NotionInfluencerToggle.IsOn
             ? "Перед запуском очередь обновится из Notion."
             : "Автосписок Notion выключен.";
+    }
+
+    private void UpdateProfilesInputState()
+    {
+        var parsedCount = ProfileInputParser.ParseProfiles(ProfilesInputTextBox.Text).Count;
+        ProfileInputCountText.Text = parsedCount == 1
+            ? "1 профиль"
+            : parsedCount > 1 && parsedCount < 5
+                ? $"{parsedCount} профиля"
+                : $"{parsedCount} профилей";
+        ProfilesInputTextBox.Height = _profilesInputExpanded ? 360 : 132;
+        ToggleProfilesInputButton.Content = _profilesInputExpanded ? "Свернуть" : "Раскрыть";
+        ToggleProfilesInputButton.Visibility = _profilesInputExpanded || parsedCount > 5 || ProfilesInputTextBox.Text.Length > 180
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private int AddQueueItems(IEnumerable<string> lines)

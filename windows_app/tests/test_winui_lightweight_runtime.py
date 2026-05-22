@@ -87,6 +87,8 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         xaml = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml")
 
         self.assertIn("LiveDownloadStatsText", xaml)
+        self.assertIn("ToggleProfilesInputButton", xaml)
+        self.assertIn("OnToggleProfilesInputClick", page)
         self.assertIn("ResetLiveDownloadStatsBaseline", page)
         self.assertIn("RefreshLiveDownloadStats", page)
         self.assertIn("SnapshotOutputDirectory", page)
@@ -130,6 +132,23 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("EmptyFolderCleanupService.FindDeletableEmptyFolders", page)
         self.assertIn("EmptyFolderCleanupService.DeleteEmptyFolders", page)
         self.assertIn("Папка «На перенос»", page)
+
+    def test_winui_sorting_matches_macos_latest_download_action(self) -> None:
+        stories_page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml.cs")
+        sorting_page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SortingPage.xaml.cs")
+        sorting_xaml = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SortingPage.xaml")
+        sorting_service = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/SortingService.cs")
+        latest_store = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/LatestDownloadStore.cs")
+
+        self.assertIn("LatestDownloadStore.Current.Replace(result.Response.Items)", stories_page)
+        self.assertIn("Из последней загрузки", sorting_xaml)
+        self.assertIn("LatestDownloadSummaryText", sorting_xaml)
+        self.assertIn("OnRunLatestDownloadSortingClick", sorting_page)
+        self.assertIn("SortingService.Current.DistributeDownloadedItems", sorting_page)
+        self.assertIn("LatestDownloadStore.Current.UpdatePaths", sorting_page)
+        self.assertIn("DistributeDownloadedItems", sorting_service)
+        self.assertIn("SourceUsername", sorting_service)
+        self.assertIn("public sealed class LatestDownloadStore", latest_store)
 
     def test_winui_empty_folder_cleanup_uses_single_shared_service(self) -> None:
         stories_page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml.cs")

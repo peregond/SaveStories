@@ -23,6 +23,7 @@ public sealed partial class SortingPage : Page
         RulesTextBox.Text = BetaSettingsStore.Current.SortingRules;
         NotionRoutingRulesToggle.IsOn = BetaSettingsStore.Current.NotionRoutingRulesSourceEnabled;
         UpdateNotionRoutingRulesSummary();
+        RefreshLatestDownloadSummary();
         RefreshRememberedBloggers();
     }
 
@@ -182,11 +183,67 @@ public sealed partial class SortingPage : Page
                 ? result.Summary
                 : $"{result.Summary} Ошибок: {result.FailedItems.Count}.";
             RefreshRememberedBloggers();
+            RefreshLatestDownloadSummary();
         }
         catch (Exception ex)
         {
             SortingStatusText.Text = ex.Message;
             DiagnosticsService.Current.LogError("Windows sorting failed", ex);
+        }
+    }
+
+    private async void OnRunLatestDownloadSortingClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        var destination = BetaSettingsStore.Current.SortingDestinationDirectory;
+        if (string.IsNullOrWhiteSpace(destination))
+        {
+            SortingStatusText.Text = "Сначала выбери папку назначения.";
+            return;
+        }
+
+        if (LatestDownloadStore.Current.Count == 0)
+        {
+            SortingStatusText.Text = "Нет файлов из последней выгрузки для раскладки.";
+            RefreshLatestDownloadSummary();
+            return;
+        }
+
+        if (NotionRoutingRulesToggle.IsOn)
+        {
+            var refreshed = await RefreshNotionRoutingRulesAsync();
+            if (!refreshed)
+            {
+                return;
+            }
+        }
+
+        try
+        {
+            var result = SortingService.Current.DistributeDownloadedItems(
+                LatestDownloadStore.Current.Items,
+                destination,
+                RulesTextBox.Text);
+            _lastRecords = result.Records.ToList();
+            LatestDownloadStore.Current.UpdatePaths(_lastRecords);
+            _lastDigest = SortingService.Current.BuildPostProcessedReport(_lastRecords);
+            _lastLinksDigest = "";
+            DigestTextBox.Text = _lastDigest;
+            var hasResult = !string.IsNullOrWhiteSpace(_lastDigest);
+            CopyDigestButton.IsEnabled = hasResult;
+            CopyLinksButton.IsEnabled = hasResult;
+            GoogleDriveLinkStatusText.Text = hasResult
+                ? "Список готов. Можно скопировать локальный список или собрать Drive-ссылки."
+                : "Ссылки Google Drive ещё не собирались.";
+            SortingStatusText.Text = result.FailedItems.Count == 0
+                ? result.Summary
+                : $"{result.Summary} Ошибок: {result.FailedItems.Count}.";
+            RefreshLatestDownloadSummary();
+            RefreshRememberedBloggers();
+        }
+        catch (Exception ex)
+        {
+            SortingStatusText.Text = ex.Message;
+            DiagnosticsService.Current.LogError("Windows latest-download sorting failed", ex);
         }
     }
 
@@ -344,6 +401,13 @@ public sealed partial class SortingPage : Page
         NotionRoutingRulesSummaryText.Text = NotionRoutingRulesToggle.IsOn
             ? "Перед сортировкой правила обновятся из Notion."
             : "Автоправила Notion выключены.";
+    }
+
+    private void RefreshLatestDownloadSummary()
+    {
+        LatestDownloadSummaryText.Text = LatestDownloadStore.Current.Count == 0
+            ? "Файлов из последней выгрузки пока нет."
+            : $"Файлов из последней выгрузки: {LatestDownloadStore.Current.Count}.";
     }
 
     private static string DisplayPath(string value)

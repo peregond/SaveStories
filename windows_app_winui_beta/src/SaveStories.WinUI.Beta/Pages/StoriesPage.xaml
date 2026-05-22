@@ -27,8 +27,29 @@
                         <TextBox
                             x:Name="ProfilesInputTextBox"
                             AcceptsReturn="True"
-                            MinHeight="160"
-                            PlaceholderText="По одному username или ссылке на строку." />
+                            Height="132"
+                            MaxHeight="360"
+                            PlaceholderText="По одному username или ссылке на строку."
+                            TextChanged="OnProfilesInputChanged"
+                            TextWrapping="Wrap" />
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                x:Name="ProfileInputCountText"
+                                Grid.Column="0"
+                                VerticalAlignment="Center"
+                                Style="{StaticResource AppSecondaryTextStyle}"
+                                Text="0 профилей" />
+                            <Button
+                                x:Name="ToggleProfilesInputButton"
+                                Grid.Column="1"
+                                Click="OnToggleProfilesInputClick"
+                                Content="Раскрыть"
+                                Visibility="Collapsed" />
+                        </Grid>
                         <Border Style="{StaticResource AppCardBorderStyle}" Padding="10">
                             <StackPanel Spacing="8">
                                 <ToggleSwitch
@@ -156,7 +177,7 @@
             </StackPanel>
 
             <StackPanel Grid.Column="1" Spacing="12">
-                <Border Style="{StaticResource AppCardBorderStyle}">
+                <Border MinHeight="122" Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
                         <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="СОСТОЯНИЕ" />
                         <TextBlock x:Name="StatusTitleText" Text="Ожидание" />
@@ -164,7 +185,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource AppCardBorderStyle}">
+                <Border MinHeight="122" Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
                         <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="РЕЗУЛЬТАТ" />
                         <TextBlock x:Name="ResultSummaryText" Style="{StaticResource AppSecondaryTextStyle}" Text="Профилей: 0  ·  Сохранено: 0  ·  Файлов: 0" />
