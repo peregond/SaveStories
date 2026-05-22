@@ -92,19 +92,19 @@ public sealed partial class SortingPage : Page
             return;
         }
 
-        var candidateFolders = FindCleanupCandidateSubfolders(root).ToList();
-        if (candidateFolders.Count == 0)
+        var deletableFolders = FindDeletableEmptySubfolders(root).ToList();
+        if (deletableFolders.Count == 0)
         {
-            EmptyFolderCleanupStatusText.Text = "В выбранной папке нет подпапок для проверки.";
+            EmptyFolderCleanupStatusText.Text = "Пустых папок в выбранной папке не найдено.";
             SortingStatusText.Text = "Пустых папок в выбранной папке не найдено.";
             return;
         }
 
-        EmptyFolderCleanupStatusText.Text = $"Проверю подпапок: {candidateFolders.Count}. Жду подтверждения.";
-        var preview = string.Join(Environment.NewLine, candidateFolders.Select(Path.GetFileName).Where(name => !string.IsNullOrWhiteSpace(name)).Take(12));
-        if (candidateFolders.Count > 12)
+        EmptyFolderCleanupStatusText.Text = $"Найдено пустых папок: {deletableFolders.Count}. Жду подтверждения.";
+        var preview = string.Join(Environment.NewLine, deletableFolders.Select(Path.GetFileName).Where(name => !string.IsNullOrWhiteSpace(name)).Take(12));
+        if (deletableFolders.Count > 12)
         {
-            preview += $"{Environment.NewLine}и ещё {candidateFolders.Count - 12}";
+            preview += $"{Environment.NewLine}и ещё {deletableFolders.Count - 12}";
         }
 
         var dialog = new ContentDialog
@@ -112,7 +112,7 @@ public sealed partial class SortingPage : Page
             Title = "Удалить пустые папки?",
             Content = new TextBlock
             {
-                Text = $"Приложение проверит подпапки внутри выбранной папки и удалит только пустые. Сама выбранная папка останется на месте.{Environment.NewLine}{Environment.NewLine}{preview}",
+                Text = $"Приложение удалит только пустые папки из списка ниже. Папка «На перенос» и её содержимое не трогаются.{Environment.NewLine}{Environment.NewLine}{preview}",
                 TextWrapping = Microsoft.UI.Xaml.TextWrapping.WrapWholeWords,
             },
             PrimaryButtonText = "Удалить",
@@ -129,7 +129,7 @@ public sealed partial class SortingPage : Page
 
         var removed = 0;
         var failed = 0;
-        foreach (var folder in candidateFolders)
+        foreach (var folder in deletableFolders)
         {
             try
             {
@@ -377,7 +377,7 @@ public sealed partial class SortingPage : Page
         }
     }
 
-    private static IEnumerable<string> FindCleanupCandidateSubfolders(string root)
+    private static IEnumerable<string> FindDeletableEmptySubfolders(string root)
     {
         if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
         {
@@ -386,14 +386,54 @@ public sealed partial class SortingPage : Page
 
         try
         {
-            return Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories)
+            var candidates = Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories)
                 .Where(path => !IsProtectedTransferDirectory(path))
                 .OrderByDescending(path => path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Length)
+                .ToList();
+
+            var deletable = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var folder in candidates)
+            {
+                if (IsEffectivelyEmptyDirectoryAfterDeletingKnownEmptyChildren(folder, deletable))
+                {
+                    deletable.Add(Path.GetFullPath(folder));
+                }
+            }
+
+            return candidates
+                .Where(folder => deletable.Contains(Path.GetFullPath(folder)))
                 .ToList();
         }
         catch
         {
             return Enumerable.Empty<string>();
+        }
+    }
+
+    private static bool IsEffectivelyEmptyDirectoryAfterDeletingKnownEmptyChildren(string directory, ISet<string> knownEmptyDirectories)
+    {
+        try
+        {
+            foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
+            {
+                if (IsIgnorableFilesystemEntry(entry))
+                {
+                    continue;
+                }
+
+                if (Directory.Exists(entry) && knownEmptyDirectories.Contains(Path.GetFullPath(entry)))
+                {
+                    continue;
+                }
+
+                return false;
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 

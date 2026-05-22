@@ -71,6 +71,28 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("batch_slot_", page)
         self.assertIn("Обработано: {_liveProcessedProfiles}/{_queue.Count}", page)
 
+    def test_winui_stories_batch_timeout_scales_with_queue_size(self) -> None:
+        page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml.cs")
+
+        self.assertIn("BuildWorkerTimeout", page)
+        self.assertIn('request.Command, "download_profile_batch"', page)
+        self.assertIn("request.Urls.Count", page)
+        self.assertIn("Math.Clamp(20 + profileCount * minutesPerProfile, 30, 720)", page)
+        self.assertIn("timeout: workerTimeout", page)
+        self.assertIn("batch_timeout_minutes=", page)
+
+    def test_winui_stories_tracks_live_downloaded_files_and_folders(self) -> None:
+        page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml.cs")
+        xaml = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml")
+
+        self.assertIn("LiveDownloadStatsText", xaml)
+        self.assertIn("ResetLiveDownloadStatsBaseline", page)
+        self.assertIn("RefreshLiveDownloadStats", page)
+        self.assertIn("SnapshotOutputDirectory", page)
+        self.assertIn("SupportedMediaExtensions", page)
+        self.assertIn("_liveStatsTimer", page)
+        self.assertIn("Файлов загружено:", page)
+
     def test_winui_stories_persists_output_directory_and_offers_empty_cleanup(self) -> None:
         page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml.cs")
         settings = read(
@@ -83,6 +105,8 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("BetaSettingsStore.Current.SetStoriesOutputDirectory", page)
         self.assertIn("OfferEmptyFolderCleanupAsync", page)
         self.assertIn("FindEmptyStoryFolders", page)
+        self.assertIn("IsProtectedTransferDirectory", page)
+        self.assertIn("IsIgnorableFilesystemEntry", page)
         self.assertIn("Удалить пустые папки?", page)
 
     def test_winui_sorting_has_independent_empty_folder_cleanup(self) -> None:
@@ -97,7 +121,8 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("0. УДАЛИТЬ ПУСТЫЕ ПАПКИ", xaml)
         self.assertIn("OnDeleteEmptyFoldersClick", page)
         self.assertIn("EmptyFolderCleanupStatusText", xaml)
-        self.assertIn("FindCleanupCandidateSubfolders", page)
+        self.assertIn("FindDeletableEmptySubfolders", page)
+        self.assertIn("IsEffectivelyEmptyDirectoryAfterDeletingKnownEmptyChildren", page)
         self.assertIn("IsIgnorableFilesystemEntry", page)
         self.assertIn("IsProtectedTransferDirectory", page)
         self.assertIn("На перенос", page)

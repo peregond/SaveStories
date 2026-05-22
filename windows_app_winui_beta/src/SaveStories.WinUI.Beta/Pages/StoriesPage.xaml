@@ -168,6 +168,7 @@
                     <StackPanel Spacing="8">
                         <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="РЕЗУЛЬТАТ" />
                         <TextBlock x:Name="ResultSummaryText" Style="{StaticResource AppSecondaryTextStyle}" Text="Профилей: 0  ·  Сохранено: 0  ·  Файлов: 0" />
+                        <TextBlock x:Name="LiveDownloadStatsText" Style="{StaticResource AppSecondaryTextStyle}" Text="Файлов загружено: 0  ·  Папок создано: 0" />
                     </StackPanel>
                 </Border>
 

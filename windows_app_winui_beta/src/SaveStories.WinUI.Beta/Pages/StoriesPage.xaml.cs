@@ -17,12 +17,25 @@ public sealed partial class StoriesPage : Page
     private readonly List<string> _lastFailedProfiles = new();
     private readonly NotionInfluencerSource _notionInfluencerSource = new();
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _logFlushTimer;
+    private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _liveStatsTimer;
     private bool _isRunning;
     private bool _isRefreshingNotionInfluencers;
     private CancellationTokenSource? _runCts;
     private string _outputDirectory;
     private int _liveProcessedProfiles;
+    private int _saveDirectoryBaselineFiles;
+    private int _saveDirectoryBaselineFolders;
     private const int MaxLogLines = 1500;
+    private static readonly HashSet<string> SupportedMediaExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".mp4",
+        ".mov",
+        ".m4v",
+    };
 
     public StoriesPage()
     {
@@ -40,6 +53,10 @@ public sealed partial class StoriesPage : Page
         _logFlushTimer.Interval = TimeSpan.FromMilliseconds(120);
         _logFlushTimer.IsRepeating = false;
         _logFlushTimer.Tick += (_, _) => FlushPendingLogs();
+        _liveStatsTimer = DispatcherQueue.CreateTimer();
+        _liveStatsTimer.Interval = TimeSpan.FromSeconds(2);
+        _liveStatsTimer.IsRepeating = true;
+        _liveStatsTimer.Tick += (_, _) => RefreshLiveDownloadStats();
         UpdateModeDescription();
         UpdateMediaDescription();
         UpdateNotionInfluencerSummary();
@@ -142,6 +159,8 @@ public sealed partial class StoriesPage : Page
         _liveProcessedProfiles = 0;
         if (string.Equals(request.Command, "download_profile_batch", StringComparison.OrdinalIgnoreCase))
         {
+            ResetLiveDownloadStatsBaseline();
+            _liveStatsTimer.Start();
             ResultSummaryText.Text = $"Профилей: {_queue.Count}  ·  Обработано: 0/{_queue.Count}  ·  Идёт запуск...";
         }
         AppendLog(runningMessage);
@@ -152,7 +171,12 @@ public sealed partial class StoriesPage : Page
             {
                 DispatcherQueue.TryEnqueue(() => HandleWorkerProgress(line));
             });
-            var result = await WorkerBridgeService.Current.RunAsync(request, _runCts.Token, progress: progress);
+            var workerTimeout = BuildWorkerTimeout(request);
+            if (string.Equals(request.Command, "download_profile_batch", StringComparison.OrdinalIgnoreCase))
+            {
+                AppendLog($"batch_timeout_minutes={workerTimeout.TotalMinutes:0}");
+            }
+            var result = await WorkerBridgeService.Current.RunAsync(request, _runCts.Token, timeout: workerTimeout, progress: progress);
             ApplyWorkerResult(result.Response);
             if (string.Equals(request.Command, "download_profile_batch", StringComparison.OrdinalIgnoreCase))
             {
@@ -180,6 +204,11 @@ public sealed partial class StoriesPage : Page
         finally
         {
             FlushPendingLogs();
+            if (string.Equals(request.Command, "download_profile_batch", StringComparison.OrdinalIgnoreCase))
+            {
+                RefreshLiveDownloadStats();
+                _liveStatsTimer.Stop();
+            }
             _runCts?.Dispose();
             _runCts = null;
             _isRunning = false;
@@ -190,6 +219,19 @@ public sealed partial class StoriesPage : Page
             RefreshNotionInfluencersButton.IsEnabled = true;
             NotionInfluencerToggle.IsEnabled = true;
         }
+    }
+
+    private static TimeSpan BuildWorkerTimeout(WorkerRequest request)
+    {
+        if (!string.Equals(request.Command, "download_profile_batch", StringComparison.OrdinalIgnoreCase))
+        {
+            return TimeSpan.FromMinutes(20);
+        }
+
+        var profileCount = Math.Max(1, request.Urls.Count);
+        var minutesPerProfile = request.Headless ? 1.5 : 3.0;
+        var timeoutMinutes = Math.Clamp(20 + profileCount * minutesPerProfile, 30, 720);
+        return TimeSpan.FromMinutes(timeoutMinutes);
     }
 
     private void HandleWorkerProgress(string line)
@@ -203,6 +245,7 @@ public sealed partial class StoriesPage : Page
             StatusTitleText.Text = "Загружаю";
             StatusDetailText.Text = $"Сейчас обрабатывается: {profile}";
             ResultSummaryText.Text = $"Профилей: {_queue.Count}  ·  Обработано: {_liveProcessedProfiles}/{_queue.Count}  ·  Сейчас: {profile}";
+            RefreshLiveDownloadStats();
             return;
         }
 
@@ -214,6 +257,7 @@ public sealed partial class StoriesPage : Page
             StatusTitleText.Text = "Загружаю";
             StatusDetailText.Text = $"Готов профиль: {profile}";
             ResultSummaryText.Text = $"Профилей: {_queue.Count}  ·  Обработано: {_liveProcessedProfiles}/{_queue.Count}  ·  Последний: {profile}";
+            RefreshLiveDownloadStats();
         }
     }
 
@@ -370,7 +414,67 @@ public sealed partial class StoriesPage : Page
         RetryFailedButton.IsEnabled = _lastFailedProfiles.Count > 0;
         var filesCount = response.Items.Count.ToString();
         ResultSummaryText.Text = $"Профилей: {profilesCount}  ·  Обработано: {processedCount}  ·  Найдено: {foundCount}  ·  Сохранено: {savedCount}  ·  Файлов: {filesCount}";
+        RefreshLiveDownloadStats();
         DiagnosticsService.Current.LogInfo($"stories_result ok={response.Ok} saved={savedCount} failed={_lastFailedProfiles.Count}");
+    }
+
+    private void ResetLiveDownloadStatsBaseline()
+    {
+        var snapshot = SnapshotOutputDirectory(_outputDirectory);
+        _saveDirectoryBaselineFiles = snapshot.Files;
+        _saveDirectoryBaselineFolders = snapshot.Folders;
+        LiveDownloadStatsText.Text = "Файлов загружено: 0  ·  Папок создано: 0";
+    }
+
+    private void RefreshLiveDownloadStats()
+    {
+        var snapshot = SnapshotOutputDirectory(_outputDirectory);
+        var files = Math.Max(snapshot.Files - _saveDirectoryBaselineFiles, 0);
+        var folders = Math.Max(snapshot.Folders - _saveDirectoryBaselineFolders, 0);
+        LiveDownloadStatsText.Text = $"Файлов загружено: {files}  ·  Папок создано: {folders}";
+    }
+
+    private static (int Files, int Folders) SnapshotOutputDirectory(string root)
+    {
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+        {
+            return (0, 0);
+        }
+
+        var files = 0;
+        var folders = 0;
+
+        try
+        {
+            folders = Directory.EnumerateDirectories(root)
+                .Count(path => !IsIgnorableFilesystemEntry(path));
+        }
+        catch
+        {
+            folders = 0;
+        }
+
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+            {
+                if (IsIgnorableFilesystemEntry(file))
+                {
+                    continue;
+                }
+
+                if (SupportedMediaExtensions.Contains(Path.GetExtension(file)))
+                {
+                    files++;
+                }
+            }
+        }
+        catch
+        {
+            files = 0;
+        }
+
+        return (files, folders);
     }
 
     private void AppendLog(string line)
@@ -578,6 +682,7 @@ public sealed partial class StoriesPage : Page
         }
 
         return Directory.EnumerateDirectories(root)
+            .Where(path => !IsProtectedTransferDirectory(path))
             .Where(IsEffectivelyEmptyDirectory)
             .ToList();
     }
@@ -586,7 +691,52 @@ public sealed partial class StoriesPage : Page
     {
         try
         {
-            return !Directory.EnumerateFileSystemEntries(directory).Any();
+            foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
+            {
+                if (IsIgnorableFilesystemEntry(entry))
+                {
+                    continue;
+                }
+
+                return false;
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsIgnorableFilesystemEntry(string path)
+    {
+        try
+        {
+            var name = Path.GetFileName(path);
+            if (string.Equals(name, ".DS_Store", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "desktop.ini", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "Thumbs.db", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var attributes = File.GetAttributes(path);
+            return attributes.HasFlag(FileAttributes.Hidden) || attributes.HasFlag(FileAttributes.System);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsProtectedTransferDirectory(string path)
+    {
+        try
+        {
+            return Path.GetFullPath(path)
+                .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                .Any(component => string.Equals(component, "На перенос", StringComparison.OrdinalIgnoreCase));
         }
         catch
         {
