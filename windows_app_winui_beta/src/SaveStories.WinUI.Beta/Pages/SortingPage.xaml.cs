@@ -92,7 +92,7 @@ public sealed partial class SortingPage : Page
             return;
         }
 
-        var deletableFolders = FindDeletableEmptySubfolders(root).ToList();
+        var deletableFolders = EmptyFolderCleanupService.FindDeletableEmptyFolders(root).ToList();
         if (deletableFolders.Count == 0)
         {
             EmptyFolderCleanupStatusText.Text = "Пустых папок в выбранной папке не найдено.";
@@ -127,28 +127,15 @@ public sealed partial class SortingPage : Page
             return;
         }
 
-        var removed = 0;
-        var failed = 0;
-        foreach (var folder in deletableFolders)
+        var cleanup = EmptyFolderCleanupService.DeleteEmptyFolders(deletableFolders);
+        foreach (var folder in cleanup.FailedFolders)
         {
-            try
-            {
-                if (IsEffectivelyEmptyDirectory(folder))
-                {
-                    Directory.Delete(folder, recursive: true);
-                    removed++;
-                }
-            }
-            catch (Exception ex)
-            {
-                failed++;
-                DiagnosticsService.Current.LogError($"Windows empty folder cleanup failed for {folder}", ex);
-            }
+            DiagnosticsService.Current.LogError($"Windows empty folder cleanup failed for {folder}", new IOException("Папка не удалена."));
         }
 
-        EmptyFolderCleanupStatusText.Text = failed == 0
-            ? $"Удалено пустых папок: {removed}."
-            : $"Удалено пустых папок: {removed}. Ошибок: {failed}.";
+        EmptyFolderCleanupStatusText.Text = cleanup.FailedFolders.Count == 0
+            ? $"Удалено пустых папок: {cleanup.RemovedFolders.Count}."
+            : $"Удалено пустых папок: {cleanup.RemovedFolders.Count}. Ошибок: {cleanup.FailedFolders.Count}.";
         SortingStatusText.Text = EmptyFolderCleanupStatusText.Text;
     }
 
@@ -377,120 +364,4 @@ public sealed partial class SortingPage : Page
         }
     }
 
-    private static IEnumerable<string> FindDeletableEmptySubfolders(string root)
-    {
-        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
-        {
-            return Enumerable.Empty<string>();
-        }
-
-        try
-        {
-            var candidates = Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories)
-                .Where(path => !IsProtectedTransferDirectory(path))
-                .OrderByDescending(path => path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Length)
-                .ToList();
-
-            var deletable = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var folder in candidates)
-            {
-                if (IsEffectivelyEmptyDirectoryAfterDeletingKnownEmptyChildren(folder, deletable))
-                {
-                    deletable.Add(Path.GetFullPath(folder));
-                }
-            }
-
-            return candidates
-                .Where(folder => deletable.Contains(Path.GetFullPath(folder)))
-                .ToList();
-        }
-        catch
-        {
-            return Enumerable.Empty<string>();
-        }
-    }
-
-    private static bool IsEffectivelyEmptyDirectoryAfterDeletingKnownEmptyChildren(string directory, ISet<string> knownEmptyDirectories)
-    {
-        try
-        {
-            foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
-            {
-                if (IsIgnorableFilesystemEntry(entry))
-                {
-                    continue;
-                }
-
-                if (Directory.Exists(entry) && knownEmptyDirectories.Contains(Path.GetFullPath(entry)))
-                {
-                    continue;
-                }
-
-                return false;
-            }
-
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static bool IsEffectivelyEmptyDirectory(string directory)
-    {
-        try
-        {
-            foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
-            {
-                if (IsIgnorableFilesystemEntry(entry))
-                {
-                    continue;
-                }
-
-                return false;
-            }
-
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static bool IsIgnorableFilesystemEntry(string path)
-    {
-        try
-        {
-            var name = Path.GetFileName(path);
-            if (string.Equals(name, ".DS_Store", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(name, "desktop.ini", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(name, "Thumbs.db", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            var attributes = File.GetAttributes(path);
-            return attributes.HasFlag(FileAttributes.Hidden) || attributes.HasFlag(FileAttributes.System);
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static bool IsProtectedTransferDirectory(string path)
-    {
-        try
-        {
-            return Path.GetFullPath(path)
-                .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                .Any(component => string.Equals(component, "На перенос", StringComparison.OrdinalIgnoreCase));
-        }
-        catch
-        {
-            return false;
-        }
-    }
 }

@@ -98,15 +98,19 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         settings = read(
             "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/BetaSettingsStore.cs"
         )
+        cleanup = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/EmptyFolderCleanupService.cs"
+        )
 
         self.assertIn("StoriesOutputDirectory", settings)
         self.assertIn("SetStoriesOutputDirectory", settings)
         self.assertIn("BetaSettingsStore.Current.StoriesOutputDirectory", page)
         self.assertIn("BetaSettingsStore.Current.SetStoriesOutputDirectory", page)
         self.assertIn("OfferEmptyFolderCleanupAsync", page)
-        self.assertIn("FindEmptyStoryFolders", page)
-        self.assertIn("IsProtectedTransferDirectory", page)
-        self.assertIn("IsIgnorableFilesystemEntry", page)
+        self.assertIn("EmptyFolderCleanupService.FindDeletableEmptyFolders", page)
+        self.assertIn("EmptyFolderCleanupService.DeleteEmptyFolders", page)
+        self.assertIn("IsProtectedTransferDirectory", cleanup)
+        self.assertIn("IsIgnorableFilesystemEntry", cleanup)
         self.assertIn("Удалить пустые папки?", page)
 
     def test_winui_sorting_has_independent_empty_folder_cleanup(self) -> None:
@@ -121,12 +125,25 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("0. УДАЛИТЬ ПУСТЫЕ ПАПКИ", xaml)
         self.assertIn("OnDeleteEmptyFoldersClick", page)
         self.assertIn("EmptyFolderCleanupStatusText", xaml)
-        self.assertIn("FindDeletableEmptySubfolders", page)
-        self.assertIn("IsEffectivelyEmptyDirectoryAfterDeletingKnownEmptyChildren", page)
-        self.assertIn("IsIgnorableFilesystemEntry", page)
-        self.assertIn("IsProtectedTransferDirectory", page)
-        self.assertIn("На перенос", page)
-        self.assertIn("Directory.Delete(folder, recursive: true)", page)
+        self.assertIn("EmptyFolderCleanupService.FindDeletableEmptyFolders", page)
+        self.assertIn("EmptyFolderCleanupService.DeleteEmptyFolders", page)
+        self.assertIn("Папка «На перенос»", page)
+
+    def test_winui_empty_folder_cleanup_uses_single_shared_service(self) -> None:
+        stories_page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml.cs")
+        sorting_page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SortingPage.xaml.cs")
+        cleanup = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/EmptyFolderCleanupService.cs"
+        )
+
+        self.assertIn("FindDeletableEmptyFolders", cleanup)
+        self.assertIn("DeleteEmptyFolders", cleanup)
+        self.assertIn("IsEffectivelyEmptyDirectoryAfterDeletingKnownEmptyChildren", cleanup)
+        self.assertIn("IsProtectedTransferDirectory", cleanup)
+        self.assertIn("На перенос", cleanup)
+        self.assertIn("Directory.Delete(folder, recursive: true)", cleanup)
+        self.assertNotIn("private static bool IsProtectedTransferDirectory", stories_page)
+        self.assertNotIn("private static bool IsProtectedTransferDirectory", sorting_page)
 
     def test_winui_sorting_has_google_drive_link_digest_buttons(self) -> None:
         page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SortingPage.xaml.cs")

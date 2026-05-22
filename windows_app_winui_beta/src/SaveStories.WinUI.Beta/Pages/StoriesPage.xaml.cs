@@ -612,7 +612,7 @@ public sealed partial class StoriesPage : Page
 
     private async Task OfferEmptyFolderCleanupAsync()
     {
-        var emptyFolders = FindEmptyStoryFolders(_outputDirectory).ToList();
+        var emptyFolders = EmptyFolderCleanupService.FindDeletableEmptyFolders(_outputDirectory).ToList();
         if (emptyFolders.Count == 0)
         {
             AppendLog("Пустых папок после выгрузки stories не найдено.");
@@ -635,7 +635,7 @@ public sealed partial class StoriesPage : Page
                 MaxHeight = 260,
                 Content = new TextBlock
                 {
-                    Text = $"После выгрузки stories найдены пустые папки профилей. Удалить их и оставить только папки с файлами?{Environment.NewLine}{Environment.NewLine}{preview}",
+                    Text = $"После выгрузки stories найдены пустые папки. Папка «На перенос» и её содержимое не трогаются.{Environment.NewLine}{Environment.NewLine}{preview}",
                     TextWrapping = TextWrapping.WrapWholeWords,
                 },
             },
@@ -651,97 +651,19 @@ public sealed partial class StoriesPage : Page
             return;
         }
 
-        var removed = new List<string>();
-        foreach (var folder in emptyFolders)
+        var cleanup = EmptyFolderCleanupService.DeleteEmptyFolders(emptyFolders);
+        foreach (var folder in cleanup.FailedFolders)
         {
-            try
-            {
-                Directory.Delete(folder, recursive: false);
-                removed.Add(Path.GetFileName(folder));
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"[empty_folder_cleanup_error] {Path.GetFileName(folder)}: {ex.Message}");
-            }
+            AppendLog($"[empty_folder_cleanup_error] {Path.GetFileName(folder)}: папка не удалена.");
         }
 
         StatusTitleText.Text = "Готово";
-        StatusDetailText.Text = removed.Count == 0
+        StatusDetailText.Text = cleanup.RemovedFolders.Count == 0
             ? "Пустые папки не удалены."
-            : $"Удалено пустых папок: {removed.Count}.";
-        AppendLog(removed.Count == 0
+            : $"Удалено пустых папок: {cleanup.RemovedFolders.Count}.";
+        AppendLog(cleanup.RemovedFolders.Count == 0
             ? "Пустые папки не удалены."
-            : $"Удалены пустые папки после выгрузки stories: {string.Join(", ", removed)}.");
-    }
-
-    private static IEnumerable<string> FindEmptyStoryFolders(string root)
-    {
-        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
-        {
-            return Enumerable.Empty<string>();
-        }
-
-        return Directory.EnumerateDirectories(root)
-            .Where(path => !IsProtectedTransferDirectory(path))
-            .Where(IsEffectivelyEmptyDirectory)
-            .ToList();
-    }
-
-    private static bool IsEffectivelyEmptyDirectory(string directory)
-    {
-        try
-        {
-            foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
-            {
-                if (IsIgnorableFilesystemEntry(entry))
-                {
-                    continue;
-                }
-
-                return false;
-            }
-
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static bool IsIgnorableFilesystemEntry(string path)
-    {
-        try
-        {
-            var name = Path.GetFileName(path);
-            if (string.Equals(name, ".DS_Store", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(name, "desktop.ini", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(name, "Thumbs.db", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            var attributes = File.GetAttributes(path);
-            return attributes.HasFlag(FileAttributes.Hidden) || attributes.HasFlag(FileAttributes.System);
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static bool IsProtectedTransferDirectory(string path)
-    {
-        try
-        {
-            return Path.GetFullPath(path)
-                .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                .Any(component => string.Equals(component, "На перенос", StringComparison.OrdinalIgnoreCase));
-        }
-        catch
-        {
-            return false;
-        }
+            : $"Удалены пустые папки после выгрузки stories: {string.Join(", ", cleanup.RemovedFolderNames)}.");
     }
 
     private void OnBrowserModeChecked(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
