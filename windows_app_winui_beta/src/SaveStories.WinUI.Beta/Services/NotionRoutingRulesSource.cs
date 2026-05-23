@@ -87,9 +87,10 @@ public sealed partial class NotionRoutingRulesSource
     public static string NormalizeRules(string text)
     {
         var rules = new List<string>();
+        var currentTarget = "";
         foreach (var rawLine in text.Split('\n', StringSplitOptions.TrimEntries))
         {
-            var line = rawLine.Trim();
+            var line = rawLine.Trim().TrimStart('#').Trim();
             if (line.Length == 0
                 || line.Contains("Правила для сортировки", StringComparison.OrdinalIgnoreCase))
             {
@@ -97,21 +98,37 @@ public sealed partial class NotionRoutingRulesSource
             }
 
             var separator = line.IndexOf('=');
-            if (separator < 0)
+            if (separator >= 0)
+            {
+                var left = line[..separator];
+                var target = line[(separator + 1)..].Trim();
+                if (target.Length == 0)
+                {
+                    continue;
+                }
+
+                foreach (var username in NormalizedUsernames(left))
+                {
+                    rules.Add($"{username} = {target}");
+                }
+
+                continue;
+            }
+
+            if (LooksLikeTargetFolder(line))
+            {
+                currentTarget = line;
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(currentTarget))
             {
                 continue;
             }
 
-            var left = line[..separator];
-            var target = line[(separator + 1)..].Trim();
-            if (target.Length == 0)
+            foreach (var username in NormalizedUsernames(line))
             {
-                continue;
-            }
-
-            foreach (var username in NormalizedUsernames(left))
-            {
-                rules.Add($"{username} = {target}");
+                rules.Add($"{username} = {currentTarget}");
             }
         }
 
@@ -120,15 +137,33 @@ public sealed partial class NotionRoutingRulesSource
 
     private static IEnumerable<string> NormalizedUsernames(string value)
     {
-        foreach (var rawPart in value.Split(':', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        foreach (var rawPart in value.Split(new[] { ':', ',' }, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
         {
-            var part = ParentheticalRegex().Replace(rawPart, "");
+            var part = InstagramUsername(rawPart);
+            part = ParentheticalRegex().Replace(part, "");
             var cleaned = part.Trim().Trim('@', '*', '/', '\\', '.', ',', ';', ':', '!', '?', '[', ']', '{', '}', '<', '>', '"', '\'', '`');
             if (cleaned.Length > 0)
             {
                 yield return cleaned;
             }
         }
+    }
+
+    private static bool LooksLikeTargetFolder(string value)
+    {
+        return value.Contains(" INF", StringComparison.OrdinalIgnoreCase)
+            || Regex.IsMatch(value, @"\([A-Z]{2}\)");
+    }
+
+    private static string InstagramUsername(string value)
+    {
+        if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+            || !uri.Host.Contains("instagram.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return value;
+        }
+
+        return uri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? value;
     }
 
     private static string NotionRichText(JsonElement value)

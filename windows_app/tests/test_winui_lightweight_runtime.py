@@ -150,6 +150,16 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("SourceUsername", sorting_service)
         self.assertIn("public sealed class LatestDownloadStore", latest_store)
 
+    def test_winui_notion_rules_support_country_headings(self) -> None:
+        source = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/NotionRoutingRulesSource.cs"
+        )
+
+        self.assertIn("LooksLikeTargetFolder", source)
+        self.assertIn("currentTarget", source)
+        self.assertIn("InstagramUsername", source)
+        self.assertIn('uri.Host.Contains("instagram.com"', source)
+
     def test_winui_empty_folder_cleanup_uses_single_shared_service(self) -> None:
         stories_page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml.cs")
         sorting_page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SortingPage.xaml.cs")
@@ -185,6 +195,9 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("BuildPostProcessedReport", service)
         self.assertIn("BuildGoogleDriveDigest", service)
         self.assertIn("MetadataRetryCount", exporter)
+        self.assertIn("user.drive.id", exporter)
+        self.assertIn("LinkFromUserDriveId", exporter)
+        self.assertIn('StartsWith("local"', exporter)
         self.assertIn("com.google.drivefs.url", exporter)
         self.assertIn("com.google.drivefs.item-id", exporter)
         self.assertIn("https://drive.google.com/open?id=", exporter)

@@ -61,10 +61,18 @@ public sealed class GoogleDriveLinkExporter
             return null;
         }
 
+        var userDriveId = LinkFromUserDriveId(filePath);
+        if (!string.IsNullOrWhiteSpace(userDriveId))
+        {
+            return userDriveId;
+        }
+
         foreach (var streamName in EnumerateAlternateDataStreams(filePath))
         {
             if (!streamName.Contains("com.google.drivefs.item-id", StringComparison.OrdinalIgnoreCase) &&
-                !streamName.Contains("com.google.drivefs.url", StringComparison.OrdinalIgnoreCase))
+                !streamName.Contains("com.google.drivefs.url", StringComparison.OrdinalIgnoreCase) &&
+                !streamName.Contains("user.drive.id", StringComparison.OrdinalIgnoreCase) &&
+                !streamName.Contains("user.drive.itemprotostr", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -78,6 +86,39 @@ public sealed class GoogleDriveLinkExporter
         }
 
         return null;
+    }
+
+    private static string? LinkFromUserDriveId(string filePath)
+    {
+        var itemId = TryReadVirtualMetadataStream(filePath, "user.drive.id");
+        if (string.IsNullOrWhiteSpace(itemId) || itemId.StartsWith("local", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return IsGoogleDriveItemId(itemId)
+            ? $"https://drive.google.com/open?id={itemId}"
+            : null;
+    }
+
+    private static string? TryReadVirtualMetadataStream(string filePath, string streamName)
+    {
+        try
+        {
+            return ReadStreamText($"{filePath}:{streamName}");
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
     }
 
     private static string ReadStreamText(string adsPath)
@@ -104,11 +145,21 @@ public sealed class GoogleDriveLinkExporter
             return $"https://drive.google.com/open?id={openId.Groups[1].Value}";
         }
 
-        if (streamName.Contains("com.google.drivefs.item-id", StringComparison.OrdinalIgnoreCase))
+        if (streamName.Contains("user.drive.itemprotostr", StringComparison.OrdinalIgnoreCase))
+        {
+            var itemProtoId = Regex.Match(metadata, @"(?:id|item_id|drive_id)[""'\s:=]+([A-Za-z0-9_-]{10,128})", RegexOptions.IgnoreCase);
+            if (itemProtoId.Success && IsGoogleDriveItemId(itemProtoId.Groups[1].Value))
+            {
+                return $"https://drive.google.com/open?id={itemProtoId.Groups[1].Value}";
+            }
+        }
+
+        if (streamName.Contains("com.google.drivefs.item-id", StringComparison.OrdinalIgnoreCase) ||
+            streamName.Contains("user.drive.id", StringComparison.OrdinalIgnoreCase))
         {
             var itemId = metadata
                 .Split(new[] { '\r', '\n', '\0' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .FirstOrDefault(IsGoogleDriveItemId);
+                .FirstOrDefault(value => !value.StartsWith("local", StringComparison.OrdinalIgnoreCase) && IsGoogleDriveItemId(value));
             if (!string.IsNullOrWhiteSpace(itemId))
             {
                 return $"https://drive.google.com/open?id={itemId}";
