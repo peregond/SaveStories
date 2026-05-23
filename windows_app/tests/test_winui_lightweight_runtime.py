@@ -189,6 +189,17 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("com.google.drivefs.item-id", exporter)
         self.assertIn("https://drive.google.com/open?id=", exporter)
 
+    def test_winui_folder_picker_uses_explorer_style_dialog(self) -> None:
+        picker = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/ShellFolderService.cs"
+        )
+
+        self.assertIn("IFileOpenDialog", picker)
+        self.assertIn("FileOpenOptions.PickFolders", picker)
+        self.assertIn("SHCreateItemFromParsingName", picker)
+        self.assertNotIn("SHBrowseForFolder", picker)
+        self.assertNotIn("BROWSEINFO", picker)
+
     def test_winui_sorting_transfer_matches_macos_visible_file_rules(self) -> None:
         service = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/SortingService.cs")
 
