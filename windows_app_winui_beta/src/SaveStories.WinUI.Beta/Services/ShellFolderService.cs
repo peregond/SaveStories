@@ -10,14 +10,14 @@ public static class ShellFolderService
     public static string? PickFolder(Window? owner, string title, string? initialDirectory = null)
     {
         var hwnd = owner is null ? IntPtr.Zero : WindowNative.GetWindowHandle(owner);
-        var dialog = (IFileOpenDialog)new FileOpenDialog();
+        var dialog = CreateFileOpenDialog();
         var initialPath = ExistingDirectoryOrDefault(initialDirectory);
 
         dialog.GetOptions(out var options);
         dialog.SetOptions(options | FileOpenOptions.PickFolders | FileOpenOptions.ForceFilesystem | FileOpenOptions.PathMustExist);
         dialog.SetTitle(title);
 
-        if (TryCreateShellItem(initialPath, out var initialFolder))
+        if (TryCreateShellItem(initialPath, out var initialFolder) && initialFolder is not null)
         {
             dialog.SetFolder(initialFolder);
         }
@@ -84,7 +84,14 @@ public static class ShellFolderService
         return hr >= 0 && shellItem is not null;
     }
 
+    private static IFileOpenDialog CreateFileOpenDialog()
+    {
+        var dialogType = Type.GetTypeFromCLSID(FileOpenDialogClsid, throwOnError: true);
+        return (IFileOpenDialog)Activator.CreateInstance(dialogType!)!;
+    }
+
     private const int HResultCancelled = unchecked((int)0x800704C7);
+    private static readonly Guid FileOpenDialogClsid = new("DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7");
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
     private static extern int SHCreateItemFromParsingName(
@@ -92,12 +99,6 @@ public static class ShellFolderService
         IntPtr pbc,
         [MarshalAs(UnmanagedType.LPStruct)] Guid riid,
         [MarshalAs(UnmanagedType.Interface)] out IShellItem? ppv);
-
-    [ComImport]
-    [Guid("DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7")]
-    private sealed class FileOpenDialog
-    {
-    }
 
     [ComImport]
     [Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE")]
