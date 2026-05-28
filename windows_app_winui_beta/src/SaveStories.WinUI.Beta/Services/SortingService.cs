@@ -215,6 +215,7 @@ public sealed class SortingService
                     Blogger: input.Blogger,
                     CountryFolder: CountryFolder(input.TargetRelativeFolder),
                     TargetRelativeFolder: input.TargetRelativeFolder,
+                    OriginalPath: input.CurrentPath,
                     CurrentPath: destinationPath));
             }
             catch (Exception ex)
@@ -241,6 +242,63 @@ public sealed class SortingService
             Success: moved.Count > 0 && failed.Count == 0,
             Summary: summary,
             Records: moved.OrderBy(x => x.CountryFolder).ThenBy(x => x.Blogger).ThenBy(x => x.CurrentPath).ToList(),
+            FailedItems: failed);
+    }
+
+    public SortingUndoResult UndoDistribution(IEnumerable<SortedFileRecord> records)
+    {
+        var restored = new List<SortedFileRecord>();
+        var failed = new List<string>();
+
+        foreach (var record in records.Reverse())
+        {
+            if (string.IsNullOrWhiteSpace(record.OriginalPath) || string.IsNullOrWhiteSpace(record.CurrentPath))
+            {
+                continue;
+            }
+
+            if (!File.Exists(record.CurrentPath))
+            {
+                failed.Add(Path.GetFileName(record.CurrentPath));
+                continue;
+            }
+
+            try
+            {
+                var originalDirectory = Path.GetDirectoryName(record.OriginalPath);
+                if (string.IsNullOrWhiteSpace(originalDirectory))
+                {
+                    failed.Add(Path.GetFileName(record.CurrentPath));
+                    continue;
+                }
+
+                Directory.CreateDirectory(originalDirectory);
+                var restoredPath = File.Exists(record.OriginalPath) && !PathsEqual(record.CurrentPath, record.OriginalPath)
+                    ? UniqueDestinationPath(Path.GetFileName(record.OriginalPath), originalDirectory)
+                    : record.OriginalPath;
+
+                if (!PathsEqual(record.CurrentPath, restoredPath))
+                {
+                    File.Move(record.CurrentPath, restoredPath);
+                }
+
+                restored.Add(record with
+                {
+                    OriginalPath = record.CurrentPath,
+                    CurrentPath = restoredPath,
+                });
+            }
+            catch (Exception ex)
+            {
+                failed.Add($"{Path.GetFileName(record.CurrentPath)}: {ex.Message}");
+            }
+        }
+
+        return new SortingUndoResult(
+            Summary: failed.Count == 0
+                ? $"Отменён перенос файлов: {restored.Count}."
+                : $"Отменён перенос файлов: {restored.Count}. Ошибок: {failed.Count}.",
+            RestoredRecords: restored.OrderBy(x => x.CountryFolder).ThenBy(x => x.Blogger).ThenBy(x => x.CurrentPath).ToList(),
             FailedItems: failed);
     }
 
@@ -418,6 +476,7 @@ public sealed record SortedFileRecord(
     string Blogger,
     string CountryFolder,
     string TargetRelativeFolder,
+    string OriginalPath,
     string CurrentPath);
 
 public sealed record SortingResult(
@@ -428,3 +487,8 @@ public sealed record SortingResult(
 {
     public static SortingResult Failed(string message) => new(false, message, Array.Empty<SortedFileRecord>(), Array.Empty<string>());
 }
+
+public sealed record SortingUndoResult(
+    string Summary,
+    IReadOnlyList<SortedFileRecord> RestoredRecords,
+    IReadOnlyList<string> FailedItems);

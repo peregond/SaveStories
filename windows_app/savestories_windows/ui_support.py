@@ -80,7 +80,7 @@ def app_version() -> str:
         value = version_path.read_text(encoding="utf-8").strip()
         if value:
             return value
-    return "0.6.63"
+    return "0.6.64"
 
 
 def prevent_system_sleep() -> bool:

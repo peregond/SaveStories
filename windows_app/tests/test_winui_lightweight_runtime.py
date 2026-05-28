@@ -150,6 +150,18 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("SourceUsername", sorting_service)
         self.assertIn("public sealed class LatestDownloadStore", latest_store)
 
+    def test_winui_sorting_can_undo_last_transfer(self) -> None:
+        sorting_page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SortingPage.xaml.cs")
+        sorting_xaml = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SortingPage.xaml")
+        sorting_service = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/SortingService.cs")
+
+        self.assertIn("Отмена переноса", sorting_xaml)
+        self.assertIn("UndoSortingButton", sorting_xaml)
+        self.assertIn("OnUndoSortingClick", sorting_page)
+        self.assertIn("_lastUndoRecords", sorting_page)
+        self.assertIn("UndoDistribution", sorting_service)
+        self.assertIn("OriginalPath", sorting_service)
+
     def test_winui_notion_rules_support_country_headings(self) -> None:
         source = read(
             "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/NotionRoutingRulesSource.cs"

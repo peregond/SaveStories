@@ -108,6 +108,7 @@ final class AppModel: ObservableObject {
         let id: String
         let originalUsername: String
         let targetFolderName: String
+        let originalPath: String
         let currentPath: String
 
         var reportHeader: String {

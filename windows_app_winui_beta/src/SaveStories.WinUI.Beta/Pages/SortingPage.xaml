@@ -131,6 +131,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Click="OnRunSortingClick" Content="Разложить из папки Перенос" Style="{StaticResource SuccessActionButtonStyle}" />
                             <Button Click="OnRunLatestDownloadSortingClick" Content="Из последней загрузки" />
+                            <Button x:Name="UndoSortingButton" Click="OnUndoSortingClick" Content="Отмена переноса" IsEnabled="False" />
                         </StackPanel>
                         <TextBlock
                             x:Name="LatestDownloadSummaryText"

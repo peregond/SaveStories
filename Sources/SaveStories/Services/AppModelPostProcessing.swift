@@ -267,6 +267,86 @@ extension AppModel {
         appendLog("Список разложенных файлов скопирован в буфер обмена.")
     }
 
+    func undoLastDistribution() {
+        guard !isBusy else { return }
+
+        let undoItems = postProcessedItems.filter { $0.originalPath != $0.currentPath }
+        guard !undoItems.isEmpty else {
+            postProcessingSummary = "Нет переноса для отмены."
+            appendLog("Отмена переноса пропущена: нет последнего переноса.")
+            return
+        }
+
+        let manager = FileManager.default
+        var restoredItems: [PostProcessedItem] = []
+        var failedItems: [PostProcessedItem] = []
+        var latestUpdates = Dictionary(uniqueKeysWithValues: latestSessionDownloadedItems.map { ($0.id, $0) })
+        var failedPaths: [String] = []
+
+        for item in undoItems.reversed() {
+            let currentURL = URL(fileURLWithPath: item.currentPath)
+            let originalURL = URL(fileURLWithPath: item.originalPath)
+
+            guard manager.fileExists(atPath: currentURL.path) else {
+                failedPaths.append(currentURL.lastPathComponent)
+                failedItems.append(item)
+                appendLog("Файл не найден для отмены переноса: \(currentURL.path).")
+                continue
+            }
+
+            do {
+                try manager.createDirectory(
+                    at: originalURL.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+
+                let restoredURL = manager.fileExists(atPath: originalURL.path)
+                    && currentURL.standardizedFileURL != originalURL.standardizedFileURL
+                    ? uniqueDestinationURL(
+                        for: originalURL.lastPathComponent,
+                        in: originalURL.deletingLastPathComponent(),
+                        fileManager: manager
+                    )
+                    : originalURL
+
+                if currentURL.standardizedFileURL != restoredURL.standardizedFileURL {
+                    try manager.moveItem(at: currentURL, to: restoredURL)
+                }
+
+                let restored = PostProcessedItem(
+                    id: item.id,
+                    originalUsername: item.originalUsername,
+                    targetFolderName: item.targetFolderName,
+                    originalPath: item.currentPath,
+                    currentPath: restoredURL.path
+                )
+                restoredItems.append(restored)
+
+                if let latestItem = latestUpdates[item.id] {
+                    latestUpdates[item.id] = latestItem.with(localPath: restoredURL.path)
+                }
+            } catch {
+                failedPaths.append(currentURL.lastPathComponent)
+                failedItems.append(item)
+                appendLog("Не удалось отменить перенос \(currentURL.lastPathComponent): \(error.localizedDescription)")
+            }
+        }
+
+        latestSessionDownloadedItems = latestSessionDownloadedItems.map { latestUpdates[$0.id] ?? $0 }
+        synchronizeDownloadedItems(with: latestSessionDownloadedItems)
+        googleDriveLinkSummary = "Перенос отменён. После новой сортировки Drive-ссылки нужно собрать заново."
+
+        if failedPaths.isEmpty {
+            postProcessedItems = []
+            postProcessingSummary = "Отменён перенос файлов: \(restoredItems.count)."
+        } else {
+            postProcessedItems = failedItems
+            postProcessingSummary = "Отменён перенос файлов: \(restoredItems.count). Ошибок: \(failedPaths.count)."
+            appendLog("Не удалось вернуть файлов: \(failedPaths.joined(separator: ", ")).")
+        }
+        appendLog(postProcessingSummary)
+    }
+
     func parsedFolderRoutingRules() -> [String: String] {
         let mapping: [String: String] = folderRoutingRules
             .split(whereSeparator: \.isNewline)
@@ -314,6 +394,7 @@ extension AppModel {
                     id: $0.id,
                     originalUsername: username,
                     targetFolderName: username,
+                    originalPath: resolvedCurrentURL(for: $0).path,
                     currentPath: resolvedCurrentURL(for: $0).path
                 )
             }
@@ -612,6 +693,7 @@ extension AppModel {
                         id: input.id,
                         originalUsername: input.originalUsername,
                         targetFolderName: input.targetRelativeFolder,
+                        originalPath: input.currentURL.path,
                         currentPath: destinationURL.path
                     )
                 )

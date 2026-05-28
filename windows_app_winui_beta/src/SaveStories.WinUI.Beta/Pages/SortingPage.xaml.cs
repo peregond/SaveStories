@@ -10,6 +10,7 @@ public sealed partial class SortingPage : Page
     private readonly NotionRoutingRulesSource _notionRoutingRulesSource = new();
     private readonly GoogleDriveLinkExporter _googleDriveLinkExporter = new();
     private List<SortedFileRecord> _lastRecords = new();
+    private List<SortedFileRecord> _lastUndoRecords = new();
     private string _lastDigest = "";
     private string _lastLinksDigest = "";
     private bool _isRefreshingNotionRules;
@@ -170,6 +171,7 @@ public sealed partial class SortingPage : Page
         {
             var result = SortingService.Current.DistributeFromSource(source, destination, RulesTextBox.Text);
             _lastRecords = result.Records.ToList();
+            _lastUndoRecords = _lastRecords.Where(record => !PathsEqual(record.OriginalPath, record.CurrentPath)).ToList();
             _lastDigest = SortingService.Current.BuildPostProcessedReport(_lastRecords);
             _lastLinksDigest = "";
             DigestTitleText.Text = "ЛОКАЛЬНЫЙ СПИСОК";
@@ -177,6 +179,7 @@ public sealed partial class SortingPage : Page
             var hasResult = !string.IsNullOrWhiteSpace(_lastDigest);
             CopyDigestButton.IsEnabled = hasResult;
             CopyLinksButton.IsEnabled = hasResult;
+            UndoSortingButton.IsEnabled = _lastUndoRecords.Count > 0;
             GoogleDriveLinkStatusText.Text = hasResult
                 ? "Локальный список готов. Для Google Drive нажми «Скопировать ссылки»."
                 : "Ссылки Google Drive ещё не собирались.";
@@ -226,6 +229,7 @@ public sealed partial class SortingPage : Page
                 RulesTextBox.Text);
             _lastRecords = result.Records.ToList();
             LatestDownloadStore.Current.UpdatePaths(_lastRecords);
+            _lastUndoRecords = _lastRecords.Where(record => !PathsEqual(record.OriginalPath, record.CurrentPath)).ToList();
             _lastDigest = SortingService.Current.BuildPostProcessedReport(_lastRecords);
             _lastLinksDigest = "";
             DigestTitleText.Text = "ЛОКАЛЬНЫЙ СПИСОК";
@@ -233,6 +237,7 @@ public sealed partial class SortingPage : Page
             var hasResult = !string.IsNullOrWhiteSpace(_lastDigest);
             CopyDigestButton.IsEnabled = hasResult;
             CopyLinksButton.IsEnabled = hasResult;
+            UndoSortingButton.IsEnabled = _lastUndoRecords.Count > 0;
             GoogleDriveLinkStatusText.Text = hasResult
                 ? "Локальный список готов. Для Google Drive нажми «Скопировать ссылки»."
                 : "Ссылки Google Drive ещё не собирались.";
@@ -246,6 +251,48 @@ public sealed partial class SortingPage : Page
         {
             SortingStatusText.Text = ex.Message;
             DiagnosticsService.Current.LogError("Windows latest-download sorting failed", ex);
+        }
+    }
+
+    private void OnUndoSortingClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (_lastUndoRecords.Count == 0)
+        {
+            SortingStatusText.Text = "Нет переноса для отмены.";
+            return;
+        }
+
+        try
+        {
+            var result = SortingService.Current.UndoDistribution(_lastUndoRecords);
+            LatestDownloadStore.Current.UpdatePaths(result.RestoredRecords);
+            if (result.FailedItems.Count == 0)
+            {
+                _lastUndoRecords = new List<SortedFileRecord>();
+                _lastRecords = new List<SortedFileRecord>();
+                _lastDigest = "";
+                _lastLinksDigest = "";
+                DigestTitleText.Text = "ДАЙДЖЕСТ";
+                DigestTextBox.Text = "";
+                CopyDigestButton.IsEnabled = false;
+                CopyLinksButton.IsEnabled = false;
+            }
+            else
+            {
+                _lastUndoRecords = _lastUndoRecords.Where(record => File.Exists(record.CurrentPath)).ToList();
+            }
+            UndoSortingButton.IsEnabled = _lastUndoRecords.Count > 0;
+            GoogleDriveLinkStatusText.Text = "Перенос отменён. После новой сортировки Drive-ссылки нужно собрать заново.";
+            SortingStatusText.Text = result.FailedItems.Count == 0
+                ? result.Summary
+                : $"{result.Summary} Ошибок: {result.FailedItems.Count}.";
+            RefreshLatestDownloadSummary();
+            RefreshRememberedBloggers();
+        }
+        catch (Exception ex)
+        {
+            SortingStatusText.Text = $"Не удалось отменить перенос: {ex.Message}";
+            DiagnosticsService.Current.LogError("Windows sorting undo failed", ex);
         }
     }
 
@@ -416,6 +463,14 @@ public sealed partial class SortingPage : Page
     private static string DisplayPath(string value)
     {
         return string.IsNullOrWhiteSpace(value) ? "Папка ещё не выбрана." : value;
+    }
+
+    private static bool PathsEqual(string left, string right)
+    {
+        return string.Equals(
+            Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+            Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private void OpenDirectory(string path)

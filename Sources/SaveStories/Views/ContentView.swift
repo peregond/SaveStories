@@ -186,6 +186,10 @@ struct ContentView: View {
         !model.postProcessedItems.isEmpty
     }
 
+    var sortingCanUndo: Bool {
+        model.postProcessedItems.contains { $0.originalPath != $0.currentPath }
+    }
+
     var body: some View {
         ZStack {
             windowBackground
@@ -1550,6 +1554,11 @@ struct ContentView: View {
                         model.distributeFilesFromSortingSource()
                     }
                     .disabled(!(sortingHasSource && sortingHasDestination))
+
+                    button("Отмена переноса", systemImage: "arrow.uturn.backward", prominent: false) {
+                        model.undoLastDistribution()
+                    }
+                    .disabled(!sortingCanUndo)
 
                     DisclosureGroup(isExpanded: $sortingAdvancedExpanded) {
                         VStack(alignment: .leading, spacing: 10) {
