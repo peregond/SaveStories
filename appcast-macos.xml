@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.63</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.64</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.63</title>
-      <pubDate>Sat, 23 May 2026 09:48:52 GMT</pubDate>
-      <sparkle:version>134</sparkle:version>
-      <sparkle:shortVersionString>0.6.63</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.63</h2>
-<ul><li>Windows: выбор папки теперь открывается через полноценный Explorer-диалог с боковой панелью, адресной строкой и привычной навигацией.</li><li>Windows Sort: правила из Notion теперь поддерживают формат `страна → список аккаунтов`, поэтому файлы раскладываются во вложенные папки стран так же, как на macOS.</li><li>Windows Sort: сбор Google Drive ссылок теперь читает Windows-метаданные `user.drive.id` и ждёт, пока Drive заменит временный `local-*` ID на реальную ссылку.</li><li>Windows Stories: таймаут batch-выгрузки теперь зависит от размера очереди, поэтому длинные списки больше не обрываются через 20 минут.</li><li>Windows Stories: поле списка профилей теперь не растягивает экран, показывает счётчик профилей и раскрывается отдельной кнопкой.</li><li>Windows Stories: карточки `Состояние` и `Результат` получили одинаковую минимальную высоту.</li><li>Windows Sort: добавлена функция `Из последней загрузки`, как на macOS, с общим буфером последних скачанных файлов.</li><li>Windows Sort: сбор Google Drive ссылок теперь ждёт Drive-метаданные после переноса файлов, поддерживает `item-id` и `url` metadata и явно отделяет локальный список от Drive-дайджеста.</li><li>Windows Stories и Sort: очистка пустых папок теперь использует одну общую функцию, предлагает удалить только реально пустые папки и не трогает `На перенос`.</li><li>Windows Stories: в блоке результата добавлен live-счётчик загруженных файлов и созданных папок.</li><li>Windows Stories: исправлена Windows-сборка после выноса очистки пустых папок в общий сервис.</li><li>macOS Stories и Sort: очистка пустых папок тоже переведена на один общий сервис с теми же правилами безопасности.</li></ul>]]></description>
+      <title>SaveMe 0.6.64</title>
+      <pubDate>Thu, 28 May 2026 13:53:57 GMT</pubDate>
+      <sparkle:version>135</sparkle:version>
+      <sparkle:shortVersionString>0.6.64</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.64</h2>
+<ul><li>macOS и Windows Sort: добавлена кнопка `Отмена переноса`, которая возвращает файлы из последней сортировки на старые места и сбрасывает устаревший дайджест.</li><li>Windows: выбор папки теперь открывается через полноценный Explorer-диалог с боковой панелью, адресной строкой и привычной навигацией.</li><li>Windows Sort: правила из Notion теперь поддерживают формат `страна → список аккаунтов`, поэтому файлы раскладываются во вложенные папки стран так же, как на macOS.</li><li>Windows Sort: сбор Google Drive ссылок теперь читает Windows-метаданные `user.drive.id` и ждёт, пока Drive заменит временный `local-*` ID на реальную ссылку.</li><li>Windows Stories: таймаут batch-выгрузки теперь зависит от размера очереди, поэтому длинные списки больше не обрываются через 20 минут.</li><li>Windows Stories: поле списка профилей теперь не растягивает экран, показывает счётчик профилей и раскрывается отдельной кнопкой.</li><li>Windows Stories: карточки `Состояние` и `Результат` получили одинаковую минимальную высоту.</li><li>Windows Sort: добавлена функция `Из последней загрузки`, как на macOS, с общим буфером последних скачанных файлов.</li><li>Windows Sort: сбор Google Drive ссылок теперь ждёт Drive-метаданные после переноса файлов, поддерживает `item-id` и `url` metadata и явно отделяет локальный список от Drive-дайджеста.</li><li>Windows Stories и Sort: очистка пустых папок теперь использует одну общую функцию, предлагает удалить только реально пустые папки и не трогает `На перенос`.</li><li>Windows Stories: в блоке результата добавлен live-счётчик загруженных файлов и созданных папок.</li><li>Windows Stories: исправлена Windows-сборка после выноса очистки пустых папок в общий сервис.</li><li>macOS Stories и Sort: очистка пустых папок тоже переведена на один общий сервис с теми же правилами безопасности.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.63/SaveMe-macOS-v0.6.63.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.64/SaveMe-macOS-v0.6.64.dmg"
         sparkle:os="macos"
-        length="3304005"
+        length="3310682"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="hLxWWLuPy/nKw3Brutks0vKkCxsXxFqg34AMfBNvSGV6eE3zm46jd/gkns0ai3ZeF15Vfct+30lKZ2Nlrbh3Bw==" />
+        sparkle:edSignature="54cOKEsJtKD8rgDSbhesZd5zKpvzMZzuPIDt9hWdrec5o7hhQv4EciW/sYG3JbtVNV9/ycOY8QCewGlTTCL+Cw==" />
     </item>
   </channel>
 </rss>
