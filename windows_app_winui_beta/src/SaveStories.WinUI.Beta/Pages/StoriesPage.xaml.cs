@@ -45,10 +45,7 @@ public sealed partial class StoriesPage : Page
         HeadlessModeRadio.IsChecked = true;
         SaveVideoOnlyRadio.IsChecked = true;
         NotionInfluencerToggle.IsOn = BetaSettingsStore.Current.NotionInfluencerSourceEnabled;
-        _outputDirectory = string.IsNullOrWhiteSpace(BetaSettingsStore.Current.StoriesOutputDirectory)
-            ? WorkerBridgeService.Current.GetDefaultDownloadsDirectory()
-            : BetaSettingsStore.Current.StoriesOutputDirectory;
-        Directory.CreateDirectory(_outputDirectory);
+        _outputDirectory = ResolveStartupOutputDirectory();
         OutputDirectoryText.Text = _outputDirectory;
         _logFlushTimer = DispatcherQueue.CreateTimer();
         _logFlushTimer.Interval = TimeSpan.FromMilliseconds(120);
@@ -63,6 +60,26 @@ public sealed partial class StoriesPage : Page
         UpdateNotionInfluencerSummary();
         UpdateProfilesInputState();
         RefreshQueueSummary();
+    }
+
+    private static string ResolveStartupOutputDirectory()
+    {
+        var savedDirectory = BetaSettingsStore.Current.StoriesOutputDirectory;
+        var defaultDirectory = WorkerBridgeService.Current.GetDefaultDownloadsDirectory();
+        var preferredDirectory = string.IsNullOrWhiteSpace(savedDirectory) ? defaultDirectory : savedDirectory;
+
+        try
+        {
+            Directory.CreateDirectory(preferredDirectory);
+            return preferredDirectory;
+        }
+        catch (Exception ex) when (!string.Equals(preferredDirectory, defaultDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            DiagnosticsService.Current.LogError($"StoriesOutputDirectoryUnavailable path={preferredDirectory}", ex);
+            BetaSettingsStore.Current.SetStoriesOutputDirectory(defaultDirectory);
+            Directory.CreateDirectory(defaultDirectory);
+            return defaultDirectory;
+        }
     }
 
     private void OnAddProfilesClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
