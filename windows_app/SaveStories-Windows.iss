@@ -42,10 +42,10 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "{sys}\taskkill.exe"; Parameters: "/IM ""SaveMe-Windows.exe"" /F /T"; Flags: runhidden waituntilterminated
-Filename: "{sys}\taskkill.exe"; Parameters: "/IM ""SaveStories-Windows.exe"" /F /T"; Flags: runhidden waituntilterminated
-Filename: "{sys}\taskkill.exe"; Parameters: "/IM ""SaveMe.WinUI.exe"" /F /T"; Flags: runhidden waituntilterminated
-Filename: "{sys}\taskkill.exe"; Parameters: "/IM ""SaveStories.WinUI.Beta.exe"" /F /T"; Flags: runhidden waituntilterminated
+Filename: "{cmd}"; Parameters: "/C taskkill /IM ""SaveMe-Windows.exe"" /F /T >NUL 2>NUL & exit /B 0"; Flags: runhidden waituntilterminated
+Filename: "{cmd}"; Parameters: "/C taskkill /IM ""SaveStories-Windows.exe"" /F /T >NUL 2>NUL & exit /B 0"; Flags: runhidden waituntilterminated
+Filename: "{cmd}"; Parameters: "/C taskkill /IM ""SaveMe.WinUI.exe"" /F /T >NUL 2>NUL & exit /B 0"; Flags: runhidden waituntilterminated
+Filename: "{cmd}"; Parameters: "/C taskkill /IM ""SaveStories.WinUI.Beta.exe"" /F /T >NUL 2>NUL & exit /B 0"; Flags: runhidden waituntilterminated
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
@@ -55,12 +55,14 @@ Type: filesandordirs; Name: "{localappdata}\SaveMe"
 Type: filesandordirs; Name: "{localappdata}\SaveMe.WinUI"
 Type: filesandordirs; Name: "{localappdata}\SaveMe.WinUI.Beta"
 Type: filesandordirs; Name: "{localappdata}\SaveStories"
+Type: filesandordirs; Name: "{localappdata}\SaveStories.WinUI"
 Type: filesandordirs; Name: "{localappdata}\SaveStories.WinUI.Beta"
 Type: filesandordirs; Name: "{localappdata}\DimaSave"
 Type: filesandordirs; Name: "{userappdata}\SaveMe"
 Type: filesandordirs; Name: "{userappdata}\SaveMe.WinUI"
 Type: filesandordirs; Name: "{userappdata}\SaveMe.WinUI.Beta"
 Type: filesandordirs; Name: "{userappdata}\SaveStories"
+Type: filesandordirs; Name: "{userappdata}\SaveStories.WinUI"
 Type: filesandordirs; Name: "{userappdata}\SaveStories.WinUI.Beta"
 Type: filesandordirs; Name: "{userappdata}\DimaSave"
 
@@ -69,5 +71,6 @@ Root: HKCU; Subkey: "Software\SaveMe"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\SaveMe.WinUI"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\SaveMe.WinUI.Beta"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\SaveStories"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\SaveStories.WinUI"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\SaveStories.WinUI.Beta"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\DimaSave"; Flags: uninsdeletekey
