@@ -14,13 +14,23 @@ extension AppModel {
         do {
             try AppPaths.ensureDirectories()
             try FileManager.default.createDirectory(at: saveDirectory, withIntermediateDirectories: true)
-            resetLiveDownloadTrackingBaseline()
             appendLog("Подготовлены папки приложения в \(AppPaths.applicationSupport.path).")
         } catch {
             appendLog("Не удалось подготовить папки: \(error.localizedDescription)")
         }
 
-        await refreshEnvironment()
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(350))
+            await self?.runStartupChecks()
+        }
+    }
+
+    private func runStartupChecks() async {
+        currentStepLabel = "Проверяю среду воркера в фоне."
+        let response = await environmentResponse()
+        applyEnvironment(response)
+        append(response)
+
         if !workerReady && !hasEmbeddedRuntime && !runtimeOnboardingDismissed {
             runtimeSetupStage = .welcome
             runtimeSetupFailedStage = nil
@@ -43,7 +53,7 @@ extension AppModel {
         presentDirectoryChooser(initialDirectory: saveDirectory, canCreateDirectories: true) { url in
             self.saveDirectory = url
             UserDefaults.standard.set(url.path, forKey: Self.saveDirectoryKey)
-            self.resetLiveDownloadTrackingBaseline()
+            Task { await self.resetLiveDownloadTrackingBaseline() }
             self.appendLog("Папка сохранения изменена на \(url.path).")
         }
     }
@@ -255,7 +265,7 @@ extension AppModel {
                 isDownloadActivityInProgress = false
                 refreshSleepPreventionForCurrentState()
             }
-            refreshLiveDownloadTracking()
+            Task { await self.refreshLiveDownloadTracking() }
             if statusTitle == "Готово" {
                 currentStepLabel = "Операция завершена."
             } else if statusTitle == "Ошибка" {
@@ -492,7 +502,7 @@ extension AppModel {
         }
 
         if lowered.contains("saved=") || lowered.contains("profile_download_directory=") {
-            refreshLiveDownloadTracking()
+            Task { await self.refreshLiveDownloadTracking() }
         }
     }
 
@@ -505,39 +515,39 @@ extension AppModel {
     }
 
     private func beginLiveDownloadTracking() {
-        resetLiveDownloadTrackingBaseline()
         liveTrackingTask?.cancel()
-        liveTrackingTask = Task { [weak self] in
+        liveTrackingTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.resetLiveDownloadTrackingBaseline()
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(2))
                 guard !Task.isCancelled else { break }
-                guard let self else { break }
-                let saveDirectory = self.saveDirectory
-                let baselineFiles = self.saveDirectoryBaselineFiles
-                let baselineFolders = self.saveDirectoryBaselineFolders
-                let snapshot = await Task.detached(priority: .utility) {
-                    Self.snapshot(of: saveDirectory)
-                }.value
-                await MainActor.run {
-                    self.liveDownloadedFileCount = max(snapshot.files - baselineFiles, 0)
-                    self.liveCreatedFolderCount = max(snapshot.folders - baselineFolders, 0)
-                }
+                let snapshot = await self.snapshotForLiveTracking()
+                self.liveDownloadedFileCount = max(snapshot.files - self.saveDirectoryBaselineFiles, 0)
+                self.liveCreatedFolderCount = max(snapshot.folders - self.saveDirectoryBaselineFolders, 0)
             }
         }
     }
 
-    private func refreshLiveDownloadTracking() {
-        let snapshot = Self.snapshot(of: saveDirectory)
+    private func refreshLiveDownloadTracking() async {
+        let snapshot = await snapshotForLiveTracking()
         liveDownloadedFileCount = max(snapshot.files - saveDirectoryBaselineFiles, 0)
         liveCreatedFolderCount = max(snapshot.folders - saveDirectoryBaselineFolders, 0)
     }
 
-    private func resetLiveDownloadTrackingBaseline() {
-        let snapshot = Self.snapshot(of: saveDirectory)
+    private func resetLiveDownloadTrackingBaseline() async {
+        let snapshot = await snapshotForLiveTracking()
         saveDirectoryBaselineFiles = snapshot.files
         saveDirectoryBaselineFolders = snapshot.folders
         liveDownloadedFileCount = 0
         liveCreatedFolderCount = 0
+    }
+
+    private func snapshotForLiveTracking() async -> (files: Int, folders: Int) {
+        let directory = saveDirectory
+        return await Task.detached(priority: .utility) {
+            Self.snapshot(of: directory)
+        }.value
     }
 
     private func stopLiveDownloadTracking() {
