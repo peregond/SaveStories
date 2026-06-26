@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/0.6.65</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.66</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.65</title>
-      <pubDate>Thu, 04 Jun 2026 11:47:03 GMT</pubDate>
-      <sparkle:version>136</sparkle:version>
-      <sparkle:shortVersionString>0.6.65</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.65</h2>
-<ul><li>Windows: исправлен запуск WinUI-клиента, если сохранённая папка выгрузки находится на недоступном диске или в сломанном Google Drive shortcut; приложение сбрасывает путь на `Downloads\SaveMe` и продолжает открываться.</li><li>Windows: удаление приложения теперь чистит локальные и roaming-данные SaveMe, WinUI-кэш, legacy-папки SaveStories/DimaSave, runtime/cache директории и настройки приложения в реестре.</li><li>Windows: uninstall закрывает запущенные процессы SaveMe/legacy-клиентов и не падает, если процесса уже нет.</li><li>Release: версия проекта, Node worker и macOS bundle metadata подняты до `0.6.65`.</li></ul>]]></description>
+      <title>SaveMe 0.6.66</title>
+      <pubDate>Fri, 26 Jun 2026 07:17:33 GMT</pubDate>
+      <sparkle:version>137</sparkle:version>
+      <sparkle:shortVersionString>0.6.66</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.66</h2>
+<ul><li>macOS: ускорен запуск приложения. Проверка worker/Instagram-сессии теперь стартует в фоне после появления окна, а подсчёт файлов и папок в папке сохранения больше не блокирует интерфейс.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/0.6.65/SaveMe-macOS-0.6.65.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.66/SaveMe-macOS-v0.6.66.dmg"
         sparkle:os="macos"
-        length="3311786"
+        length="3313586"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="Pjx+chu23Uwo96t4MwKsPLbzmEFzg2R18B329tmGEGcN4z3Wwo8/3wwWsNZ3J9zngoB8bGNLIrhEcPG2ou0mCA==" />
+        sparkle:edSignature="w9fEyG6gBEfbeVCNZ6xUoU0/H1FA9IkvtyfineFJeSYl3UFd7k/5gtbW6siVAdJq7N8imjD10ksI6y4XFc/JAg==" />
     </item>
   </channel>
 </rss>
