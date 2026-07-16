@@ -81,15 +81,11 @@ struct ContentView: View {
     }
 
     var reelsLinkCount: Int {
-        model.reelsInput
-            .split(whereSeparator: \.isNewline)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .count
+        model.parsedReelLinks(from: model.reelsInput).count
     }
 
     var batchProfileInputCount: Int {
-        model.parsedBatchLinks(from: model.batchInput).count
+        model.normalizedBatchLinks(from: model.batchInput).count
     }
 
     var queuedPendingCount: Int {
@@ -110,7 +106,7 @@ struct ContentView: View {
     }
 
     var isStoriesDownloadInProgress: Bool {
-        model.batchIsRunning || (model.isBusy && !isReelsDownloadInProgress)
+        model.batchIsRunning || (model.isDownloadActivityInProgress && !isReelsDownloadInProgress)
     }
 
     var selectedDownloadModeDescription: String {
@@ -531,7 +527,7 @@ struct ContentView: View {
                 .tint(secondaryButtonTint)
 
                 Button {
-                    model.removePendingEmptyStoryFolders()
+                    Task { await model.removePendingEmptyStoryFolders() }
                 } label: {
                     Text("Удалить")
                         .frame(maxWidth: .infinity)
@@ -772,6 +768,7 @@ struct ContentView: View {
                         .background(Circle().fill(Color.white.opacity(isDark ? 0.06 : 0.42)))
                 }
                 .buttonStyle(.plain)
+                .disabled(model.isBusy)
             }
 
             Text(list.urls.prefix(2).joined(separator: "\n"))
@@ -841,6 +838,7 @@ struct ContentView: View {
         )
         .frame(maxWidth: .infinity, minHeight: 44)
         .opacity(model.isBusy ? 0.72 : 1)
+        .disabled(model.isBusy)
     }
 
     func destinationInlineCard(compact: Bool) -> some View {
@@ -1414,7 +1412,7 @@ struct ContentView: View {
                     }
 
                     button("Удалить пустые папки", systemImage: "trash", prominent: false) {
-                        model.removeEmptyFoldersInCleanupDirectory()
+                        Task { await model.removeEmptyFoldersInCleanupDirectory() }
                     }
                     .disabled(model.emptyFolderCleanupDirectory == nil)
 
@@ -1551,12 +1549,12 @@ struct ContentView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     button("Разложить из папки Перенос", systemImage: "arrow.right.doc.on.clipboard", prominent: true) {
-                        model.distributeFilesFromSortingSource()
+                        Task { await model.distributeFilesFromSortingSource() }
                     }
-                    .disabled(!(sortingHasSource && sortingHasDestination))
+                    .disabled(!(sortingHasSource && sortingHasDestination) || model.isRefreshingNotionRoutingRules)
 
                     button("Отмена переноса", systemImage: "arrow.uturn.backward", prominent: false) {
-                        model.undoLastDistribution()
+                        Task { await model.undoLastDistribution() }
                     }
                     .disabled(!sortingCanUndo)
 
@@ -1568,7 +1566,7 @@ struct ContentView: View {
                                 .fixedSize(horizontal: false, vertical: true)
 
                             button("Из последней загрузки", systemImage: "square.stack.3d.down.forward") {
-                                model.distributeLatestDownloadedFiles()
+                                Task { await model.distributeLatestDownloadedFiles() }
                             }
                             .disabled(!sortingHasDestination)
                         }
@@ -2663,7 +2661,7 @@ struct ContentView: View {
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(primaryText)
 
-                    Text("Перед запуском Stories приложение заново скачает список инфлюенсеров и заменит очередь.")
+                    Text("Перед запуском Stories приложение обновит список не чаще раза в день и заменит очередь.")
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(tertiaryText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -2714,7 +2712,7 @@ struct ContentView: View {
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(primaryText)
 
-                    Text("Перед запуском сортировки приложение скачает свежие правила и заменит список ниже.")
+                    Text("Перед сортировкой приложение обновит правила не чаще раза в день и заменит список ниже.")
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(tertiaryText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -2775,8 +2773,8 @@ struct ContentView: View {
         }
         .buttonStyle(.borderedProminent)
         .tint(queueActionTint)
-        .disabled(model.batchQueue.isEmpty || model.isBusy)
-        .opacity(model.batchQueue.isEmpty || model.isBusy ? 0.72 : 1)
+        .disabled(model.batchQueue.isEmpty || model.isBusy || model.isRefreshingNotionInfluencers)
+        .opacity(model.batchQueue.isEmpty || model.isBusy || model.isRefreshingNotionInfluencers ? 0.72 : 1)
     }
 
     var storiesStopButton: some View {

@@ -1,6 +1,38 @@
 import Foundation
 
 struct GoogleDriveLinkExporter {
+    private final class PipeCollector: @unchecked Sendable {
+        private let fileHandle: FileHandle
+        private let lock = NSLock()
+        private let finished = DispatchSemaphore(value: 0)
+        private var collectedData = Data()
+
+        init(fileHandle: FileHandle) {
+            self.fileHandle = fileHandle
+        }
+
+        func start() {
+            let thread = Thread { [fileHandle] in
+                let data = fileHandle.readDataToEndOfFile()
+                self.lock.lock()
+                self.collectedData = data
+                self.lock.unlock()
+                self.finished.signal()
+            }
+            thread.name = "SaveMe.GoogleDriveLinkPipe"
+            thread.start()
+        }
+
+        func finish(timeout: TimeInterval = 3) -> Data {
+            _ = finished.wait(timeout: .now() + timeout)
+            lock.lock()
+            defer { lock.unlock() }
+            return collectedData
+        }
+    }
+
+    private static let appleScriptTimeout: TimeInterval = 35
+
     struct ExportRecord: Hashable {
         let id: String
         let header: String
@@ -16,6 +48,7 @@ struct GoogleDriveLinkExporter {
     enum ExporterError: LocalizedError {
         case scriptNotFound
         case launchFailed(String)
+        case timedOut
 
         var errorDescription: String? {
             switch self {
@@ -23,6 +56,8 @@ struct GoogleDriveLinkExporter {
                 "Не удалось найти встроенный AppleScript для Google Drive automation."
             case .launchFailed(let message):
                 message
+            case .timedOut:
+                "Google Drive не ответил за 35 секунд. Проверьте Finder и повторите попытку."
             }
         }
     }
@@ -51,6 +86,9 @@ struct GoogleDriveLinkExporter {
         let process = Process()
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
+        let stdoutCollector = PipeCollector(fileHandle: stdoutPipe.fileHandleForReading)
+        let stderrCollector = PipeCollector(fileHandle: stderrPipe.fileHandleForReading)
+        let termination = DispatchSemaphore(value: 0)
         let sentinel = "SaveMeClipboardSentinel-\(UUID().uuidString)"
 
         process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
@@ -62,21 +100,35 @@ struct GoogleDriveLinkExporter {
         ]
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
+        process.terminationHandler = { _ in termination.signal() }
 
         do {
             try process.run()
+            stdoutCollector.start()
+            stderrCollector.start()
         } catch {
             throw ExporterError.launchFailed("Не удалось запустить osascript: \(error.localizedDescription)")
         }
 
-        process.waitUntilExit()
+        let didFinish = termination.wait(timeout: .now() + Self.appleScriptTimeout) == .success
+        if !didFinish {
+            process.terminate()
+            if termination.wait(timeout: .now() + 2) == .timedOut, process.isRunning {
+                kill(process.processIdentifier, SIGKILL)
+                _ = termination.wait(timeout: .now() + 2)
+            }
+        }
 
-        let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+        let stdoutData = stdoutCollector.finish()
+        let stderrData = stderrCollector.finish()
         let stdoutText = String(data: stdoutData, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let stderrText = String(data: stderrData, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        guard didFinish else {
+            throw ExporterError.timedOut
+        }
 
         guard process.terminationStatus == 0 else {
             let message = stderrText.isEmpty ? stdoutText : stderrText

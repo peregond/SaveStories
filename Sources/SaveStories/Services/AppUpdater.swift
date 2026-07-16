@@ -11,6 +11,7 @@ final class AppUpdater: NSObject {
     #if canImport(Sparkle)
     private var updaterController: SPUStandardUpdaterController?
     #endif
+    private var hasStarted = false
 
     override init() {
         super.init()
@@ -22,10 +23,25 @@ final class AppUpdater: NSObject {
             return summary
         }
 
+        start()
         #if canImport(Sparkle)
         updaterController?.checkForUpdates(nil)
         #endif
         return "Запрашиваю проверку новых версий."
+    }
+
+    func start() {
+        guard isAvailable, !hasStarted else { return }
+        #if canImport(Sparkle)
+        let controller = SPUStandardUpdaterController(
+            startingUpdater: false,
+            updaterDelegate: nil,
+            userDriverDelegate: nil
+        )
+        updaterController = controller
+        controller.startUpdater()
+        #endif
+        hasStarted = true
     }
 
     private func configure() {
@@ -47,12 +63,6 @@ final class AppUpdater: NSObject {
         }
 
         #if canImport(Sparkle)
-        let controller = SPUStandardUpdaterController(
-            startingUpdater: true,
-            updaterDelegate: nil,
-            userDriverDelegate: nil
-        )
-        updaterController = controller
         isAvailable = true
         summary = "Автообновление подключено. Источник: \(feedURL)"
         #else

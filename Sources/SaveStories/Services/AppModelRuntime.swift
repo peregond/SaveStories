@@ -1,6 +1,13 @@
 import AppKit
 import Foundation
 
+private struct PreparedAppDirectories: Sendable {
+    let saveDirectory: URL
+    let distributionRootDirectory: URL?
+    let sortingSourceDirectory: URL?
+    let emptyFolderCleanupDirectory: URL?
+}
+
 extension AppModel {
     static let sleepPreventionActivityOptions: ProcessInfo.ActivityOptions = [
         .idleSystemSleepDisabled,
@@ -11,9 +18,50 @@ extension AppModel {
         guard !hasPrepared else { return }
         hasPrepared = true
 
+        let selectedSaveDirectory = saveDirectory
+        let selectedDistributionRoot = distributionRootDirectory
+        let selectedSortingSource = sortingSourceDirectory
+        let selectedCleanupDirectory = emptyFolderCleanupDirectory
         do {
-            try AppPaths.ensureDirectories()
-            try FileManager.default.createDirectory(at: saveDirectory, withIntermediateDirectories: true)
+            let prepared = try await Task.detached(priority: .utility) {
+                try AppPaths.ensureDirectories()
+                let usableSaveDirectory: URL
+                do {
+                    try FileManager.default.createDirectory(at: selectedSaveDirectory, withIntermediateDirectories: true)
+                    usableSaveDirectory = selectedSaveDirectory
+                } catch {
+                    try FileManager.default.createDirectory(at: AppPaths.defaultDownloads, withIntermediateDirectories: true)
+                    usableSaveDirectory = AppPaths.defaultDownloads
+                }
+
+                return PreparedAppDirectories(
+                    saveDirectory: usableSaveDirectory,
+                    distributionRootDirectory: Self.existingDirectory(selectedDistributionRoot),
+                    sortingSourceDirectory: Self.existingDirectory(selectedSortingSource),
+                    emptyFolderCleanupDirectory: Self.existingDirectory(selectedCleanupDirectory)
+                )
+            }.value
+
+            if saveDirectory == selectedSaveDirectory, prepared.saveDirectory != selectedSaveDirectory {
+                saveDirectory = prepared.saveDirectory
+                UserDefaults.standard.set(prepared.saveDirectory.path, forKey: Self.saveDirectoryKey)
+                appendLog("Сохранённая папка недоступна. Используется \(prepared.saveDirectory.path).")
+            }
+            if distributionRootDirectory == selectedDistributionRoot,
+               prepared.distributionRootDirectory != selectedDistributionRoot {
+                distributionRootDirectory = prepared.distributionRootDirectory
+                UserDefaults.standard.removeObject(forKey: Self.distributionRootDirectoryKey)
+            }
+            if sortingSourceDirectory == selectedSortingSource,
+               prepared.sortingSourceDirectory != selectedSortingSource {
+                sortingSourceDirectory = prepared.sortingSourceDirectory
+                UserDefaults.standard.removeObject(forKey: Self.sortingSourceDirectoryKey)
+            }
+            if emptyFolderCleanupDirectory == selectedCleanupDirectory,
+               prepared.emptyFolderCleanupDirectory != selectedCleanupDirectory {
+                emptyFolderCleanupDirectory = prepared.emptyFolderCleanupDirectory
+                UserDefaults.standard.removeObject(forKey: Self.emptyFolderCleanupDirectoryKey)
+            }
             appendLog("Подготовлены папки приложения в \(AppPaths.applicationSupport.path).")
         } catch {
             appendLog("Не удалось подготовить папки: \(error.localizedDescription)")
@@ -26,21 +74,32 @@ extension AppModel {
     }
 
     private func runStartupChecks() async {
-        currentStepLabel = "Проверяю среду воркера в фоне."
-        let response = await environmentResponse()
-        applyEnvironment(response)
-        append(response)
+        appUpdater.start()
+        updateSummary = appUpdater.summary
+        canCheckForUpdates = appUpdater.isAvailable
 
-        if !workerReady && !hasEmbeddedRuntime && !runtimeOnboardingDismissed {
-            runtimeSetupStage = .welcome
-            runtimeSetupFailedStage = nil
-            runtimeSetupErrorMessage = nil
-            runtimeSetupMessage = "Нужно один раз докачать движок: Node, Playwright и Chromium."
-            showRuntimeOnboarding = true
+        while isBusy {
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
         }
-        if workerReady {
-            showRuntimeOnboarding = false
-            await refreshStartupSession()
+
+        await perform("Фоновая проверка готовности") {
+            self.currentStepLabel = "Проверяю среду воркера в фоне."
+            let response = await self.environmentResponse()
+            self.applyEnvironment(response)
+            self.append(response)
+
+            if !self.workerReady && !self.hasEmbeddedRuntime && !self.runtimeOnboardingDismissed {
+                self.runtimeSetupStage = .welcome
+                self.runtimeSetupFailedStage = nil
+                self.runtimeSetupErrorMessage = nil
+                self.runtimeSetupMessage = "Нужно один раз докачать движок: Node, Playwright и Chromium."
+                self.showRuntimeOnboarding = true
+            }
+            if self.workerReady {
+                self.showRuntimeOnboarding = false
+                await self.refreshStartupSession()
+            }
         }
     }
 
@@ -202,13 +261,17 @@ extension AppModel {
 
     func downloadProfileStories() async {
         let trimmed = profileURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            appendLog("Ссылка на профиль пустая.")
+        let normalized = normalizedProfileLink(trimmed)
+        guard !normalized.isEmpty else {
+            statusTitle = "Ошибка"
+            statusDetail = "Укажи корректную ссылку на профиль Instagram или имя пользователя."
+            lastResult = statusDetail
+            appendLog("Ссылка на профиль пустая или некорректная.")
             return
         }
 
         await perform("Скачивание активных stories из профиля") {
-            let response = await self.runProfileDownload(for: trimmed)
+            let response = await self.runProfileDownload(for: normalized)
             self.append(response)
         }
     }
@@ -255,7 +318,7 @@ extension AppModel {
             postProcessingSummary = "Идёт новая выгрузка. После неё можно будет разложить файлы."
             isDownloadActivityInProgress = true
             refreshSleepPreventionForCurrentState()
-            beginLiveDownloadTracking()
+            await beginLiveDownloadTracking()
         }
 
         defer {
@@ -282,10 +345,13 @@ extension AppModel {
 
     func append(_ response: WorkerResponse) {
         if !response.items.isEmpty {
-            downloadedItems = response.items + downloadedItems
+            var responseIDs = Set<String>()
+            let uniqueResponseItems = response.items.filter { responseIDs.insert($0.id).inserted }
+            downloadedItems.removeAll { responseIDs.contains($0.id) }
+            downloadedItems = Array((uniqueResponseItems + downloadedItems).prefix(Self.maxDownloadedItems))
             if isDownloadActivityInProgress {
                 let existingIDs = Set(latestSessionDownloadedItems.map(\.id))
-                let freshItems = response.items.filter { !existingIDs.contains($0.id) }
+                let freshItems = uniqueResponseItems.filter { !existingIDs.contains($0.id) }
                 if !freshItems.isEmpty {
                     latestSessionDownloadedItems.append(contentsOf: freshItems)
                 }
@@ -331,7 +397,7 @@ extension AppModel {
         await worker.run(
             WorkerRequest(
                 command: "download_profile_stories",
-                url: normalizedProfileLink(url),
+                url: url,
                 urls: nil,
                 outputDirectory: saveDirectory.path,
                 headless: downloadMode.usesHeadless,
@@ -357,19 +423,26 @@ extension AppModel {
 
     func normalizedReelLink(_ raw: String) -> String? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let url = URL(string: trimmed), let host = url.host?.lowercased() else {
+        guard !trimmed.isEmpty,
+              let url = URL(string: trimmed),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              let host = url.host?.lowercased()
+        else {
             return nil
         }
-        guard host.contains("instagram.com") else { return nil }
+        guard host == "instagram.com" || host.hasSuffix(".instagram.com") else { return nil }
         let parts = url.pathComponents.filter { $0 != "/" }
         guard parts.count >= 2 else { return nil }
         let kind = parts[0].lowercased()
-        guard kind == "reel" || kind == "reels" || kind == "p" else { return nil }
+        let shortcode = parts[1]
+        guard kind == "reel" || kind == "reels" || kind == "p",
+              shortcode.range(of: #"^[A-Za-z0-9_-]+$"#, options: .regularExpression) != nil
+        else {
+            return nil
+        }
 
-        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        components?.fragment = nil
-        components?.path = "/\(kind)/\(parts[1])/"
-        return components?.url?.absoluteString
+        return "https://www.instagram.com/\(kind)/\(shortcode)/"
     }
 
     private func refreshStartupSession() async {
@@ -467,22 +540,40 @@ extension AppModel {
     private func updateCurrentStep(from log: String) {
         let lowered = log.lowercased()
 
-        if lowered.contains("batch_profile_start=") || lowered.contains("batch_slot_") && lowered.contains("_start=") {
+        let isBatchStart = lowered.contains("batch_profile_start=")
+            || (lowered.contains("batch_slot_") && lowered.contains("_start="))
+        let isBatchCompletion = lowered.contains("batch_profile_done=")
+            || (lowered.contains("batch_slot_") && lowered.contains("_done="))
+            || (lowered.contains("batch_slot_") && lowered.contains("_error="))
+
+        if (isBatchStart || isBatchCompletion), batchProgressStartedURLs.isEmpty, batchProgressCompletedURLs.isEmpty {
+            for item in batchQueue where item.status == .completed || item.status == .failed || item.status == .stopped {
+                batchProgressCompletedURLs.insert(normalizedProfileLink(item.url).lowercased())
+            }
+        }
+
+        if isBatchStart {
             let url = log.components(separatedBy: "=").dropFirst().joined(separator: "=")
             let normalized = normalizedProfileLink(url)
             let username = extractProgressDisplayName(from: normalized)
-            let completedCount = batchQueue.filter { item in
-                item.status == .completed || item.status == .failed || item.status == .stopped
-            }.count
-            batchCurrentIndex = min(completedCount + 1, max(batchTotalCount, 1))
-            batchRemainingCount = max(batchTotalCount - batchCurrentIndex, 0)
+            batchProgressStartedURLs.insert(normalized.lowercased())
+            let activeAndCompleted = batchProgressStartedURLs.union(batchProgressCompletedURLs).count
+            batchCurrentIndex = min(activeAndCompleted, max(batchTotalCount, 1))
+            batchRemainingCount = max(batchTotalCount - activeAndCompleted, 0)
             batchCurrentURL = normalized
             currentStepLabel = "Открываю профиль \(username)."
-        } else if lowered.contains("batch_profile_done=") || lowered.contains("batch_slot_") && lowered.contains("_done=") {
-            let url = log.components(separatedBy: "=").dropFirst().joined(separator: "=")
+        } else if isBatchCompletion {
+            let value = log.components(separatedBy: "=").dropFirst().joined(separator: "=")
+            let url = value.components(separatedBy: " :: ").first ?? value
             let normalized = normalizedProfileLink(url)
             let username = extractProgressDisplayName(from: normalized)
-            currentStepLabel = "Профиль \(username) обработан, переключаюсь дальше."
+            batchProgressCompletedURLs.insert(normalized.lowercased())
+            let activeAndCompleted = batchProgressStartedURLs.union(batchProgressCompletedURLs).count
+            batchCurrentIndex = min(activeAndCompleted, max(batchTotalCount, 1))
+            batchRemainingCount = max(batchTotalCount - activeAndCompleted, 0)
+            currentStepLabel = lowered.contains("_error=")
+                ? "Профиль \(username) завершился ошибкой, продолжаю очередь."
+                : "Профиль \(username) обработан, переключаюсь дальше."
         } else if lowered.contains("batch_concurrency=") {
             currentStepLabel = "Распределяю очередь по активным слотам."
         } else if lowered.contains("opened=") || lowered.contains("checked=") {
@@ -514,11 +605,11 @@ extension AppModel {
             .map(String.init) ?? normalizedURL
     }
 
-    private func beginLiveDownloadTracking() {
+    private func beginLiveDownloadTracking() async {
         liveTrackingTask?.cancel()
+        await resetLiveDownloadTrackingBaseline()
         liveTrackingTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            await self.resetLiveDownloadTrackingBaseline()
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(2))
                 guard !Task.isCancelled else { break }

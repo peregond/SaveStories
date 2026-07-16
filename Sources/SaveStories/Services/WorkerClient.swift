@@ -2,6 +2,19 @@ import Foundation
 
 @MainActor
 final class WorkerClient {
+    private final class CompletionGate: @unchecked Sendable {
+        private let lock = NSLock()
+        private var completed = false
+
+        func claim() -> Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            guard !completed else { return false }
+            completed = true
+            return true
+        }
+    }
+
     private final class PipeCollector: @unchecked Sendable {
         private let fileHandle: FileHandle
         private let onLine: (@Sendable (String) -> Void)?
@@ -92,6 +105,10 @@ final class WorkerClient {
     private var userInitiatedStop = false
 
     func run(_ request: WorkerRequest, onProgress: (@Sendable (String) -> Void)? = nil) async -> WorkerResponse {
+        guard currentProcess == nil else {
+            return .processFailure(message: "Worker уже выполняет другую операцию. Дождитесь её завершения.")
+        }
+
         do {
             let response = try await execute(request, onProgress: onProgress)
             if userInitiatedStop {
@@ -154,13 +171,17 @@ final class WorkerClient {
         currentProcess = process
 
         let responseData: Data = try await withCheckedThrowingContinuation { continuation in
+            let completionGate = CompletionGate()
+
             process.terminationHandler = { process in
                 let stdoutData = stdoutCollector.finish()
                 let stderrData = stderrCollector.finish()
-
                 Task { @MainActor in
-                    self.currentProcess = nil
+                    if self.currentProcess === process {
+                        self.currentProcess = nil
+                    }
                 }
+                guard completionGate.claim() else { return }
 
                 if process.terminationStatus != 0 && stdoutData.isEmpty {
                     let stderrText = String(data: stderrData, encoding: .utf8)?
@@ -206,6 +227,10 @@ final class WorkerClient {
                 stdoutCollector.start()
                 stderrCollector.start()
             } catch {
+                if currentProcess === process {
+                    currentProcess = nil
+                }
+                guard completionGate.claim() else { return }
                 continuation.resume(
                     throwing: WorkerClientError.processLaunchFailed("Failed to launch worker: \(error.localizedDescription)")
                 )
@@ -218,7 +243,11 @@ final class WorkerClient {
                 stdinPipe.fileHandleForWriting.write(Data([0x0A]))
                 try stdinPipe.fileHandleForWriting.close()
             } catch {
+                guard completionGate.claim() else { return }
                 process.terminate()
+                if currentProcess === process {
+                    currentProcess = nil
+                }
                 continuation.resume(
                     throwing: WorkerClientError.processLaunchFailed("Failed to send request to worker: \(error.localizedDescription)")
                 )

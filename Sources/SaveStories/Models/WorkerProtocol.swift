@@ -1,6 +1,6 @@
 import Foundation
 
-struct WorkerRequest: Codable {
+struct WorkerRequest: Codable, Sendable {
     let command: String
     let url: String?
     let urls: [String]?
@@ -9,7 +9,7 @@ struct WorkerRequest: Codable {
     let mediaFilter: String?
 }
 
-struct WorkerItem: Codable, Identifiable, Hashable {
+struct WorkerItem: Codable, Identifiable, Hashable, Sendable {
     let id: String
     let sourceURL: String
     let pageURL: String
@@ -19,14 +19,14 @@ struct WorkerItem: Codable, Identifiable, Hashable {
     let createdAt: String
 }
 
-struct WorkerCounts: Codable, Hashable {
+struct WorkerCounts: Codable, Hashable, Sendable {
     let found: Int
     let saved: Int
     let processed: Int
     let failed: Int
 }
 
-struct WorkerBatchResult: Codable, Hashable {
+struct WorkerBatchResult: Codable, Hashable, Sendable {
     let url: String
     let status: String
     let message: String
@@ -34,7 +34,7 @@ struct WorkerBatchResult: Codable, Hashable {
     let savedCount: Int
 }
 
-struct WorkerRuntime: Codable, Hashable {
+struct WorkerRuntime: Codable, Hashable, Sendable {
     let kind: String
     let executable: String
     let browserProfile: String
@@ -42,7 +42,7 @@ struct WorkerRuntime: Codable, Hashable {
     let manifests: String
 }
 
-struct WorkerResponse: Codable {
+struct WorkerResponse: Codable, Sendable {
     let ok: Bool
     let status: String
     let message: String

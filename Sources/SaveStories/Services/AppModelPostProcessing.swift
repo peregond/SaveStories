@@ -41,7 +41,7 @@ extension AppModel {
         NSWorkspace.shared.activateFileViewerSelecting([emptyFolderCleanupDirectory])
     }
 
-    func removeEmptyFoldersInCleanupDirectory() {
+    func removeEmptyFoldersInCleanupDirectory() async {
         guard !isBusy else { return }
         guard let emptyFolderCleanupDirectory else {
             emptyFolderCleanupSummary = "Сначала выбери папку, внутри которой нужно удалить пустые подпапки."
@@ -50,33 +50,45 @@ extension AppModel {
             return
         }
 
-        let candidateFolders = EmptyFolderCleanupService.findDeletableEmptyFolders(in: emptyFolderCleanupDirectory)
-        guard !candidateFolders.isEmpty else {
-            emptyFolderCleanupSummary = "В выбранной папке нет подпапок для проверки."
-            postProcessingSummary = "Пустых папок в выбранной папке не найдено."
-            appendLog("Очистка пустых папок: в \(emptyFolderCleanupDirectory.path) ничего не найдено.")
-            return
-        }
+        await perform("Очистка пустых папок") {
+            self.currentStepLabel = "Проверяю подпапки в фоне."
+            let candidateFolders = await Task.detached(priority: .utility) {
+                EmptyFolderCleanupService.findDeletableEmptyFolders(in: emptyFolderCleanupDirectory)
+            }.value
+            guard !candidateFolders.isEmpty else {
+                self.emptyFolderCleanupSummary = "Пустых папок в выбранной папке не найдено."
+                self.postProcessingSummary = self.emptyFolderCleanupSummary
+                self.statusTitle = "Готово"
+                self.statusDetail = self.emptyFolderCleanupSummary
+                self.lastResult = self.emptyFolderCleanupSummary
+                self.currentStepLabel = "Проверка пустых папок завершена."
+                self.appendLog("Очистка пустых папок: в \(emptyFolderCleanupDirectory.path) ничего не найдено.")
+                return
+            }
 
-        let cleanup = EmptyFolderCleanupService.deleteEmptyFolders(candidateFolders)
-        for folder in cleanup.failedFolders {
-            appendLog("Не удалось удалить пустую папку \(folder.path).")
-        }
+            self.currentStepLabel = "Удаляю только действительно пустые папки."
+            let cleanup = await Task.detached(priority: .utility) {
+                EmptyFolderCleanupService.deleteEmptyFolders(candidateFolders)
+            }.value
+            for folder in cleanup.failedFolders {
+                self.appendLog("Не удалось удалить пустую папку \(folder.path).")
+            }
 
-        let removedNames = cleanup.removedFolderNames
-        let failedCount = cleanup.failedFolders.count
-        let message = failedCount == 0
-            ? "Удалено пустых папок: \(removedNames.count)."
-            : "Удалено пустых папок: \(removedNames.count). Ошибок: \(failedCount)."
-        emptyFolderCleanupSummary = removedNames.isEmpty && failedCount == 0
-            ? "Пустых папок в выбранной папке не найдено."
-            : message
-        postProcessingSummary = message
-        statusTitle = failedCount == 0 ? "Готово" : "Завершено с ошибками"
-        statusDetail = message
-        lastResult = message
-        currentStepLabel = "Очистка пустых папок завершена."
-        appendLog("\(message) Папка: \(emptyFolderCleanupDirectory.path).")
+            let removedNames = cleanup.removedFolderNames
+            let failedCount = cleanup.failedFolders.count
+            let message = failedCount == 0
+                ? "Удалено пустых папок: \(removedNames.count)."
+                : "Удалено пустых папок: \(removedNames.count). Ошибок: \(failedCount)."
+            self.emptyFolderCleanupSummary = removedNames.isEmpty && failedCount == 0
+                ? "Пустых папок в выбранной папке не найдено."
+                : message
+            self.postProcessingSummary = message
+            self.statusTitle = failedCount == 0 ? "Готово" : "Завершено с ошибками"
+            self.statusDetail = message
+            self.lastResult = message
+            self.currentStepLabel = "Очистка пустых папок завершена."
+            self.appendLog("\(message) Папка: \(emptyFolderCleanupDirectory.path).")
+        }
     }
 
     func openSystemSettings() {
@@ -160,16 +172,10 @@ extension AppModel {
         NSWorkspace.shared.activateFileViewerSelecting([distributionRootDirectory])
     }
 
-    func distributeFilesFromSortingSource(skipNotionRefresh: Bool = false) {
+    func distributeFilesFromSortingSource(skipNotionRefresh: Bool = false) async {
         guard !isBusy else { return }
         if notionRoutingRulesSourceEnabled && !skipNotionRefresh {
-            Task {
-                let refreshed = await refreshNotionRoutingRules()
-                if refreshed {
-                    distributeFilesFromSortingSource(skipNotionRefresh: true)
-                }
-            }
-            return
+            guard await refreshNotionRoutingRules() else { return }
         }
         guard let sortingSourceDirectory else {
             postProcessingSummary = "Сначала выбери папку-источник, например Перенос."
@@ -182,50 +188,58 @@ extension AppModel {
             return
         }
 
-        let manager = FileManager.default
+        let source = sortingSourceDirectory.standardizedFileURL.resolvingSymlinksInPath()
+        let destination = distributionRootDirectory.standardizedFileURL.resolvingSymlinksInPath()
+        let sourcePrefix = source.path.hasSuffix("/") ? source.path : source.path + "/"
+        guard destination.path != source.path, !destination.path.hasPrefix(sourcePrefix) else {
+            postProcessingSummary = "Папка назначения не должна совпадать с источником или находиться внутри него."
+            statusTitle = "Ошибка"
+            statusDetail = postProcessingSummary
+            lastResult = postProcessingSummary
+            appendLog("Сортировка остановлена: источник и назначение пересекаются.")
+            return
+        }
+
         let mapping = parsedFolderRoutingRules()
 
-        guard let creatorFolders = try? manager.contentsOfDirectory(
-            at: sortingSourceDirectory,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ).filter({ (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }) else {
-            postProcessingSummary = "Не удалось прочитать содержимое папки источника."
-            appendLog("Сортировка: не удалось прочитать папку \(sortingSourceDirectory.path).")
-            return
-        }
+        await perform("Сортировка файлов") {
+            self.currentStepLabel = "Читаю папку «На перенос» в фоне."
+            do {
+                let scan = try await Task.detached(priority: .userInitiated) {
+                    try FileDistributionService.scanInputs(in: sortingSourceDirectory, mapping: mapping)
+                }.value
 
-        let inputs = creatorFolders.flatMap { creatorFolder -> [FileDistributionInput] in
-            let creatorName = creatorFolder.lastPathComponent
-            let files = (try? manager.contentsOfDirectory(
-                at: creatorFolder,
-                includingPropertiesForKeys: [.isRegularFileKey],
-                options: [.skipsHiddenFiles]
-            )) ?? []
-
-            return files.compactMap { candidate in
-                guard (try? candidate.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true else {
-                    return nil
+                guard !scan.inputs.isEmpty else {
+                    self.postProcessingSummary = "В выбранной папке нет файлов для сортировки."
+                    self.statusTitle = "Готово"
+                    self.statusDetail = self.postProcessingSummary
+                    self.lastResult = self.postProcessingSummary
+                    self.currentStepLabel = "Файлов для переноса не найдено."
+                    self.appendLog("Сортировка: в папке \(sortingSourceDirectory.lastPathComponent) нет файлов для переноса.")
+                    return
                 }
-                return FileDistributionInput(
-                    id: candidate.path,
-                    originalUsername: creatorName,
-                    currentURL: candidate,
-                    targetRelativeFolder: targetRelativeFolderPath(for: creatorName, mapping: mapping)
+
+                self.currentStepLabel = "Переношу файлы по правилам."
+                let result = await Task.detached(priority: .userInitiated) {
+                    FileDistributionService.distribute(inputs: scan.inputs, destinationRoot: distributionRootDirectory)
+                }.value
+                self.applyDistributionResult(
+                    result,
+                    shouldSynchronizeLatestSession: false,
+                    unreadableFolderNames: scan.unreadableFolderNames
                 )
+            } catch {
+                self.postProcessingSummary = error.localizedDescription
+                self.statusTitle = "Ошибка"
+                self.statusDetail = self.postProcessingSummary
+                self.lastResult = self.postProcessingSummary
+                self.currentStepLabel = "Сортировка завершилась ошибкой."
+                self.appendLog("Сортировка: \(error.localizedDescription)")
             }
         }
-
-        guard !inputs.isEmpty else {
-            postProcessingSummary = "В выбранной папке нет файлов для сортировки."
-            appendLog("Сортировка: в папке \(sortingSourceDirectory.lastPathComponent) нет файлов для переноса.")
-            return
-        }
-
-        distribute(inputs: inputs, destinationRoot: distributionRootDirectory, shouldSynchronizeLatestSession: false)
     }
 
-    func distributeLatestDownloadedFiles() {
+    func distributeLatestDownloadedFiles() async {
         guard !isBusy else { return }
         guard !latestSessionDownloadedItems.isEmpty else {
             postProcessingSummary = "Нет файлов из последней выгрузки для раскладки."
@@ -238,7 +252,6 @@ extension AppModel {
             return
         }
 
-        let manager = FileManager.default
         let mapping = parsedFolderRoutingRules()
         let inputs = latestSessionDownloadedItems.map { item in
             let username = sourceUsername(for: item)
@@ -249,8 +262,18 @@ extension AppModel {
                 targetRelativeFolder: targetRelativeFolderPath(for: username, mapping: mapping)
             )
         }
-        _ = manager
-        distribute(inputs: inputs, destinationRoot: distributionRootDirectory, shouldSynchronizeLatestSession: true)
+
+        await perform("Сортировка последней выгрузки") {
+            self.currentStepLabel = "Переношу файлы последней выгрузки в фоне."
+            let result = await Task.detached(priority: .userInitiated) {
+                FileDistributionService.distribute(inputs: inputs, destinationRoot: distributionRootDirectory)
+            }.value
+            self.applyDistributionResult(
+                result,
+                shouldSynchronizeLatestSession: true,
+                unreadableFolderNames: []
+            )
+        }
     }
 
     func copyPostProcessedReport() {
@@ -267,7 +290,7 @@ extension AppModel {
         appendLog("Список разложенных файлов скопирован в буфер обмена.")
     }
 
-    func undoLastDistribution() {
+    func undoLastDistribution() async {
         guard !isBusy else { return }
 
         let undoItems = postProcessedItems.filter { $0.originalPath != $0.currentPath }
@@ -277,74 +300,45 @@ extension AppModel {
             return
         }
 
-        let manager = FileManager.default
-        var restoredItems: [PostProcessedItem] = []
-        var failedItems: [PostProcessedItem] = []
-        var latestUpdates = Dictionary(uniqueKeysWithValues: latestSessionDownloadedItems.map { ($0.id, $0) })
-        var failedPaths: [String] = []
-
-        for item in undoItems.reversed() {
-            let currentURL = URL(fileURLWithPath: item.currentPath)
-            let originalURL = URL(fileURLWithPath: item.originalPath)
-
-            guard manager.fileExists(atPath: currentURL.path) else {
-                failedPaths.append(currentURL.lastPathComponent)
-                failedItems.append(item)
-                appendLog("Файл не найден для отмены переноса: \(currentURL.path).")
-                continue
-            }
-
-            do {
-                try manager.createDirectory(
-                    at: originalURL.deletingLastPathComponent(),
-                    withIntermediateDirectories: true
-                )
-
-                let restoredURL = manager.fileExists(atPath: originalURL.path)
-                    && currentURL.standardizedFileURL != originalURL.standardizedFileURL
-                    ? uniqueDestinationURL(
-                        for: originalURL.lastPathComponent,
-                        in: originalURL.deletingLastPathComponent(),
-                        fileManager: manager
-                    )
-                    : originalURL
-
-                if currentURL.standardizedFileURL != restoredURL.standardizedFileURL {
-                    try manager.moveItem(at: currentURL, to: restoredURL)
-                }
-
-                let restored = PostProcessedItem(
-                    id: item.id,
-                    originalUsername: item.originalUsername,
-                    targetFolderName: item.targetFolderName,
-                    originalPath: item.currentPath,
-                    currentPath: restoredURL.path
-                )
-                restoredItems.append(restored)
-
-                if let latestItem = latestUpdates[item.id] {
-                    latestUpdates[item.id] = latestItem.with(localPath: restoredURL.path)
-                }
-            } catch {
-                failedPaths.append(currentURL.lastPathComponent)
-                failedItems.append(item)
-                appendLog("Не удалось отменить перенос \(currentURL.lastPathComponent): \(error.localizedDescription)")
-            }
+        let inputs = undoItems.map {
+            FileDistributionUndoInput(
+                id: $0.id,
+                currentURL: URL(fileURLWithPath: $0.currentPath),
+                originalURL: URL(fileURLWithPath: $0.originalPath)
+            )
         }
 
-        latestSessionDownloadedItems = latestSessionDownloadedItems.map { latestUpdates[$0.id] ?? $0 }
-        synchronizeDownloadedItems(with: latestSessionDownloadedItems)
-        googleDriveLinkSummary = "Перенос отменён. После новой сортировки Drive-ссылки нужно собрать заново."
+        await perform("Отмена переноса") {
+            self.currentStepLabel = "Возвращаю файлы в исходные папки в фоне."
+            let result = await Task.detached(priority: .userInitiated) {
+                FileDistributionService.undo(inputs)
+            }.value
+            let restoredPaths = result.restoredRecords.reduce(into: [String: String]()) { paths, record in
+                paths[record.id] = record.restoredURL.path
+            }
 
-        if failedPaths.isEmpty {
-            postProcessedItems = []
-            postProcessingSummary = "Отменён перенос файлов: \(restoredItems.count)."
-        } else {
-            postProcessedItems = failedItems
-            postProcessingSummary = "Отменён перенос файлов: \(restoredItems.count). Ошибок: \(failedPaths.count)."
-            appendLog("Не удалось вернуть файлов: \(failedPaths.joined(separator: ", ")).")
+            self.latestSessionDownloadedItems = self.latestSessionDownloadedItems.map { item in
+                guard let restoredPath = restoredPaths[item.id] else { return item }
+                return item.with(localPath: restoredPath)
+            }
+            self.synchronizeDownloadedItems(with: self.latestSessionDownloadedItems)
+            self.googleDriveLinkSummary = "Перенос отменён. После новой сортировки Drive-ссылки нужно собрать заново."
+
+            let failedItems = undoItems.filter { result.failedIDs.contains($0.id) }
+            if result.failedFileNames.isEmpty {
+                self.postProcessedItems = []
+                self.postProcessingSummary = "Отменён перенос файлов: \(result.restoredRecords.count)."
+            } else {
+                self.postProcessedItems = failedItems
+                self.postProcessingSummary = "Отменён перенос файлов: \(result.restoredRecords.count). Ошибок: \(result.failedFileNames.count)."
+                self.appendLog("Не удалось вернуть файлов: \(result.failedFileNames.joined(separator: ", ")).")
+            }
+            self.statusTitle = result.failedFileNames.isEmpty ? "Готово" : "Завершено с ошибками"
+            self.statusDetail = self.postProcessingSummary
+            self.lastResult = self.postProcessingSummary
+            self.currentStepLabel = "Отмена переноса завершена."
+            self.appendLog(self.postProcessingSummary)
         }
-        appendLog(postProcessingSummary)
     }
 
     func parsedFolderRoutingRules() -> [String: String] {
@@ -386,16 +380,20 @@ extension AppModel {
     }
 
     private func currentPostProcessingRecords() -> [PostProcessedItem] {
-        !postProcessedItems.isEmpty
-            ? postProcessedItems
-            : latestSessionDownloadedItems.map {
+        guard postProcessedItems.isEmpty else { return postProcessedItems }
+
+        var seen = Set<String>()
+        return latestSessionDownloadedItems
+            .filter { seen.insert($0.id).inserted }
+            .map {
                 let username = sourceUsername(for: $0)
+                let currentURL = resolvedCurrentURL(for: $0)
                 return PostProcessedItem(
                     id: $0.id,
                     originalUsername: username,
                     targetFolderName: username,
-                    originalPath: resolvedCurrentURL(for: $0).path,
-                    currentPath: resolvedCurrentURL(for: $0).path
+                    originalPath: currentURL.path,
+                    currentPath: currentURL.path
                 )
             }
     }
@@ -426,7 +424,9 @@ extension AppModel {
     private func buildDigestReport(from outcomes: [GoogleDriveLinkExporter.ExportOutcome]) -> String {
         guard !outcomes.isEmpty else { return "" }
 
-        let recordsByID = Dictionary(uniqueKeysWithValues: currentPostProcessingRecords().map { ($0.id, $0) })
+        let recordsByID = currentPostProcessingRecords().reduce(into: [String: PostProcessedItem]()) { records, item in
+            records[item.id] = item
+        }
         let groupedByCountry = Dictionary(grouping: outcomes) { outcome in
             countryFolder(from: recordsByID[outcome.record.id]?.targetFolderName ?? outcome.record.header)
         }
@@ -462,24 +462,7 @@ extension AppModel {
     }
 
     private func targetRelativeFolderPath(for username: String, mapping: [String: String]) -> String {
-        guard let mapped = mapping[username.lowercased()]?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !mapped.isEmpty
-        else {
-            return username
-        }
-
-        let sanitized = mapped
-            .split(separator: "/", omittingEmptySubsequences: true)
-            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-
-        guard !sanitized.isEmpty else { return username }
-
-        if sanitized.count == 1 {
-            return sanitized[0] + "/" + username
-        }
-
-        return sanitized.joined(separator: "/")
+        FileDistributionService.targetRelativeFolderPath(for: username, mapping: mapping)
     }
 
     private func countryFolder(from targetRelativeFolder: String) -> String {
@@ -493,7 +476,9 @@ extension AppModel {
     private func rememberBloggers(from mapping: [String: String]) {
         guard !mapping.isEmpty else { return }
 
-        let existing = Dictionary(uniqueKeysWithValues: rememberedBloggers.map { ($0.id, $0) })
+        let existing = rememberedBloggers.reduce(into: [String: RememberedBlogger]()) { bloggers, blogger in
+            bloggers[blogger.id] = blogger
+        }
         let merged = mapping.reduce(into: existing) { partialResult, entry in
             let username = entry.key
             let targetFolder = targetRelativeFolderPath(for: username, mapping: mapping)
@@ -517,7 +502,9 @@ extension AppModel {
     private func rememberBloggers(from records: [PostProcessedItem]) {
         guard !records.isEmpty else { return }
 
-        var merged = Dictionary(uniqueKeysWithValues: rememberedBloggers.map { ($0.id, $0) })
+        var merged = rememberedBloggers.reduce(into: [String: RememberedBlogger]()) { bloggers, blogger in
+            bloggers[blogger.id] = blogger
+        }
         for record in records {
             merged[record.originalUsername.lowercased()] = RememberedBlogger(
                 username: record.originalUsername,
@@ -540,7 +527,14 @@ extension AppModel {
         guard let data = UserDefaults.standard.data(forKey: Self.rememberedBloggersKey),
               let decoded = try? JSONDecoder().decode([RememberedBlogger].self, from: data)
         else { return }
-        rememberedBloggers = decoded.sorted {
+        let uniqueBloggers = decoded.reduce(into: [String: RememberedBlogger]()) { bloggers, blogger in
+            if let existing = bloggers[blogger.id], existing.lastUsedAt >= blogger.lastUsedAt {
+                return
+            } else {
+                bloggers[blogger.id] = blogger
+            }
+        }
+        rememberedBloggers = uniqueBloggers.values.sorted {
             if $0.countryFolder == $1.countryFolder {
                 return $0.username.localizedCaseInsensitiveCompare($1.username) == .orderedAscending
             }
@@ -626,133 +620,73 @@ extension AppModel {
         return URL(fileURLWithPath: item.localPath)
     }
 
-    private func uniqueDestinationURL(for filename: String, in directory: URL, fileManager: FileManager) -> URL {
-        let candidate = directory.appendingPathComponent(filename, isDirectory: false)
-        guard fileManager.fileExists(atPath: candidate.path) else { return candidate }
-
-        let stem = candidate.deletingPathExtension().lastPathComponent
-        let ext = candidate.pathExtension
-        let numberedName = splitTrailingNumber(from: stem)
-        var index = numberedName.nextNumber
-
-        while true {
-            let adjustedStem = numberedName.prefix + formattedNumber(index, width: numberedName.width)
-            let adjustedName = ext.isEmpty ? adjustedStem : "\(adjustedStem).\(ext)"
-            let adjustedURL = directory.appendingPathComponent(adjustedName, isDirectory: false)
-            if !fileManager.fileExists(atPath: adjustedURL.path) {
-                return adjustedURL
-            }
-            index += 1
-        }
-    }
-
-    private func splitTrailingNumber(from stem: String) -> (prefix: String, nextNumber: Int, width: Int) {
-        guard let range = stem.range(of: #"\d+$"#, options: .regularExpression) else {
-            return ("\(stem) ", 2, 0)
-        }
-
-        let numberText = String(stem[range])
-        let prefix = String(stem[..<range.lowerBound])
-        return (prefix, (Int(numberText) ?? 1) + 1, numberText.count)
-    }
-
-    private func formattedNumber(_ number: Int, width: Int) -> String {
-        guard width > 0 else { return "\(number)" }
-        return String(format: "%0\(width)d", number)
-    }
-
     private func synchronizeDownloadedItems(with updatedItems: [WorkerItem]) {
-        let updatedMap = Dictionary(uniqueKeysWithValues: updatedItems.map { ($0.id, $0) })
+        let updatedMap = updatedItems.reduce(into: [String: WorkerItem]()) { items, item in
+            items[item.id] = item
+        }
         downloadedItems = downloadedItems.map { item in
             updatedMap[item.id] ?? item
         }
     }
 
-    private func distribute(
-        inputs: [FileDistributionInput],
-        destinationRoot: URL,
-        shouldSynchronizeLatestSession: Bool
+    private func applyDistributionResult(
+        _ result: FileDistributionResult,
+        shouldSynchronizeLatestSession: Bool,
+        unreadableFolderNames: [String]
     ) {
-        let manager = FileManager.default
-        var latestUpdates = Dictionary(uniqueKeysWithValues: latestSessionDownloadedItems.map { ($0.id, $0) })
-        var movedRecords: [PostProcessedItem] = []
-        var movedCount = 0
-        var failedPaths: [String] = []
-
-        do {
-            try manager.createDirectory(at: destinationRoot, withIntermediateDirectories: true)
-        } catch {
-            postProcessingSummary = "Не удалось подготовить папку назначения: \(error.localizedDescription)"
-            appendLog(postProcessingSummary)
-            return
+        let records = result.records.map {
+            PostProcessedItem(
+                id: $0.id,
+                originalUsername: $0.originalUsername,
+                targetFolderName: $0.targetRelativeFolder,
+                originalPath: $0.originalURL.path,
+                currentPath: $0.currentURL.path
+            )
         }
 
-        for input in inputs {
-            guard manager.fileExists(atPath: input.currentURL.path) else {
-                failedPaths.append(input.currentURL.lastPathComponent)
-                appendLog("Файл не найден для сортировки: \(input.currentURL.path).")
-                continue
-            }
-
-            let destinationDirectory = destinationRoot.appendingPathComponent(input.targetRelativeFolder, isDirectory: true)
-
-            do {
-                try manager.createDirectory(at: destinationDirectory, withIntermediateDirectories: true)
-                let destinationURL = uniqueDestinationURL(
-                    for: input.currentURL.lastPathComponent,
-                    in: destinationDirectory,
-                    fileManager: manager
-                )
-
-                if input.currentURL.standardizedFileURL != destinationURL.standardizedFileURL {
-                    try manager.moveItem(at: input.currentURL, to: destinationURL)
-                    movedCount += 1
+        if !records.isEmpty {
+            postProcessedItems = records.sorted {
+                if $0.targetFolderName == $1.targetFolderName {
+                    return $0.currentPath.localizedStandardCompare($1.currentPath) == .orderedAscending
                 }
-
-                movedRecords.append(
-                    PostProcessedItem(
-                        id: input.id,
-                        originalUsername: input.originalUsername,
-                        targetFolderName: input.targetRelativeFolder,
-                        originalPath: input.currentURL.path,
-                        currentPath: destinationURL.path
-                    )
-                )
-
-                if shouldSynchronizeLatestSession, let latestItem = latestUpdates[input.id] {
-                    latestUpdates[input.id] = latestItem.with(localPath: destinationURL.path)
-                }
-            } catch {
-                failedPaths.append(input.currentURL.lastPathComponent)
-                appendLog("Не удалось переложить \(input.currentURL.lastPathComponent): \(error.localizedDescription)")
+                return $0.targetFolderName.localizedCaseInsensitiveCompare($1.targetFolderName) == .orderedAscending
             }
+            rememberBloggers(from: postProcessedItems)
+            googleDriveLinkSummary = "После новой сортировки Drive-ссылки нужно собрать заново."
         }
 
         if shouldSynchronizeLatestSession {
-            latestSessionDownloadedItems = latestSessionDownloadedItems.map { latestUpdates[$0.id] ?? $0 }
+            let updatedPaths = result.records.reduce(into: [String: String]()) { paths, record in
+                paths[record.id] = record.currentURL.path
+            }
+            latestSessionDownloadedItems = latestSessionDownloadedItems.map { item in
+                guard let updatedPath = updatedPaths[item.id] else { return item }
+                return item.with(localPath: updatedPath)
+            }
             synchronizeDownloadedItems(with: latestSessionDownloadedItems)
         }
 
-        postProcessedItems = movedRecords.sorted {
-            if $0.targetFolderName == $1.targetFolderName {
-                return $0.currentPath.localizedStandardCompare($1.currentPath) == .orderedAscending
-            }
-            return $0.targetFolderName.localizedCaseInsensitiveCompare($1.targetFolderName) == .orderedAscending
-        }
-        rememberBloggers(from: postProcessedItems)
-
-        if movedCount > 0 {
-            postProcessingSummary = "Разложено файлов: \(movedCount). Подпапок затронуто: \(Set(movedRecords.map(\.targetFolderName)).count)."
-            appendLog(postProcessingSummary)
-        } else if !failedPaths.isEmpty {
-            postProcessingSummary = "Не удалось разложить файлы: \(failedPaths.count)."
-        } else {
+        let failureCount = result.failedFileNames.count + unreadableFolderNames.count
+        if result.movedCount > 0 {
+            postProcessingSummary = "Разложено файлов: \(result.movedCount). Подпапок затронуто: \(Set(records.map(\.targetFolderName)).count)."
+        } else if !records.isEmpty && failureCount == 0 {
             postProcessingSummary = "Файлы уже лежат в нужных папках."
+        } else {
+            postProcessingSummary = "Не удалось разложить файлы: \(failureCount)."
         }
 
-        if !failedPaths.isEmpty {
-            appendLog("Не удалось обработать файлов: \(failedPaths.joined(separator: ", ")).")
+        if !result.failedFileNames.isEmpty {
+            appendLog("Не удалось обработать файлов: \(result.failedFileNames.joined(separator: ", ")).")
         }
+        if !unreadableFolderNames.isEmpty {
+            appendLog("Не удалось прочитать папки: \(unreadableFolderNames.joined(separator: ", ")).")
+        }
+
+        statusTitle = failureCount == 0 ? "Готово" : "Завершено с ошибками"
+        statusDetail = postProcessingSummary
+        lastResult = postProcessingSummary
+        currentStepLabel = failureCount == 0 ? "Сортировка завершена." : "Сортировка завершена с ошибками."
+        appendLog(postProcessingSummary)
     }
 }
 
@@ -768,11 +702,4 @@ private extension WorkerItem {
             createdAt: createdAt
         )
     }
-}
-
-private struct FileDistributionInput {
-    let id: String
-    let originalUsername: String
-    let currentURL: URL
-    let targetRelativeFolder: String
 }

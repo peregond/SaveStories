@@ -20,6 +20,8 @@ final class AppModel: ObservableObject {
     static let notionRoutingRulesLastRefreshAtKey = "SaveStories.notionRoutingRulesLastRefreshAt"
     static let notionRoutingRulesCachedRulesKey = "SaveStories.notionRoutingRulesCachedRules"
     static let runtimeOnboardingDismissedKey = "SaveStories.runtimeOnboardingDismissed"
+    static let maxLogEntries = 2_000
+    static let maxDownloadedItems = 500
     private static let actionSoundNames = ["Pop", "Tink", "Glass"]
     private static let successSoundNames = ["Glass", "Hero", "Funk", "Pop"]
     private static let logDateFormatter: DateFormatter = {
@@ -108,7 +110,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    struct PostProcessedItem: Identifiable, Hashable {
+    struct PostProcessedItem: Identifiable, Hashable, Sendable {
         let id: String
         let originalUsername: String
         let targetFolderName: String
@@ -344,6 +346,8 @@ final class AppModel: ObservableObject {
     var sleepPreventionActivity: NSObjectProtocol?
     var isDownloadActivityInProgress = false
     var pendingEmptyStoryFolders: [URL] = []
+    var batchProgressStartedURLs = Set<String>()
+    var batchProgressCompletedURLs = Set<String>()
     var hasEmbeddedRuntime: Bool { AppPaths.hasEmbeddedRuntime }
     var runtimeOnboardingDismissed: Bool {
         UserDefaults.standard.bool(forKey: Self.runtimeOnboardingDismissedKey)
@@ -352,26 +356,10 @@ final class AppModel: ObservableObject {
     init() {
         updateSummary = appUpdater.summary
         canCheckForUpdates = appUpdater.isAvailable
-        if let savedDirectory = UserDefaults.standard.string(forKey: Self.saveDirectoryKey),
-           !savedDirectory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        {
-            saveDirectory = URL(fileURLWithPath: savedDirectory, isDirectory: true)
-        }
-        if let distributionRoot = UserDefaults.standard.string(forKey: Self.distributionRootDirectoryKey),
-           !distributionRoot.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        {
-            distributionRootDirectory = URL(fileURLWithPath: distributionRoot, isDirectory: true)
-        }
-        if let sortingSource = UserDefaults.standard.string(forKey: Self.sortingSourceDirectoryKey),
-           !sortingSource.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        {
-            sortingSourceDirectory = URL(fileURLWithPath: sortingSource, isDirectory: true)
-        }
-        if let cleanupDirectory = UserDefaults.standard.string(forKey: Self.emptyFolderCleanupDirectoryKey),
-           !cleanupDirectory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        {
-            emptyFolderCleanupDirectory = URL(fileURLWithPath: cleanupDirectory, isDirectory: true)
-        }
+        saveDirectory = Self.persistedDirectoryURL(forKey: Self.saveDirectoryKey) ?? AppPaths.defaultDownloads
+        distributionRootDirectory = Self.persistedDirectoryURL(forKey: Self.distributionRootDirectoryKey)
+        sortingSourceDirectory = Self.persistedDirectoryURL(forKey: Self.sortingSourceDirectoryKey)
+        emptyFolderCleanupDirectory = Self.persistedDirectoryURL(forKey: Self.emptyFolderCleanupDirectoryKey)
         if let savedRules = UserDefaults.standard.string(forKey: Self.folderRoutingRulesKey) {
             folderRoutingRules = savedRules
         }
@@ -433,6 +421,28 @@ final class AppModel: ObservableObject {
 
     func appendLog(_ message: String) {
         logs.insert("\(Self.logDateFormatter.string(from: Date()))  \(message)", at: 0)
+        if logs.count > Self.maxLogEntries {
+            logs.removeLast(logs.count - Self.maxLogEntries)
+        }
+    }
+
+    private static func persistedDirectoryURL(forKey key: String) -> URL? {
+        guard let path = UserDefaults.standard.string(forKey: key),
+              !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            return nil
+        }
+
+        return URL(fileURLWithPath: path, isDirectory: true)
+    }
+
+    nonisolated static func existingDirectory(_ url: URL?) -> URL? {
+        guard let url else { return nil }
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            return nil
+        }
+        return url
     }
 
     func dismissRuntimeOnboarding() {

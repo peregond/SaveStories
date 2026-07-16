@@ -1,6 +1,6 @@
 import Foundation
 
-struct EmptyFolderCleanupResult {
+struct EmptyFolderCleanupResult: Sendable {
     let removedFolders: [URL]
     let failedFolders: [URL]
 

@@ -13,6 +13,8 @@ CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 FRAMEWORKS_DIR="$CONTENTS_DIR/Frameworks"
+SHARED_SUPPORT_DIR="$CONTENTS_DIR/SharedSupport"
+NODE_WORKER_DIR="$SHARED_SUPPORT_DIR/node_worker"
 ICONSET_DIR="$BUILD_DIR/$ICON_BASENAME.iconset"
 ICON_PATH="$BUILD_DIR/$ICON_BASENAME.icns"
 STATIC_ICON_PATH="$ROOT/packaging/AppBundle/$ICON_BASENAME.icns"
@@ -33,7 +35,7 @@ export SWIFTPM_MODULECACHE_OVERRIDE="$BUILD_DIR/swiftpm-module-cache"
 swift build -c release --package-path "$ROOT"
 
 rm -rf "$APP_DIR"
-mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$FRAMEWORKS_DIR"
+mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$FRAMEWORKS_DIR" "$SHARED_SUPPORT_DIR"
 
 cp "$ROOT/packaging/AppBundle/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$ROOT/.build/release/$EXECUTABLE_NAME" "$MACOS_DIR/$EXECUTABLE_NAME"
@@ -53,5 +55,18 @@ ditto "$SPARKLE_FRAMEWORK_PATH" "$FRAMEWORKS_DIR/Sparkle.framework"
 if ! otool -l "$MACOS_DIR/$EXECUTABLE_NAME" | grep -q '@executable_path/../Frameworks'; then
   install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/$EXECUTABLE_NAME"
 fi
+
+if [ ! -f "$ROOT/node_worker/package.json" ] || [ ! -f "$ROOT/node_worker/bridge.mjs" ]; then
+  printf 'Node worker sources are missing. The beta app bundle is incomplete.\n' >&2
+  exit 1
+fi
+mkdir -p "$NODE_WORKER_DIR"
+rsync -a --delete \
+  --exclude node_modules \
+  --exclude .DS_Store \
+  "$ROOT/node_worker"/ "$NODE_WORKER_DIR"/
+
+codesign --force --deep --sign - "$APP_DIR"
+codesign --verify --deep --strict --verbose=2 "$APP_DIR"
 
 printf '\nBeta app created at:\n%s\n' "$APP_DIR"

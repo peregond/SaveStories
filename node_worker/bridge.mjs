@@ -31,6 +31,8 @@ const APP_NAME = "SaveMe";
 const LEGACY_APP_NAMES = ["SaveStories", "DimaSave"];
 const BATCH_JOB_TIMEOUT_MS = 120_000;
 let didEmitResponse = false;
+const activeSessions = new Set();
+let shutdownInProgress = false;
 
 function emit(ok, status, message, options = {}) {
   if (didEmitResponse) {
@@ -85,6 +87,28 @@ async function closeSessionSafely(session, logs = null) {
     emitProgress(`session_close_error=${message}`);
   }
 }
+
+async function shutdownForSignal(signal) {
+  if (shutdownInProgress) return;
+  shutdownInProgress = true;
+  emitProgress(`worker_signal=${signal}`);
+
+  const closeAllSessions = Promise.all(
+    [...activeSessions].map((session) => closeSessionSafely(session)),
+  );
+  await Promise.race([
+    closeAllSessions,
+    new Promise((resolve) => setTimeout(resolve, 5_000)),
+  ]);
+  process.exit(signal === "SIGINT" ? 130 : 143);
+}
+
+process.once("SIGINT", () => {
+  void shutdownForSignal("SIGINT");
+});
+process.once("SIGTERM", () => {
+  void shutdownForSignal("SIGTERM");
+});
 
 async function readRequest() {
   const chunks = [];
@@ -236,7 +260,7 @@ async function launchContext(headless = false) {
     options.executablePath = executablePath;
   }
   const context = await chromium.launchPersistentContext(BROWSER_PROFILE, options);
-  return {
+  const session = {
     context,
     browser: null,
     background: headless,
@@ -248,9 +272,12 @@ async function launchContext(headless = false) {
       return await context.newPage();
     },
     async close() {
+      activeSessions.delete(session);
       await context.close();
     },
   };
+  activeSessions.add(session);
+  return session;
 }
 
 async function persistSessionState(context, logs = null) {
@@ -1603,6 +1630,7 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
           batchResults[job.index] = buildFailureResult(job.normalizedUrl, message);
           processedCount += 1;
           logs.push(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
+          emitProgress(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
           await closePageAfterBatchTimeout(error, page, slot, job.normalizedUrl, logs);
           if (contextClosed || isClosedTargetError(error)) {
             batchAbortMessage ||= message;
@@ -1616,6 +1644,7 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
           batchResults[job.index] = buildFailureResult(job.normalizedUrl, message);
           processedCount += 1;
           logs.push(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
+          emitProgress(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
           continue;
         }
 

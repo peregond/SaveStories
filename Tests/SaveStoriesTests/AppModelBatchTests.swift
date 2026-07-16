@@ -45,6 +45,30 @@ final class AppModelBatchTests: XCTestCase {
             model.normalizedProfileLink("https://www.instagram.com/bob/"),
             "https://www.instagram.com/bob/"
         )
+        XCTAssertEqual(
+            model.normalizedProfileLink("HTTPS://WWW.INSTAGRAM.COM/Bob/?hl=en"),
+            "https://www.instagram.com/Bob/"
+        )
+        XCTAssertEqual(model.normalizedProfileLink("https://www.instagram.com/reel/abc/"), "")
+        XCTAssertEqual(model.normalizedProfileLink("https://evilinstagram.com/alice/"), "")
+        XCTAssertEqual(model.normalizedProfileLink("https://example.com/alice/"), "")
+        XCTAssertEqual(model.normalizedProfileLink("ftp://instagram.com/alice/"), "")
+        XCTAssertEqual(model.normalizedProfileLink("alice/bob"), "")
+        XCTAssertEqual(model.normalizedProfileLink("@***"), "")
+    }
+
+    func testNormalizedBatchLinksDropsInvalidAndCaseInsensitiveDuplicates() {
+        let model = AppModel()
+
+        XCTAssertEqual(
+            model.normalizedBatchLinks(
+                from: "@Alice\nhttps://www.instagram.com/alice/?hl=en\nhttps://www.instagram.com/reel/abc/\n@bob"
+            ),
+            [
+                "https://www.instagram.com/Alice/",
+                "https://www.instagram.com/bob/",
+            ]
+        )
     }
 
     func testApplyBatchResultsMapsWorkerStatusesAndMissingProfiles() {
@@ -86,6 +110,32 @@ final class AppModelBatchTests: XCTestCase {
         XCTAssertEqual(model.batchQueue[2].message, "Для профиля нет результата пакетной выгрузки.")
     }
 
+    func testApplyBatchResultsToleratesDuplicateWorkerEntries() {
+        let model = AppModel()
+        let alice = AppModel.BatchProfileItem(url: "alice")
+        model.batchQueue = [alice]
+        let duplicate = WorkerBatchResult(
+            url: "alice",
+            status: "completed",
+            message: "Done",
+            foundCount: 1,
+            savedCount: 1
+        )
+        let response = WorkerResponse(
+            ok: true,
+            status: "batch_complete",
+            message: "Done",
+            data: [:],
+            batchResults: [duplicate, duplicate],
+            items: [],
+            logs: []
+        )
+
+        model.applyBatchResults(response, pendingItems: [alice])
+
+        XCTAssertEqual(model.batchQueue[0].status, .completed)
+    }
+
     func testStoreRecentBatchListDeduplicatesPersistsAndCapsHistory() {
         let model = AppModel()
 
@@ -110,5 +160,26 @@ final class AppModelBatchTests: XCTestCase {
         let reloaded = AppModel()
         XCTAssertEqual(reloaded.recentBatchLists.count, 8)
         XCTAssertEqual(reloaded.recentBatchLists.first?.title, "List 9")
+    }
+
+    func testLoadRecentBatchListsRepairsInvalidAndDuplicateURLs() throws {
+        let stored = [
+            AppModel.RecentBatchList(
+                title: "Legacy",
+                urls: [
+                    "@Alice",
+                    "https://www.instagram.com/alice/?hl=en",
+                    "https://www.instagram.com/reel/invalid/",
+                ]
+            ),
+            AppModel.RecentBatchList(title: "Invalid", urls: ["https://evilinstagram.com/alice/"]),
+        ]
+        UserDefaults.standard.set(try JSONEncoder().encode(stored), forKey: recentBatchListsKey)
+
+        let model = AppModel()
+
+        XCTAssertEqual(model.recentBatchLists.count, 1)
+        XCTAssertEqual(model.recentBatchLists[0].title, "Legacy")
+        XCTAssertEqual(model.recentBatchLists[0].urls, ["https://www.instagram.com/Alice/"])
     }
 }

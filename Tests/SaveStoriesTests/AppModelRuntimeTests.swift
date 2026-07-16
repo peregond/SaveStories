@@ -84,6 +84,60 @@ final class AppModelRuntimeTests: XCTestCase {
         XCTAssertEqual(model.currentStepLabel, "Открываю профиль running.")
     }
 
+    func testHandleWorkerProgressAdvancesOnDoneAndErrorEvents() {
+        let model = AppModel()
+        model.batchTotalCount = 3
+
+        model.handleWorkerProgress("batch_slot_1_start=https://www.instagram.com/alice/")
+        model.handleWorkerProgress("batch_slot_2_start=https://www.instagram.com/bob/")
+        model.handleWorkerProgress("batch_slot_1_done=https://www.instagram.com/alice/")
+
+        XCTAssertEqual(model.batchCurrentIndex, 2)
+        XCTAssertEqual(model.batchRemainingCount, 1)
+
+        model.handleWorkerProgress("batch_slot_2_error=https://www.instagram.com/bob/ :: timeout")
+
+        XCTAssertEqual(model.batchRemainingCount, 1)
+        XCTAssertTrue(model.currentStepLabel.contains("ошибкой"))
+    }
+
+    func testAppendDeduplicatesWorkerItemsWithinOneResponse() {
+        let model = AppModel()
+        model.isDownloadActivityInProgress = true
+        let item = WorkerItem(
+            id: "duplicate",
+            sourceURL: "source",
+            pageURL: "page",
+            localPath: "/tmp/duplicate.mp4",
+            metadataPath: "/tmp/duplicate.json",
+            mediaType: "video",
+            createdAt: "now"
+        )
+        let response = WorkerResponse(
+            ok: true,
+            status: "download_complete",
+            message: "Done",
+            data: [:],
+            items: [item, item],
+            logs: []
+        )
+
+        model.append(response)
+
+        XCTAssertEqual(model.downloadedItems.map(\.id), ["duplicate"])
+        XCTAssertEqual(model.latestSessionDownloadedItems.map(\.id), ["duplicate"])
+    }
+
+    func testLogsAreBounded() {
+        let model = AppModel()
+        for index in 0..<(AppModel.maxLogEntries + 25) {
+            model.appendLog("line \(index)")
+        }
+
+        XCTAssertEqual(model.logs.count, AppModel.maxLogEntries)
+        XCTAssertTrue(model.logs.first?.contains("line \(AppModel.maxLogEntries + 24)") == true)
+    }
+
     func testHandleWorkerProgressRecognizesWorkerMilestones() {
         let model = AppModel()
 
@@ -95,6 +149,22 @@ final class AppModelRuntimeTests: XCTestCase {
 
         model.handleWorkerProgress("playwright=/tmp/ms-playwright")
         XCTAssertEqual(model.currentStepLabel, "Проверяю runtime и зависимости.")
+    }
+
+    func testNormalizedReelLinkAcceptsOnlyCanonicalInstagramMediaURLs() {
+        let model = AppModel()
+
+        XCTAssertEqual(
+            model.normalizedReelLink("https://www.instagram.com/reel/ABC_123/?igsh=test#fragment"),
+            "https://www.instagram.com/reel/ABC_123/"
+        )
+        XCTAssertEqual(
+            model.normalizedReelLink("https://instagram.com/p/short-code/"),
+            "https://www.instagram.com/p/short-code/"
+        )
+        XCTAssertNil(model.normalizedReelLink("https://evilinstagram.com/reel/ABC_123/"))
+        XCTAssertNil(model.normalizedReelLink("ftp://instagram.com/reel/ABC_123/"))
+        XCTAssertNil(model.normalizedReelLink("https://instagram.com/stories/ABC_123/"))
     }
 
     func testRuntimeSetupProgressMapsInstallerStages() {

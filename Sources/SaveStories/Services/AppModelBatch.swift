@@ -3,20 +3,18 @@ import Foundation
 
 extension AppModel {
     func addBatchProfiles() {
-        let parsed = parsedBatchLinks(from: batchInput)
-        guard !parsed.isEmpty else {
+        guard !isBusy else { return }
+        let normalized = normalizedBatchLinks(from: batchInput)
+        guard !normalized.isEmpty else {
             appendLog("Для списка не найдено ни одной ссылки на профиль.")
             return
         }
 
-        let existing = Set(batchQueue.map { normalizedProfileLink($0.url) })
+        let existing = Set(batchQueue.map { normalizedProfileLink($0.url).lowercased() })
         var seen = existing
-        let newItems = parsed
-            .map(normalizedProfileLink)
+        let newItems = normalized
             .filter { candidate in
-                guard !seen.contains(candidate) else { return false }
-                seen.insert(candidate)
-                return true
+                seen.insert(candidate.lowercased()).inserted
             }
             .map { BatchProfileItem(url: $0) }
 
@@ -56,14 +54,14 @@ extension AppModel {
     }
 
     func applyRecentBatchList(_ list: RecentBatchList) {
-        let existing = Set(batchQueue.map { normalizedProfileLink($0.url) })
+        guard !isBusy else { return }
+        let existing = Set(batchQueue.map { normalizedProfileLink($0.url).lowercased() })
         var seen = existing
         let newItems = list.urls
             .map(normalizedProfileLink)
+            .filter { !$0.isEmpty }
             .filter { candidate in
-                guard !seen.contains(candidate) else { return false }
-                seen.insert(candidate)
-                return true
+                seen.insert(candidate.lowercased()).inserted
             }
             .map { BatchProfileItem(url: $0, message: "Добавлено из недавнего списка.") }
 
@@ -78,7 +76,11 @@ extension AppModel {
 
     func replaceQueueWithRecentBatchList(_ list: RecentBatchList) {
         guard !isBusy else { return }
-        batchQueue = list.urls.map { BatchProfileItem(url: normalizedProfileLink($0), message: "Загружено из недавнего списка.") }
+        var seen = Set<String>()
+        batchQueue = list.urls
+            .map(normalizedProfileLink)
+            .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
+            .map { BatchProfileItem(url: $0, message: "Загружено из недавнего списка.") }
         resetBatchProgress()
         appendLog("Очередь заменена списком «\(list.title)».")
     }
@@ -91,7 +93,7 @@ extension AppModel {
 
     @discardableResult
     func refreshNotionInfluencerQueue(replaceQueue: Bool = true, force: Bool = false) async -> Bool {
-        guard !isBusy else { return false }
+        guard !isBusy, !isRefreshingNotionInfluencers else { return false }
 
         if !force, wasNotionSourceRefreshedToday(key: Self.notionInfluencerLastRefreshAtKey) {
             let cachedProfiles = UserDefaults.standard.stringArray(forKey: Self.notionInfluencerCachedProfilesKey) ?? []
@@ -147,18 +149,20 @@ extension AppModel {
 
     private func applyNotionInfluencerProfiles(_ profiles: [String], replaceQueue: Bool) -> Int {
         if replaceQueue {
-            batchQueue = profiles.map {
-                BatchProfileItem(url: normalizedProfileLink($0), message: "Загружено из Notion-списка.")
-            }
+            var seen = Set<String>()
+            batchQueue = profiles
+                .map(normalizedProfileLink)
+                .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
+                .map { BatchProfileItem(url: $0, message: "Загружено из Notion-списка.") }
             resetBatchProgress()
-            return profiles.count
+            return batchQueue.count
         }
 
         let existing = Set(batchQueue.map { normalizedProfileLink($0.url).lowercased() })
         var seen = existing
         let newItems = profiles
             .map(normalizedProfileLink)
-            .filter { seen.insert($0.lowercased()).inserted }
+            .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
             .map { BatchProfileItem(url: $0, message: "Добавлено из Notion-списка.") }
 
         batchQueue.append(contentsOf: newItems)
@@ -186,9 +190,11 @@ extension AppModel {
             )
             self.batchIsRunning = true
             self.batchStopRequested = false
-            self.batchCurrentIndex = 1
+            self.batchProgressStartedURLs.removeAll()
+            self.batchProgressCompletedURLs.removeAll()
+            self.batchCurrentIndex = 0
             self.batchTotalCount = pendingItems.count
-            self.batchRemainingCount = max(pendingItems.count - 1, 0)
+            self.batchRemainingCount = pendingItems.count
             self.batchCurrentURL = "Пакетная выгрузка выполняется в одном окне браузера."
             self.currentStepLabel = "Подготавливаю общую очередь профилей."
 
@@ -224,11 +230,7 @@ extension AppModel {
                 self.statusDetail = "Пакетная выгрузка остановлена пользователем."
                 self.lastResult = self.statusDetail
                 self.currentStepLabel = "Пакетная выгрузка остановлена."
-                self.batchRemainingCount = pendingItems.count
-                self.batchCurrentIndex = 0
-                self.batchCurrentURL = ""
-                self.batchIsRunning = false
-                self.batchStopRequested = false
+                self.resetBatchProgress()
                 return
             }
 
@@ -247,12 +249,8 @@ extension AppModel {
             if self.savedStoriesCount > 0 {
                 self.triggerCelebration()
             }
-            self.batchRemainingCount = 0
-            self.batchCurrentURL = ""
-            self.batchCurrentIndex = 0
-            self.batchIsRunning = false
-            self.batchStopRequested = false
-            self.prepareEmptyStoryFolderCleanupPrompt()
+            self.resetBatchProgress()
+            await self.prepareEmptyStoryFolderCleanupPrompt()
         }
     }
 
@@ -289,7 +287,7 @@ extension AppModel {
         showEmptyFolderCleanupPrompt = false
     }
 
-    func removePendingEmptyStoryFolders() {
+    func removePendingEmptyStoryFolders() async {
         let folders = pendingEmptyStoryFolders
         pendingEmptyStoryFolders = []
         showEmptyFolderCleanupPrompt = false
@@ -299,16 +297,23 @@ extension AppModel {
             return
         }
 
-        let cleanup = EmptyFolderCleanupService.deleteEmptyFolders(folders)
-        for folder in cleanup.failedFolders {
-            appendLog("Не удалось удалить пустую папку \(folder.lastPathComponent).")
-        }
+        await perform("Удаление пустых папок") {
+            let cleanup = await Task.detached(priority: .utility) {
+                EmptyFolderCleanupService.deleteEmptyFolders(folders)
+            }.value
+            for folder in cleanup.failedFolders {
+                self.appendLog("Не удалось удалить пустую папку \(folder.lastPathComponent).")
+            }
 
-        let removedNames = cleanup.removedFolderNames
-        if !removedNames.isEmpty {
-            appendLog("Удалены пустые папки после выгрузки stories: \(removedNames.joined(separator: ", ")).")
+            let removedNames = cleanup.removedFolderNames
+            if !removedNames.isEmpty {
+                self.appendLog("Удалены пустые папки после выгрузки stories: \(removedNames.joined(separator: ", ")).")
+            }
+            self.emptyFolderCleanupReport = EmptyFolderCleanupReport(removedCount: removedNames.count, folderNames: removedNames)
+            self.statusTitle = cleanup.failedFolders.isEmpty ? "Готово" : "Завершено с ошибками"
+            self.statusDetail = "Удалено пустых папок: \(removedNames.count)."
+            self.lastResult = self.statusDetail
         }
-        emptyFolderCleanupReport = EmptyFolderCleanupReport(removedCount: removedNames.count, folderNames: removedNames)
     }
 
     func parsedBatchLinks(from input: String) -> [String] {
@@ -324,16 +329,42 @@ extension AppModel {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return trimmed }
 
-        if trimmed.contains("instagram.com") {
-            return trimmed
+        let lowercased = trimmed.lowercased()
+        let urlSource = lowercased.contains("instagram.com") && !lowercased.contains("://")
+            ? "https://\(trimmed)"
+            : trimmed
+        if let url = URL(string: urlSource), let host = url.host?.lowercased() {
+            let scheme = url.scheme?.lowercased()
+            guard scheme == "http" || scheme == "https",
+                  host == "instagram.com" || host.hasSuffix(".instagram.com")
+            else {
+                return ""
+            }
+            let pathParts = url.pathComponents.filter { $0 != "/" }
+            guard let username = pathParts.first,
+                  normalizedInstagramUsername(username) != nil,
+                  !["accounts", "direct", "explore", "p", "reel", "reels", "stories"].contains(username.lowercased())
+            else {
+                return ""
+            }
+            return "https://www.instagram.com/\(username)/"
+        }
+        if lowercased.contains("instagram.com") {
+            return ""
         }
 
-        var username = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "@/"))
-        username = username.trimmingCharacters(in: CharacterSet(charactersIn: "*,;:!?/\\"))
-        username = username.filter { character in
-            character.isLetter || character.isNumber || character == "." || character == "_"
-        }
+        let stripped = trimmed
+            .trimmingCharacters(in: CharacterSet(charactersIn: "@/"))
+            .trimmingCharacters(in: CharacterSet(charactersIn: "*,;:!?/\\"))
+        guard let username = normalizedInstagramUsername(stripped) else { return "" }
         return "https://www.instagram.com/\(username)/"
+    }
+
+    func normalizedBatchLinks(from input: String) -> [String] {
+        var seen = Set<String>()
+        return parsedBatchLinks(from: input)
+            .map(normalizedProfileLink)
+            .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
     }
 
     func updateBatchProfile(id: UUID, status: BatchProfileItem.Status, message: String) {
@@ -342,9 +373,16 @@ extension AppModel {
         batchQueue[index].message = message
     }
 
-    func prepareEmptyStoryFolderCleanupPrompt() {
-        let emptyFolders = EmptyFolderCleanupService.findDeletableEmptyFolders(in: saveDirectory)
-        guard !emptyFolders.isEmpty else { return }
+    func prepareEmptyStoryFolderCleanupPrompt() async {
+        let directory = saveDirectory
+        let emptyFolders = await Task.detached(priority: .utility) {
+            EmptyFolderCleanupService.findDeletableEmptyFolders(in: directory)
+        }.value
+        guard !emptyFolders.isEmpty else {
+            pendingEmptyStoryFolders = []
+            showEmptyFolderCleanupPrompt = false
+            return
+        }
         pendingEmptyStoryFolders = emptyFolders
         showEmptyFolderCleanupPrompt = true
         appendLog("Найдены пустые папки после выгрузки stories: \(emptyFolders.count).")
@@ -374,9 +412,14 @@ extension AppModel {
             return
         }
 
-        let resultMap = Dictionary(uniqueKeysWithValues: results.map { (normalizedProfileLink($0.url), $0) })
+        let resultMap = results.reduce(into: [String: BatchWorkerResult]()) { result, item in
+            let key = normalizedProfileLink(item.url).lowercased()
+            if result[key] == nil {
+                result[key] = item
+            }
+        }
         for item in pendingItems {
-            let normalized = normalizedProfileLink(item.url)
+            let normalized = normalizedProfileLink(item.url).lowercased()
             guard let result = resultMap[normalized] else {
                 updateBatchProfile(id: item.id, status: .failed, message: "Для профиля нет результата пакетной выгрузки.")
                 continue
@@ -401,6 +444,8 @@ extension AppModel {
         batchTotalCount = 0
         batchRemainingCount = 0
         batchCurrentURL = ""
+        batchProgressStartedURLs.removeAll()
+        batchProgressCompletedURLs.removeAll()
     }
 
     func suggestedRecentListTitle(for urls: [String]) -> String {
@@ -420,7 +465,22 @@ extension AppModel {
             recentBatchLists = []
             return
         }
-        recentBatchLists = decoded
+        recentBatchLists = decoded.compactMap { list in
+            var seen = Set<String>()
+            let validURLs = list.urls
+                .map(normalizedProfileLink)
+                .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
+            guard !validURLs.isEmpty else { return nil }
+            return RecentBatchList(
+                id: list.id,
+                title: list.title,
+                urls: validURLs,
+                createdAt: list.createdAt
+            )
+        }
+        if recentBatchLists != decoded {
+            persistRecentBatchLists()
+        }
     }
 
     func persistRecentBatchLists() {
@@ -429,10 +489,16 @@ extension AppModel {
     }
 
     func storeRecentBatchList(title: String, urls: [String]) {
-        let normalizedURLs = urls.map(normalizedProfileLink)
+        var seen = Set<String>()
+        let normalizedURLs = urls
+            .map(normalizedProfileLink)
+            .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
         guard !normalizedURLs.isEmpty else { return }
 
-        recentBatchLists.removeAll { $0.urls.map(normalizedProfileLink) == normalizedURLs }
+        let normalizedIdentity = normalizedURLs.map { $0.lowercased() }
+        recentBatchLists.removeAll { list in
+            list.urls.map(normalizedProfileLink).map { $0.lowercased() } == normalizedIdentity
+        }
         recentBatchLists.insert(
             RecentBatchList(title: title, urls: normalizedURLs),
             at: 0
@@ -441,5 +507,15 @@ extension AppModel {
             recentBatchLists = Array(recentBatchLists.prefix(8))
         }
         persistRecentBatchLists()
+    }
+
+    private func normalizedInstagramUsername(_ raw: String) -> String? {
+        guard !raw.isEmpty,
+              raw.count <= 30,
+              raw.range(of: #"^[A-Za-z0-9._]+$"#, options: .regularExpression) != nil
+        else {
+            return nil
+        }
+        return raw
     }
 }
