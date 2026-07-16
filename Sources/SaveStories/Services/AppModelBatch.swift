@@ -90,8 +90,23 @@ extension AppModel {
     }
 
     @discardableResult
-    func refreshNotionInfluencerQueue(replaceQueue: Bool = true) async -> Bool {
+    func refreshNotionInfluencerQueue(replaceQueue: Bool = true, force: Bool = false) async -> Bool {
         guard !isBusy else { return false }
+
+        if !force, wasNotionSourceRefreshedToday(key: Self.notionInfluencerLastRefreshAtKey) {
+            let cachedProfiles = UserDefaults.standard.stringArray(forKey: Self.notionInfluencerCachedProfilesKey) ?? []
+            guard !cachedProfiles.isEmpty else {
+                notionInfluencerSourceSummary = "Notion уже обновлялся сегодня, но сохранённый список пуст."
+                appendLog("Повторная загрузка Notion пропущена: сегодня уже обновляли, сохранённый список пуст.")
+                return false
+            }
+
+            let appliedCount = applyNotionInfluencerProfiles(cachedProfiles, replaceQueue: replaceQueue)
+            notionInfluencerSourceSummary = "Notion уже обновлялся сегодня: использую сохранённый список (\(cachedProfiles.count) профилей)."
+            currentStepLabel = "Использую сохранённый Notion-список."
+            appendLog("Повторная загрузка Notion пропущена: применён сохранённый список, профилей: \(appliedCount).")
+            return true
+        }
 
         isRefreshingNotionInfluencers = true
         notionInfluencerSourceSummary = "Загружаю свежий список из Notion..."
@@ -106,24 +121,15 @@ extension AppModel {
                 return false
             }
 
+            let appliedCount = applyNotionInfluencerProfiles(profiles, replaceQueue: replaceQueue)
             if replaceQueue {
-                batchQueue = profiles.map {
-                    BatchProfileItem(url: normalizedProfileLink($0), message: "Загружено из Notion-списка.")
-                }
-                resetBatchProgress()
                 appendLog("Очередь заменена свежим Notion-списком: \(profiles.count) профилей.")
             } else {
-                let existing = Set(batchQueue.map { normalizedProfileLink($0.url).lowercased() })
-                var seen = existing
-                let newItems = profiles
-                    .map(normalizedProfileLink)
-                    .filter { seen.insert($0.lowercased()).inserted }
-                    .map { BatchProfileItem(url: $0, message: "Добавлено из Notion-списка.") }
-
-                batchQueue.append(contentsOf: newItems)
-                appendLog("Из Notion-списка добавлено новых профилей: \(newItems.count).")
+                appendLog("Из Notion-списка добавлено новых профилей: \(appliedCount).")
             }
 
+            UserDefaults.standard.set(profiles, forKey: Self.notionInfluencerCachedProfilesKey)
+            markNotionSourceRefreshed(key: Self.notionInfluencerLastRefreshAtKey)
             let timestamp = Date().formatted(date: .omitted, time: .shortened)
             notionInfluencerSourceSummary = "Notion обновлён в \(timestamp): \(profiles.count) профилей."
             currentStepLabel = "Список Notion загружен."
@@ -137,6 +143,26 @@ extension AppModel {
             appendLog("Не удалось загрузить Notion-список: \(error.localizedDescription)")
             return false
         }
+    }
+
+    private func applyNotionInfluencerProfiles(_ profiles: [String], replaceQueue: Bool) -> Int {
+        if replaceQueue {
+            batchQueue = profiles.map {
+                BatchProfileItem(url: normalizedProfileLink($0), message: "Загружено из Notion-списка.")
+            }
+            resetBatchProgress()
+            return profiles.count
+        }
+
+        let existing = Set(batchQueue.map { normalizedProfileLink($0.url).lowercased() })
+        var seen = existing
+        let newItems = profiles
+            .map(normalizedProfileLink)
+            .filter { seen.insert($0.lowercased()).inserted }
+            .map { BatchProfileItem(url: $0, message: "Добавлено из Notion-списка.") }
+
+        batchQueue.append(contentsOf: newItems)
+        return newItems.count
     }
 
     func runBatchDownloads() async {

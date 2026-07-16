@@ -15,6 +15,10 @@ final class AppModel: ObservableObject {
     private static let preventSleepDuringDownloadsKey = "SaveStories.preventSleepDuringDownloads"
     private static let notionInfluencerSourceEnabledKey = "SaveStories.notionInfluencerSourceEnabled"
     private static let notionRoutingRulesSourceEnabledKey = "SaveStories.notionRoutingRulesSourceEnabled"
+    static let notionInfluencerLastRefreshAtKey = "SaveStories.notionInfluencerLastRefreshAt"
+    static let notionInfluencerCachedProfilesKey = "SaveStories.notionInfluencerCachedProfiles"
+    static let notionRoutingRulesLastRefreshAtKey = "SaveStories.notionRoutingRulesLastRefreshAt"
+    static let notionRoutingRulesCachedRulesKey = "SaveStories.notionRoutingRulesCachedRules"
     static let runtimeOnboardingDismissedKey = "SaveStories.runtimeOnboardingDismissed"
     private static let actionSoundNames = ["Pop", "Tink", "Glass"]
     private static let successSoundNames = ["Glass", "Hero", "Funk", "Pop"]
@@ -261,7 +265,7 @@ final class AppModel: ObservableObject {
         didSet {
             UserDefaults.standard.set(notionInfluencerSourceEnabled, forKey: Self.notionInfluencerSourceEnabledKey)
             if notionInfluencerSourceEnabled {
-                notionInfluencerSourceSummary = "Перед запуском очередь обновится из Notion."
+                notionInfluencerSourceSummary = "Перед запуском очередь обновится из Notion не чаще одного раза в день."
             } else {
                 notionInfluencerSourceSummary = "Автосписок Notion выключен."
             }
@@ -273,7 +277,7 @@ final class AppModel: ObservableObject {
         didSet {
             UserDefaults.standard.set(notionRoutingRulesSourceEnabled, forKey: Self.notionRoutingRulesSourceEnabledKey)
             notionRoutingRulesSourceSummary = notionRoutingRulesSourceEnabled
-                ? "Перед сортировкой правила обновятся из Notion."
+                ? "Перед сортировкой правила обновятся из Notion не чаще одного раза в день."
                 : "Автоправила Notion выключены."
         }
     }
@@ -382,13 +386,24 @@ final class AppModel: ObservableObject {
         }
         notionInfluencerSourceEnabled = UserDefaults.standard.bool(forKey: Self.notionInfluencerSourceEnabledKey)
         notionInfluencerSourceSummary = notionInfluencerSourceEnabled
-            ? "Перед запуском очередь обновится из Notion."
+            ? "Перед запуском очередь обновится из Notion не чаще одного раза в день."
             : "Автосписок Notion выключен."
         notionRoutingRulesSourceEnabled = UserDefaults.standard.bool(forKey: Self.notionRoutingRulesSourceEnabledKey)
         notionRoutingRulesSourceSummary = notionRoutingRulesSourceEnabled
-            ? "Перед сортировкой правила обновятся из Notion."
+            ? "Перед сортировкой правила обновятся из Notion не чаще одного раза в день."
             : "Автоправила Notion выключены."
         loadRecentBatchLists()
+    }
+
+    func wasNotionSourceRefreshedToday(key: String) -> Bool {
+        guard let date = UserDefaults.standard.object(forKey: key) as? Date else {
+            return false
+        }
+        return Calendar.current.isDateInToday(date)
+    }
+
+    func markNotionSourceRefreshed(key: String) {
+        UserDefaults.standard.set(Date(), forKey: key)
     }
 
     func triggerCelebration() {

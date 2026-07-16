@@ -549,8 +549,27 @@ extension AppModel {
     }
 
     @discardableResult
-    func refreshNotionRoutingRules() async -> Bool {
+    func refreshNotionRoutingRules(force: Bool = false) async -> Bool {
         guard !isBusy, !isRefreshingNotionRoutingRules else { return false }
+
+        if !force, wasNotionSourceRefreshedToday(key: Self.notionRoutingRulesLastRefreshAtKey) {
+            let cachedRules = UserDefaults.standard.string(forKey: Self.notionRoutingRulesCachedRulesKey) ?? folderRoutingRules
+            guard !cachedRules.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                notionRoutingRulesSourceSummary = "Notion уже обновлялся сегодня, но сохранённые правила пустые."
+                postProcessingSummary = notionRoutingRulesSourceSummary
+                appendLog("Повторная загрузка правил Notion пропущена: сегодня уже обновляли, сохранённые правила пустые.")
+                return false
+            }
+
+            folderRoutingRules = cachedRules
+            persistFolderRoutingRules()
+            let count = cachedRules.split(whereSeparator: \.isNewline).count
+            notionRoutingRulesSourceSummary = "Notion уже обновлялся сегодня: использую сохранённые правила (\(count))."
+            postProcessingSummary = notionRoutingRulesSourceSummary
+            currentStepLabel = "Использую сохранённые правила Notion."
+            appendLog("Повторная загрузка правил Notion пропущена: применены сохранённые правила, строк: \(count).")
+            return true
+        }
 
         isRefreshingNotionRoutingRules = true
         notionRoutingRulesSourceSummary = "Загружаю правила сортировки из Notion..."
@@ -569,6 +588,8 @@ extension AppModel {
 
             folderRoutingRules = rules
             persistFolderRoutingRules()
+            UserDefaults.standard.set(rules, forKey: Self.notionRoutingRulesCachedRulesKey)
+            markNotionSourceRefreshed(key: Self.notionRoutingRulesLastRefreshAtKey)
             let count = rules.split(whereSeparator: \.isNewline).count
             notionRoutingRulesSourceSummary = "Notion обновлён: \(count) правил."
             postProcessingSummary = notionRoutingRulesSourceSummary

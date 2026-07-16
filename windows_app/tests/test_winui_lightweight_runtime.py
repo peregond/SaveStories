@@ -172,6 +172,22 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("InstagramUsername", source)
         self.assertIn('uri.Host.Contains("instagram.com"', source)
 
+    def test_winui_notion_refresh_uses_daily_cache(self) -> None:
+        settings = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/BetaSettingsStore.cs")
+        stories_page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml.cs")
+        sorting_page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SortingPage.xaml.cs")
+
+        self.assertIn("WasNotionInfluencersRefreshedToday", settings)
+        self.assertIn("NotionInfluencerCachedProfiles", settings)
+        self.assertIn("MarkNotionInfluencersRefreshed", settings)
+        self.assertIn("WasNotionRoutingRulesRefreshedToday", settings)
+        self.assertIn("NotionRoutingRulesCachedRules", settings)
+        self.assertIn("MarkNotionRoutingRulesRefreshed", settings)
+        self.assertIn("forceRefresh", stories_page)
+        self.assertIn("ApplyNotionProfiles", stories_page)
+        self.assertIn("forceRefresh", sorting_page)
+        self.assertIn("ApplyNotionRoutingRules", sorting_page)
+
     def test_winui_empty_folder_cleanup_uses_single_shared_service(self) -> None:
         stories_page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml.cs")
         sorting_page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SortingPage.xaml.cs")

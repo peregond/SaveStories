@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 namespace SaveMe.WinUI.Beta.Services;
@@ -12,7 +13,7 @@ public enum BetaTheme
 public sealed class BetaSettingsStore
 {
     private const string FileName = "settings.json";
-    private const int CurrentSchemaVersion = 8;
+    private const int CurrentSchemaVersion = 9;
     private static readonly Lazy<BetaSettingsStore> LazyInstance = new(() => new BetaSettingsStore());
 
     private readonly string _settingsDirectory;
@@ -30,6 +31,10 @@ public sealed class BetaSettingsStore
     public string SortingRules { get; private set; } = "";
     public bool NotionInfluencerSourceEnabled { get; private set; }
     public bool NotionRoutingRulesSourceEnabled { get; private set; }
+    public string NotionInfluencerLastRefreshAt { get; private set; } = "";
+    public List<string> NotionInfluencerCachedProfiles { get; private set; } = new();
+    public string NotionRoutingRulesLastRefreshAt { get; private set; } = "";
+    public string NotionRoutingRulesCachedRules { get; private set; } = "";
     public List<RememberedBloggerPayload> RememberedBloggers { get; private set; } = new();
 
     public event EventHandler<BetaTheme>? ThemeChanged;
@@ -68,6 +73,10 @@ public sealed class BetaSettingsStore
             SortingRules = payload?.SortingRules ?? "";
             NotionInfluencerSourceEnabled = payload?.NotionInfluencerSourceEnabled ?? false;
             NotionRoutingRulesSourceEnabled = payload?.NotionRoutingRulesSourceEnabled ?? false;
+            NotionInfluencerLastRefreshAt = payload?.NotionInfluencerLastRefreshAt ?? "";
+            NotionInfluencerCachedProfiles = payload?.NotionInfluencerCachedProfiles ?? new List<string>();
+            NotionRoutingRulesLastRefreshAt = payload?.NotionRoutingRulesLastRefreshAt ?? "";
+            NotionRoutingRulesCachedRules = payload?.NotionRoutingRulesCachedRules ?? "";
             RememberedBloggers = payload?.RememberedBloggers ?? new List<RememberedBloggerPayload>();
             if (schemaVersion < CurrentSchemaVersion)
             {
@@ -86,6 +95,10 @@ public sealed class BetaSettingsStore
             SortingRules = "";
             NotionInfluencerSourceEnabled = false;
             NotionRoutingRulesSourceEnabled = false;
+            NotionInfluencerLastRefreshAt = "";
+            NotionInfluencerCachedProfiles = new List<string>();
+            NotionRoutingRulesLastRefreshAt = "";
+            NotionRoutingRulesCachedRules = "";
             RememberedBloggers = new List<RememberedBloggerPayload>();
         }
     }
@@ -169,6 +182,33 @@ public sealed class BetaSettingsStore
         Save();
     }
 
+    public bool WasNotionInfluencersRefreshedToday()
+    {
+        return IsToday(NotionInfluencerLastRefreshAt);
+    }
+
+    public bool WasNotionRoutingRulesRefreshedToday()
+    {
+        return IsToday(NotionRoutingRulesLastRefreshAt);
+    }
+
+    public void MarkNotionInfluencersRefreshed(IEnumerable<string> profiles)
+    {
+        NotionInfluencerLastRefreshAt = DateTimeOffset.Now.ToString("O", CultureInfo.InvariantCulture);
+        NotionInfluencerCachedProfiles = profiles
+            .Where(profile => !string.IsNullOrWhiteSpace(profile))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        Save();
+    }
+
+    public void MarkNotionRoutingRulesRefreshed(string rules)
+    {
+        NotionRoutingRulesLastRefreshAt = DateTimeOffset.Now.ToString("O", CultureInfo.InvariantCulture);
+        NotionRoutingRulesCachedRules = rules ?? "";
+        Save();
+    }
+
     private void Save()
     {
         Directory.CreateDirectory(_settingsDirectory);
@@ -190,6 +230,10 @@ public sealed class BetaSettingsStore
             SortingRules = SortingRules,
             NotionInfluencerSourceEnabled = NotionInfluencerSourceEnabled,
             NotionRoutingRulesSourceEnabled = NotionRoutingRulesSourceEnabled,
+            NotionInfluencerLastRefreshAt = NotionInfluencerLastRefreshAt,
+            NotionInfluencerCachedProfiles = NotionInfluencerCachedProfiles,
+            NotionRoutingRulesLastRefreshAt = NotionRoutingRulesLastRefreshAt,
+            NotionRoutingRulesCachedRules = NotionRoutingRulesCachedRules,
             RememberedBloggers = RememberedBloggers,
         };
         var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
@@ -209,6 +253,25 @@ public sealed class BetaSettingsStore
         }
 
         return BetaTheme.System;
+    }
+
+    private static bool IsToday(string? isoDateTime)
+    {
+        if (string.IsNullOrWhiteSpace(isoDateTime))
+        {
+            return false;
+        }
+
+        if (!DateTimeOffset.TryParse(
+                isoDateTime,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind,
+                out var dateTime))
+        {
+            return false;
+        }
+
+        return dateTime.LocalDateTime.Date == DateTime.Now.Date;
     }
 
     private void MigrateLegacyDirectoryIfNeeded()
@@ -244,6 +307,10 @@ public sealed class BetaSettingsStore
         public string? SortingRules { get; set; }
         public bool NotionInfluencerSourceEnabled { get; set; }
         public bool NotionRoutingRulesSourceEnabled { get; set; }
+        public string? NotionInfluencerLastRefreshAt { get; set; }
+        public List<string>? NotionInfluencerCachedProfiles { get; set; }
+        public string? NotionRoutingRulesLastRefreshAt { get; set; }
+        public string? NotionRoutingRulesCachedRules { get; set; }
         public List<RememberedBloggerPayload>? RememberedBloggers { get; set; }
     }
 }

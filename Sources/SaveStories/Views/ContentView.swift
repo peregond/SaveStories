@@ -2688,7 +2688,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Button {
-                    Task { await model.refreshNotionInfluencerQueue(replaceQueue: true) }
+                    Task { await model.refreshNotionInfluencerQueue(replaceQueue: true, force: true) }
                 } label: {
                     Text("Обновить")
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
@@ -2739,7 +2739,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Button {
-                    Task { await model.refreshNotionRoutingRules() }
+                    Task { await model.refreshNotionRoutingRules(force: true) }
                 } label: {
                     Text("Обновить")
                         .font(.system(size: 12, weight: .semibold, design: .rounded))

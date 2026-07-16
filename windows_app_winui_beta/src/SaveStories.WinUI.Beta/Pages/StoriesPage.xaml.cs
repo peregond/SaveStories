@@ -351,14 +351,33 @@ public sealed partial class StoriesPage : Page
 
     private async void OnRefreshNotionInfluencersClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        await RefreshNotionInfluencersAsync(replaceQueue: true);
+        await RefreshNotionInfluencersAsync(replaceQueue: true, forceRefresh: true);
     }
 
-    private async Task<bool> RefreshNotionInfluencersAsync(bool replaceQueue)
+    private async Task<bool> RefreshNotionInfluencersAsync(bool replaceQueue, bool forceRefresh = false)
     {
         if (_isRunning || _isRefreshingNotionInfluencers)
         {
             return false;
+        }
+
+        if (!forceRefresh && BetaSettingsStore.Current.WasNotionInfluencersRefreshedToday())
+        {
+            var cachedProfiles = BetaSettingsStore.Current.NotionInfluencerCachedProfiles;
+            if (cachedProfiles.Count == 0)
+            {
+                NotionInfluencerSummaryText.Text = "Notion уже обновлялся сегодня, но сохранённый список пуст.";
+                AppendLog("Повторная загрузка Notion пропущена: сегодня уже обновляли, сохранённый список пуст.");
+                return false;
+            }
+
+            var appliedCount = ApplyNotionProfiles(cachedProfiles, replaceQueue);
+            NotionInfluencerSummaryText.Text = $"Notion уже обновлялся сегодня: использую сохранённый список ({cachedProfiles.Count} профилей).";
+            StatusTitleText.Text = "Готово";
+            StatusDetailText.Text = "Использую сохранённый Notion-список.";
+            AppendLog($"Повторная загрузка Notion пропущена: применён сохранённый список, профилей: {appliedCount}.");
+            RefreshQueueSummary();
+            return true;
         }
 
         _isRefreshingNotionInfluencers = true;
@@ -384,19 +403,16 @@ public sealed partial class StoriesPage : Page
 
             if (replaceQueue)
             {
-                _queue.Clear();
-                foreach (var profile in profiles)
-                {
-                    _queue.Add(profile);
-                }
+                ApplyNotionProfiles(profiles, replaceQueue: true);
                 AppendLog($"Очередь заменена свежим Notion-списком: {profiles.Count} профилей.");
             }
             else
             {
-                var added = AddQueueItems(profiles);
+                var added = ApplyNotionProfiles(profiles, replaceQueue: false);
                 AppendLog($"Из Notion-списка добавлено новых профилей: {added}.");
             }
 
+            BetaSettingsStore.Current.MarkNotionInfluencersRefreshed(profiles);
             NotionInfluencerSummaryText.Text = $"Notion обновлён в {DateTime.Now:HH:mm}: {profiles.Count} профилей.";
             StatusTitleText.Text = "Готово";
             StatusDetailText.Text = "Список Notion загружен.";
@@ -418,6 +434,21 @@ public sealed partial class StoriesPage : Page
             NotionInfluencerToggle.IsEnabled = true;
             DownloadButton.IsEnabled = !_isRunning;
         }
+    }
+
+    private int ApplyNotionProfiles(IReadOnlyCollection<string> profiles, bool replaceQueue)
+    {
+        if (replaceQueue)
+        {
+            _queue.Clear();
+            foreach (var profile in profiles)
+            {
+                _queue.Add(profile);
+            }
+            return profiles.Count;
+        }
+
+        return AddQueueItems(profiles);
     }
 
     private void ApplyWorkerResult(WorkerResponse response)
@@ -532,7 +563,7 @@ public sealed partial class StoriesPage : Page
     private void UpdateNotionInfluencerSummary()
     {
         NotionInfluencerSummaryText.Text = NotionInfluencerToggle.IsOn
-            ? "Перед запуском очередь обновится из Notion."
+            ? "Перед запуском очередь обновится из Notion не чаще одного раза в день."
             : "Автосписок Notion выключен.";
     }
 

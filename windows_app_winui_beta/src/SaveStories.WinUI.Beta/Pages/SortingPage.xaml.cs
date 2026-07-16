@@ -367,14 +367,30 @@ public sealed partial class SortingPage : Page
 
     private async void OnRefreshNotionRoutingRulesClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        await RefreshNotionRoutingRulesAsync();
+        await RefreshNotionRoutingRulesAsync(forceRefresh: true);
     }
 
-    private async Task<bool> RefreshNotionRoutingRulesAsync()
+    private async Task<bool> RefreshNotionRoutingRulesAsync(bool forceRefresh = false)
     {
         if (_isRefreshingNotionRules)
         {
             return false;
+        }
+
+        if (!forceRefresh && BetaSettingsStore.Current.WasNotionRoutingRulesRefreshedToday())
+        {
+            var cachedRules = BetaSettingsStore.Current.NotionRoutingRulesCachedRules;
+            if (string.IsNullOrWhiteSpace(cachedRules))
+            {
+                NotionRoutingRulesSummaryText.Text = "Notion уже обновлялся сегодня, но сохранённые правила пустые.";
+                SortingStatusText.Text = NotionRoutingRulesSummaryText.Text;
+                return false;
+            }
+
+            var count = ApplyNotionRoutingRules(cachedRules);
+            NotionRoutingRulesSummaryText.Text = $"Notion уже обновлялся сегодня: использую сохранённые правила ({count}).";
+            SortingStatusText.Text = NotionRoutingRulesSummaryText.Text;
+            return true;
         }
 
         _isRefreshingNotionRules = true;
@@ -393,12 +409,8 @@ public sealed partial class SortingPage : Page
                 return false;
             }
 
-            RulesTextBox.Text = rules;
-            BetaSettingsStore.Current.SetSortingRules(rules);
-            SortingService.Current.ParseRules(rules);
-            RefreshRememberedBloggers();
-
-            var count = rules.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Length;
+            var count = ApplyNotionRoutingRules(rules);
+            BetaSettingsStore.Current.MarkNotionRoutingRulesRefreshed(rules);
             NotionRoutingRulesSummaryText.Text = $"Notion обновлён: {count} правил.";
             SortingStatusText.Text = NotionRoutingRulesSummaryText.Text;
             return true;
@@ -416,6 +428,15 @@ public sealed partial class SortingPage : Page
             RefreshNotionRoutingRulesButton.IsEnabled = true;
             NotionRoutingRulesToggle.IsEnabled = true;
         }
+    }
+
+    private int ApplyNotionRoutingRules(string rules)
+    {
+        RulesTextBox.Text = rules;
+        BetaSettingsStore.Current.SetSortingRules(rules);
+        SortingService.Current.ParseRules(rules);
+        RefreshRememberedBloggers();
+        return rules.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Length;
     }
 
     private string? PickFolder(string title, string? initialDirectory)
@@ -449,7 +470,7 @@ public sealed partial class SortingPage : Page
     private void UpdateNotionRoutingRulesSummary()
     {
         NotionRoutingRulesSummaryText.Text = NotionRoutingRulesToggle.IsOn
-            ? "Перед сортировкой правила обновятся из Notion."
+            ? "Перед сортировкой правила обновятся из Notion не чаще одного раза в день."
             : "Автоправила Notion выключены.";
     }
 
