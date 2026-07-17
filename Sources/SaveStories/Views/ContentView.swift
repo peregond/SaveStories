@@ -127,22 +127,6 @@ struct ContentView: View {
         }
     }
 
-    var globalStatusTitle: String {
-        if model.isBusy {
-            return "В работе"
-        }
-        if model.statusTitle.lowercased().contains("ошиб") {
-            return "Нужно внимание"
-        }
-        if !model.workerReady {
-            return "Worker не готов"
-        }
-        if !model.sessionReady {
-            return "Нужен вход"
-        }
-        return "Готово"
-    }
-
     var globalStatusTint: Color {
         if model.isBusy {
             return Color.blue.opacity(0.82)
@@ -928,23 +912,6 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    func header(title: String, subtitle: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.system(size: 34, weight: .semibold, design: .rounded))
-                .foregroundStyle(primaryText)
-
-            Text(subtitle)
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundStyle(secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text(versionLabel)
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                .foregroundStyle(tertiaryText)
-        }
-    }
-
     func detailHero(eyebrow: String, title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(eyebrow)
@@ -1195,80 +1162,40 @@ struct ContentView: View {
         }
     }
 
-    var topStatusBar: some View {
-        ViewThatFits(in: .horizontal) {
-            topStatusBarContent(showChips: true)
-            topStatusBarContent(showChips: false)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.white.opacity(isDark ? 0.055 : 0.44))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(cardStroke, lineWidth: 1)
-        )
-    }
+    var homeStatusHeader: some View {
+        HStack(spacing: 10) {
+            homeStatusBadge
 
-    func topStatusBarContent(showChips: Bool) -> some View {
-        HStack(spacing: 12) {
-            HStack(spacing: 10) {
-                if model.isBusy {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Circle()
-                        .fill(globalStatusTint)
-                        .frame(width: 8, height: 8)
+            Spacer(minLength: 4)
+
+            HStack(spacing: 8) {
+                topStatusChip(title: "Node", isReady: model.workerReady)
+                topStatusChip(title: "Session", isReady: model.sessionReady)
+
+                Button {
+                    Task { await model.refreshEnvironment() }
+                } label: {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .frame(width: 24, height: 24)
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .tint(secondaryButtonTint)
+                .help("Проверить среду worker")
+                .disabled(model.isBusy)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(globalStatusTitle)
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(primaryText)
-
-                    Text(model.currentStepLabel.isEmpty ? model.statusDetail : model.currentStepLabel)
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(tertiaryText)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                Button {
+                    Task { await model.login() }
+                } label: {
+                    Image(systemName: model.sessionReady ? "person.crop.circle.badge.checkmark" : "person.crop.circle.badge.exclamationmark")
+                        .frame(width: 24, height: 24)
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .tint(model.sessionReady ? secondaryButtonTint : prominentButtonTint)
+                .help(model.sessionReady ? "Обновить вход Instagram" : "Войти в Instagram")
+                .disabled(model.isBusy)
             }
-
-            Spacer(minLength: 0)
-
-            if showChips {
-                HStack(spacing: 8) {
-                    topStatusChip(title: "Node", isReady: model.workerReady)
-                    topStatusChip(title: "Session", isReady: model.sessionReady)
-                }
-            }
-
-            Button {
-                Task { await model.refreshEnvironment() }
-            } label: {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .frame(width: 24, height: 24)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .tint(secondaryButtonTint)
-            .help("Проверить среду worker")
-            .disabled(model.isBusy)
-
-            Button {
-                Task { await model.login() }
-            } label: {
-                Image(systemName: model.sessionReady ? "person.crop.circle.badge.checkmark" : "person.crop.circle.badge.exclamationmark")
-                    .frame(width: 24, height: 24)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .tint(model.sessionReady ? secondaryButtonTint : prominentButtonTint)
-            .help(model.sessionReady ? "Обновить вход Instagram" : "Войти в Instagram")
-            .disabled(model.isBusy)
         }
     }
 
@@ -1953,6 +1880,26 @@ struct ContentView: View {
                     title: "Автообновление",
                     message: model.updateSummary
                 )
+
+                Toggle(
+                    isOn: Binding(
+                        get: { model.automaticUpdatesEnabled },
+                        set: { model.setAutomaticUpdatesEnabled($0) }
+                    )
+                ) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Проверять и скачивать автоматически")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(primaryText)
+
+                        Text("При запуске SaveMe проверит обновление и подготовит его к установке.")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(tertiaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .toggleStyle(.switch)
+                .disabled(!model.canCheckForUpdates)
 
                 if model.canCheckForUpdates {
                     Button {

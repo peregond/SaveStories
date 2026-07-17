@@ -74,9 +74,7 @@ extension AppModel {
     }
 
     private func runStartupChecks() async {
-        appUpdater.start()
-        updateSummary = appUpdater.summary
-        canCheckForUpdates = appUpdater.isAvailable
+        checkForUpdatesOnLaunch()
 
         while isBusy {
             try? await Task.sleep(for: .milliseconds(400))

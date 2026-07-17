@@ -13,6 +13,7 @@ struct SaveMeApp: App {
                     await model.prepare()
                 }
         }
+        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(after: .appInfo) {
                 Button("Проверить обновления...") {

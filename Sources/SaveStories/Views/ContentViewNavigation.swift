@@ -29,11 +29,25 @@ extension ContentView {
             Spacer(minLength: 0)
 
             VStack(alignment: .leading, spacing: 8) {
+                if let readyUpdateVersion = model.readyUpdateVersion {
+                    Button {
+                        model.installReadyUpdate()
+                    } label: {
+                        Label("Обновить", systemImage: "arrow.down.circle.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(prominentButtonTint)
+                    .disabled(model.isBusy)
+                    .help("Установить SaveMe \(readyUpdateVersion)")
+                }
+
                 Text("v\(versionLabel)")
                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
                     .foregroundStyle(quaternaryText)
                     .lineLimit(1)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
 
             Button {
@@ -47,11 +61,15 @@ extension ContentView {
         }
         .frame(minWidth: sidebarWidth, idealWidth: sidebarWidth, maxWidth: sidebarWidth)
         .padding(.top, topContentInset)
-        .background(sidebarBackground)
+        .background(
+            sidebarBackground
+                .ignoresSafeArea(edges: .top)
+        )
         .overlay(alignment: .trailing) {
             Rectangle()
                 .fill(Color.white.opacity(isDark ? 0.05 : 0.35))
                 .frame(width: 1)
+                .ignoresSafeArea(edges: .top)
         }
     }
 
@@ -71,9 +89,11 @@ extension ContentView {
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(primaryText)
 
-                Text(section.subtitle)
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(quaternaryText)
+                if let subtitle = section.subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(quaternaryText)
+                }
             }
 
             Spacer(minLength: 0)
@@ -107,30 +127,19 @@ extension ContentView {
     }
 
     var detailContent: some View {
-        GeometryReader { proxy in
-            let horizontalPadding = contentHorizontalPadding(for: proxy.size.width)
-
-            VStack(spacing: 14) {
-                topStatusBar
-                    .padding(.horizontal, horizontalPadding)
-
-                Group {
-                    switch selectedSection {
-                    case .main:
-                        homeTwoView
-                    case .batch:
-                        batchView
-                    case .reels:
-                        reelsView
-                    case .sorting:
-                        sortingView
-                    case .settings:
-                        settingsView
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        Group {
+            switch selectedSection {
+            case .main:
+                homeTwoView
+            case .batch:
+                batchView
+            case .reels:
+                reelsView
+            case .sorting:
+                sortingView
+            case .settings:
+                settingsView
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.top, topContentInset)

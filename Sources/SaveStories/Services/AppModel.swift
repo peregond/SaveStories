@@ -305,7 +305,9 @@ final class AppModel: ObservableObject {
     @Published var runtimeSummary: String = ""
     @Published var updateSummary: String = "Автообновление ещё не настроено для этой сборки."
     @Published var canCheckForUpdates = false
+    @Published var automaticUpdatesEnabled = true
     @Published var isCheckingForUpdates = false
+    @Published var readyUpdateVersion: String?
     @Published var downloadedItems: [WorkerItem] = []
     @Published var logs: [String] = []
     @Published var isBusy = false
@@ -356,6 +358,10 @@ final class AppModel: ObservableObject {
     init() {
         updateSummary = appUpdater.summary
         canCheckForUpdates = appUpdater.isAvailable
+        automaticUpdatesEnabled = appUpdater.automaticUpdatesEnabled
+        appUpdater.stateDidChange = { [weak self] snapshot in
+            self?.applyUpdateSnapshot(snapshot)
+        }
         saveDirectory = Self.persistedDirectoryURL(forKey: Self.saveDirectoryKey) ?? AppPaths.defaultDownloads
         distributionRootDirectory = Self.persistedDirectoryURL(forKey: Self.distributionRootDirectoryKey)
         sortingSourceDirectory = Self.persistedDirectoryURL(forKey: Self.sortingSourceDirectoryKey)

@@ -25,7 +25,7 @@ extension ContentView {
             }
         }
 
-        var subtitle: String {
+        var subtitle: String? {
             switch self {
             case .main:
                 "Загрузка stories из профилей тут"
@@ -36,7 +36,7 @@ extension ContentView {
             case .sorting:
                 "Перенос, папки и ссылки"
             case .settings:
-                "Воркер, сессия и обновления"
+                nil
             }
         }
 

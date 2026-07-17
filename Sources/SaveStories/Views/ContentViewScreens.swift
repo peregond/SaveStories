@@ -8,7 +8,7 @@ extension ContentView {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    homeTwoHero(compact: compact)
+                    homeTwoHero
 
                     if compact {
                         VStack(alignment: .leading, spacing: 20) {
@@ -177,11 +177,9 @@ extension ContentView {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    detailHero(
-                        eyebrow: "Настройки",
-                        title: "Параметры приложения",
-                        subtitle: "Экран для обновлений, поведения во время выгрузки, состояния воркера и Instagram-сессии. Всё собрано в одном месте без всплывающих окон."
-                    )
+                    Text("Настройки")
+                        .font(.system(size: 34, weight: .semibold, design: .rounded))
+                        .foregroundStyle(primaryText)
 
                     settingsOverviewCard
 
@@ -221,25 +219,9 @@ extension ContentView {
     var settingsOverviewCard: some View {
         settingsCard("Обзор") {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Текущая версия")
-                            .font(.caption)
-                            .tracking(1.2)
-                            .textCase(.uppercase)
-                            .foregroundStyle(tertiaryText)
-
-                        Text(versionLabel)
-                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(primaryText)
-                    }
-
-                    Spacer(minLength: 0)
-
-                    if model.isBusy {
-                        liveStatusBadge
-                            .frame(maxWidth: 280, alignment: .trailing)
-                    }
+                if model.isBusy {
+                    liveStatusBadge
+                        .frame(maxWidth: 280, alignment: .leading)
                 }
 
                 Text("По умолчанию приложение не даёт ноутбуку заснуть во время активной выгрузки stories или Reels. При этом проверки среды, логин и проверка обновлений работают отдельно и не мешают обычной работе системы.")
@@ -263,25 +245,8 @@ extension ContentView {
         }
     }
 
-    func homeTwoHero(compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Group {
-                if compact {
-                    VStack(alignment: .leading, spacing: 14) {
-                        homeHeroTitleBlock
-                        homeHeroVersionBlock
-                    }
-                } else {
-                    HStack(alignment: .top, spacing: 16) {
-                        homeHeroTitleBlock
-
-                        Spacer(minLength: 0)
-
-                        homeHeroVersionBlock
-                    }
-                }
-            }
-        }
+    var homeTwoHero: some View {
+        homeHeroTitleBlock
     }
 
     var homeHeroTitleBlock: some View {
@@ -302,30 +267,10 @@ extension ContentView {
         }
     }
 
-    var homeHeroVersionBlock: some View {
-        VStack(alignment: .trailing, spacing: 6) {
-            Text(versionLabel)
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .foregroundStyle(tertiaryText)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(Color.white.opacity(isDark ? 0.08 : 0.58))
-                )
-
-            if model.batchIsRunning {
-                liveStatusBadge
-                    .frame(maxWidth: 260)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .trailing)
-    }
-
     var homeStatusCard: some View {
         card("Состояние", minHeight: homeSummaryCardHeight) {
             VStack(alignment: .leading, spacing: 14) {
-                homeStatusBadge
+                homeStatusHeader
 
                 Text(model.statusDetail)
                     .font(.system(size: 13, weight: .medium, design: .rounded))

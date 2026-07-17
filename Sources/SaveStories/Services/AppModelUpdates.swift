@@ -3,11 +3,28 @@ import Foundation
 extension AppModel {
     func checkForUpdates() async {
         guard !isCheckingForUpdates else { return }
-        isCheckingForUpdates = true
-        defer { isCheckingForUpdates = false }
         let message = appUpdater.checkForUpdates()
-        updateSummary = appUpdater.summary
-        canCheckForUpdates = appUpdater.isAvailable
         appendLog(message)
+    }
+
+    func checkForUpdatesOnLaunch() {
+        let message = appUpdater.checkForUpdatesOnLaunch()
+        appendLog(message)
+    }
+
+    func setAutomaticUpdatesEnabled(_ enabled: Bool) {
+        appUpdater.setAutomaticUpdatesEnabled(enabled)
+    }
+
+    func installReadyUpdate() {
+        appendLog(appUpdater.installReadyUpdate())
+    }
+
+    func applyUpdateSnapshot(_ snapshot: AppUpdateSnapshot) {
+        updateSummary = snapshot.summary
+        canCheckForUpdates = snapshot.isAvailable
+        automaticUpdatesEnabled = snapshot.automaticUpdatesEnabled
+        isCheckingForUpdates = snapshot.isChecking
+        readyUpdateVersion = snapshot.readyVersion
     }
 }
