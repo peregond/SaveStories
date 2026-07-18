@@ -263,7 +263,7 @@ final class AppModel: ObservableObject {
             refreshSleepPreventionForCurrentState()
         }
     }
-    @Published var notionInfluencerSourceEnabled = false {
+    @Published var notionInfluencerSourceEnabled = true {
         didSet {
             UserDefaults.standard.set(notionInfluencerSourceEnabled, forKey: Self.notionInfluencerSourceEnabledKey)
             if notionInfluencerSourceEnabled {
@@ -273,7 +273,7 @@ final class AppModel: ObservableObject {
             }
         }
     }
-    @Published var notionInfluencerSourceSummary = "Автосписок Notion выключен."
+    @Published var notionInfluencerSourceSummary = "Перед запуском очередь обновится из Notion не чаще одного раза в день."
     @Published var isRefreshingNotionInfluencers = false
     @Published var notionRoutingRulesSourceEnabled = false {
         didSet {
@@ -356,6 +356,9 @@ final class AppModel: ObservableObject {
     }
 
     init() {
+        UserDefaults.standard.register(defaults: [
+            Self.notionInfluencerSourceEnabledKey: true,
+        ])
         updateSummary = appUpdater.summary
         canCheckForUpdates = appUpdater.isAvailable
         automaticUpdatesEnabled = appUpdater.automaticUpdatesEnabled
