@@ -4,15 +4,32 @@ import XCTest
 @MainActor
 final class AppModelBatchTests: XCTestCase {
     private let recentBatchListsKey = "SaveStories.recentBatchLists"
+    private let notionInfluencerSourceEnabledKey = "SaveStories.notionInfluencerSourceEnabled"
 
     override func setUp() {
         super.setUp()
         UserDefaults.standard.removeObject(forKey: recentBatchListsKey)
+        UserDefaults.standard.removeObject(forKey: notionInfluencerSourceEnabledKey)
     }
 
     override func tearDown() {
         UserDefaults.standard.removeObject(forKey: recentBatchListsKey)
+        UserDefaults.standard.removeObject(forKey: notionInfluencerSourceEnabledKey)
         super.tearDown()
+    }
+
+    func testNotionInfluencerQueueRefreshDefaultsToEnabled() {
+        let model = AppModel()
+
+        XCTAssertTrue(model.notionInfluencerSourceEnabled)
+    }
+
+    func testNotionInfluencerQueueRefreshPreservesExplicitDisabledPreference() {
+        UserDefaults.standard.set(false, forKey: notionInfluencerSourceEnabledKey)
+
+        let model = AppModel()
+
+        XCTAssertFalse(model.notionInfluencerSourceEnabled)
     }
 
     func testParsedBatchLinksSplitsNewlinesCommasAndWhitespace() {

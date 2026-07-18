@@ -1,5 +1,31 @@
 import SwiftUI
 
+private enum StoriesActionButtonKind {
+    case neutral
+    case primary
+    case destructive
+}
+
+private struct StoriesActionButtonStyle: ButtonStyle {
+    let fill: Color
+    let stroke: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(fill)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(stroke, lineWidth: 1)
+            )
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .opacity(configuration.isPressed ? 0.86 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
 struct ContentView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.colorScheme) var colorScheme
@@ -535,21 +561,21 @@ struct ContentView: View {
 
                 if compact {
                     VStack(spacing: 10) {
-                        ghostButton("Добавить", systemImage: "plus") {
+                        storiesActionButton("Добавить", systemImage: "plus", isEnabled: !model.isBusy) {
                             model.addBatchProfiles()
                         }
 
-                        ghostButton("Запомнить", systemImage: "bookmark") {
+                        storiesActionButton("Запомнить", systemImage: "bookmark", isEnabled: !model.batchQueue.isEmpty && !model.isBusy) {
                             model.rememberCurrentBatchList()
                         }
-                        .disabled(model.batchQueue.isEmpty)
-                        .opacity(model.batchQueue.isEmpty ? 0.68 : 1)
 
-                        ghostButton("Очистить", systemImage: "xmark") {
+                        storiesActionButton(
+                            "Очистить",
+                            systemImage: "xmark",
+                            isEnabled: !model.batchInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !model.isBusy
+                        ) {
                             model.batchInput = ""
                         }
-                        .disabled(model.batchInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isBusy)
-                        .opacity(model.batchInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isBusy ? 0.68 : 1)
                     }
 
                     VStack(spacing: 10) {
@@ -559,21 +585,21 @@ struct ContentView: View {
                     }
                 } else {
                     HStack(spacing: 10) {
-                        ghostButton("Добавить", systemImage: "plus") {
+                        storiesActionButton("Добавить", systemImage: "plus", isEnabled: !model.isBusy) {
                             model.addBatchProfiles()
                         }
 
-                        ghostButton("Запомнить", systemImage: "bookmark") {
+                        storiesActionButton("Запомнить", systemImage: "bookmark", isEnabled: !model.batchQueue.isEmpty && !model.isBusy) {
                             model.rememberCurrentBatchList()
                         }
-                        .disabled(model.batchQueue.isEmpty)
-                        .opacity(model.batchQueue.isEmpty ? 0.68 : 1)
 
-                        ghostButton("Очистить", systemImage: "xmark") {
+                        storiesActionButton(
+                            "Очистить",
+                            systemImage: "xmark",
+                            isEnabled: !model.batchInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !model.isBusy
+                        ) {
                             model.batchInput = ""
                         }
-                        .disabled(model.batchInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isBusy)
-                        .opacity(model.batchInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isBusy ? 0.68 : 1)
                     }
 
                     HStack(spacing: 10) {
@@ -2703,51 +2729,94 @@ struct ContentView: View {
     }
 
     var storiesDownloadButton: some View {
-        Button {
+        storiesActionButton(
+            isStoriesDownloadInProgress ? "Загружаю..." : "Скачать",
+            systemImage: "arrow.down",
+            kind: .primary,
+            isEnabled: !model.batchQueue.isEmpty && !model.isBusy && !model.isRefreshingNotionInfluencers,
+            isProgressing: isStoriesDownloadInProgress
+        ) {
             Task { await model.runBatchDownloads() }
-        } label: {
-            HStack(spacing: 8) {
-                if isStoriesDownloadInProgress {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Загружаю...")
-                } else {
-                    Image(systemName: "arrow.down.circle.fill")
-                    Text("Скачать")
-                }
-            }
-            .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(queueActionTint)
-        .disabled(model.batchQueue.isEmpty || model.isBusy || model.isRefreshingNotionInfluencers)
-        .opacity(model.batchQueue.isEmpty || model.isBusy || model.isRefreshingNotionInfluencers ? 0.72 : 1)
     }
 
     var storiesStopButton: some View {
-        Button {
+        storiesActionButton(
+            "Остановить",
+            systemImage: "stop",
+            kind: .destructive,
+            isEnabled: model.batchIsRunning
+        ) {
             model.stopBatchDownloads()
-        } label: {
-            Label("Остановить", systemImage: "stop.circle")
-                .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.bordered)
-        .tint(Color.red.opacity(0.82))
-        .disabled(!model.batchIsRunning)
-        .opacity(model.batchIsRunning ? 1 : 0.72)
     }
 
     var storiesClearQueueButton: some View {
-        Button {
+        storiesActionButton(
+            "Очистить",
+            systemImage: "trash",
+            kind: .destructive,
+            isEnabled: !model.batchQueue.isEmpty && !model.isBusy
+        ) {
             model.clearBatchQueue()
-        } label: {
-            Label("Очистить очередь", systemImage: "trash")
-                .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.bordered)
-        .tint(Color.red.opacity(0.78))
-        .disabled(model.batchQueue.isEmpty || model.isBusy)
-        .opacity(model.batchQueue.isEmpty || model.isBusy ? 0.68 : 1)
+    }
+
+    private func storiesActionButton(
+        _ title: String,
+        systemImage: String,
+        kind: StoriesActionButtonKind = .neutral,
+        isEnabled: Bool,
+        isProgressing: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        let foreground: Color
+        let fill: Color
+        let stroke: Color
+
+        switch kind {
+        case .neutral:
+            foreground = primaryText
+            fill = Color.white.opacity(isDark ? 0.10 : 0.82)
+            stroke = prominentButtonTint.opacity(isDark ? 0.22 : 0.18)
+        case .primary:
+            foreground = Color.white.opacity(0.96)
+            fill = queueActionTint
+            stroke = queueActionTint.opacity(0.95)
+        case .destructive:
+            foreground = Color.red.opacity(0.82)
+            fill = Color.red.opacity(isDark ? 0.10 : 0.055)
+            stroke = Color.red.opacity(isDark ? 0.22 : 0.16)
+        }
+
+        return Button(action: action) {
+            HStack(spacing: 8) {
+                if isProgressing {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(foreground)
+                } else {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 13, weight: .semibold))
+                        .frame(width: 16)
+                }
+
+                Text(title)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+            }
+            .font(.system(size: 13, weight: .semibold, design: .rounded))
+            .foregroundStyle(foreground)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(StoriesActionButtonStyle(fill: fill, stroke: stroke))
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.52)
+        .frame(maxWidth: .infinity, minHeight: 46)
+        .animation(.easeInOut(duration: 0.16), value: isEnabled)
     }
 
     func ghostButton(_ title: String, systemImage: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
