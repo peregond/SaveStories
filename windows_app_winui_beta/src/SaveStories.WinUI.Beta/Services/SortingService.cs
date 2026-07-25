@@ -11,7 +11,7 @@ public sealed class SortingService
     public Dictionary<string, string> ParseRules(string rules)
     {
         var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var rawLine in (rules ?? "").Split('\n'))
+        foreach (var rawLine in SplitRuleLines(rules))
         {
             var line = rawLine.Trim();
             if (line.Length == 0 || line.StartsWith('#'))
@@ -40,7 +40,7 @@ public sealed class SortingService
                 return new RememberedBloggerPayload
                 {
                     Username = entry.Key,
-                    CountryFolder = CountryFolder(targetFolder),
+                    CountryFolder = CountryFolder(targetFolder, entry.Key),
                     TargetFolder = targetFolder,
                     LastUsedAt = DateTimeOffset.Now,
                 };
@@ -48,6 +48,15 @@ public sealed class SortingService
             : Array.Empty<RememberedBloggerPayload>());
 
         return mapping;
+    }
+
+    private static IEnumerable<string> SplitRuleLines(string? rules)
+    {
+        using var reader = new StringReader(rules ?? "");
+        while (reader.ReadLine() is { } line)
+        {
+            yield return line;
+        }
     }
 
     public SortingResult DistributeFromSource(string sourceDirectory, string destinationRoot, string rules)
@@ -213,7 +222,7 @@ public sealed class SortingService
                 moved.Add(new SortedFileRecord(
                     Id: input.Id,
                     Blogger: input.Blogger,
-                    CountryFolder: CountryFolder(input.TargetRelativeFolder),
+                    CountryFolder: CountryFolder(input.TargetRelativeFolder, input.Blogger),
                     TargetRelativeFolder: input.TargetRelativeFolder,
                     OriginalPath: input.CurrentPath,
                     CurrentPath: destinationPath));
@@ -332,8 +341,13 @@ public sealed class SortingService
             : $"[{record.TargetRelativeFolder} ({record.Blogger})]";
     }
 
-    private static string CountryFolder(string targetRelativeFolder)
+    private static string CountryFolder(string targetRelativeFolder, string blogger)
     {
+        if (string.Equals(targetRelativeFolder, blogger, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Без страны";
+        }
+
         return SplitPath(targetRelativeFolder).FirstOrDefault(part => !string.IsNullOrWhiteSpace(part)) ?? "Без страны";
     }
 

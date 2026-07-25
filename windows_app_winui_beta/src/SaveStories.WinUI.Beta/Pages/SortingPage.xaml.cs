@@ -434,9 +434,9 @@ public sealed partial class SortingPage : Page
     {
         RulesTextBox.Text = rules;
         BetaSettingsStore.Current.SetSortingRules(rules);
-        SortingService.Current.ParseRules(rules);
+        var mapping = SortingService.Current.ParseRules(rules);
         RefreshRememberedBloggers();
-        return rules.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Length;
+        return mapping.Count;
     }
 
     private string? PickFolder(string title, string? initialDirectory)
