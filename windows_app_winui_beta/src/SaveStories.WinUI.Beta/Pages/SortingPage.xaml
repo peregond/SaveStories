@@ -4,14 +4,26 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d">
+    mc:Ignorable="d"
+    SizeChanged="OnPageSizeChanged">
 
-    <ScrollViewer HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
-        <Grid Padding="24,16,24,24" ColumnSpacing="12">
+    <ScrollViewer
+        HorizontalContentAlignment="Stretch"
+        HorizontalScrollBarVisibility="Disabled"
+        HorizontalScrollMode="Disabled">
+        <Grid
+            x:Name="LayoutRoot"
+            Padding="24,16,24,24"
+            ColumnSpacing="12"
+            RowSpacing="12">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="3*" />
-                <ColumnDefinition Width="2*" />
+                <ColumnDefinition x:Name="PrimaryColumn" Width="3*" />
+                <ColumnDefinition x:Name="SecondaryColumn" Width="2*" />
             </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
             <StackPanel Spacing="12">
                 <Border Style="{StaticResource AppCardBorderStyle}">
@@ -32,7 +44,7 @@
                             Style="{StaticResource AppSecondaryTextStyle}"
                             Text="Работает отдельно от сортировки и не трогает папку «На перенос»."
                             TextWrapping="WrapWholeWords" />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
+                        <StackPanel x:Name="EmptyFolderActionsPanel" Orientation="Horizontal" Spacing="8">
                             <Button Click="OnChangeEmptyFolderCleanupDirectoryClick" Content="Выбрать папку" />
                             <Button Click="OnOpenEmptyFolderCleanupDirectoryClick" Content="Открыть" />
                             <Button Click="OnDeleteEmptyFoldersClick" Content="Удалить пустые папки" />
@@ -52,7 +64,7 @@
                             x:Name="SourceDirectoryText"
                             Style="{StaticResource AppSecondaryTextStyle}"
                             TextWrapping="WrapWholeWords" />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
+                        <StackPanel x:Name="SourceActionsPanel" Orientation="Horizontal" Spacing="8">
                             <Button Click="OnChangeSourceDirectoryClick" Content="Выбрать папку" />
                             <Button Click="OnOpenSourceDirectoryClick" Content="Открыть" />
                         </StackPanel>
@@ -66,7 +78,7 @@
                             x:Name="DestinationDirectoryText"
                             Style="{StaticResource AppSecondaryTextStyle}"
                             TextWrapping="WrapWholeWords" />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
+                        <StackPanel x:Name="DestinationActionsPanel" Orientation="Horizontal" Spacing="8">
                             <Button Click="OnChangeDestinationDirectoryClick" Content="Выбрать папку" />
                             <Button Click="OnOpenDestinationDirectoryClick" Content="Открыть" />
                         </StackPanel>
@@ -128,7 +140,7 @@
                             Style="{StaticResource AppSecondaryTextStyle}"
                             Text="Готово к сортировке."
                             TextWrapping="WrapWholeWords" />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
+                        <StackPanel x:Name="SortingActionsPanel" Orientation="Horizontal" Spacing="8">
                             <Button Click="OnRunSortingClick" Content="Разложить из папки Перенос" Style="{StaticResource SuccessActionButtonStyle}" />
                             <Button Click="OnRunLatestDownloadSortingClick" Content="Из последней загрузки" />
                             <Button x:Name="UndoSortingButton" Click="OnUndoSortingClick" Content="Отмена переноса" IsEnabled="False" />
@@ -153,7 +165,7 @@
                             Text="Ссылки Google Drive ещё не собирались."
                             Style="{StaticResource AppSecondaryTextStyle}"
                             TextWrapping="WrapWholeWords" />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
+                        <StackPanel x:Name="CopyActionsPanel" Orientation="Horizontal" Spacing="8">
                             <Button x:Name="CopyDigestButton" Click="OnCopyDigestClick" Content="Скопировать список" IsEnabled="False" />
                             <Button x:Name="CopyLinksButton" Click="OnCopyLinksClick" Content="Скопировать ссылки" IsEnabled="False" />
                         </StackPanel>
@@ -161,7 +173,11 @@
                 </Border>
             </StackPanel>
 
-            <StackPanel Grid.Column="1" Spacing="12">
+            <StackPanel
+                x:Name="SecondaryPanel"
+                Grid.Column="1"
+                Grid.Row="0"
+                Spacing="12">
                 <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
                         <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ЗАПОМНЕННЫЕ БЛОГЕРЫ" />

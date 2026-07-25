@@ -243,6 +243,29 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("var mapping = SortingService.Current.ParseRules(rules);", page)
         self.assertIn("return mapping.Count;", page)
 
+    def test_winui_sorting_page_has_responsive_layout(self) -> None:
+        page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SortingPage.xaml")
+        code_behind = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SortingPage.xaml.cs"
+        )
+
+        self.assertIn('HorizontalContentAlignment="Stretch"', page)
+        self.assertIn('SizeChanged="OnPageSizeChanged"', page)
+        self.assertIn("SingleColumnBreakpoint = 1040", code_behind)
+        self.assertIn("VerticalActionsBreakpoint = 820", code_behind)
+        self.assertIn("if (!_isLayoutReady)", code_behind)
+        self.assertIn("ApplyResponsiveLayout(e.NewSize.Width)", code_behind)
+        self.assertIn("Grid.SetColumn(SecondaryPanel, singleColumn ? 0 : 1)", code_behind)
+        self.assertIn("Grid.SetRow(SecondaryPanel, singleColumn ? 1 : 0)", code_behind)
+        for panel in (
+            "EmptyFolderActionsPanel",
+            "SourceActionsPanel",
+            "DestinationActionsPanel",
+            "SortingActionsPanel",
+            "CopyActionsPanel",
+        ):
+            self.assertIn(f"{panel}.Orientation = actionOrientation", code_behind)
+
     def test_winui_folder_picker_uses_explorer_style_dialog(self) -> None:
         picker = read(
             "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/ShellFolderService.cs"
