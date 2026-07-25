@@ -1,3 +1,4 @@
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using SaveMe.WinUI.Beta;
 using SaveMe.WinUI.Beta.Services;
@@ -7,6 +8,9 @@ namespace SaveMe.WinUI.Beta.Pages;
 
 public sealed partial class SortingPage : Page
 {
+    private const double SingleColumnBreakpoint = 1040;
+    private const double VerticalActionsBreakpoint = 820;
+
     private readonly NotionRoutingRulesSource _notionRoutingRulesSource = new();
     private readonly GoogleDriveLinkExporter _googleDriveLinkExporter = new();
     private List<SortedFileRecord> _lastRecords = new();
@@ -14,6 +18,7 @@ public sealed partial class SortingPage : Page
     private string _lastDigest = "";
     private string _lastLinksDigest = "";
     private bool _isRefreshingNotionRules;
+    private bool _isLayoutReady;
 
     public SortingPage()
     {
@@ -26,6 +31,44 @@ public sealed partial class SortingPage : Page
         UpdateNotionRoutingRulesSummary();
         RefreshLatestDownloadSummary();
         RefreshRememberedBloggers();
+        _isLayoutReady = true;
+        ApplyResponsiveLayout(ActualWidth);
+    }
+
+    private void OnPageSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (!_isLayoutReady)
+        {
+            return;
+        }
+
+        ApplyResponsiveLayout(e.NewSize.Width);
+    }
+
+    private void ApplyResponsiveLayout(double width)
+    {
+        var singleColumn = width < SingleColumnBreakpoint;
+        PrimaryColumn.Width = singleColumn
+            ? new GridLength(1, GridUnitType.Star)
+            : new GridLength(3, GridUnitType.Star);
+        SecondaryColumn.Width = singleColumn
+            ? new GridLength(0)
+            : new GridLength(2, GridUnitType.Star);
+        LayoutRoot.ColumnSpacing = singleColumn ? 0 : 12;
+        Grid.SetColumn(SecondaryPanel, singleColumn ? 0 : 1);
+        Grid.SetRow(SecondaryPanel, singleColumn ? 1 : 0);
+
+        var compact = width < VerticalActionsBreakpoint;
+        LayoutRoot.Padding = compact
+            ? new Thickness(16, 12, 16, 20)
+            : new Thickness(24, 16, 24, 24);
+
+        var actionOrientation = compact ? Orientation.Vertical : Orientation.Horizontal;
+        EmptyFolderActionsPanel.Orientation = actionOrientation;
+        SourceActionsPanel.Orientation = actionOrientation;
+        DestinationActionsPanel.Orientation = actionOrientation;
+        SortingActionsPanel.Orientation = actionOrientation;
+        CopyActionsPanel.Orientation = actionOrientation;
     }
 
     private void OnChangeSourceDirectoryClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
