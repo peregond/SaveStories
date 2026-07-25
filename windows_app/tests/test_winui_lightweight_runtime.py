@@ -230,6 +230,19 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("com.google.drivefs.item-id", exporter)
         self.assertIn("https://drive.google.com/open?id=", exporter)
 
+    def test_winui_sorting_rules_accept_all_line_endings(self) -> None:
+        page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SortingPage.xaml.cs")
+        service = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/SortingService.cs")
+
+        self.assertIn("SplitRuleLines(rules)", service)
+        self.assertIn("new StringReader(rules ?? \"\")", service)
+        self.assertIn("reader.ReadLine()", service)
+        self.assertNotIn(".Split('\\n')", service)
+        self.assertIn("CountryFolder(input.TargetRelativeFolder, input.Blogger)", service)
+        self.assertIn("string.Equals(targetRelativeFolder, blogger", service)
+        self.assertIn("var mapping = SortingService.Current.ParseRules(rules);", page)
+        self.assertIn("return mapping.Count;", page)
+
     def test_winui_folder_picker_uses_explorer_style_dialog(self) -> None:
         picker = read(
             "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/ShellFolderService.cs"
