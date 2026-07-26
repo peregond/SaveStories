@@ -21,6 +21,8 @@
                     <SolidColorBrush x:Key="SuccessActionForegroundBrush" Color="#FFFFFFFF" />
                     <SolidColorBrush x:Key="DangerActionBackgroundBrush" Color="#C42B1C" />
                     <SolidColorBrush x:Key="DangerActionForegroundBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="BlueActionBackgroundBrush" Color="#0067C0" />
+                    <SolidColorBrush x:Key="BlueActionForegroundBrush" Color="#FFFFFFFF" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <LinearGradientBrush x:Key="AppWindowBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
@@ -34,6 +36,8 @@
                     <SolidColorBrush x:Key="SuccessActionForegroundBrush" Color="#FFFFFFFF" />
                     <SolidColorBrush x:Key="DangerActionBackgroundBrush" Color="#B13A3A" />
                     <SolidColorBrush x:Key="DangerActionForegroundBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="BlueActionBackgroundBrush" Color="#0067C0" />
+                    <SolidColorBrush x:Key="BlueActionForegroundBrush" Color="#FFFFFFFF" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Default">
                     <LinearGradientBrush x:Key="AppWindowBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
@@ -47,6 +51,8 @@
                     <SolidColorBrush x:Key="SuccessActionForegroundBrush" Color="#FFFFFFFF" />
                     <SolidColorBrush x:Key="DangerActionBackgroundBrush" Color="#B13A3A" />
                     <SolidColorBrush x:Key="DangerActionForegroundBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="BlueActionBackgroundBrush" Color="#0067C0" />
+                    <SolidColorBrush x:Key="BlueActionForegroundBrush" Color="#FFFFFFFF" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 
@@ -90,6 +96,12 @@
                 <Setter Property="Background" Value="{ThemeResource DangerActionBackgroundBrush}" />
                 <Setter Property="Foreground" Value="{ThemeResource DangerActionForegroundBrush}" />
                 <Setter Property="BorderBrush" Value="{ThemeResource DangerActionBackgroundBrush}" />
+            </Style>
+
+            <Style x:Key="BlueActionButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="Background" Value="{ThemeResource BlueActionBackgroundBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource BlueActionForegroundBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource BlueActionBackgroundBrush}" />
             </Style>
 
             <Style TargetType="TextBox">
