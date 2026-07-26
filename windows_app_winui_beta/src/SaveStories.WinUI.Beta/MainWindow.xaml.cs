@@ -13,6 +13,7 @@ namespace SaveMe.WinUI.Beta;
 
 public sealed partial class MainWindow : Window
 {
+    private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _themeRefreshTimer;
     private bool _startupTasksCompleted;
 
     public MainWindow()
@@ -25,8 +26,16 @@ public sealed partial class MainWindow : Window
         SetStatusChip(NodeStatusDot, NodeStatusText, "check", StatusTone.Caution);
         SetStatusChip(SessionStatusDot, SessionStatusText, "check", StatusTone.Caution);
         DiagnosticsService.Current.LogInfo($"Startup version={AppVersionProvider.CurrentVersion()}");
-        ApplyTheme(BetaSettingsStore.Current.Theme);
+        ApplyConfiguredTheme();
         BetaSettingsStore.Current.ThemeChanged += OnThemeChanged;
+        BetaSettingsStore.Current.AutomaticThemeByTimeChanged += OnAutomaticThemeByTimeChanged;
+        _themeRefreshTimer = DispatcherQueue.CreateTimer();
+        _themeRefreshTimer.Interval = TimeSpan.FromMinutes(1);
+        _themeRefreshTimer.IsRepeating = true;
+        _themeRefreshTimer.Tick += OnThemeRefreshTimerTick;
+        _themeRefreshTimer.Start();
+        Activated += OnWindowActivated;
+        Closed += OnWindowClosed;
         AppNav.SelectedItem = AppNav.MenuItems[0];
         ContentFrame.Navigate(typeof(StoriesPage));
     }
@@ -60,6 +69,47 @@ public sealed partial class MainWindow : Window
 
     private void OnThemeChanged(object? sender, BetaTheme theme)
     {
+        ApplyConfiguredTheme();
+    }
+
+    private void OnAutomaticThemeByTimeChanged(object? sender, bool enabled)
+    {
+        ApplyConfiguredTheme();
+    }
+
+    private void OnThemeRefreshTimerTick(
+        Microsoft.UI.Dispatching.DispatcherQueueTimer sender,
+        object args)
+    {
+        if (BetaSettingsStore.Current.AutomaticThemeByTimeEnabled)
+        {
+            ApplyConfiguredTheme();
+        }
+    }
+
+    private void OnWindowActivated(object sender, WindowActivatedEventArgs args)
+    {
+        if (BetaSettingsStore.Current.AutomaticThemeByTimeEnabled)
+        {
+            ApplyConfiguredTheme();
+        }
+    }
+
+    private void OnWindowClosed(object sender, WindowEventArgs args)
+    {
+        _themeRefreshTimer.Stop();
+        BetaSettingsStore.Current.ThemeChanged -= OnThemeChanged;
+        BetaSettingsStore.Current.AutomaticThemeByTimeChanged -= OnAutomaticThemeByTimeChanged;
+        Activated -= OnWindowActivated;
+        Closed -= OnWindowClosed;
+    }
+
+    private void ApplyConfiguredTheme()
+    {
+        var settings = BetaSettingsStore.Current;
+        var theme = settings.AutomaticThemeByTimeEnabled
+            ? TimeOfDayThemeService.Resolve(DateTimeOffset.Now)
+            : settings.Theme;
         ApplyTheme(theme);
     }
 

@@ -12,13 +12,17 @@ public sealed partial class SettingsPage : Page
 {
     private CancellationTokenSource? _chromiumInstallCts;
     private CancellationTokenSource? _updateCts;
+    private bool _isInitializingThemeControls = true;
 
     public SettingsPage()
     {
         InitializeComponent();
         Unloaded += OnUnloaded;
         BetaSettingsStore.Current.ThemeChanged += OnThemeChanged;
+        BetaSettingsStore.Current.AutomaticThemeByTimeChanged += OnAutomaticThemeByTimeChanged;
+        AutomaticThemeByTimeToggle.IsOn = BetaSettingsStore.Current.AutomaticThemeByTimeEnabled;
         ApplyThemeButtons(BetaSettingsStore.Current.Theme);
+        _isInitializingThemeControls = false;
         UpdateSummaryText.Text = WindowsUpdaterService.Current.Summary;
         ChromiumSummaryText.Text = ChromiumBootstrapService.Current.GetBootstrapSummary();
         ChromiumPathText.Text = $"Папка: {ChromiumBootstrapService.Current.GetTargetDirectory()}";
@@ -35,12 +39,32 @@ public sealed partial class SettingsPage : Page
     private void OnUnloaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         BetaSettingsStore.Current.ThemeChanged -= OnThemeChanged;
+        BetaSettingsStore.Current.AutomaticThemeByTimeChanged -= OnAutomaticThemeByTimeChanged;
         Unloaded -= OnUnloaded;
     }
 
     private void OnThemeChanged(object? sender, BetaTheme theme)
     {
         ApplyThemeButtons(theme);
+    }
+
+    private void OnAutomaticThemeByTimeChanged(object? sender, bool enabled)
+    {
+        _isInitializingThemeControls = true;
+        AutomaticThemeByTimeToggle.IsOn = enabled;
+        _isInitializingThemeControls = false;
+        ApplyThemeButtons(BetaSettingsStore.Current.Theme);
+    }
+
+    private void OnAutomaticThemeByTimeToggled(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (_isInitializingThemeControls)
+        {
+            return;
+        }
+
+        BetaSettingsStore.Current.SetAutomaticThemeByTimeEnabled(AutomaticThemeByTimeToggle.IsOn);
+        ApplyThemeButtons(BetaSettingsStore.Current.Theme);
     }
 
     private void OnSystemThemeClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
@@ -352,9 +376,16 @@ public sealed partial class SettingsPage : Page
 
     private void ApplyThemeButtons(BetaTheme theme)
     {
-        SystemThemeButton.IsEnabled = theme != BetaTheme.System;
-        LightThemeButton.IsEnabled = theme != BetaTheme.Light;
-        DarkThemeButton.IsEnabled = theme != BetaTheme.Dark;
+        var automaticThemeEnabled = BetaSettingsStore.Current.AutomaticThemeByTimeEnabled;
+        SystemThemeButton.IsEnabled = !automaticThemeEnabled && theme != BetaTheme.System;
+        LightThemeButton.IsEnabled = !automaticThemeEnabled && theme != BetaTheme.Light;
+        DarkThemeButton.IsEnabled = !automaticThemeEnabled && theme != BetaTheme.Dark;
+        var currentAutomaticTheme = TimeOfDayThemeService.Resolve(DateTimeOffset.Now) == BetaTheme.Light
+            ? "светлая"
+            : "тёмная";
+        AutomaticThemeSummaryText.Text = automaticThemeEnabled
+            ? $"Сейчас действует {currentAutomaticTheme} тема. Светлая: 07:00–19:00, тёмная: 19:00–07:00. Тема Windows не используется."
+            : "Автоматическая смена выключена. Выбери системную, светлую или тёмную тему вручную.";
     }
 
     private static string NormalizeProgressLine(string? line)

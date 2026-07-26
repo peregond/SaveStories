@@ -168,6 +168,7 @@ public sealed partial class StoriesPage : Page
     {
         _runCts = new CancellationTokenSource();
         _isRunning = true;
+        SetStatusActivity(true);
         DownloadButton.IsEnabled = false;
         CancelButton.IsEnabled = true;
         ChangeOutputDirectoryButton.IsEnabled = false;
@@ -237,6 +238,7 @@ public sealed partial class StoriesPage : Page
             _runCts?.Dispose();
             _runCts = null;
             _isRunning = false;
+            SetStatusActivity(false);
             DownloadButton.IsEnabled = true;
             CancelButton.IsEnabled = false;
             ChangeOutputDirectoryButton.IsEnabled = true;
@@ -244,6 +246,14 @@ public sealed partial class StoriesPage : Page
             RefreshNotionInfluencersButton.IsEnabled = true;
             NotionInfluencerToggle.IsEnabled = true;
         }
+    }
+
+    private void SetStatusActivity(bool isActive)
+    {
+        StatusActivityRing.IsActive = isActive;
+        StatusActivityRing.Visibility = isActive
+            ? Microsoft.UI.Xaml.Visibility.Visible
+            : Microsoft.UI.Xaml.Visibility.Collapsed;
     }
 
     private static TimeSpan BuildWorkerTimeout(WorkerRequest request)

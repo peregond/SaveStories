@@ -13,7 +13,7 @@ public enum BetaTheme
 public sealed class BetaSettingsStore
 {
     private const string FileName = "settings.json";
-    private const int CurrentSchemaVersion = 9;
+    private const int CurrentSchemaVersion = 10;
     private static readonly Lazy<BetaSettingsStore> LazyInstance = new(() => new BetaSettingsStore());
 
     private readonly string _settingsDirectory;
@@ -22,6 +22,7 @@ public sealed class BetaSettingsStore
     public static BetaSettingsStore Current => LazyInstance.Value;
 
     public BetaTheme Theme { get; private set; } = BetaTheme.System;
+    public bool AutomaticThemeByTimeEnabled { get; private set; } = true;
     public bool RuntimePromptShown { get; private set; }
     public string LastUpdateCheckAt { get; private set; } = "";
     public string StoriesOutputDirectory { get; private set; } = "";
@@ -38,6 +39,7 @@ public sealed class BetaSettingsStore
     public List<RememberedBloggerPayload> RememberedBloggers { get; private set; } = new();
 
     public event EventHandler<BetaTheme>? ThemeChanged;
+    public event EventHandler<bool>? AutomaticThemeByTimeChanged;
 
     private BetaSettingsStore()
     {
@@ -60,6 +62,7 @@ public sealed class BetaSettingsStore
             var payload = JsonSerializer.Deserialize<SettingsPayload>(json);
             var schemaVersion = payload?.SchemaVersion ?? 1;
             Theme = ParseTheme(payload?.Theme);
+            AutomaticThemeByTimeEnabled = payload?.AutomaticThemeByTimeEnabled ?? true;
             if (schemaVersion < 3)
             {
                 Theme = BetaTheme.System;
@@ -86,6 +89,7 @@ public sealed class BetaSettingsStore
         catch
         {
             Theme = BetaTheme.System;
+            AutomaticThemeByTimeEnabled = true;
             RuntimePromptShown = false;
             LastUpdateCheckAt = "";
             StoriesOutputDirectory = "";
@@ -113,6 +117,18 @@ public sealed class BetaSettingsStore
         Theme = theme;
         Save();
         ThemeChanged?.Invoke(this, Theme);
+    }
+
+    public void SetAutomaticThemeByTimeEnabled(bool enabled)
+    {
+        if (AutomaticThemeByTimeEnabled == enabled)
+        {
+            return;
+        }
+
+        AutomaticThemeByTimeEnabled = enabled;
+        Save();
+        AutomaticThemeByTimeChanged?.Invoke(this, enabled);
     }
 
     public string SettingsDirectory => _settingsDirectory;
@@ -221,6 +237,7 @@ public sealed class BetaSettingsStore
                 BetaTheme.Dark => "dark",
                 _ => "system",
             },
+            AutomaticThemeByTimeEnabled = AutomaticThemeByTimeEnabled,
             RuntimePromptShown = RuntimePromptShown,
             LastUpdateCheckAt = LastUpdateCheckAt,
             StoriesOutputDirectory = StoriesOutputDirectory,
@@ -298,6 +315,7 @@ public sealed class BetaSettingsStore
     {
         public int SchemaVersion { get; set; } = CurrentSchemaVersion;
         public string? Theme { get; set; }
+        public bool? AutomaticThemeByTimeEnabled { get; set; }
         public bool RuntimePromptShown { get; set; }
         public string? LastUpdateCheckAt { get; set; }
         public string? StoriesOutputDirectory { get; set; }

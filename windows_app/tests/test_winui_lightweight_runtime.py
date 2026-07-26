@@ -59,6 +59,43 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("worker_stdout_tail=", bridge)
         self.assertNotIn("JsonSerializer.Deserialize<WorkerResponse>(stdout)", bridge)
 
+    def test_winui_automatic_time_theme_defaults_on_and_ignores_system_theme(self) -> None:
+        settings = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/BetaSettingsStore.cs"
+        )
+        service = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/TimeOfDayThemeService.cs"
+        )
+        window = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/MainWindow.xaml.cs")
+        page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SettingsPage.xaml.cs")
+        xaml = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SettingsPage.xaml")
+
+        self.assertIn("AutomaticThemeByTimeEnabled { get; private set; } = true", settings)
+        self.assertIn("payload?.AutomaticThemeByTimeEnabled ?? true", settings)
+        self.assertIn("SetAutomaticThemeByTimeEnabled", settings)
+        self.assertIn("DayStartsAtHour = 7", service)
+        self.assertIn("NightStartsAtHour = 19", service)
+        self.assertIn("? BetaTheme.Light", service)
+        self.assertIn(": BetaTheme.Dark", service)
+        self.assertIn("TimeOfDayThemeService.Resolve(DateTimeOffset.Now)", window)
+        self.assertIn("TimeSpan.FromMinutes(1)", window)
+        self.assertIn("AutomaticThemeByTimeToggle", xaml)
+        self.assertIn("!automaticThemeEnabled && theme != BetaTheme.System", page)
+        self.assertIn("!automaticThemeEnabled && theme != BetaTheme.Light", page)
+        self.assertIn("!automaticThemeEnabled && theme != BetaTheme.Dark", page)
+        self.assertIn("Тема Windows не используется", page)
+
+    def test_winui_stories_shows_activity_ring_while_worker_runs(self) -> None:
+        page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml.cs")
+        xaml = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml")
+
+        self.assertIn('x:Name="StatusActivityRing"', xaml)
+        self.assertIn('IsActive="False"', xaml)
+        self.assertIn('Visibility="Collapsed"', xaml)
+        self.assertIn("SetStatusActivity(true)", page)
+        self.assertIn("SetStatusActivity(false)", page)
+        self.assertIn("StatusActivityRing.IsActive = isActive", page)
+
     def test_winui_stories_updates_result_from_worker_progress(self) -> None:
         page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml.cs")
         bridge = read(
