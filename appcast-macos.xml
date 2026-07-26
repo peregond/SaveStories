@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.70</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.71</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.70</title>
-      <pubDate>Sat, 18 Jul 2026 19:06:35 GMT</pubDate>
-      <sparkle:version>141</sparkle:version>
-      <sparkle:shortVersionString>0.6.70</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.70</h2>
-<ul><li>macOS 26: добавлена адаптивная иконка SaveMe с отдельными дневным, ночным, прозрачным и тонированным вариантами.</li><li>macOS: в сборку добавлен совместимый `.icns`, поэтому новая иконка работает и в более ранних версиях системы.</li><li>Stories: переключатель обновления очереди из Notion теперь включён по умолчанию, сохраняя ранее выбранную пользователем настройку.</li><li>Stories: основные действия приведены к единому размеру и оформлению, а «Очистить очередь» сокращено до «Очистить».</li></ul>]]></description>
+      <title>SaveMe 0.6.71</title>
+      <pubDate>Sun, 26 Jul 2026 00:06:25 GMT</pubDate>
+      <sparkle:version>142</sparkle:version>
+      <sparkle:shortVersionString>0.6.71</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.71</h2>
+<ul><li>Сортировка: «Скопировать ссылки» снова формирует результат с заголовками стран и группирует блогеров по странам.</li><li>Сортировка: убрано повторение имени блогера перед списком ссылок.</li><li>Windows: страница «Сортировка» адаптируется к ширине окна — в узком режиме карточки располагаются в одну колонку, а кнопки больше не обрезаются.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.70/SaveMe-macOS-v0.6.70.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.71/SaveMe-macOS-v0.6.71.dmg"
         sparkle:os="macos"
-        length="4317339"
+        length="4316942"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="pOGW7ssjfJqHs7BRBOmQKv1P0qiIq6llYfQwUW12LwylV0pdKWw8MKe7E1esV8gOFjwZolwmZZXEAPxPm/eXCw==" />
+        sparkle:edSignature="N5jM0Jl+Hae7gzeiDAok2IQdGTCXox+HpNMuDDbd3Xt+sgMiipCXBJippFUbjol64ciRzDXML9e4Ww8/2cjyCw==" />
     </item>
   </channel>
 </rss>
