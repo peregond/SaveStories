@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.72</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.73</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.72</title>
-      <pubDate>Sun, 26 Jul 2026 00:53:05 GMT</pubDate>
-      <sparkle:version>143</sparkle:version>
-      <sparkle:shortVersionString>0.6.72</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.72</h2>
-<ul><li>Windows: в настройках появилась включённая по умолчанию автоматическая смена оформления по времени суток, не зависящая от системной темы.</li><li>Windows: светлая тема включается с 07:00 до 19:00, тёмная — с 19:00 до 07:00; автосмену можно отключить для ручного выбора.</li><li>Stories: рядом со статусом «Загружаю» отображается анимированный индикатор работы, который исчезает после завершения операции.</li></ul>]]></description>
+      <title>SaveMe 0.6.73</title>
+      <pubDate>Sun, 26 Jul 2026 12:53:28 GMT</pubDate>
+      <sparkle:version>144</sparkle:version>
+      <sparkle:shortVersionString>0.6.73</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.73</h2>
+<ul><li>Windows: кнопка «Скопировать ссылки» в разделе сортировки теперь разделяет склеенные Google Drive-ссылки и помещает каждую ссылку на отдельную строку.</li><li>Windows: на пятом шаге сортировки кнопка «Скопировать ссылки» расположена первой и выделена синим цветом; «Скопировать список» следует за ней.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.72/SaveMe-macOS-v0.6.72.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.73/SaveMe-macOS-v0.6.73.dmg"
         sparkle:os="macos"
-        length="4318228"
+        length="4318384"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="0dBVY8Be8V7zjkpwv5iO0p9uZVrTXLARr32QDCWdkPTazTA1M69h7r4V2YbWTU/WKJi+4xl/6eHDlYDqQ0WxCA==" />
+        sparkle:edSignature="O2BM5gzB8fPL3BuzLb0za6WHj9jpM8G0IYbKZfpEaI6ZfQJ5LywtzPBdu23Zl4e7Z6TiJn1jBriGNJ4fn12UAw==" />
     </item>
   </channel>
 </rss>
