@@ -249,6 +249,7 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         xaml = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/SortingPage.xaml")
         service = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/SortingService.cs")
         exporter = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/GoogleDriveLinkExporter.cs")
+        app_xaml = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/App.xaml")
 
         self.assertIn("5. СКОПИРУЙ ГОТОВЫЙ РЕЗУЛЬТАТ", xaml)
         self.assertIn("Скопировать список", xaml)
@@ -259,6 +260,15 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("GOOGLE DRIVE ДАЙДЖЕСТ", page)
         self.assertIn("BuildPostProcessedReport", service)
         self.assertIn("BuildGoogleDriveDigest", service)
+        self.assertIn("NormalizeGoogleDriveLinkLines", service)
+        self.assertIn("Regex.Matches(", service)
+        self.assertIn("(?!https://drive", service)
+        self.assertLess(
+            xaml.index('x:Name="CopyLinksButton"'),
+            xaml.index('x:Name="CopyDigestButton"'),
+        )
+        self.assertIn('Style="{StaticResource BlueActionButtonStyle}"', xaml)
+        self.assertIn('x:Key="BlueActionButtonStyle"', app_xaml)
         self.assertIn("MetadataRetryCount", exporter)
         self.assertIn("user.drive.id", exporter)
         self.assertIn("LinkFromUserDriveId", exporter)

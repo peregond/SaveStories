@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace SaveMe.WinUI.Beta.Services;
 
 public sealed class SortingService
@@ -176,7 +178,7 @@ public sealed class SortingService
                             {
                                 if (!string.IsNullOrWhiteSpace(outcome.Link))
                                 {
-                                    return outcome.Link;
+                                    return NormalizeGoogleDriveLinkLines(outcome.Link);
                                 }
 
                                 var fileName = Path.GetFileName(outcome.Record.CurrentPath);
@@ -188,6 +190,18 @@ public sealed class SortingService
             });
 
         return string.Join($"{Environment.NewLine}{Environment.NewLine}", blocks);
+    }
+
+    private static string NormalizeGoogleDriveLinkLines(string link)
+    {
+        var matches = Regex.Matches(
+            link,
+            @"https://drive\.google\.com/(?:(?!https://drive\.google\.com/)[^\s""'<>])+",
+            RegexOptions.IgnoreCase);
+
+        return matches.Count == 0
+            ? link.Trim()
+            : string.Join(Environment.NewLine, matches.Select(match => match.Value));
     }
 
     private SortingResult Distribute(IEnumerable<SortingInput> inputs, string destinationRoot)
