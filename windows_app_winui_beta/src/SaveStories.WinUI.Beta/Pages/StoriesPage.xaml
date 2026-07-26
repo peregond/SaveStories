@@ -180,7 +180,19 @@
                 <Border MinHeight="122" Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
                         <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="СОСТОЯНИЕ" />
-                        <TextBlock x:Name="StatusTitleText" Text="Ожидание" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <ProgressRing
+                                x:Name="StatusActivityRing"
+                                Width="18"
+                                Height="18"
+                                VerticalAlignment="Center"
+                                IsActive="False"
+                                Visibility="Collapsed" />
+                            <TextBlock
+                                x:Name="StatusTitleText"
+                                VerticalAlignment="Center"
+                                Text="Ожидание" />
+                        </StackPanel>
                         <TextBlock x:Name="StatusDetailText" Style="{StaticResource AppSecondaryTextStyle}" Text="Готово к проверке сессии и выгрузке." />
                     </StackPanel>
                 </Border>

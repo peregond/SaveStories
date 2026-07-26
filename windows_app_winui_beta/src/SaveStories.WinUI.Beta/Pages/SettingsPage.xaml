@@ -15,7 +15,17 @@
                 <Border Style="{StaticResource AppCardBorderStyle}">
                     <StackPanel Spacing="8">
                         <TextBlock Style="{StaticResource AppSectionHeaderTextStyle}" Text="ОФОРМЛЕНИЕ" />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
+                        <ToggleSwitch
+                            x:Name="AutomaticThemeByTimeToggle"
+                            Header="Автоматически менять оформление по времени суток"
+                            OffContent="Выключено"
+                            OnContent="Включено"
+                            Toggled="OnAutomaticThemeByTimeToggled" />
+                        <TextBlock
+                            x:Name="AutomaticThemeSummaryText"
+                            Style="{StaticResource AppSecondaryTextStyle}"
+                            TextWrapping="WrapWholeWords" />
+                        <StackPanel x:Name="ThemeButtonsPanel" Orientation="Horizontal" Spacing="8">
                             <Button x:Name="SystemThemeButton" Click="OnSystemThemeClick" Content="Системная" />
                             <Button x:Name="LightThemeButton" Click="OnLightThemeClick" Content="Светлая" />
                             <Button x:Name="DarkThemeButton" Click="OnDarkThemeClick" Content="Тёмная" />
