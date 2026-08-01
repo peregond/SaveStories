@@ -11,6 +11,10 @@ let package = Package(
             name: "SaveMe",
             targets: ["SaveMe"]
         ),
+        .executable(
+            name: "SaveMeMediaMuxer",
+            targets: ["SaveMeMediaMuxer"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
@@ -28,6 +32,10 @@ let package = Package(
                 .copy("Resources/update_config.json"),
                 .copy("Resources/worker"),
             ]
+        ),
+        .executableTarget(
+            name: "SaveMeMediaMuxer",
+            path: "Sources/SaveMeMediaMuxer"
         ),
         .testTarget(
             name: "SaveStoriesTests",

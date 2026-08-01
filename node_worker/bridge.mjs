@@ -5,16 +5,20 @@ import fsSync from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import process from "node:process";
+import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { chooseDashAudioUrl, isTrustedInstagramMediaUrl, storyIdFromUrl } from "./dash_media.mjs";
 import {
   extractUsername,
   isAudioOnlyVariant,
+  isSeparateDashVideoUrl,
   isStoryMediaUrl,
   mediaVariantTag,
   mediaVariantScore,
   normalizeMediaUrl,
   sanitizeFilename,
+  shouldRepairExistingMutedDashVideo,
   shouldSkipMediaVariant,
 } from "./media_utils.mjs";
 import { downloadReelsCommand } from "./reels_downloader.mjs";
@@ -203,6 +207,7 @@ const DEFAULT_DOWNLOADS =
   process.env.SAVESTORIES_DEFAULT_DOWNLOADS || (await defaultDownloads(APP_SUPPORT));
 const LOGS_DIRECTORY = process.env.SAVESTORIES_LOGS || path.join(APP_SUPPORT, "logs");
 const WORKER_EVENTS_LOG = path.join(LOGS_DIRECTORY, "worker-events.jsonl");
+const MEDIA_MUXER = String(process.env.SAVEME_MEDIA_MUXER || "").trim();
 
 async function ensureDirectories() {
   await Promise.all(
@@ -687,6 +692,12 @@ function extractItemUsername(item) {
   return "";
 }
 
+function canonicalStoryItemId(value) {
+  const raw = String(value ?? "");
+  const mediaId = raw.split("_", 1)[0];
+  return /^\d+$/.test(mediaId) ? mediaId : raw;
+}
+
 function resolveStoryItemFromDict(item, expectedUsername) {
   const hasMedia =
     Array.isArray(item.video_versions) ||
@@ -699,15 +710,39 @@ function resolveStoryItemFromDict(item, expectedUsername) {
   const itemId = item.id ?? item.pk;
   if (itemId === undefined || itemId === null) return null;
 
-  const itemIdString = String(itemId);
+  const itemIdString = canonicalStoryItemId(itemId);
   const mediaType = Array.isArray(item.video_versions) ? "video" : "image";
   const sourceUrl = mediaType === "video" ? chooseBestVideoUrl(item) : chooseBestImageUrl(item);
   if (!sourceUrl) return null;
 
+  let audioSourceUrl = null;
+  if (mediaType === "video" && typeof item.video_dash_manifest === "string") {
+    const selectedAudioUrl = chooseDashAudioUrl(item.video_dash_manifest);
+    if (selectedAudioUrl && isTrustedInstagramMediaUrl(selectedAudioUrl)) {
+      try {
+        audioSourceUrl = normalizeMediaUrl(selectedAudioUrl);
+      } catch {
+        audioSourceUrl = null;
+      }
+    }
+  }
+  const expectsAudio = mediaType === "video" && (
+    Boolean(audioSourceUrl) || Boolean(item.has_audio ?? item.hasAudio)
+  );
+
   const pageUsername = sanitizeFilename(username || expectedUsername);
   const pageUrl = `https://www.instagram.com/stories/${pageUsername}/${itemIdString}/`;
   const takenAt = Number(item.taken_at || 0);
-  return { itemId: itemIdString, username: pageUsername, pageUrl, sourceUrl, mediaType, takenAt };
+  return {
+    itemId: itemIdString,
+    username: pageUsername,
+    pageUrl,
+    sourceUrl,
+    audioSourceUrl,
+    expectsAudio,
+    mediaType,
+    takenAt,
+  };
 }
 
 function walkStoryItems(node, expectedUsername, seenIds, out) {
@@ -754,6 +789,73 @@ function resolveStoryItemsFromPayloads(payloads, expectedUsername, capturedAfter
   }
   resolved.sort((a, b) => (a.takenAt || 0) - (b.takenAt || 0));
   return resolved;
+}
+
+async function fetchStoryItemMetadata(browserContext, pageUrl, expectedUsername, logs) {
+  const storyId = storyIdFromUrl(pageUrl);
+  if (!storyId) return null;
+
+  const cookies = await browserContext.cookies("https://www.instagram.com/");
+  const csrfToken = cookies.find((cookie) => cookie.name === "csrftoken")?.value || "";
+  const headers = {
+    "User-Agent":
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+    "X-IG-App-ID": "936619743392459",
+    "X-Requested-With": "XMLHttpRequest",
+    Referer: pageUrl,
+  };
+  if (csrfToken) headers["X-CSRFToken"] = csrfToken;
+
+  const endpoint = `https://www.instagram.com/api/v1/media/${storyId}/info/`;
+  const response = await browserContext.request.get(endpoint, {
+    headers,
+    timeout: 20_000,
+    failOnStatusCode: false,
+  });
+  if (!response.ok()) {
+    logs?.push(`story_info_status=${storyId}:${response.status()}`);
+    return null;
+  }
+
+  const payload = await response.json();
+  const resolved = [];
+  walkStoryItems(payload, expectedUsername, new Set(), resolved);
+  const exact = resolved.find((item) => item.itemId === storyId) || resolved[0] || null;
+  if (exact) {
+    logs?.push(`story_info_resolved=${storyId}:audio=${Boolean(exact.audioSourceUrl)}`);
+  }
+  return exact;
+}
+
+async function enrichStoryMediaCandidate(page, candidate, expectedUsername, logs, metadataCache) {
+  if (!candidate || candidate.mediaType !== "video") return candidate;
+  const storyId = storyIdFromUrl(candidate.pageUrl);
+  if (!storyId) {
+    return {
+      ...candidate,
+      expectsAudio: isSeparateDashVideoUrl(candidate.sourceUrl),
+    };
+  }
+
+  if (metadataCache?.has(storyId)) {
+    return { ...candidate, ...metadataCache.get(storyId), pageUrl: candidate.pageUrl };
+  }
+
+  try {
+    const resolved = await fetchStoryItemMetadata(page.context(), candidate.pageUrl, expectedUsername, logs);
+    if (resolved) {
+      metadataCache?.set(storyId, resolved);
+      return { ...candidate, ...resolved, pageUrl: candidate.pageUrl };
+    }
+  } catch (error) {
+    logs?.push(`story_info_error=${storyId}:${errorMessage(error)}`);
+  }
+
+  return {
+    ...candidate,
+    itemId: storyId,
+    expectsAudio: isSeparateDashVideoUrl(candidate.sourceUrl),
+  };
 }
 
 async function waitForMetadataStoryItems(page, payloads, expectedUsername, logs, timeoutSeconds = 12, capturedAfter = null) {
@@ -952,7 +1054,15 @@ function latestNetworkCandidate(page, networkCandidates, seenSources) {
   return viable[0] || null;
 }
 
-async function waitForStoryMedia(page, networkCandidates, seenSources, timeoutSeconds = 20) {
+async function waitForStoryMedia(
+  page,
+  networkCandidates,
+  seenSources,
+  timeoutSeconds = 20,
+  expectedUsername = null,
+  logs = null,
+  metadataCache = null,
+) {
   const deadline = Date.now() + timeoutSeconds * 1000;
   const networkFallbackDeadline = Date.now() + Math.min(timeoutSeconds, 8) * 1000;
   while (Date.now() < deadline) {
@@ -966,13 +1076,17 @@ async function waitForStoryMedia(page, networkCandidates, seenSources, timeoutSe
       continue;
     }
     const candidate = await extractMediaCandidate(page);
-    if (candidate) return candidate;
+    if (candidate) {
+      return await enrichStoryMediaCandidate(page, candidate, expectedUsername, logs, metadataCache);
+    }
     if (Date.now() < networkFallbackDeadline) {
       await page.waitForTimeout(800);
       continue;
     }
     const networkCandidate = latestNetworkCandidate(page, networkCandidates, seenSources);
-    if (networkCandidate) return networkCandidate;
+    if (networkCandidate) {
+      return await enrichStoryMediaCandidate(page, networkCandidate, expectedUsername, logs, metadataCache);
+    }
     await page.waitForTimeout(800);
   }
   return null;
@@ -987,7 +1101,15 @@ async function clickNextStory(page) {
   await page.mouse.click(viewport.width * 0.85, viewport.height * 0.5);
 }
 
-async function advanceToNextStory(page, networkCandidates, seenSources, previousSignature, logs) {
+async function advanceToNextStory(
+  page,
+  networkCandidates,
+  seenSources,
+  previousSignature,
+  logs,
+  expectedUsername,
+  metadataCache,
+) {
   const actions = [
     ["click", async () => clickNextStory(page)],
     ["arrow", async () => page.keyboard.press("ArrowRight")],
@@ -1002,7 +1124,15 @@ async function advanceToNextStory(page, networkCandidates, seenSources, previous
     }
     await page.waitForTimeout(1200);
     if (!page.url().includes("/stories/")) return false;
-    const nextMedia = await waitForStoryMedia(page, networkCandidates, seenSources, 6);
+    const nextMedia = await waitForStoryMedia(
+      page,
+      networkCandidates,
+      seenSources,
+      6,
+      expectedUsername,
+      logs,
+      metadataCache,
+    );
     if (!nextMedia) continue;
     const nextSignature = storySignature(nextMedia.pageUrl, nextMedia.sourceUrl);
     if (nextSignature !== previousSignature) return true;
@@ -1060,7 +1190,6 @@ async function fetchMediaBytes(sourceUrl, browserContext, refererUrl = null) {
       headers,
       timeout: 60_000,
       failOnStatusCode: true,
-      ignoreHTTPSErrors: true,
       maxRetries: 1,
     }),
     {
@@ -1091,7 +1220,11 @@ async function loadManifestIndex(manifestsDirectory) {
         const sourceURL = payload.sourceURL || payload.sourceUrl;
         const sha256 = payload.sha256;
         if (typeof sourceURL === "string" && sourceURL) {
-          sources.set(normalizeMediaUrl(sourceURL), { ...payload, manifestPath });
+          const normalizedSource = normalizeMediaUrl(sourceURL);
+          const existing = sources.get(normalizedSource);
+          if (!existing || existing.audioMuxed !== true || payload.audioMuxed === true) {
+            sources.set(normalizedSource, { ...payload, manifestPath });
+          }
         }
         if (typeof sha256 === "string" && sha256) {
           hashes.set(sha256.toLowerCase(), { ...payload, manifestPath });
@@ -1127,7 +1260,66 @@ function looksLikeFragmentedMp4(body) {
   return prefix.includes("moof") && !prefix.includes("ftyp");
 }
 
-async function downloadMedia(sourceUrl, destinationDir, mediaType, username, index, browserContext, refererUrl = null) {
+function validateDownloadedAudio(body, contentType = "") {
+  if (!body || body.length < 512) {
+    throw new Error("Проверка аудиодорожки не пройдена: файл слишком маленький.");
+  }
+  const signature = body.subarray(0, 64).toString("binary");
+  const loweredType = String(contentType || "").toLowerCase();
+  if (!signature.includes("ftyp") && !loweredType.includes("mp4")) {
+    throw new Error("Проверка аудиодорожки не пройдена: это не MP4/AAC-файл.");
+  }
+}
+
+async function runMediaMuxer(videoPath, audioPath, outputPath) {
+  if (!MEDIA_MUXER) {
+    throw new Error("Нативный модуль объединения видео и звука не найден в приложении.");
+  }
+  await fs.access(MEDIA_MUXER, fs.constants.X_OK);
+
+  await new Promise((resolve, reject) => {
+    const child = spawn(MEDIA_MUXER, [videoPath, audioPath, outputPath], {
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    let stderr = "";
+    let settled = false;
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk) => {
+      if (stderr.length < 32_000) stderr += chunk;
+    });
+    child.once("error", (error) => {
+      fail(new Error(`Не удалось запустить объединение видео и звука: ${errorMessage(error)}`));
+    });
+    child.once("close", (code, signal) => {
+      if (settled) return;
+      if (code === 0) {
+        settled = true;
+        resolve();
+        return;
+      }
+      const detail = stderr.trim() || (signal ? `signal ${signal}` : `exit ${code}`);
+      fail(new Error(`Не удалось объединить видео и звук: ${detail}`));
+    });
+  });
+}
+
+async function downloadMedia(
+  sourceUrl,
+  destinationDir,
+  mediaType,
+  username,
+  index,
+  browserContext,
+  refererUrl = null,
+  audioSourceUrl = null,
+  expectsAudio = false,
+) {
   await fs.mkdir(destinationDir, { recursive: true });
   const normalizedUrl = normalizeMediaUrl(sourceUrl);
   const { body, contentType } = await withRetry(
@@ -1141,14 +1333,64 @@ async function downloadMedia(sourceUrl, destinationDir, mediaType, username, ind
   if (mediaType === "video" && looksLikeFragmentedMp4(body)) {
     throw new Error("Скачан только фрагмент видео вместо полного файла.");
   }
-  const suffix = extensionFor(contentType, normalizedUrl, mediaType);
+  const normalizedAudioUrl = audioSourceUrl ? normalizeMediaUrl(audioSourceUrl) : null;
+  if (
+    mediaType === "video" &&
+    expectsAudio &&
+    !normalizedAudioUrl &&
+    isSeparateDashVideoUrl(normalizedUrl)
+  ) {
+    throw new Error("Instagram отдал видео и звук раздельно, но аудиодорожку получить не удалось.");
+  }
+
+  const suffix = normalizedAudioUrl ? ".mp4" : extensionFor(contentType, normalizedUrl, mediaType);
   const filename = `${sanitizeFilename(username)}-${String(index).padStart(3, "0")}${suffix}`;
   const localPath = path.join(destinationDir, filename);
-  await fs.writeFile(localPath, body);
-  return { localPath, finalSourceUrl: normalizedUrl, contentLength: body.length };
+
+  if (mediaType !== "video" || !normalizedAudioUrl) {
+    await fs.writeFile(localPath, body);
+    return { localPath, finalSourceUrl: normalizedUrl, contentLength: body.length, audioMuxed: false };
+  }
+
+  if (!MEDIA_MUXER && process.platform !== "darwin") {
+    await fs.writeFile(localPath, body);
+    return { localPath, finalSourceUrl: normalizedUrl, contentLength: body.length, audioMuxed: false };
+  }
+
+  const temporaryId = randomUUID();
+  const videoPath = path.join(destinationDir, `.${filename}.${temporaryId}.video.mp4`);
+  const audioPath = path.join(destinationDir, `.${filename}.${temporaryId}.audio.mp4`);
+  const muxedPath = path.join(destinationDir, `.${filename}.${temporaryId}.muxed.mp4`);
+  try {
+    const audio = await withRetry(
+      async () => {
+        const fetched = await fetchMediaBytes(normalizedAudioUrl, browserContext, refererUrl);
+        validateDownloadedAudio(fetched.body, fetched.contentType);
+        return fetched;
+      },
+      { attempts: 2, baseDelayMs: 600 },
+    );
+
+    await fs.writeFile(videoPath, body);
+    await fs.writeFile(audioPath, audio.body);
+    await runMediaMuxer(videoPath, audioPath, muxedPath);
+    const muxedStat = await fs.stat(muxedPath);
+    if (!muxedStat.isFile() || muxedStat.size < 512) {
+      throw new Error("Объединённый видеофайл не прошёл проверку целостности.");
+    }
+    await fs.rename(muxedPath, localPath);
+    emitProgress(`dash_audio_muxed=${path.basename(localPath)}`);
+    return { localPath, finalSourceUrl: normalizedUrl, contentLength: muxedStat.size, audioMuxed: true };
+  } finally {
+    await Promise.all([
+      fs.rm(videoPath, { force: true }),
+      fs.rm(audioPath, { force: true }),
+      fs.rm(muxedPath, { force: true }),
+    ]);
+  }
 }
 
-async function writeManifest({ itemId, pageUrl, sourceUrl, localPath, mediaType, createdAt, username, storyId = "", sourceKind = "story", contentLength = 0 }) {
+async function writeManifest({ itemId, pageUrl, sourceUrl, localPath, mediaType, createdAt, username, storyId = "", sourceKind = "story", contentLength = 0, audioMuxed = false }) {
   const fileHash = createHash("sha256").update(await fs.readFile(localPath)).digest("hex");
   const payload = {
     schemaVersion: 2,
@@ -1165,6 +1407,7 @@ async function writeManifest({ itemId, pageUrl, sourceUrl, localPath, mediaType,
     localPath,
     mediaType,
     contentLength,
+    audioMuxed,
     diagnosticCategory: "ok",
     sha256: fileHash,
   };
@@ -1208,12 +1451,16 @@ async function persistStoryItems(resolvedItems, destinationDir, username, browse
       logs.push(`skipped_current_source=${normalizedSource}`);
       continue;
     }
-    if (manifestIndex.sources.has(normalizedSource)) {
+    const existingSource = manifestIndex.sources.get(normalizedSource);
+    if (existingSource && !shouldRepairExistingMutedDashVideo(existingSource, resolved)) {
       seenSources.add(normalizedSource);
       logs.push(`skipped_existing_source=${normalizedSource}`);
       continue;
     }
-    const { localPath, finalSourceUrl, contentLength } = await downloadMedia(
+    if (existingSource) {
+      logs.push(`repairing_muted_dash_source=${normalizedSource}`);
+    }
+    const { localPath, finalSourceUrl, contentLength, audioMuxed } = await downloadMedia(
       normalizedSource,
       destinationDir,
       resolved.mediaType,
@@ -1221,6 +1468,8 @@ async function persistStoryItems(resolvedItems, destinationDir, username, browse
       nextIndexValue,
       browserContext,
       resolved.pageUrl,
+      resolved.audioSourceUrl,
+      resolved.expectsAudio,
     );
     const fileHash = createHash("sha256").update(await fs.readFile(localPath)).digest("hex");
     if (seenHashes.has(fileHash) || manifestIndex.hashes.has(fileHash)) {
@@ -1241,6 +1490,7 @@ async function persistStoryItems(resolvedItems, destinationDir, username, browse
       username,
       storyId: resolved.itemId,
       contentLength,
+      audioMuxed,
     });
     items.push({
       id: itemId,
@@ -1253,7 +1503,7 @@ async function persistStoryItems(resolvedItems, destinationDir, username, browse
     });
     seenSources.add(finalSourceUrl);
     seenHashes.add(fileHash);
-    manifestIndex.sources.set(finalSourceUrl, { id: itemId, localPath, manifestPath });
+    manifestIndex.sources.set(finalSourceUrl, { id: itemId, localPath, manifestPath, audioMuxed });
     manifestIndex.hashes.set(fileHash, { id: itemId, localPath, manifestPath });
     nextIndexValue += 1;
     logs.push(`saved=${localPath}`);
@@ -1288,12 +1538,21 @@ async function collectStorySequence(page, destinationDir, username, jsonPayloads
   const seenSources = new Set();
   const seenHashes = new Set();
   const seenSignatures = new Set();
+  const storyMetadataCache = new Map();
   const items = [];
   const manifestIndex = await loadManifestIndex(MANIFESTS_DIRECTORY);
   let nextIndexValue = await nextStoryIndex(destinationDir, username);
 
   for (let i = 0; i < 50; i += 1) {
-    const media = await waitForStoryMedia(page, networkCandidates, seenSources, 20);
+    const media = await waitForStoryMedia(
+      page,
+      networkCandidates,
+      seenSources,
+      20,
+      username,
+      logs,
+      storyMetadataCache,
+    );
     if (!media) {
       logs.push("На странице не найдено видимого media из story.");
       break;
@@ -1301,30 +1560,50 @@ async function collectStorySequence(page, destinationDir, username, jsonPayloads
     const normalizedSource = normalizeMediaUrl(media.sourceUrl);
     const signature = storySignature(media.pageUrl, normalizedSource);
     if (seenSignatures.has(signature)) {
-      if (!(await advanceToNextStory(page, networkCandidates, new Set([...seenSources, normalizedSource]), signature, logs))) {
+      if (!(await advanceToNextStory(
+        page,
+        networkCandidates,
+        new Set([...seenSources, normalizedSource]),
+        signature,
+        logs,
+        username,
+        storyMetadataCache,
+      ))) {
         break;
       }
       continue;
     }
 
+    const existingSource = manifestIndex.sources.get(normalizedSource);
     if (seenSources.has(normalizedSource)) {
       seenSignatures.add(signature);
       logs.push(`skipped_current_source=${normalizedSource}`);
-    } else if (manifestIndex.sources.has(normalizedSource)) {
+    } else if (existingSource && !shouldRepairExistingMutedDashVideo(existingSource, media)) {
       seenSignatures.add(signature);
       seenSources.add(normalizedSource);
       logs.push(`skipped_existing_source=${normalizedSource}`);
     } else {
+      if (existingSource) {
+        logs.push(`repairing_muted_dash_source=${normalizedSource}`);
+      }
       if (!shouldPersistMedia(media.mediaType, mediaFilter)) {
         seenSignatures.add(signature);
         seenSources.add(normalizedSource);
         logs.push(`skipped_by_media_filter=${media.mediaType}`);
-        if (!(await advanceToNextStory(page, networkCandidates, new Set([...seenSources, normalizedSource]), signature, logs))) {
+        if (!(await advanceToNextStory(
+          page,
+          networkCandidates,
+          new Set([...seenSources, normalizedSource]),
+          signature,
+          logs,
+          username,
+          storyMetadataCache,
+        ))) {
           break;
         }
         continue;
       }
-      const { localPath, finalSourceUrl, contentLength } = await downloadMedia(
+      const { localPath, finalSourceUrl, contentLength, audioMuxed } = await downloadMedia(
         normalizedSource,
         destinationDir,
         media.mediaType,
@@ -1332,6 +1611,8 @@ async function collectStorySequence(page, destinationDir, username, jsonPayloads
         nextIndexValue,
         page.context(),
         media.pageUrl,
+        media.audioSourceUrl,
+        media.expectsAudio,
       );
       const fileHash = createHash("sha256").update(await fs.readFile(localPath)).digest("hex");
       if (seenHashes.has(fileHash) || manifestIndex.hashes.has(fileHash)) {
@@ -1350,8 +1631,9 @@ async function collectStorySequence(page, destinationDir, username, jsonPayloads
           mediaType: media.mediaType,
           createdAt,
           username,
-          storyId: "",
+          storyId: media.itemId || storyIdFromUrl(media.pageUrl) || "",
           contentLength,
+          audioMuxed,
         });
         items.push({
           id: itemId,
@@ -1365,14 +1647,22 @@ async function collectStorySequence(page, destinationDir, username, jsonPayloads
         seenSignatures.add(signature);
         seenSources.add(finalSourceUrl);
         seenHashes.add(fileHash);
-        manifestIndex.sources.set(finalSourceUrl, { id: itemId, localPath, manifestPath });
+        manifestIndex.sources.set(finalSourceUrl, { id: itemId, localPath, manifestPath, audioMuxed });
         manifestIndex.hashes.set(fileHash, { id: itemId, localPath, manifestPath });
         nextIndexValue += 1;
         logs.push(`saved=${localPath}`);
         logs.push(`manifest=${manifestPath}`);
       }
     }
-    if (!(await advanceToNextStory(page, networkCandidates, new Set([...seenSources, normalizedSource]), signature, logs))) {
+    if (!(await advanceToNextStory(
+      page,
+      networkCandidates,
+      new Set([...seenSources, normalizedSource]),
+      signature,
+      logs,
+      username,
+      storyMetadataCache,
+    ))) {
       break;
     }
   }
