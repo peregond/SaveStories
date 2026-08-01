@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.73</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.74</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.73</title>
-      <pubDate>Sun, 26 Jul 2026 12:53:28 GMT</pubDate>
-      <sparkle:version>144</sparkle:version>
-      <sparkle:shortVersionString>0.6.73</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.73</h2>
-<ul><li>Windows: кнопка «Скопировать ссылки» в разделе сортировки теперь разделяет склеенные Google Drive-ссылки и помещает каждую ссылку на отдельную строку.</li><li>Windows: на пятом шаге сортировки кнопка «Скопировать ссылки» расположена первой и выделена синим цветом; «Скопировать список» следует за ней.</li></ul>]]></description>
+      <title>SaveMe 0.6.74</title>
+      <pubDate>Sat, 01 Aug 2026 19:18:31 GMT</pubDate>
+      <sparkle:version>145</sparkle:version>
+      <sparkle:shortVersionString>0.6.74</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.74</h2>
+<ul><li>macOS: видео Stories с раздельными Instagram DASH-потоками теперь сохраняются со звуком — H.264/HEVC-видео объединяется с AAC без перекодирования.</li><li>macOS: встроенные файлы worker автоматически обновляются без сброса авторизации, Chromium и установленных зависимостей.</li><li>macOS: старые video-only записи не считаются корректными дубликатами и могут быть повторно сохранены со звуком.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.73/SaveMe-macOS-v0.6.73.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.74/SaveMe-macOS-v0.6.74.dmg"
         sparkle:os="macos"
-        length="4318384"
+        length="4393065"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="O2BM5gzB8fPL3BuzLb0za6WHj9jpM8G0IYbKZfpEaI6ZfQJ5LywtzPBdu23Zl4e7Z6TiJn1jBriGNJ4fn12UAw==" />
+        sparkle:edSignature="RU68B8EDTNs2Db2BKl0rKViEZtbUXkhPxfJ8gxAoCciMUp1AHXAqfkTmVjszdx1FASFuk9LA/hhRR1VGwPVkBQ==" />
     </item>
   </channel>
 </rss>
