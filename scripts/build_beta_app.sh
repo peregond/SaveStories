@@ -5,6 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUNDLE_NAME="SaveMe"
 EXECUTABLE_NAME="SaveMe"
+MEDIA_MUXER_NAME="SaveMeMediaMuxer"
 BUILD_DIR="$ROOT/beta-build"
 RELEASE_DIR="$BUILD_DIR/release"
 APP_DIR="$RELEASE_DIR/$BUNDLE_NAME.app"
@@ -13,6 +14,7 @@ MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 FRAMEWORKS_DIR="$CONTENTS_DIR/Frameworks"
 SHARED_SUPPORT_DIR="$CONTENTS_DIR/SharedSupport"
+HELPERS_DIR="$CONTENTS_DIR/Helpers"
 NODE_WORKER_DIR="$SHARED_SUPPORT_DIR/node_worker"
 RESOURCE_BUNDLE_NAME="$EXECUTABLE_NAME"_SaveMe.bundle
 
@@ -24,10 +26,12 @@ export SWIFTPM_MODULECACHE_OVERRIDE="$BUILD_DIR/swiftpm-module-cache"
 swift build -c release --package-path "$ROOT"
 
 rm -rf "$APP_DIR"
-mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$FRAMEWORKS_DIR" "$SHARED_SUPPORT_DIR"
+mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$FRAMEWORKS_DIR" "$SHARED_SUPPORT_DIR" "$HELPERS_DIR"
 
 cp "$ROOT/packaging/AppBundle/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$ROOT/.build/release/$EXECUTABLE_NAME" "$MACOS_DIR/$EXECUTABLE_NAME"
+cp "$ROOT/.build/release/$MEDIA_MUXER_NAME" "$HELPERS_DIR/$MEDIA_MUXER_NAME"
+chmod 755 "$HELPERS_DIR/$MEDIA_MUXER_NAME"
 "$ROOT/scripts/compile_app_icon.sh" "$RESOURCES_DIR"
 
 RESOURCE_BUNDLE_PATH="$(find "$ROOT/.build" -maxdepth 4 -type d -name "$RESOURCE_BUNDLE_NAME" | head -n 1)"

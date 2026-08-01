@@ -133,6 +133,7 @@ final class WorkerClient {
 
     private func execute(_ request: WorkerRequest, onProgress: (@Sendable (String) -> Void)? = nil) async throws -> WorkerResponse {
         try AppPaths.ensureDirectories()
+        try AppPaths.synchronizeBundledNodeWorkerSources()
 
         let process = Process()
         let stdinPipe = Pipe()
@@ -157,6 +158,9 @@ final class WorkerClient {
         environment["SAVESTORIES_DEFAULT_DOWNLOADS"] = AppPaths.defaultDownloads.path
         environment["SAVESTORIES_LOGS"] = AppPaths.logsDirectory.path
         environment["SAVESTORIES_WORKER_RUNTIME"] = launch.runtime
+        if let mediaMuxer = AppPaths.bundledMediaMuxerExecutable {
+            environment["SAVEME_MEDIA_MUXER"] = mediaMuxer.path
+        }
         if let bundledFrameworks = AppPaths.bundledFrameworksDirectory {
             environment["DYLD_FRAMEWORK_PATH"] = bundledFrameworks.path
         }
@@ -282,9 +286,12 @@ final class WorkerClient {
     }
 
     private func nodeWorkerScriptURL() -> URL? {
+        let installedScript = AppPaths.installedNodeWorkerRoot?
+            .appendingPathComponent("bridge.mjs", isDirectory: false)
+        let fallbackInstalledScript = AppPaths.workerRoot
+            .appendingPathComponent("bridge.mjs", isDirectory: false)
         let candidates = [
-            AppPaths.workerRoot
-                .appendingPathComponent("bridge.mjs", isDirectory: false),
+            installedScript,
             Bundle.main.sharedSupportURL?
                 .appendingPathComponent("node_worker", isDirectory: true)
                 .appendingPathComponent("bridge.mjs", isDirectory: false),
@@ -293,6 +300,7 @@ final class WorkerClient {
                 .appendingPathComponent("SharedSupport", isDirectory: true)
                 .appendingPathComponent("node_worker", isDirectory: true)
                 .appendingPathComponent("bridge.mjs", isDirectory: false),
+            fallbackInstalledScript,
             URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
                 .appendingPathComponent("node_worker", isDirectory: true)
                 .appendingPathComponent("bridge.mjs", isDirectory: false),

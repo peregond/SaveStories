@@ -6,6 +6,7 @@ private struct PreparedAppDirectories: Sendable {
     let distributionRootDirectory: URL?
     let sortingSourceDirectory: URL?
     let emptyFolderCleanupDirectory: URL?
+    let didRefreshWorkerSources: Bool
 }
 
 extension AppModel {
@@ -25,6 +26,7 @@ extension AppModel {
         do {
             let prepared = try await Task.detached(priority: .utility) {
                 try AppPaths.ensureDirectories()
+                let didRefreshWorkerSources = try AppPaths.synchronizeBundledNodeWorkerSources()
                 let usableSaveDirectory: URL
                 do {
                     try FileManager.default.createDirectory(at: selectedSaveDirectory, withIntermediateDirectories: true)
@@ -38,7 +40,8 @@ extension AppModel {
                     saveDirectory: usableSaveDirectory,
                     distributionRootDirectory: Self.existingDirectory(selectedDistributionRoot),
                     sortingSourceDirectory: Self.existingDirectory(selectedSortingSource),
-                    emptyFolderCleanupDirectory: Self.existingDirectory(selectedCleanupDirectory)
+                    emptyFolderCleanupDirectory: Self.existingDirectory(selectedCleanupDirectory),
+                    didRefreshWorkerSources: didRefreshWorkerSources
                 )
             }.value
 
@@ -61,6 +64,9 @@ extension AppModel {
                prepared.emptyFolderCleanupDirectory != selectedCleanupDirectory {
                 emptyFolderCleanupDirectory = prepared.emptyFolderCleanupDirectory
                 UserDefaults.standard.removeObject(forKey: Self.emptyFolderCleanupDirectoryKey)
+            }
+            if prepared.didRefreshWorkerSources {
+                appendLog("Обновлены встроенные файлы воркера.")
             }
             appendLog("Подготовлены папки приложения в \(AppPaths.applicationSupport.path).")
         } catch {

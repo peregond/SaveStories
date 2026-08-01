@@ -73,6 +73,21 @@ function isAudioOnlyVariant(url) {
   return tag.includes("_audio") || tag.endsWith("audio");
 }
 
+function isSeparateDashVideoUrl(url) {
+  const tag = mediaVariantTag(url);
+  return tag.includes("dash_baseline") || tag.includes("dash-video") || tag.includes("dash_video");
+}
+
+function shouldRepairExistingMutedDashVideo(existingManifest, media) {
+  return (
+    existingManifest &&
+    existingManifest.audioMuxed !== true &&
+    media?.mediaType === "video" &&
+    media.expectsAudio === true &&
+    isSeparateDashVideoUrl(media.sourceUrl)
+  );
+}
+
 function shouldSkipMediaVariant(url) {
   const tag = mediaVariantTag(url);
   const lowered = url.toLowerCase();
@@ -112,10 +127,12 @@ function mediaVariantScore(url, mediaType) {
 export {
   extractUsername,
   isAudioOnlyVariant,
+  isSeparateDashVideoUrl,
   isStoryMediaUrl,
   mediaVariantTag,
   mediaVariantScore,
   normalizeMediaUrl,
   sanitizeFilename,
+  shouldRepairExistingMutedDashVideo,
   shouldSkipMediaVariant,
 };
