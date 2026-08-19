@@ -12,6 +12,22 @@ def read(path: str) -> str:
 
 
 class WinUILightweightRuntimeTests(unittest.TestCase):
+    def test_winui_release_bundles_active_story_api_discovery_fix(self) -> None:
+        project = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/SaveStories.WinUI.Beta.csproj"
+        )
+        worker = read("node_worker/bridge.mjs")
+        bootstrap = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/ChromiumBootstrapService.cs"
+        )
+
+        self.assertIn(r"..\..\..\node_worker\**\*", project)
+        self.assertIn("<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>", project)
+        self.assertIn("fetchActiveStoryItemsForUsername", worker)
+        self.assertIn("/api/v1/feed/user/${userId}/story/", worker)
+        self.assertIn('logs.push("story_feed_used=true")', worker)
+        self.assertIn("SynchronizeBundledWorkerSources", bootstrap)
+
     def test_windows_release_workflows_do_not_bundle_node_runtime(self) -> None:
         for workflow in (
             ".github/workflows/release-assets.yml",
