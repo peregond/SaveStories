@@ -54,16 +54,63 @@ test("variant helpers detect audio-only and clips variants", () => {
   assert.ok(mediaVariantScore(storyUrl, "video") > mediaVariantScore(audioUrl, "video"));
 });
 
-test("DASH helpers detect separate video and repair only unverified manifests", () => {
+test("DASH helpers detect separate video variants", () => {
   const dashTag = Buffer.from(JSON.stringify({
     vencode_tag: "xpv_progressive.INSTAGRAM.STORY.C3.720.dash_baseline_1_v1",
   })).toString("base64url");
   const sourceUrl = `https://video.cdninstagram.com/story.mp4?efg=${dashTag}`;
-  const media = { sourceUrl, mediaType: "video", expectsAudio: true };
 
   assert.equal(isSeparateDashVideoUrl(sourceUrl), true);
+});
+
+test("audioPresent controls repair and supersedes legacy audioMuxed", () => {
+  const media = {
+    sourceUrl: "https://video.cdninstagram.com/story.mp4",
+    mediaType: "video",
+    expectsAudio: true,
+  };
+
+  assert.equal(
+    shouldRepairExistingMutedDashVideo({ audioPresent: true, audioMuxed: false }, media),
+    false,
+    "an embedded verified audio track must not be remuxed",
+  );
+  assert.equal(
+    shouldRepairExistingMutedDashVideo({ audioPresent: false, audioMuxed: true }, media),
+    true,
+    "an explicitly missing audio track must be repaired even if a stale flag says it was muxed",
+  );
+  assert.equal(
+    shouldRepairExistingMutedDashVideo({ audioPresent: null, audioMuxed: true }, media),
+    true,
+    "an unknown inspected state is fail-safe",
+  );
+});
+
+test("legacy Windows audioMuxed false is repaired when the resolved video expects audio", () => {
+  const media = {
+    sourceUrl: "https://video.cdninstagram.com/story.mp4",
+    mediaType: "video",
+    expectsAudio: true,
+  };
+
   assert.equal(shouldRepairExistingMutedDashVideo({ audioMuxed: false }, media), true);
   assert.equal(shouldRepairExistingMutedDashVideo({}, media), true);
   assert.equal(shouldRepairExistingMutedDashVideo({ audioMuxed: true }, media), false);
-  assert.equal(shouldRepairExistingMutedDashVideo({}, { ...media, expectsAudio: false }), false);
+  assert.equal(
+    shouldRepairExistingMutedDashVideo({ audioMuxed: false }, { ...media, expectsAudio: false }),
+    false,
+  );
+  assert.equal(
+    shouldRepairExistingMutedDashVideo({ audioMuxed: false }, { ...media, expectsAudio: null }),
+    true,
+    "unknown audio state must not preserve a potentially muted legacy download",
+  );
+  assert.equal(
+    shouldRepairExistingMutedDashVideo(
+      { audioMuxed: false },
+      { ...media, mediaType: "image", expectsAudio: true },
+    ),
+    false,
+  );
 });

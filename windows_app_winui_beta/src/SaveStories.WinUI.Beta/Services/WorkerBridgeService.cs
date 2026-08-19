@@ -88,6 +88,7 @@ public sealed class WorkerBridgeService
         TimeSpan timeout,
         IProgress<string>? progress)
     {
+        ChromiumBootstrapService.Current.SynchronizeBundledWorkerSources(progress);
         var workerScript = ResolveWorkerScript();
         if (!File.Exists(workerScript))
         {

@@ -69,7 +69,7 @@ function audioCandidate(attributes, adaptationAttributes, url, order) {
   const isAac = /(?:^|[,\s])(?:mp4a(?:\.[\w.-]+)?|aac)(?:[\s,]|$)/i.test(codecs);
   return {
     url,
-    bandwidth: normalizedBandwidth(attributes.bandwidth),
+    bandwidth: normalizedBandwidth(attributes.bandwidth ?? adaptationAttributes.bandwidth),
     preferredFormat: isMp4 && isAac ? 2 : (isAac || isMp4 ? 1 : 0),
     isAac: isAac ? 1 : 0,
     isMp4: isMp4 ? 1 : 0,
@@ -86,10 +86,9 @@ function chooseDashAudioUrl(manifest) {
   for (const adaptationMatch of manifest.matchAll(adaptationPattern)) {
     const adaptationAttributes = parseXmlAttributes(adaptationMatch[1]);
     const adaptationBody = adaptationMatch[2];
-    let foundRepresentation = false;
+    const candidateCountBeforeRepresentations = candidates.length;
     const representationPattern = /<(?:[\w.-]+:)?Representation\b([^>]*)>([\s\S]*?)<\/(?:[\w.-]+:)?Representation\s*>/gi;
     for (const representationMatch of adaptationBody.matchAll(representationPattern)) {
-      foundRepresentation = true;
       const attributes = parseXmlAttributes(representationMatch[1]);
       for (const url of extractBaseUrls(representationMatch[2])) {
         const candidate = audioCandidate(attributes, adaptationAttributes, url, order++);
@@ -97,9 +96,10 @@ function chooseDashAudioUrl(manifest) {
       }
     }
 
-    if (!foundRepresentation) {
-      for (const url of extractBaseUrls(adaptationBody)) {
-        const candidate = audioCandidate(adaptationAttributes, {}, url, order++);
+    if (candidates.length === candidateCountBeforeRepresentations) {
+      const adaptationLevelBody = adaptationBody.replace(representationPattern, "");
+      for (const url of extractBaseUrls(adaptationLevelBody)) {
+        const candidate = audioCandidate({}, adaptationAttributes, url, order++);
         if (candidate) candidates.push(candidate);
       }
     }
@@ -113,6 +113,33 @@ function chooseDashAudioUrl(manifest) {
     left.order - right.order,
   );
   return candidates[0]?.url ?? null;
+}
+
+function expectedAudioState(declaredValue, audioSourceUrl = null) {
+  if (typeof audioSourceUrl === "string" && audioSourceUrl.trim() !== "") return true;
+  if (declaredValue === true || declaredValue === 1 || declaredValue === "1" || declaredValue === "true") return true;
+  if (declaredValue === false || declaredValue === 0 || declaredValue === "0" || declaredValue === "false") return false;
+  return null;
+}
+
+function mediaAudioConfidence(candidate) {
+  if (candidate?.audioSourceUrl) return 3;
+  if (candidate?.expectsAudio === true) return 2;
+  if (candidate?.expectsAudio === false) return 1;
+  return 0;
+}
+
+function mergeResolvedMediaCandidate(existing, candidate) {
+  if (!existing) return candidate;
+  if (!candidate) return existing;
+  const candidateIsPreferred = mediaAudioConfidence(candidate) >= mediaAudioConfidence(existing);
+  const preferred = candidateIsPreferred ? candidate : existing;
+  const fallback = candidateIsPreferred ? existing : candidate;
+  const audioSourceUrl = preferred.audioSourceUrl || fallback.audioSourceUrl || null;
+  const expectsAudio = audioSourceUrl
+    ? true
+    : preferred.expectsAudio ?? fallback.expectsAudio ?? null;
+  return { ...fallback, ...preferred, audioSourceUrl, expectsAudio };
 }
 
 function storyIdFromUrl(value) {
@@ -152,6 +179,8 @@ function isTrustedInstagramMediaUrl(value) {
 export {
   chooseDashAudioUrl,
   decodeXmlEntities,
+  expectedAudioState,
   isTrustedInstagramMediaUrl,
+  mergeResolvedMediaCandidate,
   storyIdFromUrl,
 };
