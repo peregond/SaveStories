@@ -17,6 +17,7 @@ delete process.env.SAVEME_MEDIA_MUXER;
 
 const {
   downloadMedia,
+  fetchActiveStoryItemsForUsername,
   resolveStoryItemFromDict,
   resolveStoryItemsFromPayloads,
 } = await import("./bridge.mjs");
@@ -174,6 +175,48 @@ test("metadata resolvers keep richer duplicates and search generic payloads afte
   assert.equal(reels.length, 1);
   assert.equal(reels[0].audioSourceUrl, AUDIO_URL);
   assert.equal(reels[0].expectsAudio, true);
+});
+
+test("Stories discovery fetches the active feed without relying on the profile story ring", async () => {
+  const calls = [];
+  const logs = [];
+  const browserContext = {
+    async cookies() {
+      return [{ name: "csrftoken", value: "csrf-test" }];
+    },
+    request: {
+      async get(url, options) {
+        calls.push({ url, options });
+        if (url.includes("/users/web_profile_info/")) {
+          return {
+            ok: () => true,
+            status: () => 200,
+            json: async () => ({ data: { user: { id: "424242", username: "alice" } } }),
+          };
+        }
+        if (url.endsWith("/feed/user/424242/story/")) {
+          return {
+            ok: () => true,
+            status: () => 200,
+            json: async () => ({ reel: { items: [videoMetadata({ video_dash_manifest: dashManifest(), has_audio: true })] } }),
+          };
+        }
+        throw new Error(`unexpected API request: ${url}`);
+      },
+    },
+  };
+
+  const stories = await fetchActiveStoryItemsForUsername(browserContext, "alice", logs);
+
+  assert.equal(stories.length, 1);
+  assert.equal(stories[0].itemId, "1234567890");
+  assert.equal(stories[0].audioSourceUrl, AUDIO_URL);
+  assert.deepEqual(calls.map((call) => call.url), [
+    "https://www.instagram.com/api/v1/users/web_profile_info/?username=alice",
+    "https://www.instagram.com/api/v1/feed/user/424242/story/",
+  ]);
+  assert.equal(calls[0].options.headers["X-CSRFToken"], "csrf-test");
+  assert.ok(logs.includes("story_feed_items=alice:1"));
 });
 
 test("Stories bridge downloadMedia uses the audio pipeline and propagates audioPresent", async (t) => {
