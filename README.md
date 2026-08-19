@@ -4,7 +4,7 @@
 
 Текущее состояние репозитория:
 
-- версия исходников: `0.6.75`
+- версия исходников: `0.6.76`
 - платформы: `macOS` и `Windows`
 - общий runtime: `Node 24 LTS + Playwright + Chromium`
 
@@ -142,7 +142,6 @@ Workflow:
 Что публикуется в релиз:
 
 - `SaveMe-macOS-vX.Y.Z.dmg`
-- `SaveMe-Windows-WinUI-Beta-Setup-vX.Y.Z.exe`
 - `SaveMe-Windows-Setup-vX.Y.Z.exe`
 - `appcast-macos.xml` в ветку `update-feed`
 
@@ -156,19 +155,18 @@ Workflow:
 
 ```bash
 git add .
-git commit -m "Prepare v0.6.75 release"
+git commit -m "Prepare v0.6.76 release"
 git pull --rebase origin main
 git push origin main
-git tag v0.6.75
-git push origin v0.6.75
+git tag v0.6.76
+git push origin v0.6.76
 ```
 
 После этого GitHub Actions:
 
 - создаст или обновит release
 - соберёт macOS `.dmg`
-- соберёт Windows `.zip`
-- соберёт Windows installer `.exe`
+- соберёт Windows installer `.exe` и контрольную сумму SHA-256
 - прикрепит артефакты в `Releases`
 - обновит macOS appcast
 
@@ -205,8 +203,8 @@ git push origin v0.6.75
 export APPLE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
 export APPLE_NOTARY_PROFILE="savestories-notary"
 export SAVESTORIES_BUNDLE_ID="com.example.savestories"
-export SAVESTORIES_VERSION="0.6.75"
-export SAVESTORIES_BUILD="93"
+export SAVESTORIES_VERSION="0.6.76"
+export SAVESTORIES_BUILD="94"
 ./scripts/build_release_dmg.sh
 ```
 

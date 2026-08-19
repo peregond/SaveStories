@@ -840,6 +840,55 @@ async function fetchStoryItemMetadata(browserContext, pageUrl, expectedUsername,
   return exact;
 }
 
+async function fetchActiveStoryItemsForUsername(browserContext, username, logs) {
+  const profileUrl = `https://www.instagram.com/${username}/`;
+  const cookies = await browserContext.cookies("https://www.instagram.com/");
+  const csrfToken = cookies.find((cookie) => cookie.name === "csrftoken")?.value || "";
+  const headers = {
+    "X-IG-App-ID": "936619743392459",
+    "X-Requested-With": "XMLHttpRequest",
+    Referer: profileUrl,
+  };
+  if (csrfToken) headers["X-CSRFToken"] = csrfToken;
+
+  const profileEndpoint = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`;
+  const profileResponse = await browserContext.request.get(profileEndpoint, {
+    headers,
+    timeout: 20_000,
+    failOnStatusCode: false,
+  });
+  if (!profileResponse.ok()) {
+    logs?.push(`story_profile_info_status=${username}:${profileResponse.status()}`);
+    return [];
+  }
+
+  const profilePayload = await profileResponse.json();
+  const profileUser = profilePayload?.data?.user || profilePayload?.user || null;
+  const userId = profileUser?.id ?? profileUser?.pk ?? null;
+  if (!userId || !/^\d+$/.test(String(userId))) {
+    logs?.push(`story_profile_id_missing=${username}`);
+    return [];
+  }
+
+  const storyEndpoint = `https://www.instagram.com/api/v1/feed/user/${userId}/story/`;
+  const storyResponse = await browserContext.request.get(storyEndpoint, {
+    headers,
+    timeout: 20_000,
+    failOnStatusCode: false,
+  });
+  if (!storyResponse.ok()) {
+    logs?.push(`story_feed_status=${username}:${storyResponse.status()}`);
+    return [];
+  }
+
+  const storyPayload = await storyResponse.json();
+  const resolved = [];
+  walkStoryItems(storyPayload, username, new Set(), resolved);
+  resolved.sort((a, b) => (a.takenAt || 0) - (b.takenAt || 0));
+  logs?.push(`story_feed_items=${username}:${resolved.length}`);
+  return resolved;
+}
+
 async function enrichStoryMediaCandidate(page, candidate, expectedUsername, logs, metadataCache) {
   if (!candidate || candidate.mediaType !== "video") return candidate;
   const storyId = storyIdFromUrl(candidate.pageUrl);
@@ -1467,7 +1516,7 @@ async function persistStoryItems(resolvedItems, destinationDir, username, browse
   return { items, logs };
 }
 
-async function collectStorySequence(page, destinationDir, username, jsonPayloads, networkCandidates, metadataCapturedAfter = null, persistMetadataItems = true, mediaFilter = "all") {
+async function collectStorySequence(page, destinationDir, username, jsonPayloads, networkCandidates, metadataCapturedAfter = null, persistMetadataItems = true, mediaFilter = "all", prefetchedItems = []) {
   const logs = [];
 
   if (isHighlightStoryUrl(page.url())) {
@@ -1475,12 +1524,12 @@ async function collectStorySequence(page, destinationDir, username, jsonPayloads
     return { items: [], logs };
   }
 
-  if (!isActiveStoryPage(page.url(), username)) {
-    logs.push(`active_story_page_missing=${page.url()}`);
-    return { items: [], logs };
-  }
-
-  const resolvedItems = await waitForMetadataStoryItems(page, jsonPayloads, username, logs, 12, metadataCapturedAfter);
+  const resolvedItems = prefetchedItems.length > 0
+    ? prefetchedItems
+    : (isActiveStoryPage(page.url(), username)
+      ? await waitForMetadataStoryItems(page, jsonPayloads, username, logs, 12, metadataCapturedAfter)
+      : []);
+  if (prefetchedItems.length > 0) logs.push(`metadata_story_items=${resolvedItems.length}`);
   if (resolvedItems.length > 0 && persistMetadataItems) {
     const persisted = await persistStoryItems(resolvedItems, destinationDir, username, page.context(), mediaFilter);
     logs.push(...persisted.logs);
@@ -1488,6 +1537,11 @@ async function collectStorySequence(page, destinationDir, username, jsonPayloads
       return { items: persisted.items, logs };
     }
     logs.push("metadata_only_no_new_items");
+  }
+
+  if (!isActiveStoryPage(page.url(), username)) {
+    logs.push(`active_story_page_missing=${page.url()}`);
+    return { items: [], logs };
   }
 
   const seenSources = new Set();
@@ -1660,17 +1714,27 @@ async function downloadProfileWithPage(page, profileUrl, outputDirectory, mediaF
     await page.waitForTimeout(1500);
     logs.push(`profile_download_directory=${destination}`);
 
-    const storyCaptureStartedAt = Date.now() / 1000;
-    const opened = await clickProfileStoryRing(page, username, logs);
-    if (!opened) {
-      const fallback = `https://www.instagram.com/stories/${username}/`;
-      await retryingGoto(page, fallback, { waitUntil: "domcontentloaded" }, logs, "story_fallback_goto");
-      await ensureLoggedIn(page);
-      logs.push(`profile_fallback=${fallback}`);
+    let prefetchedItems = [];
+    try {
+      prefetchedItems = await fetchActiveStoryItemsForUsername(page.context(), username, logs);
+    } catch (error) {
+      logs.push(`story_feed_error=${username}:${errorMessage(error)}`);
     }
 
-    await clickStoryGateIfNeeded(page, logs);
-    logs.push(`opened=${page.url()}`);
+    const storyCaptureStartedAt = Date.now() / 1000;
+    if (prefetchedItems.length === 0) {
+      const opened = await clickProfileStoryRing(page, username, logs);
+      if (!opened) {
+        const fallback = `https://www.instagram.com/stories/${username}/`;
+        await retryingGoto(page, fallback, { waitUntil: "domcontentloaded" }, logs, "story_fallback_goto");
+        await ensureLoggedIn(page);
+        logs.push(`profile_fallback=${fallback}`);
+      }
+      await clickStoryGateIfNeeded(page, logs);
+      logs.push(`opened=${page.url()}`);
+    } else {
+      logs.push("story_feed_used=true");
+    }
 
     const result = await collectStorySequence(
       page,
@@ -1681,6 +1745,7 @@ async function downloadProfileWithPage(page, profileUrl, outputDirectory, mediaF
       storyCaptureStartedAt,
       true,
       mediaFilter,
+      prefetchedItems,
     );
     logs.push(...result.logs);
     const foundCountAllStories = extractFoundCount(result.logs, result.items.length);
@@ -2060,6 +2125,7 @@ if (isDirectExecution) {
 
 export {
   downloadMedia,
+  fetchActiveStoryItemsForUsername,
   resolveStoryItemFromDict,
   resolveStoryItemsFromPayloads,
 };
