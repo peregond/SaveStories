@@ -49,6 +49,83 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn("NodeRuntimeResolver.WorkerRoot()", bridge)
         self.assertIn("Path.GetDirectoryName(workerScript)", bridge)
 
+    def test_winui_worker_sources_are_refreshed_before_every_run(self) -> None:
+        bridge = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/WorkerBridgeService.cs"
+        )
+        bootstrap = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/ChromiumBootstrapService.cs"
+        )
+
+        run_core = bridge[bridge.index("private async Task<WorkerRunResult> RunCoreAsync") :]
+        sync_call = "ChromiumBootstrapService.Current.SynchronizeBundledWorkerSources(progress);"
+        self.assertIn(sync_call, run_core)
+        self.assertLess(run_core.index(sync_call), run_core.index("var workerScript = ResolveWorkerScript();"))
+        self.assertLess(run_core.index(sync_call), run_core.index("process.Start()"))
+
+        sync_method = bootstrap[
+            bootstrap.index("public void SynchronizeBundledWorkerSources") :
+            bootstrap.index("public async Task<string> InstallChromiumAsync")
+        ]
+        self.assertIn("NodeRuntimeResolver.WorkerRoot()", sync_method)
+        self.assertIn("lock (WorkerSourceSynchronizationLock)", sync_method)
+        self.assertIn("AtomicReplaceFile(sourcePath, destinationPath)", sync_method)
+        self.assertNotIn("IsNodeRuntimeInstalled", sync_method)
+        self.assertNotIn("IsWorkerDependenciesInstalled", sync_method)
+
+    def test_winui_worker_source_sync_preserves_runtime_and_session_data(self) -> None:
+        bootstrap = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/ChromiumBootstrapService.cs"
+        )
+
+        for root_name in (
+            "node",
+            "node_modules",
+            "ms-playwright",
+            "browser-profile",
+            ".venv",
+            ".cache",
+            "logs",
+        ):
+            with self.subTest(root_name=root_name):
+                self.assertIn(f'"{root_name}"', bootstrap)
+        self.assertIn('name.StartsWith("storage-state", StringComparison.OrdinalIgnoreCase)', bootstrap)
+        self.assertIn("ShouldPreserveWorkerRootEntry(topLevelName)", bootstrap)
+
+    def test_winui_worker_source_sync_is_atomic_and_prunes_only_managed_files(self) -> None:
+        bootstrap = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/ChromiumBootstrapService.cs"
+        )
+
+        self.assertIn('ManagedWorkerFilesMarkerName = ".saveme-managed-worker-files.json"', bootstrap)
+        self.assertIn("ReadManagedWorkerFiles(managedFilesMarkerPath)", bootstrap)
+        self.assertIn(
+            "previouslyManagedFiles.Except(sourceFiles.Keys, StringComparer.OrdinalIgnoreCase)",
+            bootstrap,
+        )
+        self.assertIn("TryResolveManagedWorkerPath(targetWorkerDir, staleRelativePath)", bootstrap)
+        self.assertIn("File.Copy(sourcePath, tempPath, overwrite: false)", bootstrap)
+        self.assertIn("File.Move(tempPath, destinationPath, overwrite: true)", bootstrap)
+        self.assertIn("File.Move(tempPath, markerPath, overwrite: true)", bootstrap)
+        self.assertIn('component is "." or ".."', bootstrap)
+
+    def test_winui_worker_source_sync_does_not_downgrade_newer_worker(self) -> None:
+        bootstrap = read(
+            "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/ChromiumBootstrapService.cs"
+        )
+
+        sync_method = bootstrap[
+            bootstrap.index("public void SynchronizeBundledWorkerSources") :
+            bootstrap.index("public async Task<string> InstallChromiumAsync")
+        ]
+        self.assertIn("ReadWorkerPackageVersion(sourceWorkerDir)", sync_method)
+        self.assertIn("ReadWorkerPackageVersion(targetWorkerDir)", sync_method)
+        self.assertIn("CompareWorkerVersions(installedVersion, bundledVersion) > 0", sync_method)
+        self.assertLess(
+            sync_method.index("CompareWorkerVersions(installedVersion, bundledVersion) > 0"),
+            sync_method.index("AtomicReplaceFile(sourcePath, destinationPath)"),
+        )
+
     def test_winui_worker_extracts_json_from_noisy_stdout(self) -> None:
         bridge = read(
             "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/WorkerBridgeService.cs"

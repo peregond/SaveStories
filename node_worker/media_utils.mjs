@@ -79,13 +79,17 @@ function isSeparateDashVideoUrl(url) {
 }
 
 function shouldRepairExistingMutedDashVideo(existingManifest, media) {
-  return (
-    existingManifest &&
-    existingManifest.audioMuxed !== true &&
-    media?.mediaType === "video" &&
-    media.expectsAudio === true &&
-    isSeparateDashVideoUrl(media.sourceUrl)
-  );
+  if (!existingManifest || media?.mediaType !== "video" || media.expectsAudio === false) {
+    return false;
+  }
+
+  // A verified audio track wins over the legacy `audioMuxed` flag: Instagram
+  // sometimes serves an already-combined MP4 even when the URL looks like a
+  // separate DASH variant. An explicit false/unknown value is fail-safe and
+  // causes a repair; old manifests only have `audioMuxed` to go by.
+  if (existingManifest.audioPresent === true) return false;
+  if (Object.hasOwn(existingManifest, "audioPresent")) return true;
+  return existingManifest.audioMuxed !== true;
 }
 
 function shouldSkipMediaVariant(url) {

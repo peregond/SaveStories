@@ -4,9 +4,31 @@ import assert from "node:assert/strict";
 import {
   chooseDashAudioUrl,
   decodeXmlEntities,
+  expectedAudioState,
   isTrustedInstagramMediaUrl,
+  mergeResolvedMediaCandidate,
   storyIdFromUrl,
 } from "./dash_media.mjs";
+
+test("expectedAudioState preserves declared false and leaves missing metadata unknown", () => {
+  assert.equal(expectedAudioState(true), true);
+  assert.equal(expectedAudioState(1), true);
+  assert.equal(expectedAudioState(false), false);
+  assert.equal(expectedAudioState(0), false);
+  assert.equal(expectedAudioState(undefined), null);
+  assert.equal(expectedAudioState(false, "https://video.example/audio.mp4"), true);
+});
+
+test("mergeResolvedMediaCandidate keeps the richer duplicate audio metadata", () => {
+  const partial = { itemId: "1", sourceUrl: "video-a", audioSourceUrl: null, expectsAudio: null };
+  const rich = { itemId: "1", sourceUrl: "video-b", audioSourceUrl: "audio", expectsAudio: true };
+  assert.deepEqual(mergeResolvedMediaCandidate(partial, rich), rich);
+  assert.deepEqual(mergeResolvedMediaCandidate(rich, partial), rich);
+  assert.equal(
+    mergeResolvedMediaCandidate({ ...partial, expectsAudio: false }, partial).expectsAudio,
+    false,
+  );
+});
 
 test("decodeXmlEntities decodes named and numeric entities", () => {
   assert.equal(
@@ -71,6 +93,18 @@ test("chooseDashAudioUrl supports an audio AdaptationSet with a direct BaseURL",
     </Period></MPD>`;
 
   assert.equal(chooseDashAudioUrl(manifest), "https://video.example/direct-audio.mp4");
+});
+
+test("chooseDashAudioUrl falls back to an inherited AdaptationSet BaseURL", () => {
+  const manifest = `
+    <MPD><Period>
+      <AdaptationSet contentType="audio" mimeType="audio/mp4" codecs="mp4a.40.2">
+        <BaseURL>https://video.example/inherited-audio.mp4</BaseURL>
+        <Representation bandwidth="128000"><SegmentBase indexRange="0-100" /></Representation>
+      </AdaptationSet>
+    </Period></MPD>`;
+
+  assert.equal(chooseDashAudioUrl(manifest), "https://video.example/inherited-audio.mp4");
 });
 
 test("chooseDashAudioUrl ignores video-only and malformed manifests", () => {
