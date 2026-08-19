@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.74</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.75</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.74</title>
-      <pubDate>Sat, 01 Aug 2026 19:18:31 GMT</pubDate>
-      <sparkle:version>145</sparkle:version>
-      <sparkle:shortVersionString>0.6.74</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.74</h2>
-<ul><li>macOS: видео Stories с раздельными Instagram DASH-потоками теперь сохраняются со звуком — H.264/HEVC-видео объединяется с AAC без перекодирования.</li><li>macOS: встроенные файлы worker автоматически обновляются без сброса авторизации, Chromium и установленных зависимостей.</li><li>macOS: старые video-only записи не считаются корректными дубликатами и могут быть повторно сохранены со звуком.</li></ul>]]></description>
+      <title>SaveMe 0.6.75</title>
+      <pubDate>Wed, 19 Aug 2026 12:46:58 GMT</pubDate>
+      <sparkle:version>146</sparkle:version>
+      <sparkle:shortVersionString>0.6.75</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.75</h2>
+<ul><li>macOS и Windows: приложение проверяет реальные дорожки MP4 и сохраняет уже готовое видео со звуком без повторной обработки.</li><li>macOS и Windows: раздельные Instagram DASH-потоки H.264/HEVC + AAC объединяются без перекодирования; немой файл больше не сохраняется, если ожидался звук.</li><li>Windows: встроен собственный MP4-muxer и исправлено обновление worker после установки новой версии с сохранением авторизации, Chromium и зависимостей.</li><li>Stories и Reels: результат проверяется на наличие видео- и аудиодорожек до публикации файла.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.74/SaveMe-macOS-v0.6.74.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.75/SaveMe-macOS-v0.6.75.dmg"
         sparkle:os="macos"
-        length="4393065"
+        length="4438005"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="RU68B8EDTNs2Db2BKl0rKViEZtbUXkhPxfJ8gxAoCciMUp1AHXAqfkTmVjszdx1FASFuk9LA/hhRR1VGwPVkBQ==" />
+        sparkle:edSignature="OzaaRF7M/v1zcFw9/X9w2J8hsadVEXJSUbJoaZxL3OgK1ZR4Parsjx8h1jolnmI+RLTKWVRP9gPgGfQwqwy/Cw==" />
     </item>
   </channel>
 </rss>
