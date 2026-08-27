@@ -1986,8 +1986,15 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
             ? "Окно браузера было закрыто во время пакетной выгрузки."
             : result.message;
           logs.push(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
+          emitProgress(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
           batchAbortMessage ||= message;
           return;
+        }
+        if (!result.ok) {
+          const message = result.message || "Не удалось выгрузить профиль.";
+          logs.push(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
+          emitProgress(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
+          continue;
         }
         logs.push(`batch_slot_${slot}_done=${job.normalizedUrl}`);
         emitProgress(`batch_slot_${slot}_done=${job.normalizedUrl}`);
