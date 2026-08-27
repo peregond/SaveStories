@@ -4,7 +4,7 @@
 
 Текущее состояние репозитория:
 
-- версия исходников: `0.6.76`
+- версия исходников: `0.6.77`
 - платформы: `macOS` и `Windows`
 - общий runtime: `Node 24 LTS + Playwright + Chromium`
 
@@ -155,11 +155,11 @@ Workflow:
 
 ```bash
 git add .
-git commit -m "Prepare v0.6.76 release"
+git commit -m "Prepare v0.6.77 release"
 git pull --rebase origin main
 git push origin main
-git tag v0.6.76
-git push origin v0.6.76
+git tag v0.6.77
+git push origin v0.6.77
 ```
 
 После этого GitHub Actions:
@@ -203,8 +203,8 @@ git push origin v0.6.76
 export APPLE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
 export APPLE_NOTARY_PROFILE="savestories-notary"
 export SAVESTORIES_BUNDLE_ID="com.example.savestories"
-export SAVESTORIES_VERSION="0.6.76"
-export SAVESTORIES_BUILD="94"
+export SAVESTORIES_VERSION="0.6.77"
+export SAVESTORIES_BUILD="95"
 ./scripts/build_release_dmg.sh
 ```
 

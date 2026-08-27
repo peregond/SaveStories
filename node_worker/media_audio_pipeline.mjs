@@ -5,14 +5,6 @@ import path from "node:path";
 
 import { inspectMp4, inspectMp4Buffer, muxMp4Tracks } from "./mp4_muxer.mjs";
 
-const UNSUPPORTED_HARD_LINK_CODES = new Set([
-  "EOPNOTSUPP",
-  "ENOTSUP",
-  "EPERM",
-  "ENOSYS",
-  "EXDEV",
-]);
-
 function temporaryPathFor(localPath, label) {
   return path.join(
     path.dirname(localPath),
@@ -29,10 +21,11 @@ async function publishTemporaryFile(temporaryPath, localPath, operations = fs) {
     if (error?.code === "EEXIST") {
       throw new Error(`Файл назначения уже существует: ${localPath}`);
     }
-    if (!UNSUPPORTED_HARD_LINK_CODES.has(error?.code)) throw error;
     try {
-      // exFAT, network shares and some File Provider volumes do not support
-      // hard links. COPYFILE_EXCL preserves the no-overwrite guarantee there.
+      // Cloud Files providers can reject hard links with provider-specific
+      // Windows errors. Falling back for every non-EEXIST link failure is safe:
+      // COPYFILE_EXCL still preserves the no-overwrite guarantee, and a real
+      // permissions or I/O problem will be reported by the copy operation.
       await operations.copyFile(temporaryPath, localPath, fs.constants.COPYFILE_EXCL);
     } catch (copyError) {
       if (copyError?.code === "EEXIST") {

@@ -293,6 +293,21 @@ public sealed partial class StoriesPage : Page
             StatusDetailText.Text = $"Готов профиль: {profile}";
             ResultSummaryText.Text = $"Профилей: {_queue.Count}  ·  Обработано: {_liveProcessedProfiles}/{_queue.Count}  ·  Последний: {profile}";
             RefreshLiveDownloadStats();
+            return;
+        }
+
+        if (line.StartsWith("batch_slot_", StringComparison.OrdinalIgnoreCase)
+            && line.Contains("_error=", StringComparison.OrdinalIgnoreCase))
+        {
+            _liveProcessedProfiles = Math.Min(_queue.Count, _liveProcessedProfiles + 1);
+            var profile = DisplayProfileFromProgress(line);
+            var detail = ProgressErrorDetail(line);
+            StatusTitleText.Text = "Загружаю";
+            StatusDetailText.Text = string.IsNullOrWhiteSpace(detail)
+                ? $"Не удалось обработать: {profile}"
+                : $"Не удалось обработать {profile}: {detail}";
+            ResultSummaryText.Text = $"Профилей: {_queue.Count}  ·  Обработано: {_liveProcessedProfiles}/{_queue.Count}  ·  Ошибка: {profile}";
+            RefreshLiveDownloadStats();
         }
     }
 
@@ -304,7 +319,7 @@ public sealed partial class StoriesPage : Page
             return line;
         }
 
-        var value = line[(separator + 1)..].Trim();
+        var value = line[(separator + 1)..].Split(" :: ", 2, StringSplitOptions.None)[0].Trim();
         if (Uri.TryCreate(value, UriKind.Absolute, out var uri))
         {
             var username = uri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
@@ -314,6 +329,12 @@ public sealed partial class StoriesPage : Page
             }
         }
         return value;
+    }
+
+    private static string ProgressErrorDetail(string line)
+    {
+        var separator = line.IndexOf(" :: ", StringComparison.Ordinal);
+        return separator < 0 ? string.Empty : line[(separator + 4)..].Trim();
     }
 
     private async void OnStopClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)

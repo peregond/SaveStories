@@ -194,12 +194,25 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         bridge = read(
             "windows_app_winui_beta/src/SaveStories.WinUI.Beta/Services/WorkerBridgeService.cs"
         )
+        worker = read("node_worker/bridge.mjs")
 
         self.assertIn("IProgress<string>? progress", bridge)
         self.assertIn("progress?.Report", bridge)
         self.assertIn("HandleWorkerProgress", page)
         self.assertIn("batch_slot_", page)
+        self.assertIn('line.Contains("_error="', page)
+        self.assertIn("ProgressErrorDetail", page)
+        self.assertIn("if (!result.ok)", worker)
+        self.assertIn("emitProgress(`batch_slot_${slot}_error=", worker)
         self.assertIn("Обработано: {_liveProcessedProfiles}/{_queue.Count}", page)
+
+    def test_worker_publishes_media_to_cloud_folders_without_hard_links(self) -> None:
+        pipeline = read("node_worker/media_audio_pipeline.mjs")
+
+        self.assertIn("await operations.link(temporaryPath, localPath)", pipeline)
+        self.assertIn("await operations.copyFile(temporaryPath, localPath", pipeline)
+        self.assertIn("fs.constants.COPYFILE_EXCL", pipeline)
+        self.assertNotIn("UNSUPPORTED_HARD_LINK_CODES", pipeline)
 
     def test_winui_stories_batch_timeout_scales_with_queue_size(self) -> None:
         page = read("windows_app_winui_beta/src/SaveStories.WinUI.Beta/Pages/StoriesPage.xaml.cs")

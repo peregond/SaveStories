@@ -62,8 +62,8 @@ test("publish falls back without overwriting when the destination volume rejects
   await fs.writeFile(temporaryPath, "validated media");
   const operations = {
     link: async () => {
-      const error = new Error("hard links unsupported");
-      error.code = "ENOTSUP";
+      const error = new Error("cloud provider rejected the hard link");
+      error.code = "ERROR_CLOUD_FILES_INCOMPATIBLE_HARDLINKS";
       throw error;
     },
     copyFile: fs.copyFile.bind(fs),
@@ -80,6 +80,33 @@ test("publish falls back without overwriting when the destination volume rejects
     /уже существует/,
   );
   assert.equal(await fs.readFile(localPath, "utf8"), "validated media");
+});
+
+test("publish reports a cloud destination copy error and keeps the validated temporary file", async (t) => {
+  const directory = await temporaryDirectory(t);
+  const temporaryPath = path.join(directory, "validated.tmp");
+  const localPath = path.join(directory, "story.mp4");
+  await fs.writeFile(temporaryPath, "validated media");
+  const operations = {
+    link: async () => {
+      const error = new Error("provider-specific hard-link failure");
+      error.code = "UNKNOWN";
+      throw error;
+    },
+    copyFile: async () => {
+      const error = new Error("cloud destination is unavailable");
+      error.code = "EACCES";
+      throw error;
+    },
+    unlink: fs.unlink.bind(fs),
+  };
+
+  await assert.rejects(
+    publishTemporaryFile(temporaryPath, localPath, operations),
+    { code: "EACCES" },
+  );
+  assert.equal(await fs.readFile(temporaryPath, "utf8"), "validated media");
+  await assert.rejects(fs.access(localPath), { code: "ENOENT" });
 });
 
 test("truncated embedded MP4 is rejected without publishing a misleading audio manifest", async (t) => {
