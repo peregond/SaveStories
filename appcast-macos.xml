@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.77</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.78</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.77</title>
-      <pubDate>Thu, 27 Aug 2026 11:36:37 GMT</pubDate>
-      <sparkle:version>148</sparkle:version>
-      <sparkle:shortVersionString>0.6.77</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.77</h2>
-<ul><li>Windows: исправлено сохранение Stories в папки Google Drive и другие Cloud Files-каталоги — проверенный файл безопасно копируется, если файловая система отклоняет hard link.</li><li>Существующие файлы не перезаписываются при резервном способе сохранения.</li><li>Windows: ошибка отдельного профиля теперь сразу показывается в журнале и счётчике, не дожидаясь завершения всей очереди.</li></ul>]]></description>
+      <title>SaveMe 0.6.78</title>
+      <pubDate>Thu, 27 Aug 2026 12:33:17 GMT</pubDate>
+      <sparkle:version>149</sparkle:version>
+      <sparkle:shortVersionString>0.6.78</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.78</h2>
+<ul><li>macOS и Windows: полный список активных Stories теперь загружается через endpoint reel-плейлиста, а не через endpoint, который мог вернуть только один текущий элемент.</li><li>Stories сохраняются в хронологическом порядке — от более ранних к более новым.</li><li>Предыдущий способ получения Stories сохранён как резервный на случай временной недоступности полного списка.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.77/SaveMe-macOS-v0.6.77.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.78/SaveMe-macOS-v0.6.78.dmg"
         sparkle:os="macos"
-        length="4439284"
+        length="4439360"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="XHsGJh6TAkvIYZZ4e0LUrQAKVqij4cc7Jy9v0gRs9Q2HXxh10F53hXkwtq0ivVCD34FAgeN66NWOVRGHLhxaCA==" />
+        sparkle:edSignature="5L28ZnS88nwixAgCfabO9K6sTB+vXfFfYT1gNnah4+Dnmz7g3uaifSQzl7NIrY/wjW6TrufjGunau6aBF8Y0DQ==" />
     </item>
   </channel>
 </rss>
