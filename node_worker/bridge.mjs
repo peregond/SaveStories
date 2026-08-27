@@ -870,18 +870,43 @@ async function fetchActiveStoryItemsForUsername(browserContext, username, logs) 
     return [];
   }
 
-  const storyEndpoint = `https://www.instagram.com/api/v1/feed/user/${userId}/story/`;
-  const storyResponse = await browserContext.request.get(storyEndpoint, {
+  // reels_media is the playlist endpoint used by Instagram's Story viewer. In
+  // contrast, feed/user/.../story can return only the currently selected item
+  // for some accounts, which made a partial response look like a complete reel.
+  const reelsMediaEndpoint = `https://www.instagram.com/api/v1/feed/reels_media/?reel_ids=${encodeURIComponent(userId)}`;
+  const reelsMediaResponse = await browserContext.request.get(reelsMediaEndpoint, {
     headers,
     timeout: 20_000,
     failOnStatusCode: false,
   });
-  if (!storyResponse.ok()) {
-    logs?.push(`story_feed_status=${username}:${storyResponse.status()}`);
+  if (reelsMediaResponse.ok()) {
+    const reelsMediaPayload = await reelsMediaResponse.json();
+    const resolved = [];
+    walkStoryItems(reelsMediaPayload, username, new Set(), resolved);
+    resolved.sort((a, b) => (a.takenAt || 0) - (b.takenAt || 0));
+    logs?.push(`story_reels_media_items=${username}:${resolved.length}`);
+    if (resolved.length > 0) {
+      logs?.push(`story_feed_items=${username}:${resolved.length}`);
+      return resolved;
+    }
+  } else {
+    logs?.push(`story_reels_media_status=${username}:${reelsMediaResponse.status()}`);
+  }
+
+  // Keep the previous endpoint as a compatibility fallback for accounts where
+  // reels_media is temporarily unavailable.
+  const fallbackEndpoint = `https://www.instagram.com/api/v1/feed/user/${userId}/story/`;
+  const fallbackResponse = await browserContext.request.get(fallbackEndpoint, {
+    headers,
+    timeout: 20_000,
+    failOnStatusCode: false,
+  });
+  if (!fallbackResponse.ok()) {
+    logs?.push(`story_feed_status=${username}:${fallbackResponse.status()}`);
     return [];
   }
 
-  const storyPayload = await storyResponse.json();
+  const storyPayload = await fallbackResponse.json();
   const resolved = [];
   walkStoryItems(storyPayload, username, new Set(), resolved);
   resolved.sort((a, b) => (a.takenAt || 0) - (b.takenAt || 0));

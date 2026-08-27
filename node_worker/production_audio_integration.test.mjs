@@ -177,9 +177,26 @@ test("metadata resolvers keep richer duplicates and search generic payloads afte
   assert.equal(reels[0].expectsAudio, true);
 });
 
-test("Stories discovery fetches the active feed without relying on the profile story ring", async () => {
+test("Stories discovery fetches the complete reel instead of one current Story", async () => {
   const calls = [];
   const logs = [];
+  const stories = [
+    videoMetadata({
+      id: "2000000000_42",
+      taken_at: 200,
+      video_versions: [{ url: `${VIDEO_URL}?story=20h`, width: 720, height: 1280, type: 101 }],
+    }),
+    videoMetadata({
+      id: "2100000000_42",
+      taken_at: 210,
+      video_versions: [{ url: `${VIDEO_URL}?story=19h`, width: 720, height: 1280, type: 101 }],
+    }),
+    videoMetadata({
+      id: "2200000000_42",
+      taken_at: 220,
+      video_versions: [{ url: `${VIDEO_URL}?story=14h`, width: 720, height: 1280, type: 101 }],
+    }),
+  ];
   const browserContext = {
     async cookies() {
       return [{ name: "csrftoken", value: "csrf-test" }];
@@ -194,11 +211,11 @@ test("Stories discovery fetches the active feed without relying on the profile s
             json: async () => ({ data: { user: { id: "424242", username: "alice" } } }),
           };
         }
-        if (url.endsWith("/feed/user/424242/story/")) {
+        if (url.includes("/feed/reels_media/?reel_ids=424242")) {
           return {
             ok: () => true,
             status: () => 200,
-            json: async () => ({ reel: { items: [videoMetadata({ video_dash_manifest: dashManifest(), has_audio: true })] } }),
+            json: async () => ({ reels: { 424242: { items: stories } } }),
           };
         }
         throw new Error(`unexpected API request: ${url}`);
@@ -206,16 +223,56 @@ test("Stories discovery fetches the active feed without relying on the profile s
     },
   };
 
-  const stories = await fetchActiveStoryItemsForUsername(browserContext, "alice", logs);
+  const resolved = await fetchActiveStoryItemsForUsername(browserContext, "alice", logs);
 
-  assert.equal(stories.length, 1);
-  assert.equal(stories[0].itemId, "1234567890");
-  assert.equal(stories[0].audioSourceUrl, AUDIO_URL);
+  assert.deepEqual(resolved.map((item) => item.itemId), ["2000000000", "2100000000", "2200000000"]);
   assert.deepEqual(calls.map((call) => call.url), [
     "https://www.instagram.com/api/v1/users/web_profile_info/?username=alice",
-    "https://www.instagram.com/api/v1/feed/user/424242/story/",
+    "https://www.instagram.com/api/v1/feed/reels_media/?reel_ids=424242",
   ]);
   assert.equal(calls[0].options.headers["X-CSRFToken"], "csrf-test");
+  assert.ok(logs.includes("story_reels_media_items=alice:3"));
+  assert.ok(logs.includes("story_feed_items=alice:3"));
+});
+
+test("Stories discovery keeps the per-user endpoint as a compatibility fallback", async () => {
+  const calls = [];
+  const logs = [];
+  const browserContext = {
+    async cookies() {
+      return [];
+    },
+    request: {
+      async get(url) {
+        calls.push(url);
+        if (url.includes("/users/web_profile_info/")) {
+          return {
+            ok: () => true,
+            status: () => 200,
+            json: async () => ({ data: { user: { id: "424242", username: "alice" } } }),
+          };
+        }
+        if (url.includes("/feed/reels_media/")) {
+          return { ok: () => false, status: () => 429 };
+        }
+        if (url.endsWith("/feed/user/424242/story/")) {
+          return {
+            ok: () => true,
+            status: () => 200,
+            json: async () => ({ reel: { items: [videoMetadata()] } }),
+          };
+        }
+        throw new Error(`unexpected API request: ${url}`);
+      },
+    },
+  };
+
+  const resolved = await fetchActiveStoryItemsForUsername(browserContext, "alice", logs);
+
+  assert.equal(resolved.length, 1);
+  assert.equal(resolved[0].itemId, "1234567890");
+  assert.equal(calls.length, 3);
+  assert.ok(logs.includes("story_reels_media_status=alice:429"));
   assert.ok(logs.includes("story_feed_items=alice:1"));
 });
 

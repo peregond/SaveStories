@@ -24,7 +24,12 @@ class WinUILightweightRuntimeTests(unittest.TestCase):
         self.assertIn(r"..\..\..\node_worker\**\*", project)
         self.assertIn("<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>", project)
         self.assertIn("fetchActiveStoryItemsForUsername", worker)
+        self.assertIn("/api/v1/feed/reels_media/?reel_ids=", worker)
         self.assertIn("/api/v1/feed/user/${userId}/story/", worker)
+        self.assertLess(
+            worker.index("/api/v1/feed/reels_media/?reel_ids="),
+            worker.index("/api/v1/feed/user/${userId}/story/"),
+        )
         self.assertIn('logs.push("story_feed_used=true")', worker)
         self.assertIn("SynchronizeBundledWorkerSources", bootstrap)
 
