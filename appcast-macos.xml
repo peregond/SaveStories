@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.78</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.79</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.78</title>
-      <pubDate>Thu, 27 Aug 2026 12:33:17 GMT</pubDate>
-      <sparkle:version>149</sparkle:version>
-      <sparkle:shortVersionString>0.6.78</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.78</h2>
-<ul><li>macOS и Windows: полный список активных Stories теперь загружается через endpoint reel-плейлиста, а не через endpoint, который мог вернуть только один текущий элемент.</li><li>Stories сохраняются в хронологическом порядке — от более ранних к более новым.</li><li>Предыдущий способ получения Stories сохранён как резервный на случай временной недоступности полного списка.</li></ul>]]></description>
+      <title>SaveMe 0.6.79</title>
+      <pubDate>Fri, 28 Aug 2026 18:27:50 GMT</pubDate>
+      <sparkle:version>150</sparkle:version>
+      <sparkle:shortVersionString>0.6.79</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.79</h2>
+<ul><li>Исправлена неполная выгрузка Stories, когда Instagram ограничивает запрос профиля ответом `429`: worker берёт numeric `pk` из уже загруженных данных страницы и получает полный reel-плейлист без повторного profile lookup.</li><li>Для reel endpoint теперь используется Instagram `pk`, а не несовместимый Graph API `id`.</li><li>Резервный обход Story viewer отличает видео от poster-изображения и надёжнее переходит ко всем следующим историям.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.78/SaveMe-macOS-v0.6.78.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.79/SaveMe-macOS-v0.6.79.dmg"
         sparkle:os="macos"
-        length="4439360"
+        length="4439682"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="5L28ZnS88nwixAgCfabO9K6sTB+vXfFfYT1gNnah4+Dnmz7g3uaifSQzl7NIrY/wjW6TrufjGunau6aBF8Y0DQ==" />
+        sparkle:edSignature="zbNRfXX0akbZ6CrHUQyobxAazEKluzM1RtzsVAG/OlxFKcRWrDhnCLDyUnf4ZYIz8kJebLSv9LB2yG7KOnpyBA==" />
     </item>
   </channel>
 </rss>
