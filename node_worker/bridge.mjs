@@ -781,6 +781,78 @@ function responseUrlLikelyStory(url) {
   return false;
 }
 
+function extractProfileUserIdFromScriptTexts(scriptTexts, expectedUsername) {
+  const username = String(expectedUsername || "").trim();
+  if (!username || !Array.isArray(scriptTexts)) return null;
+
+  const escapedUsername = username.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const usernameToken = `"username"\\s*:\\s*"${escapedUsername}"`;
+  const pkToken = `"pk"\\s*:\\s*"?([0-9]+)"?`;
+  const patterns = [
+    new RegExp(`${pkToken}[^{}]{0,256}${usernameToken}`, "i"),
+    new RegExp(`${usernameToken}[^{}]{0,256}${pkToken}`, "i"),
+  ];
+
+  for (const rawText of scriptTexts) {
+    if (typeof rawText !== "string" || !rawText) continue;
+    const variants = [rawText];
+    let unescapedText = rawText;
+    for (let pass = 0; pass < 3 && unescapedText.includes('\\"'); pass += 1) {
+      unescapedText = unescapedText.replaceAll('\\"', '"');
+      variants.push(unescapedText);
+    }
+    for (const text of variants) {
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match?.[1] && /^\d+$/.test(match[1])) return match[1];
+      }
+    }
+  }
+  return null;
+}
+
+function extractProfileUserIdFromPayloads(payloads, expectedUsername) {
+  const username = sanitizeFilename(expectedUsername).toLowerCase();
+  if (!username || !Array.isArray(payloads)) return null;
+
+  const visit = (node) => {
+    if (Array.isArray(node)) {
+      for (const value of node) {
+        const found = visit(value);
+        if (found) return found;
+      }
+      return null;
+    }
+    if (!node || typeof node !== "object") return null;
+
+    const nodeUsername = typeof node.username === "string"
+      ? sanitizeFilename(node.username).toLowerCase()
+      : "";
+    if (nodeUsername === username && /^\d+$/.test(String(node.pk ?? ""))) {
+      return String(node.pk);
+    }
+    for (const value of Object.values(node)) {
+      const found = visit(value);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  for (const entry of payloads) {
+    const found = visit(entry?.payload ?? entry);
+    if (found) return found;
+  }
+  return null;
+}
+
+async function extractProfileUserIdFromPage(page, expectedUsername) {
+  const scriptTexts = await page.locator("script").allTextContents();
+  const fromScripts = extractProfileUserIdFromScriptTexts(scriptTexts, expectedUsername);
+  if (fromScripts) return fromScripts;
+  const pageMarkup = await page.content();
+  return extractProfileUserIdFromScriptTexts([pageMarkup], expectedUsername);
+}
+
 function resolveStoryItemsFromPayloads(payloads, expectedUsername, capturedAfter = null) {
   const filteredPayloads = [];
   const storyPayloads = [];
@@ -840,7 +912,7 @@ async function fetchStoryItemMetadata(browserContext, pageUrl, expectedUsername,
   return exact;
 }
 
-async function fetchActiveStoryItemsForUsername(browserContext, username, logs) {
+async function fetchActiveStoryItemsForUsername(browserContext, username, logs, userIdHint = null) {
   const profileUrl = `https://www.instagram.com/${username}/`;
   const cookies = await browserContext.cookies("https://www.instagram.com/");
   const csrfToken = cookies.find((cookie) => cookie.name === "csrftoken")?.value || "";
@@ -851,20 +923,25 @@ async function fetchActiveStoryItemsForUsername(browserContext, username, logs) 
   };
   if (csrfToken) headers["X-CSRFToken"] = csrfToken;
 
-  const profileEndpoint = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`;
-  const profileResponse = await browserContext.request.get(profileEndpoint, {
-    headers,
-    timeout: 20_000,
-    failOnStatusCode: false,
-  });
-  if (!profileResponse.ok()) {
-    logs?.push(`story_profile_info_status=${username}:${profileResponse.status()}`);
-    return [];
-  }
+  let userId = /^\d+$/.test(String(userIdHint || "")) ? String(userIdHint) : null;
+  if (userId) {
+    logs?.push(`story_profile_id_source=${username}:page`);
+  } else {
+    const profileEndpoint = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`;
+    const profileResponse = await browserContext.request.get(profileEndpoint, {
+      headers,
+      timeout: 20_000,
+      failOnStatusCode: false,
+    });
+    if (!profileResponse.ok()) {
+      logs?.push(`story_profile_info_status=${username}:${profileResponse.status()}`);
+      return [];
+    }
 
-  const profilePayload = await profileResponse.json();
-  const profileUser = profilePayload?.data?.user || profilePayload?.user || null;
-  const userId = profileUser?.id ?? profileUser?.pk ?? null;
+    const profilePayload = await profileResponse.json();
+    const profileUser = profilePayload?.data?.user || profilePayload?.user || null;
+    userId = profileUser?.pk ?? profileUser?.id ?? null;
+  }
   if (!userId || !/^\d+$/.test(String(userId))) {
     logs?.push(`story_profile_id_missing=${username}`);
     return [];
@@ -1035,8 +1112,20 @@ async function storyViewerReady(page) {
   });
 }
 
+function chooseVisibleStoryMediaCandidate(candidates) {
+  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+  return [...candidates]
+    .sort((a, b) => {
+      if (a.containsViewportCenter !== b.containsViewportCenter) return a.containsViewportCenter ? -1 : 1;
+      if (a.inDialog !== b.inDialog) return a.inDialog ? -1 : 1;
+      if (a.tag !== b.tag) return a.tag === "video" ? -1 : 1;
+      if (Math.abs(a.area - b.area) > 1000) return b.area - a.area;
+      return a.distanceToCenter - b.distanceToCenter;
+    })[0];
+}
+
 async function extractMediaCandidate(page) {
-  const candidate = await page.evaluate(() => {
+  const candidates = await page.evaluate(() => {
     const viewportCenterX = window.innerWidth / 2;
     const viewportCenterY = window.innerHeight / 2;
     const hasDialog = Boolean(document.querySelector('[role="dialog"]'));
@@ -1085,15 +1174,10 @@ async function extractMediaCandidate(page) {
           !item.inHeader &&
           (item.containsViewportCenter || item.inDialog) &&
           !(item.inLink && !item.containsViewportCenter && !item.inDialog),
-      )
-      .sort((a, b) => {
-        if (a.containsViewportCenter !== b.containsViewportCenter) return a.containsViewportCenter ? -1 : 1;
-        if (a.inDialog !== b.inDialog) return a.inDialog ? -1 : 1;
-        if (Math.abs(a.area - b.area) > 1000) return b.area - a.area;
-        return a.distanceToCenter - b.distanceToCenter;
-      });
-    return visible[0] || null;
+      );
+    return visible;
   });
+  const candidate = chooseVisibleStoryMediaCandidate(candidates);
   if (!candidate) return null;
   const sourceUrl = normalizeMediaUrl(candidate.src || "");
   if (!isStoryMediaUrl(sourceUrl)) return null;
@@ -1180,12 +1264,69 @@ async function waitForStoryMedia(
 }
 
 function storySignature(pageUrl, sourceUrl) {
-  return `${pageUrl}|${normalizeMediaUrl(sourceUrl)}`;
+  void pageUrl;
+  return normalizeMediaUrl(sourceUrl);
+}
+
+async function clickStoryNextButton(page) {
+  const selectors = [
+    'button[aria-label="Next"]',
+    'button[aria-label="Далее"]',
+    'button:has(svg[aria-label="Next"])',
+    'button:has(svg[aria-label="Далее"])',
+  ];
+  for (const selector of selectors) {
+    const locator = page.locator(selector);
+    const count = await locator.count();
+    for (let index = count - 1; index >= 0; index -= 1) {
+      const candidate = locator.nth(index);
+      if (!(await candidate.isVisible())) continue;
+      await candidate.click({ timeout: 2_000 });
+      return true;
+    }
+  }
+  return false;
 }
 
 async function clickNextStory(page) {
-  const viewport = page.viewportSize() || { width: 1440, height: 900 };
-  await page.mouse.click(viewport.width * 0.85, viewport.height * 0.5);
+  const point = await page.evaluate(() => {
+    const viewportCenterX = window.innerWidth / 2;
+    const viewportCenterY = window.innerHeight / 2;
+    const candidates = [...document.querySelectorAll("video, img")]
+      .map((node) => {
+        const rect = node.getBoundingClientRect();
+        const style = window.getComputedStyle(node);
+        return {
+          tag: node.tagName.toLowerCase(),
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+          width: rect.width,
+          height: rect.height,
+          hidden: style.display === "none" || style.visibility === "hidden" || style.opacity === "0",
+          containsViewportCenter:
+            rect.left <= viewportCenterX &&
+            rect.right >= viewportCenterX &&
+            rect.top <= viewportCenterY &&
+            rect.bottom >= viewportCenterY,
+        };
+      })
+      .filter((item) => !item.hidden && item.containsViewportCenter && item.width > 180 && item.height > 280)
+      .sort((a, b) => {
+        if (a.tag !== b.tag) return a.tag === "video" ? -1 : 1;
+        return b.width * b.height - a.width * a.height;
+      });
+    const active = candidates[0];
+    if (!active) return null;
+    return {
+      x: Math.max(active.left + 1, Math.min(active.right - 8, active.left + active.width * 0.88)),
+      y: Math.max(active.top + 1, Math.min(active.bottom - 1, active.top + active.height * 0.5)),
+    };
+  });
+  if (!point) return false;
+  await page.mouse.click(point.x, point.y);
+  return true;
 }
 
 async function advanceToNextStory(
@@ -1198,13 +1339,14 @@ async function advanceToNextStory(
   metadataCache,
 ) {
   const actions = [
-    ["click", async () => clickNextStory(page)],
+    ["button", async () => clickStoryNextButton(page)],
     ["arrow", async () => page.keyboard.press("ArrowRight")],
-    ["space", async () => page.keyboard.press("Space")],
+    ["media_click", async () => clickNextStory(page)],
   ];
   for (const [actionName, action] of actions) {
     try {
-      await action();
+      const attempted = await action();
+      if (attempted === false) continue;
     } catch (error) {
       logs.push(`advance_action_error=${actionName}:${error}`);
       continue;
@@ -1222,7 +1364,10 @@ async function advanceToNextStory(
     );
     if (!nextMedia) continue;
     const nextSignature = storySignature(nextMedia.pageUrl, nextMedia.sourceUrl);
-    if (nextSignature !== previousSignature) return true;
+    if (nextSignature !== previousSignature) {
+      logs.push(`story_advance=${actionName}`);
+      return true;
+    }
   }
   return false;
 }
@@ -1740,8 +1885,15 @@ async function downloadProfileWithPage(page, profileUrl, outputDirectory, mediaF
     logs.push(`profile_download_directory=${destination}`);
 
     let prefetchedItems = [];
+    let profileUserIdHint = extractProfileUserIdFromPayloads(jsonPayloads, username);
     try {
-      prefetchedItems = await fetchActiveStoryItemsForUsername(page.context(), username, logs);
+      profileUserIdHint ||= await extractProfileUserIdFromPage(page, username);
+    } catch (error) {
+      logs.push(`story_profile_id_page_error=${username}:${errorMessage(error)}`);
+    }
+    if (!profileUserIdHint) logs.push(`story_profile_id_page_missing=${username}`);
+    try {
+      prefetchedItems = await fetchActiveStoryItemsForUsername(page.context(), username, logs, profileUserIdHint);
     } catch (error) {
       logs.push(`story_feed_error=${username}:${errorMessage(error)}`);
     }
@@ -2156,7 +2308,10 @@ if (isDirectExecution) {
 }
 
 export {
+  chooseVisibleStoryMediaCandidate,
   downloadMedia,
+  extractProfileUserIdFromPayloads,
+  extractProfileUserIdFromScriptTexts,
   fetchActiveStoryItemsForUsername,
   resolveStoryItemFromDict,
   resolveStoryItemsFromPayloads,

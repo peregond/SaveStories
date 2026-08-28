@@ -16,7 +16,10 @@ process.env.SAVESTORIES_LOGS = path.join(runtimeRoot, "logs");
 delete process.env.SAVEME_MEDIA_MUXER;
 
 const {
+  chooseVisibleStoryMediaCandidate,
   downloadMedia,
+  extractProfileUserIdFromPayloads,
+  extractProfileUserIdFromScriptTexts,
   fetchActiveStoryItemsForUsername,
   resolveStoryItemFromDict,
   resolveStoryItemsFromPayloads,
@@ -177,6 +180,50 @@ test("metadata resolvers keep richer duplicates and search generic payloads afte
   assert.equal(reels[0].expectsAudio, true);
 });
 
+test("Stories discovery extracts the numeric profile id from preloaded page data", () => {
+  const preloaded = JSON.stringify({
+    data: {
+      xig_user_by_username: {
+        pk: "424242",
+        username: "alice",
+        id: "17841400000000000",
+      },
+    },
+  });
+  const escaped = preloaded.replaceAll('"', '\\"');
+
+  assert.equal(extractProfileUserIdFromScriptTexts([preloaded], "alice"), "424242");
+  assert.equal(extractProfileUserIdFromScriptTexts([escaped], "alice"), "424242");
+  assert.equal(extractProfileUserIdFromScriptTexts([preloaded], "bob"), null);
+  assert.equal(extractProfileUserIdFromPayloads([
+    {
+      url: "https://www.instagram.com/graphql/query/",
+      payload: { data: { xig_user_by_username: { pk: "424242", username: "alice" } } },
+    },
+  ], "alice"), "424242");
+});
+
+test("Story media selection prefers the visible video over its poster image", () => {
+  const shared = {
+    containsViewportCenter: true,
+    inDialog: true,
+    area: 720 * 1280,
+    distanceToCenter: 0,
+  };
+  const poster = { ...shared, tag: "img", src: "https://cdn.example/poster.jpg" };
+  const video = { ...shared, tag: "video", src: VIDEO_URL };
+
+  assert.equal(chooseVisibleStoryMediaCandidate([poster, video]), video);
+  assert.equal(
+    chooseVisibleStoryMediaCandidate([
+      poster,
+      { ...video, containsViewportCenter: false, distanceToCenter: 500 },
+    ]),
+    poster,
+    "an off-center preloaded video must not replace the active image Story",
+  );
+});
+
 test("Stories discovery fetches the complete reel instead of one current Story", async () => {
   const calls = [];
   const logs = [];
@@ -208,7 +255,15 @@ test("Stories discovery fetches the complete reel instead of one current Story",
           return {
             ok: () => true,
             status: () => 200,
-            json: async () => ({ data: { user: { id: "424242", username: "alice" } } }),
+            json: async () => ({
+              data: {
+                user: {
+                  pk: "424242",
+                  id: "17841400000000000",
+                  username: "alice",
+                },
+              },
+            }),
           };
         }
         if (url.includes("/feed/reels_media/?reel_ids=424242")) {
@@ -233,6 +288,38 @@ test("Stories discovery fetches the complete reel instead of one current Story",
   assert.equal(calls[0].options.headers["X-CSRFToken"], "csrf-test");
   assert.ok(logs.includes("story_reels_media_items=alice:3"));
   assert.ok(logs.includes("story_feed_items=alice:3"));
+});
+
+test("Stories discovery bypasses rate-limited profile lookup when the page supplied its id", async () => {
+  const calls = [];
+  const logs = [];
+  const browserContext = {
+    async cookies() {
+      return [];
+    },
+    request: {
+      async get(url) {
+        calls.push(url);
+        if (url.includes("/users/web_profile_info/")) {
+          throw new Error("the rate-limited profile endpoint must not be called");
+        }
+        if (url.includes("/feed/reels_media/?reel_ids=424242")) {
+          return {
+            ok: () => true,
+            status: () => 200,
+            json: async () => ({ reels: { 424242: { items: [videoMetadata()] } } }),
+          };
+        }
+        throw new Error(`unexpected API request: ${url}`);
+      },
+    },
+  };
+
+  const resolved = await fetchActiveStoryItemsForUsername(browserContext, "alice", logs, "424242");
+
+  assert.equal(resolved.length, 1);
+  assert.deepEqual(calls, ["https://www.instagram.com/api/v1/feed/reels_media/?reel_ids=424242"]);
+  assert.ok(logs.includes("story_profile_id_source=alice:page"));
 });
 
 test("Stories discovery keeps the per-user endpoint as a compatibility fallback", async () => {
