@@ -2,22 +2,23 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.79</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.80</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.79</title>
-      <pubDate>Fri, 28 Aug 2026 18:27:50 GMT</pubDate>
-      <sparkle:version>150</sparkle:version>
-      <sparkle:shortVersionString>0.6.79</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.79</h2>
-<ul><li>Исправлена неполная выгрузка Stories, когда Instagram ограничивает запрос профиля ответом `429`: worker берёт numeric `pk` из уже загруженных данных страницы и получает полный reel-плейлист без повторного profile lookup.</li><li>Для reel endpoint теперь используется Instagram `pk`, а не несовместимый Graph API `id`.</li><li>Резервный обход Story viewer отличает видео от poster-изображения и надёжнее переходит ко всем следующим историям.</li></ul>]]></description>
+      <title>SaveMe 0.6.80</title>
+      <pubDate>Mon, 14 Sep 2026 21:47:45 GMT</pubDate>
+      <sparkle:version>151</sparkle:version>
+      <sparkle:shortVersionString>0.6.80</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.80</h2>
+<ul><li>Обновлён интерфейс macOS: фирменный SF Rounded, читаемый градиентный фон и нативная боковая панель.</li><li>Исправлена двойная рамка первого запуска; кнопки доступны при прокрутке.</li><li>Очередь Notion управляется видимым переключателем без раскрывающегося раздела.</li><li>Введённые профили запускаются напрямую, без дублей и неожиданной замены списком Notion.</li><li>Добавлены сочетания клавиш, улучшены контрастность и поддержка системных настроек доступности.</li><li>Исправлены отмена и повторный запуск фоновых операций; усилена проверка упаковки приложения.</li></ul>
+<p>Проверены запуск и 46 Swift-тестов на macOS 27.0 (26A428), Apple Silicon. Минимальная версия системы остаётся macOS 14. Локальная проверка выполнена с SDK 26.5; полноценные сетевые загрузки Instagram и повторная проверка на macOS 14 в этот цикл не входили. Сборка распространяется с ad-hoc подписью, без Developer ID и нотариализации, как предыдущие версии.</p>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.79/SaveMe-macOS-v0.6.79.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.80/SaveMe-macOS-v0.6.80.dmg"
         sparkle:os="macos"
-        length="4439682"
+        length="4671402"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="zbNRfXX0akbZ6CrHUQyobxAazEKluzM1RtzsVAG/OlxFKcRWrDhnCLDyUnf4ZYIz8kJebLSv9LB2yG7KOnpyBA==" />
+        sparkle:edSignature="K8PcZFTyom5RwIN07KbsQeMw5JwRLG7UdK6Ns35KmA6Xf1DspmwISo8X3fJgGHhKikeNnL0siak919zCyqOvDQ==" />
     </item>
   </channel>
 </rss>
