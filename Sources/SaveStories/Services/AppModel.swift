@@ -254,17 +254,20 @@ final class AppModel: ObservableObject {
     @Published var downloadMode: DownloadMode = .background
     @Published var mediaSelectionMode: MediaSelectionMode = .videoOnly {
         didSet {
+            guard !isDesignPreview else { return }
             UserDefaults.standard.set(mediaSelectionMode.rawValue, forKey: Self.mediaSelectionModeKey)
         }
     }
     @Published var preventSleepDuringDownloads = true {
         didSet {
+            guard !isDesignPreview else { return }
             UserDefaults.standard.set(preventSleepDuringDownloads, forKey: Self.preventSleepDuringDownloadsKey)
             refreshSleepPreventionForCurrentState()
         }
     }
     @Published var notionInfluencerSourceEnabled = true {
         didSet {
+            guard !isDesignPreview else { return }
             UserDefaults.standard.set(notionInfluencerSourceEnabled, forKey: Self.notionInfluencerSourceEnabledKey)
             if notionInfluencerSourceEnabled {
                 notionInfluencerSourceSummary = "Перед запуском очередь обновится из Notion не чаще одного раза в день."
@@ -277,6 +280,7 @@ final class AppModel: ObservableObject {
     @Published var isRefreshingNotionInfluencers = false
     @Published var notionRoutingRulesSourceEnabled = false {
         didSet {
+            guard !isDesignPreview else { return }
             UserDefaults.standard.set(notionRoutingRulesSourceEnabled, forKey: Self.notionRoutingRulesSourceEnabledKey)
             notionRoutingRulesSourceSummary = notionRoutingRulesSourceEnabled
                 ? "Перед сортировкой правила обновятся из Notion не чаще одного раза в день."
@@ -291,6 +295,7 @@ final class AppModel: ObservableObject {
     @Published var emptyFolderCleanupDirectory: URL?
     @Published var folderRoutingRules: String = "" {
         didSet {
+            guard !isDesignPreview else { return }
             UserDefaults.standard.set(folderRoutingRules, forKey: Self.folderRoutingRulesKey)
         }
     }
@@ -340,7 +345,8 @@ final class AppModel: ObservableObject {
 
     let worker = WorkerClient()
     let bootstrapper = WorkerBootstrapper()
-    let appUpdater = AppUpdater()
+    let appUpdater: AppUpdater
+    let isDesignPreview: Bool
     var hasPrepared = false
     var saveDirectoryBaselineFiles = 0
     var saveDirectoryBaselineFolders = 0
@@ -352,10 +358,24 @@ final class AppModel: ObservableObject {
     var batchProgressCompletedURLs = Set<String>()
     var hasEmbeddedRuntime: Bool { AppPaths.hasEmbeddedRuntime }
     var runtimeOnboardingDismissed: Bool {
-        UserDefaults.standard.bool(forKey: Self.runtimeOnboardingDismissedKey)
+        guard !isDesignPreview else { return true }
+        return UserDefaults.standard.bool(forKey: Self.runtimeOnboardingDismissedKey)
     }
 
-    init() {
+    init(isDesignPreview: Bool = false) {
+        self.isDesignPreview = isDesignPreview
+        appUpdater = AppUpdater(isEnabled: !isDesignPreview)
+        if isDesignPreview {
+            saveDirectory = URL(fileURLWithPath: "/Users/preview/Downloads/SaveMe", isDirectory: true)
+            workerReady = true
+            sessionReady = true
+            workerSummary = "Движок готов к работе."
+            sessionSummary = "Демонстрационная сессия."
+            statusDetail = "Добавьте профили, чтобы начать загрузку."
+            updateSummary = "Предпросмотр дизайна — обновления отключены."
+            notionInfluencerSourceEnabled = false
+            return
+        }
         UserDefaults.standard.register(defaults: [
             Self.notionInfluencerSourceEnabledKey: true,
         ])
@@ -393,6 +413,7 @@ final class AppModel: ObservableObject {
     }
 
     func wasNotionSourceRefreshedToday(key: String) -> Bool {
+        guard !isDesignPreview else { return false }
         guard let date = UserDefaults.standard.object(forKey: key) as? Date else {
             return false
         }
@@ -400,6 +421,7 @@ final class AppModel: ObservableObject {
     }
 
     func markNotionSourceRefreshed(key: String) {
+        guard !isDesignPreview else { return }
         UserDefaults.standard.set(Date(), forKey: key)
     }
 
@@ -409,6 +431,7 @@ final class AppModel: ObservableObject {
     }
 
     func playActionSound() {
+        guard !isDesignPreview else { return }
         for name in Self.actionSoundNames {
             if let sound = NSSound(named: NSSound.Name(name)) {
                 sound.volume = 0.48
@@ -419,6 +442,7 @@ final class AppModel: ObservableObject {
     }
 
     private func playSuccessSound() {
+        guard !isDesignPreview else { return }
         for name in Self.successSoundNames {
             if let sound = NSSound(named: NSSound.Name(name)) {
                 sound.volume = 0.72
@@ -456,6 +480,7 @@ final class AppModel: ObservableObject {
 
     func dismissRuntimeOnboarding() {
         showRuntimeOnboarding = false
+        guard !isDesignPreview else { return }
         UserDefaults.standard.set(true, forKey: Self.runtimeOnboardingDismissedKey)
     }
 }

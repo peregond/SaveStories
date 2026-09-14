@@ -75,6 +75,9 @@ MACOS_UPDATE_FEED_URL="${SAVESTORIES_MACOS_UPDATE_FEED_URL:-$(read_update_config
 UPDATE_PUBLIC_KEY="${SAVESTORIES_UPDATE_PUBLIC_KEY:-$(read_update_config_value publicEDKey)}"
 SIGN_IDENTITY="${APPLE_SIGN_IDENTITY:-}"
 RESOURCE_BUNDLE_NAME="$EXECUTABLE_NAME"_SaveMe.bundle
+REQUIRED_SDK="${SAVEME_REQUIRE_SDK:-14.0}"
+
+python3 "$ROOT/scripts/macos_bundle.py" preflight --require-sdk "$REQUIRED_SDK"
 
 node_runtime_is_bundleable() {
   local executable="$1"
@@ -111,11 +114,20 @@ mkdir -p "$BUILD_DIR" "$RELEASE_DIR"
 
 export CLANG_MODULE_CACHE_PATH="$BUILD_DIR/clang-module-cache"
 export SWIFTPM_MODULECACHE_OVERRIDE="$BUILD_DIR/swiftpm-module-cache"
-BUILD_HOME="$BUILD_DIR/home"
 BUILD_CACHE="$BUILD_DIR/.cache"
-mkdir -p "$CLANG_MODULE_CACHE_PATH" "$SWIFTPM_MODULECACHE_OVERRIDE" "$BUILD_HOME" "$BUILD_CACHE"
+mkdir -p "$CLANG_MODULE_CACHE_PATH" "$SWIFTPM_MODULECACHE_OVERRIDE" "$BUILD_CACHE"
 
-HOME="$BUILD_HOME" XDG_CACHE_HOME="$BUILD_CACHE" swift build -c release --package-path "$ROOT"
+SWIFT_BUILD_ARGUMENTS=(-c release --package-path "$ROOT" --cache-path "$BUILD_CACHE")
+swift build "${SWIFT_BUILD_ARGUMENTS[@]}"
+BIN_DIR="$(swift build "${SWIFT_BUILD_ARGUMENTS[@]}" --show-bin-path)"
+RESOURCE_BUNDLE_PATH="$BIN_DIR/$RESOURCE_BUNDLE_NAME"
+SPARKLE_FRAMEWORK_PATH="$BIN_DIR/Sparkle.framework"
+for artifact in "$BIN_DIR/$EXECUTABLE_NAME" "$BIN_DIR/$MEDIA_MUXER_NAME" "$RESOURCE_BUNDLE_PATH" "$SPARKLE_FRAMEWORK_PATH"; do
+  if [ ! -e "$artifact" ]; then
+    printf 'Required release artifact is missing: %s\n' "$artifact" >&2
+    exit 1
+  fi
+done
 
 rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$FRAMEWORKS_DIR" "$SHARED_SUPPORT_DIR" "$HELPERS_DIR"
@@ -134,21 +146,12 @@ if [ -n "$UPDATE_PUBLIC_KEY" ]; then
   "$PLIST_BUDDY" -c "Add :SUPublicEDKey string $UPDATE_PUBLIC_KEY" "$PLIST_PATH"
 fi
 
-cp "$ROOT/.build/release/$EXECUTABLE_NAME" "$MACOS_DIR/$EXECUTABLE_NAME"
-cp "$ROOT/.build/release/$MEDIA_MUXER_NAME" "$HELPERS_DIR/$MEDIA_MUXER_NAME"
+cp "$BIN_DIR/$EXECUTABLE_NAME" "$MACOS_DIR/$EXECUTABLE_NAME"
+cp "$BIN_DIR/$MEDIA_MUXER_NAME" "$HELPERS_DIR/$MEDIA_MUXER_NAME"
 chmod 755 "$HELPERS_DIR/$MEDIA_MUXER_NAME"
 "$ROOT/scripts/compile_app_icon.sh" "$RESOURCES_DIR"
 
-RESOURCE_BUNDLE_PATH="$(find "$ROOT/.build" -maxdepth 4 -type d -name "$RESOURCE_BUNDLE_NAME" | head -n 1)"
-if [ -n "$RESOURCE_BUNDLE_PATH" ] && [ -d "$RESOURCE_BUNDLE_PATH" ]; then
-  cp -R "$RESOURCE_BUNDLE_PATH" "$RESOURCES_DIR/"
-fi
-
-SPARKLE_FRAMEWORK_PATH="$(find "$ROOT/.build" -type d -name 'Sparkle.framework' | head -n 1)"
-if [ -z "$SPARKLE_FRAMEWORK_PATH" ] || [ ! -d "$SPARKLE_FRAMEWORK_PATH" ]; then
-  printf 'Sparkle.framework not found in .build. The macOS updater bundle is incomplete.\n' >&2
-  exit 1
-fi
+cp -R "$RESOURCE_BUNDLE_PATH" "$RESOURCES_DIR/"
 ditto "$SPARKLE_FRAMEWORK_PATH" "$FRAMEWORKS_DIR/Sparkle.framework"
 if ! otool -l "$MACOS_DIR/$EXECUTABLE_NAME" | grep -q '@executable_path/../Frameworks'; then
   install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/$EXECUTABLE_NAME"
@@ -218,6 +221,8 @@ elif [ "$EMBED_RUNTIME" = "1" ]; then
   EMBEDDED_RUNTIME_LABEL="embedded legacy Python fallback"
 fi
 
+python3 "$ROOT/scripts/macos_bundle.py" stamp --app "$APP_DIR" --require-sdk "$REQUIRED_SDK"
+
 if [ -n "$SIGN_IDENTITY" ]; then
   codesign --force --deep --sign "$SIGN_IDENTITY" --timestamp --options runtime "$APP_DIR"
   codesign --verify --deep --verbose=2 "$APP_DIR"
@@ -225,6 +230,8 @@ else
   codesign --force --deep --sign - "$APP_DIR"
   codesign --verify --deep --verbose=2 "$APP_DIR"
 fi
+
+python3 "$ROOT/scripts/macos_bundle.py" verify --app "$APP_DIR" --require-sdk "$REQUIRED_SDK"
 
 printf '\nRelease app created at:\n%s\n' "$APP_DIR"
 printf 'Runtime: %s\n' "$EMBEDDED_RUNTIME_LABEL"

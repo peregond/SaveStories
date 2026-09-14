@@ -93,7 +93,7 @@ extension AppModel {
 
     @discardableResult
     func refreshNotionInfluencerQueue(replaceQueue: Bool = true, force: Bool = false) async -> Bool {
-        guard !isBusy, !isRefreshingNotionInfluencers else { return false }
+        guard !isDesignPreview, !isBusy, !isRefreshingNotionInfluencers else { return false }
 
         if !force, wasNotionSourceRefreshedToday(key: Self.notionInfluencerLastRefreshAtKey) {
             let cachedProfiles = UserDefaults.standard.stringArray(forKey: Self.notionInfluencerCachedProfilesKey) ?? []
@@ -169,8 +169,16 @@ extension AppModel {
         return newItems.count
     }
 
-    func runBatchDownloads() async {
-        if notionInfluencerSourceEnabled {
+    /// An explicit pasted selection takes precedence over the automatic Notion source.
+    func downloadStoriesFromInput() async {
+        let hasManualInput = !normalizedBatchLinks(from: batchInput).isEmpty
+        if hasManualInput { addBatchProfiles() }
+        await runBatchDownloads(refreshNotionQueue: !hasManualInput)
+    }
+
+    func runBatchDownloads(refreshNotionQueue: Bool = true) async {
+        guard !isBusy else { return }
+        if refreshNotionQueue && notionInfluencerSourceEnabled {
             let refreshed = await refreshNotionInfluencerQueue(replaceQueue: true)
             guard refreshed else { return }
         }
@@ -460,6 +468,7 @@ extension AppModel {
     }
 
     func loadRecentBatchLists() {
+        guard !isDesignPreview else { return }
         guard let data = UserDefaults.standard.data(forKey: Self.recentBatchListsKey),
               let decoded = try? JSONDecoder().decode([RecentBatchList].self, from: data) else {
             recentBatchLists = []
@@ -484,6 +493,7 @@ extension AppModel {
     }
 
     func persistRecentBatchLists() {
+        guard !isDesignPreview else { return }
         guard let data = try? JSONEncoder().encode(recentBatchLists) else { return }
         UserDefaults.standard.set(data, forKey: Self.recentBatchListsKey)
     }

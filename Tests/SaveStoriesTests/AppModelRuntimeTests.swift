@@ -63,7 +63,7 @@ final class AppModelRuntimeTests: XCTestCase {
         XCTAssertEqual(model.statusTitle, "Остановлено")
         XCTAssertEqual(model.statusDetail, "Операция отменена пользователем.")
         XCTAssertEqual(model.lastResult, "Операция отменена пользователем.")
-        XCTAssertEqual(model.currentStepLabel, "Обработка завершилась ошибкой.")
+        XCTAssertEqual(model.currentStepLabel, "Операция остановлена.")
         XCTAssertEqual(model.celebrationToken, 0)
     }
 

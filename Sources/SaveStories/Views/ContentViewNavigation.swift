@@ -2,146 +2,111 @@ import SwiftUI
 
 extension ContentView {
     var sidebar: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("SaveMe")
-                    .font(.system(size: 22, weight: .semibold, design: .rounded))
-                    .foregroundStyle(primaryText)
-
-                Text("Stories и Reels")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(tertiaryText)
-            }
-            .padding(.horizontal, 16)
-
-            VStack(spacing: 6) {
-                ForEach([AppSection.main, AppSection.batch, AppSection.reels, AppSection.sorting]) { section in
-                    Button {
-                        selectedSection = section
-                    } label: {
-                        sidebarRow(for: section)
-                    }
-                    .buttonStyle(.plain)
+        List(selection: Binding<AppSection?>(
+            get: { selectedSection },
+            set: { if let section = $0 { selectedSection = section } }
+        )) {
+            Section("Библиотека") {
+                ForEach([AppSection.main, .reels, .batch, .sorting]) { section in
+                    Label(section.title, systemImage: section.systemImage)
+                        .padding(.vertical, 5)
+                        .tag(section)
                 }
             }
-            .padding(.horizontal, 12)
-
-            Spacer(minLength: 0)
-
-            VStack(alignment: .leading, spacing: 8) {
-                if let readyUpdateVersion = model.readyUpdateVersion {
-                    Button {
-                        model.installReadyUpdate()
-                    } label: {
-                        Label("Обновить", systemImage: "arrow.down.circle.fill")
-                            .frame(maxWidth: .infinity)
+            Section {
+                Label(AppSection.settings.title, systemImage: AppSection.settings.systemImage)
+                    .padding(.vertical, 5)
+                    .tag(AppSection.settings)
+            }
+        }
+        .listStyle(.sidebar)
+        .navigationTitle("SaveMe")
+        .safeAreaInset(edge: .bottom) {
+            VStack(alignment: .leading, spacing: 12) {
+                if let version = model.readyUpdateVersion {
+                    Button { model.installReadyUpdate() } label: {
+                        Label("Обновить до \(version)", systemImage: "arrow.down.circle")
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(prominentButtonTint)
                     .disabled(model.isBusy)
-                    .help("Установить SaveMe \(readyUpdateVersion)")
                 }
-
-                Text("v\(versionLabel)")
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(quaternaryText)
-                    .lineLimit(1)
+                Label(model.isDesignPreview ? "Предпросмотр дизайна" : "На вашем Mac", systemImage: model.isDesignPreview ? "eye" : "internaldrive")
+                    .font(.caption.weight(.medium))
+                Text("SaveMe · \(versionLabel)")
+                    .font(.caption2).monospacedDigit()
             }
+            .foregroundStyle(secondaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-
-            Button {
-                selectedSection = .settings
-            } label: {
-                sidebarRow(for: .settings)
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
-        }
-        .frame(minWidth: sidebarWidth, idealWidth: sidebarWidth, maxWidth: sidebarWidth)
-        .padding(.top, topContentInset)
-        .background(
-            sidebarBackground
-                .ignoresSafeArea(edges: .top)
-        )
-        .overlay(alignment: .trailing) {
-            Rectangle()
-                .fill(Color.white.opacity(isDark ? 0.05 : 0.35))
-                .frame(width: 1)
-                .ignoresSafeArea(edges: .top)
+            .padding(16)
         }
     }
 
-    func sidebarRow(for section: AppSection) -> some View {
-        let isSelected = selectedSection == section
-
-        return HStack(spacing: 12) {
-            sidebarIcon(for: section, isSelected: isSelected)
-                .frame(width: 26, height: 26)
-                .background(
-                    Circle()
-                        .fill(isSelected ? prominentButtonTint.opacity(0.85) : Color.white.opacity(isDark ? 0.06 : 0.42))
-                )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(section.title)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(primaryText)
-
-                if let subtitle = section.subtitle {
-                    Text(subtitle)
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundStyle(quaternaryText)
-                }
+    @ToolbarContentBuilder
+    var workspaceToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button { model.openSaveDirectory() } label: {
+                Label("Открыть папку сохранения", systemImage: "folder")
             }
+            .help("Открыть папку сохранения в Finder")
+            .keyboardShortcut("o", modifiers: [.command, .shift])
 
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isSelected ? AnyShapeStyle(.thinMaterial) : AnyShapeStyle(Color.clear))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(isSelected ? prominentButtonTint.opacity(isDark ? 0.18 : 0.14) : Color.clear)
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(isSelected ? Color.white.opacity(isDark ? 0.08 : 0.34) : Color.clear, lineWidth: 1)
-        )
-    }
-
-    @ViewBuilder
-    func sidebarIcon(for section: AppSection, isSelected: Bool) -> some View {
-        if let emoji = section.sidebarEmoji {
-            Text(emoji)
-                .font(.system(size: 15))
-        } else {
-            Image(systemName: section.systemImage)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(isSelected ? Color.white : primaryText)
+            Button { Task { await model.refreshEnvironment() } } label: {
+                Label("Проверить готовность", systemImage: "arrow.clockwise")
+            }
+            .help("Проверить браузер и вход в Instagram")
+            .disabled(model.isBusy)
         }
     }
 
     var detailContent: some View {
         Group {
             switch selectedSection {
-            case .main:
-                homeTwoView
-            case .batch:
-                batchView
-            case .reels:
-                reelsView
-            case .sorting:
-                sortingView
-            case .settings:
-                settingsView
+            case .main: homeTwoView
+            case .batch: batchView
+            case .reels: reelsView
+            case .sorting: sortingView
+            case .settings: settingsView
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.top, topContentInset)
+        .background(windowBackground)
+    }
+}
+
+private struct AppSectionFocusKey: FocusedValueKey {
+    typealias Value = Binding<ContentView.AppSection>
+}
+
+extension FocusedValues {
+    var appSection: Binding<ContentView.AppSection>? {
+        get { self[AppSectionFocusKey.self] }
+        set { self[AppSectionFocusKey.self] = newValue }
+    }
+}
+
+struct AppNavigationCommands: Commands {
+    @FocusedBinding(\.appSection) private var section
+
+    var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            Button("Настройки…") { section = .settings }
+                .keyboardShortcut(",", modifiers: .command)
+                .disabled(section == nil)
+        }
+        CommandMenu("Разделы") {
+            Button("Stories") { section = .main }
+                .keyboardShortcut("1", modifiers: .command)
+                .disabled(section == nil)
+            Button("Reels") { section = .reels }
+                .keyboardShortcut("2", modifiers: .command)
+                .disabled(section == nil)
+            Button("Очередь профилей") { section = .batch }
+                .keyboardShortcut("3", modifiers: .command)
+                .disabled(section == nil)
+            Button("Сортировка") { section = .sorting }
+                .keyboardShortcut("4", modifiers: .command)
+                .disabled(section == nil)
+        }
     }
 }

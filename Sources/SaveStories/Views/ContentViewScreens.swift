@@ -3,51 +3,38 @@ import SwiftUI
 extension ContentView {
     var homeTwoView: some View {
         GeometryReader { proxy in
-            let compact = isCompactHomeLayout(for: proxy.size.width)
-            let horizontalPadding = contentHorizontalPadding(for: proxy.size.width)
-
+            let compact = proxy.size.width < 900
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     homeTwoHero
-
                     if compact {
-                        VStack(alignment: .leading, spacing: 20) {
-                            homeStatusCard
-                                .frame(maxWidth: .infinity, minHeight: homeSummaryCardHeight, alignment: .topLeading)
-                            homeResultCard
-                                .frame(maxWidth: .infinity, minHeight: homeSummaryCardHeight, alignment: .topLeading)
-                            homeTwoComposerCard(compact: true)
-                            recentListsCard(compact: true)
-                            homeDiagnosticsCard(maxHeight: 320)
-                            homeTwoQueueCard(compact: true)
-                        }
+                        homeTwoComposerCard(compact: true)
+                        homeTwoQueueCard(compact: true)
+                        homeStatusCard
+                        homeResultCard
+                        recentListsCard(compact: true)
                     } else {
                         HStack(alignment: .top, spacing: 20) {
-                            homeStatusCard
-                                .frame(maxWidth: .infinity, minHeight: homeSummaryCardHeight, alignment: .topLeading)
-                            homeResultCard
-                                .frame(maxWidth: .infinity, minHeight: homeSummaryCardHeight, alignment: .topLeading)
-                        }
-
-                        HStack(alignment: .top, spacing: 20) {
-                            VStack(alignment: .leading, spacing: 20) {
+                            VStack(spacing: 20) {
                                 homeTwoComposerCard(compact: false)
                                 homeTwoQueueCard(compact: false)
                             }
-                            .frame(maxWidth: .infinity, alignment: .top)
-
-                            VStack(alignment: .leading, spacing: 20) {
-                                recentListsCard(compact: false)
-                                homeDiagnosticsCard(maxHeight: 320)
+                            .frame(maxWidth: .infinity)
+                            VStack(spacing: 20) {
+                                homeStatusCard
+                                homeResultCard
+                                recentListsCard(compact: true)
                             }
-                            .frame(maxWidth: .infinity, alignment: .top)
+                            .frame(width: 310)
                         }
                     }
+                    homeDiagnosticsCard(maxHeight: 280)
                 }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-                .padding(.horizontal, horizontalPadding)
+                .frame(maxWidth: 1180, alignment: .topLeading)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, contentHorizontalPadding(for: proxy.size.width))
+                .padding(.top, 8)
                 .padding(.bottom, 28)
-                .padding(.top, 4)
             }
         }
     }
@@ -178,7 +165,7 @@ extension ContentView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text("Настройки")
-                        .font(.system(size: 34, weight: .semibold, design: .rounded))
+                        .font(.system(size: 28, weight: .semibold, design: .rounded))
                         .foregroundStyle(primaryText)
 
                     settingsOverviewCard
@@ -250,20 +237,14 @@ extension ContentView {
     }
 
     var homeHeroTitleBlock: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Stories")
-                .font(.system(size: 34, weight: .semibold, design: .rounded))
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Сохраните момент.")
+                .font(.system(size: 28, weight: .semibold, design: .rounded))
                 .foregroundStyle(primaryText)
-
-            Text("Скачать сторис из Instagram")
-                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .accessibilityAddTraits(.isHeader)
+            Text("Stories любимых профилей — в вашей папке.")
+                .font(.callout)
                 .foregroundStyle(secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text("Добавь профили, выбери настройки и запусти одной кнопкой.")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(tertiaryText)
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -286,7 +267,7 @@ extension ContentView {
     var homeResultCard: some View {
         card("Результат", minHeight: homeSummaryCardHeight) {
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                homeResultTile(title: "Профилей", value: model.foundStoriesCount, accent: Color.orange.opacity(0.78))
+                homeResultTile(title: "Найдено", value: model.foundStoriesCount, accent: Color.orange.opacity(0.78))
                 homeResultTile(title: "Сохранено", value: model.savedStoriesCount, accent: Color.green.opacity(0.78))
                 homeResultTile(title: "Файлов", value: model.liveDownloadedFileCount, accent: Color.blue.opacity(0.78))
                 homeResultTile(title: "Папок", value: model.liveCreatedFolderCount, accent: Color.mint.opacity(0.78))

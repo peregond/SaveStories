@@ -18,12 +18,12 @@ BACKGROUND_PNG="$BACKGROUND_DIR/background.png"
 SIGN_IDENTITY="${APPLE_SIGN_IDENTITY:-}"
 NOTARY_PROFILE="${APPLE_NOTARY_PROFILE:-}"
 
-"$ROOT/scripts/build_release_app.sh"
-
 if [ -n "$NOTARY_PROFILE" ] && [ -z "$SIGN_IDENTITY" ]; then
   printf 'APPLE_NOTARY_PROFILE задан, но APPLE_SIGN_IDENTITY отсутствует.\n' >&2
   exit 1
 fi
+
+"$ROOT/scripts/build_release_app.sh"
 
 if [ -n "$NOTARY_PROFILE" ]; then
   rm -f "$APP_ZIP"

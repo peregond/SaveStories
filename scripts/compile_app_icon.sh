@@ -22,18 +22,25 @@ if [ -n "$ACTOOL" ] && [ -d "$ICON_DOCUMENT" ]; then
   ditto "$ICON_DOCUMENT" "$DOCUMENT_COPY"
   xattr -cr "$DOCUMENT_COPY" 2>/dev/null || true
 
-  "$ACTOOL" \
+  if "$ACTOOL" \
     --compile "$COMPILED_DIR" \
     --platform macosx \
     --minimum-deployment-target 14.0 \
     --target-device mac \
     --app-icon "$ICON_NAME" \
     --output-partial-info-plist "$PARTIAL_PLIST" \
-    "$DOCUMENT_COPY"
+    "$DOCUMENT_COPY" && \
+    [ -f "$COMPILED_DIR/$ICON_NAME.icns" ] && [ -f "$COMPILED_DIR/Assets.car" ]; then
+    cp "$COMPILED_DIR/$ICON_NAME.icns" "$OUTPUT_DIR/$ICON_NAME.icns"
+    cp "$COMPILED_DIR/Assets.car" "$OUTPUT_DIR/Assets.car"
+    exit 0
+  fi
 
-  cp "$COMPILED_DIR/$ICON_NAME.icns" "$OUTPUT_DIR/$ICON_NAME.icns"
-  cp "$COMPILED_DIR/Assets.car" "$OUTPUT_DIR/Assets.car"
-elif [ -f "$STATIC_ICON" ]; then
+  printf 'The selected Xcode could not compile the Icon Composer document; using the static icon.\n' >&2
+fi
+
+if [ -f "$STATIC_ICON" ]; then
+  rm -f "$OUTPUT_DIR/Assets.car"
   cp "$STATIC_ICON" "$OUTPUT_DIR/$ICON_NAME.icns"
 else
   printf 'No Icon Composer document or fallback icon found for %s.\n' "$ICON_NAME" >&2

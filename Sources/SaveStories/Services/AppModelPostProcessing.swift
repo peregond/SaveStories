@@ -359,6 +359,7 @@ extension AppModel {
     }
 
     func persistFolderRoutingRules() {
+        guard !isDesignPreview else { return }
         UserDefaults.standard.set(folderRoutingRules, forKey: Self.folderRoutingRulesKey)
     }
 
@@ -524,6 +525,7 @@ extension AppModel {
     }
 
     func loadRememberedBloggers() {
+        guard !isDesignPreview else { return }
         guard let data = UserDefaults.standard.data(forKey: Self.rememberedBloggersKey),
               let decoded = try? JSONDecoder().decode([RememberedBlogger].self, from: data)
         else { return }
@@ -544,7 +546,7 @@ extension AppModel {
 
     @discardableResult
     func refreshNotionRoutingRules(force: Bool = false) async -> Bool {
-        guard !isBusy, !isRefreshingNotionRoutingRules else { return false }
+        guard !isDesignPreview, !isBusy, !isRefreshingNotionRoutingRules else { return false }
 
         if !force, wasNotionSourceRefreshedToday(key: Self.notionRoutingRulesLastRefreshAtKey) {
             let cachedRules = UserDefaults.standard.string(forKey: Self.notionRoutingRulesCachedRulesKey) ?? folderRoutingRules
@@ -602,6 +604,7 @@ extension AppModel {
     }
 
     private func saveRememberedBloggers() {
+        guard !isDesignPreview else { return }
         guard let data = try? JSONEncoder().encode(rememberedBloggers) else { return }
         UserDefaults.standard.set(data, forKey: Self.rememberedBloggersKey)
     }

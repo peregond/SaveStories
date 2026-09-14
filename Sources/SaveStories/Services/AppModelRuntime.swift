@@ -16,7 +16,7 @@ extension AppModel {
     ]
 
     func prepare() async {
-        guard !hasPrepared else { return }
+        guard !isDesignPreview, !hasPrepared else { return }
         hasPrepared = true
 
         let selectedSaveDirectory = saveDirectory
@@ -126,6 +126,7 @@ extension AppModel {
         canCreateDirectories: Bool,
         onSelection: @escaping @MainActor (URL) -> Void
     ) {
+        guard !isDesignPreview else { return }
         let panel = NSOpenPanel()
         panel.canCreateDirectories = canCreateDirectories
         panel.canChooseDirectories = true
@@ -307,7 +308,7 @@ extension AppModel {
     }
 
     func perform(_ message: String, task: @escaping @MainActor () async -> Void) async {
-        guard !isBusy else { return }
+        guard !isDesignPreview, !isBusy else { return }
         isBusy = true
         statusTitle = message
         statusDetail = "Выполняется..."
@@ -381,7 +382,11 @@ extension AppModel {
         }
         statusDetail = response.message
         lastResult = response.message
-        currentStepLabel = response.ok ? "Обработка завершена." : "Обработка завершилась ошибкой."
+        if response.status == "cancelled" {
+            currentStepLabel = "Операция остановлена."
+        } else {
+            currentStepLabel = response.ok ? "Обработка завершена." : "Обработка завершилась ошибкой."
+        }
         if response.ok && savedStoriesCount > 0 && response.status == "download_complete" {
             triggerCelebration()
         }
@@ -651,7 +656,7 @@ extension AppModel {
     }
 
     func refreshSleepPreventionForCurrentState() {
-        if preventSleepDuringDownloads && isDownloadActivityInProgress {
+        if !isDesignPreview && preventSleepDuringDownloads && isDownloadActivityInProgress {
             beginSleepPrevention()
         } else {
             endSleepPrevention()

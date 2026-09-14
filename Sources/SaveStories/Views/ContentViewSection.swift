@@ -15,7 +15,7 @@ extension ContentView {
             case .main:
                 "Stories"
             case .batch:
-                "Списочная"
+                "Очередь профилей"
             case .reels:
                 "Reels"
             case .sorting:
@@ -28,11 +28,11 @@ extension ContentView {
         var subtitle: String? {
             switch self {
             case .main:
-                "Загрузка stories из профилей тут"
+                "Stories из профилей"
             case .batch:
                 "Очередь профилей"
             case .reels:
-                "Выгрузка Reels тут"
+                "Видео по ссылкам"
             case .sorting:
                 "Перенос, папки и ссылки"
             case .settings:
@@ -43,7 +43,7 @@ extension ContentView {
         var systemImage: String {
             switch self {
             case .main:
-                "wand.and.stars.inverse"
+                "rectangle.stack"
             case .batch:
                 "list.bullet.rectangle.portrait"
             case .reels:

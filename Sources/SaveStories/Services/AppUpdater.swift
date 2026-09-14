@@ -26,9 +26,11 @@ final class AppUpdater: NSObject {
     #endif
     private var hasStarted = false
 
-    override init() {
+    init(isEnabled: Bool = true) {
         super.init()
-        configure()
+        if isEnabled {
+            configure()
+        }
     }
 
     func checkForUpdates() -> String {

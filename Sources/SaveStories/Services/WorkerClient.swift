@@ -2,9 +2,16 @@ import Foundation
 
 @MainActor
 final class WorkerClient {
+    struct LaunchConfiguration {
+        let executable: URL
+        let arguments: [String]
+        let runtime: String
+    }
+
     private final class CompletionGate: @unchecked Sendable {
         private let lock = NSLock()
         private var completed = false
+        private var inputFailure: String?
 
         func claim() -> Bool {
             lock.lock()
@@ -12,6 +19,18 @@ final class WorkerClient {
             guard !completed else { return false }
             completed = true
             return true
+        }
+
+        func recordInputFailure(_ message: String) {
+            lock.lock()
+            defer { lock.unlock() }
+            inputFailure = message
+        }
+
+        func inputFailureMessage() -> String? {
+            lock.lock()
+            defer { lock.unlock() }
+            return inputFailure
         }
     }
 
@@ -87,7 +106,7 @@ final class WorkerClient {
     enum WorkerClientError: LocalizedError {
         case workerScriptNotFound
         case processLaunchFailed(String)
-        case invalidWorkerResponse(String)
+        case invalidWorkerResponse(byteCount: Int)
 
         var errorDescription: String? {
             switch self {
@@ -95,30 +114,48 @@ final class WorkerClient {
                 "Worker script was not found in the package resources."
             case .processLaunchFailed(let message):
                 message
-            case .invalidWorkerResponse(let raw):
-                "Worker returned invalid JSON.\n\(raw)"
+            case .invalidWorkerResponse(let byteCount):
+                "Worker вернул некорректный JSON (\(byteCount) байт). Попробуйте повторить операцию или подготовить среду заново."
             }
         }
     }
 
     private var currentProcess: Process?
     private var userInitiatedStop = false
+    private let prepareEnvironment: () throws -> Void
+    private let launchConfigurationOverride: LaunchConfiguration?
+
+    init(
+        prepareEnvironment: @escaping () throws -> Void = {
+            try AppPaths.ensureDirectories()
+            try AppPaths.synchronizeBundledNodeWorkerSources()
+        },
+        launchConfiguration: LaunchConfiguration? = nil
+    ) {
+        self.prepareEnvironment = prepareEnvironment
+        self.launchConfigurationOverride = launchConfiguration
+    }
 
     func run(_ request: WorkerRequest, onProgress: (@Sendable (String) -> Void)? = nil) async -> WorkerResponse {
         guard currentProcess == nil else {
             return .processFailure(message: "Worker уже выполняет другую операцию. Дождитесь её завершения.")
         }
+        guard !Task.isCancelled else {
+            return .cancelled(message: "Операция отменена.")
+        }
+        defer {
+            currentProcess = nil
+            userInitiatedStop = false
+        }
 
         do {
             let response = try await execute(request, onProgress: onProgress)
-            if userInitiatedStop {
-                userInitiatedStop = false
+            if userInitiatedStop || Task.isCancelled {
                 return .cancelled(message: "Загрузка остановлена пользователем.")
             }
             return response
         } catch {
-            if userInitiatedStop {
-                userInitiatedStop = false
+            if userInitiatedStop || Task.isCancelled {
                 return .cancelled(message: "Загрузка остановлена пользователем.")
             }
             return .processFailure(message: error.localizedDescription)
@@ -132,8 +169,9 @@ final class WorkerClient {
     }
 
     private func execute(_ request: WorkerRequest, onProgress: (@Sendable (String) -> Void)? = nil) async throws -> WorkerResponse {
-        try AppPaths.ensureDirectories()
-        try AppPaths.synchronizeBundledNodeWorkerSources()
+        try prepareEnvironment()
+        var encodedRequest = try JSONEncoder().encode(request)
+        encodedRequest.append(0x0A)
 
         let process = Process()
         let stdinPipe = Pipe()
@@ -142,7 +180,7 @@ final class WorkerClient {
         let stdoutCollector = PipeCollector(fileHandle: stdoutPipe.fileHandleForReading)
         let stderrCollector = PipeCollector(fileHandle: stderrPipe.fileHandleForReading, onLine: onProgress)
 
-        let launch = try workerLaunchConfiguration()
+        let launch = try launchConfigurationOverride ?? workerLaunchConfiguration()
         process.executableURL = launch.executable
         process.arguments = launch.arguments
 
@@ -174,18 +212,19 @@ final class WorkerClient {
         process.environment = environment
         currentProcess = process
 
-        let responseData: Data = try await withCheckedThrowingContinuation { continuation in
+        let responseData: Data = try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            return try await withCheckedThrowingContinuation { continuation in
             let completionGate = CompletionGate()
 
             process.terminationHandler = { process in
                 let stdoutData = stdoutCollector.finish()
                 let stderrData = stderrCollector.finish()
-                Task { @MainActor in
-                    if self.currentProcess === process {
-                        self.currentProcess = nil
-                    }
-                }
                 guard completionGate.claim() else { return }
+                if let inputFailure = completionGate.inputFailureMessage() {
+                    continuation.resume(throwing: WorkerClientError.processLaunchFailed(inputFailure))
+                    return
+                }
 
                 if process.terminationStatus != 0 && stdoutData.isEmpty {
                     let stderrText = String(data: stderrData, encoding: .utf8)?
@@ -231,9 +270,6 @@ final class WorkerClient {
                 stdoutCollector.start()
                 stderrCollector.start()
             } catch {
-                if currentProcess === process {
-                    currentProcess = nil
-                }
                 guard completionGate.claim() else { return }
                 continuation.resume(
                     throwing: WorkerClientError.processLaunchFailed("Failed to launch worker: \(error.localizedDescription)")
@@ -242,44 +278,44 @@ final class WorkerClient {
             }
 
             do {
-                let encoded = try JSONEncoder().encode(request)
-                stdinPipe.fileHandleForWriting.write(encoded)
-                stdinPipe.fileHandleForWriting.write(Data([0x0A]))
+                try stdinPipe.fileHandleForWriting.write(contentsOf: encodedRequest)
                 try stdinPipe.fileHandleForWriting.close()
             } catch {
-                guard completionGate.claim() else { return }
-                process.terminate()
-                if currentProcess === process {
-                    currentProcess = nil
+                completionGate.recordInputFailure("Failed to send request to worker: \(error.localizedDescription)")
+                try? stdinPipe.fileHandleForWriting.close()
+                if process.isRunning {
+                    process.terminate()
                 }
-                continuation.resume(
-                    throwing: WorkerClientError.processLaunchFailed("Failed to send request to worker: \(error.localizedDescription)")
-                )
+            }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                guard self?.currentProcess === process else { return }
+                self?.stopCurrentProcess()
             }
         }
 
         do {
             return try JSONDecoder().decode(WorkerResponse.self, from: responseData)
         } catch {
-            let raw = String(data: responseData, encoding: .utf8) ?? "<non-utf8 response>"
-            throw WorkerClientError.invalidWorkerResponse(raw)
+            throw WorkerClientError.invalidWorkerResponse(byteCount: responseData.count)
         }
     }
 
-    private func workerLaunchConfiguration() throws -> (executable: URL, arguments: [String], runtime: String) {
+    private func workerLaunchConfiguration() throws -> LaunchConfiguration {
         if let nodeScript = nodeWorkerScriptURL(),
            let installedNode = AppPaths.installedNodeExecutable {
-            return (installedNode, [nodeScript.path], "node")
+            return LaunchConfiguration(executable: installedNode, arguments: [nodeScript.path], runtime: "node")
         }
 
         if let nodeScript = nodeWorkerScriptURL(),
            let bundledNode = AppPaths.bundledNodeExecutable {
-            return (bundledNode, [nodeScript.path], "node")
+            return LaunchConfiguration(executable: bundledNode, arguments: [nodeScript.path], runtime: "node")
         }
 
         if let nodeScript = nodeWorkerScriptURL(),
            let nodeExecutable = locateExecutable(named: "node") {
-            return (nodeExecutable, [nodeScript.path], "node")
+            return LaunchConfiguration(executable: nodeExecutable, arguments: [nodeScript.path], runtime: "node")
         }
 
         throw WorkerClientError.processLaunchFailed("Node runtime не найден. Подготовьте среду воркера в настройках приложения.")

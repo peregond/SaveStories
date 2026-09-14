@@ -17,6 +17,10 @@ SHARED_SUPPORT_DIR="$CONTENTS_DIR/SharedSupport"
 HELPERS_DIR="$CONTENTS_DIR/Helpers"
 NODE_WORKER_DIR="$SHARED_SUPPORT_DIR/node_worker"
 RESOURCE_BUNDLE_NAME="$EXECUTABLE_NAME"_SaveMe.bundle
+REQUIRED_SDK="${SAVEME_REQUIRE_SDK:-14.0}"
+PREVIEW_BUNDLE_ID="${SAVESTORIES_BUNDLE_ID:-local.saveme.macos27.preview}"
+
+python3 "$ROOT/scripts/macos_bundle.py" preflight --require-sdk "$REQUIRED_SDK"
 
 mkdir -p "$BUILD_DIR" "$RELEASE_DIR"
 
@@ -24,26 +28,27 @@ export CLANG_MODULE_CACHE_PATH="$BUILD_DIR/clang-module-cache"
 export SWIFTPM_MODULECACHE_OVERRIDE="$BUILD_DIR/swiftpm-module-cache"
 
 swift build -c release --package-path "$ROOT"
+BIN_DIR="$(swift build -c release --package-path "$ROOT" --show-bin-path)"
+RESOURCE_BUNDLE_PATH="$BIN_DIR/$RESOURCE_BUNDLE_NAME"
+SPARKLE_FRAMEWORK_PATH="$BIN_DIR/Sparkle.framework"
+for artifact in "$BIN_DIR/$EXECUTABLE_NAME" "$BIN_DIR/$MEDIA_MUXER_NAME" "$RESOURCE_BUNDLE_PATH" "$SPARKLE_FRAMEWORK_PATH"; do
+  if [ ! -e "$artifact" ]; then
+    printf 'Required preview artifact is missing: %s\n' "$artifact" >&2
+    exit 1
+  fi
+done
 
 rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$FRAMEWORKS_DIR" "$SHARED_SUPPORT_DIR" "$HELPERS_DIR"
 
 cp "$ROOT/packaging/AppBundle/Info.plist" "$CONTENTS_DIR/Info.plist"
-cp "$ROOT/.build/release/$EXECUTABLE_NAME" "$MACOS_DIR/$EXECUTABLE_NAME"
-cp "$ROOT/.build/release/$MEDIA_MUXER_NAME" "$HELPERS_DIR/$MEDIA_MUXER_NAME"
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $PREVIEW_BUNDLE_ID" "$CONTENTS_DIR/Info.plist"
+cp "$BIN_DIR/$EXECUTABLE_NAME" "$MACOS_DIR/$EXECUTABLE_NAME"
+cp "$BIN_DIR/$MEDIA_MUXER_NAME" "$HELPERS_DIR/$MEDIA_MUXER_NAME"
 chmod 755 "$HELPERS_DIR/$MEDIA_MUXER_NAME"
 "$ROOT/scripts/compile_app_icon.sh" "$RESOURCES_DIR"
 
-RESOURCE_BUNDLE_PATH="$(find "$ROOT/.build" -maxdepth 4 -type d -name "$RESOURCE_BUNDLE_NAME" | head -n 1)"
-if [ -n "$RESOURCE_BUNDLE_PATH" ] && [ -d "$RESOURCE_BUNDLE_PATH" ]; then
-  cp -R "$RESOURCE_BUNDLE_PATH" "$RESOURCES_DIR/"
-fi
-
-SPARKLE_FRAMEWORK_PATH="$(find "$ROOT/.build" -type d -name 'Sparkle.framework' | head -n 1)"
-if [ -z "$SPARKLE_FRAMEWORK_PATH" ] || [ ! -d "$SPARKLE_FRAMEWORK_PATH" ]; then
-  printf 'Sparkle.framework not found in .build. The beta app bundle is incomplete.\n' >&2
-  exit 1
-fi
+cp -R "$RESOURCE_BUNDLE_PATH" "$RESOURCES_DIR/"
 ditto "$SPARKLE_FRAMEWORK_PATH" "$FRAMEWORKS_DIR/Sparkle.framework"
 if ! otool -l "$MACOS_DIR/$EXECUTABLE_NAME" | grep -q '@executable_path/../Frameworks'; then
   install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/$EXECUTABLE_NAME"
@@ -59,7 +64,9 @@ rsync -a --delete \
   --exclude .DS_Store \
   "$ROOT/node_worker"/ "$NODE_WORKER_DIR"/
 
+python3 "$ROOT/scripts/macos_bundle.py" stamp --app "$APP_DIR" --require-sdk "$REQUIRED_SDK" --preview
 codesign --force --deep --sign - "$APP_DIR"
 codesign --verify --deep --strict --verbose=2 "$APP_DIR"
+python3 "$ROOT/scripts/macos_bundle.py" verify --app "$APP_DIR" --require-sdk "$REQUIRED_SDK"
 
 printf '\nBeta app created at:\n%s\n' "$APP_DIR"

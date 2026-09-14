@@ -29,7 +29,17 @@ private struct StoriesActionButtonStyle: ButtonStyle {
 struct ContentView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.colorScheme) var colorScheme
-    @State var selectedSection: AppSection = .main
+    @Environment(\.accessibilityReduceMotion) var systemReduceMotion
+    @Environment(\.accessibilityReduceTransparency) var reduceTransparency
+    @Environment(\.colorSchemeContrast) var contrast
+    @SceneStorage("navigation.section") private var storedSection = AppSection.main.rawValue
+    @State var columnVisibility: NavigationSplitViewVisibility = .all
+    @State var showingDownloadOptions = false
+
+    var selectedSection: AppSection {
+        get { AppSection(rawValue: storedSection) ?? .main }
+        nonmutating set { storedSection = newValue.rawValue }
+    }
     @State var showingConfetti = false
     @State var showingAllRecentLists = false
     @State var showingRuntimeDetails = false
@@ -41,14 +51,17 @@ struct ContentView: View {
     @State var storiesInputExpanded = false
 
     var isDark: Bool { colorScheme == .dark }
+    var reduceMotion: Bool {
+        systemReduceMotion || (model.isDesignPreview && Bundle.main.object(forInfoDictionaryKey: "SaveMePreviewReduceMotion") as? Bool == true)
+    }
 
-    let sidebarWidth: CGFloat = 264
+    let sidebarWidth: CGFloat = 220
     let cardCornerRadius: CGFloat = 16
     let controlCornerRadius: CGFloat = 12
     let itemCornerRadius: CGFloat = 12
     let innerCornerRadius: CGFloat = 10
-    let topContentInset: CGFloat = 22
-    let homeSummaryCardHeight: CGFloat = 224
+    let topContentInset: CGFloat = 12
+    let homeSummaryCardHeight: CGFloat = 170
 
     func contentHorizontalPadding(for width: CGFloat) -> CGFloat {
         width < 760 ? 20 : 28
@@ -58,46 +71,32 @@ struct ContentView: View {
         width < 760
     }
 
-    var backgroundGradient: [Color] {
-        if isDark {
-            return [
-                Color(red: 0.07, green: 0.09, blue: 0.12),
-                Color(red: 0.09, green: 0.12, blue: 0.16),
-                Color(red: 0.08, green: 0.11, blue: 0.13),
-            ]
-        }
-
-        return [
-            Color(red: 0.96, green: 0.94, blue: 0.89),
-            Color(red: 0.90, green: 0.94, blue: 0.98),
-            Color(red: 0.88, green: 0.93, blue: 0.92),
-        ]
+    var glassTint: Color { Color(nsColor: .controlBackgroundColor) }
+    var primaryText: Color { Color(nsColor: .labelColor) }
+    var secondaryText: Color {
+        if contrast == .increased { return primaryText }
+        return isDark ? Color.white.opacity(0.78) : Color.black.opacity(0.68)
     }
-
-    var glassTint: Color {
-        isDark ? Color.white.opacity(0.06) : Color.white.opacity(0.38)
+    var tertiaryText: Color { secondaryText }
+    var quaternaryText: Color { secondaryText }
+    var cardFill: Color {
+        if reduceTransparency { return Color(nsColor: .controlBackgroundColor) }
+        return isDark
+            ? Color(red: 0.14, green: 0.17, blue: 0.21).opacity(0.94)
+            : Color.white.opacity(0.84)
     }
-
-    var primaryText: Color { isDark ? Color.white.opacity(0.94) : Color.black.opacity(0.84) }
-    var secondaryText: Color { isDark ? Color.white.opacity(0.74) : Color.black.opacity(0.60) }
-    var tertiaryText: Color { isDark ? Color.white.opacity(0.55) : Color.black.opacity(0.48) }
-    var quaternaryText: Color { isDark ? Color.white.opacity(0.44) : Color.black.opacity(0.55) }
-    var cardFill: Color { isDark ? Color.white.opacity(0.07) : Color.white.opacity(0.26) }
-    var inputFill: Color { isDark ? Color.white.opacity(0.09) : Color.white.opacity(0.62) }
-    var pillFill: Color { isDark ? Color.white.opacity(0.09) : Color.white.opacity(0.54) }
-    var itemFill: Color { isDark ? Color.white.opacity(0.08) : Color.white.opacity(0.60) }
-    var settingsIconColor: Color { isDark ? Color.white.opacity(0.84) : Color.black.opacity(0.76) }
-    var secondaryButtonTint: Color {
-        isDark ? Color.white.opacity(0.16) : Color(red: 0.36, green: 0.44, blue: 0.50)
-    }
-    var prominentButtonTint: Color {
-        isDark ? Color(red: 0.18, green: 0.45, blue: 0.62) : Color(red: 0.12, green: 0.37, blue: 0.52)
-    }
+    var inputFill: Color { Color(nsColor: .textBackgroundColor) }
+    var pillFill: Color { Color(nsColor: .quaternaryLabelColor).opacity(0.09) }
+    var itemFill: Color { pillFill }
+    var settingsIconColor: Color { secondaryText }
+    var secondaryButtonTint: Color { Color.accentColor }
+    var prominentButtonTint: Color { Color.accentColor }
     var queueActionTint: Color {
-        isDark ? Color(red: 0.29, green: 0.50, blue: 0.40) : Color(red: 0.34, green: 0.58, blue: 0.46)
+        isDark ? Color(red: 0.18, green: 0.48, blue: 0.37) : Color(red: 0.16, green: 0.42, blue: 0.32)
     }
     var cardStroke: Color {
-        isDark ? Color.white.opacity(0.06) : Color.white.opacity(0.38)
+        if contrast == .increased { return Color(nsColor: .separatorColor) }
+        return isDark ? Color.white.opacity(0.16) : Color(red: 0.34, green: 0.43, blue: 0.49).opacity(0.22)
     }
 
     var versionLabel: String {
@@ -200,10 +199,16 @@ struct ContentView: View {
         ZStack {
             windowBackground
 
-            HStack(spacing: 0) {
+            NavigationSplitView(columnVisibility: $columnVisibility) {
                 sidebar
+                    .navigationSplitViewColumnWidth(min: 200, ideal: sidebarWidth, max: 280)
+            } detail: {
                 detailContent
+                    .navigationTitle(selectedSection.title)
+                    .toolbar { workspaceToolbar }
             }
+            .navigationSplitViewStyle(.balanced)
+            .disabled(model.showRuntimeOnboarding || model.showEmptyFolderCleanupPrompt)
 
             if showingConfetti {
                 ConfettiOverlayView()
@@ -212,27 +217,28 @@ struct ContentView: View {
                     .zIndex(4)
             }
 
-            if model.showRuntimeOnboarding {
-                Color.black.opacity(isDark ? 0.48 : 0.28)
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-                    .zIndex(7)
 
-                runtimeOnboardingOverlay
-                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
-                    .zIndex(8)
+        }
+        .sheet(isPresented: $model.showRuntimeOnboarding, onDismiss: { model.dismissRuntimeOnboarding() }) {
+            VStack(spacing: 0) {
+                ScrollView { runtimeOnboardingContent }
+                Divider()
+                runtimeOnboardingActions.padding(20)
             }
-
-            if model.showEmptyFolderCleanupPrompt {
-                Color.black.opacity(isDark ? 0.42 : 0.24)
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-                    .zIndex(5)
-
-                emptyFolderCleanupPrompt
-                    .transition(.opacity)
-                    .zIndex(6)
-            }
+            .fontDesign(.rounded)
+            .frame(width: 540, height: 500)
+            .interactiveDismissDisabled(model.isBusy)
+        }
+        .sheet(isPresented: $model.showEmptyFolderCleanupPrompt) {
+            ScrollView { emptyFolderCleanupPrompt }
+                .frame(width: 520, height: 440)
+                .interactiveDismissDisabled()
+        }
+        .tint(queueActionTint)
+        .focusedSceneValue(\.appSection, Binding(get: { selectedSection }, set: { selectedSection = $0 }))
+        .transaction { if reduceMotion { $0.animation = nil; $0.disablesAnimations = true } }
+        .onChange(of: reduceMotion) { _, enabled in
+            if enabled { showingConfetti = false }
         }
         .alert("Нужен вход в Instagram", isPresented: $model.showLoginPrompt) {
             Button("Не сейчас", role: .cancel) {
@@ -257,7 +263,7 @@ struct ContentView: View {
             }
         }
         .onChange(of: model.celebrationToken) { _, newValue in
-            guard newValue > 0 else { return }
+            guard newValue > 0, !reduceMotion else { return }
             withAnimation(.easeOut(duration: 0.25)) {
                 showingConfetti = true
             }
@@ -269,11 +275,11 @@ struct ContentView: View {
         }
     }
 
-    var runtimeOnboardingOverlay: some View {
+    var runtimeOnboardingContent: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .top, spacing: 16) {
                 Image(systemName: runtimeOnboardingIcon)
-                    .font(.system(size: 28, weight: .semibold))
+                    .font(.system(size: 28, weight: .semibold, design: .rounded))
                     .foregroundStyle(runtimeOnboardingTint)
                     .frame(width: 48, height: 48)
                     .background(
@@ -286,7 +292,7 @@ struct ContentView: View {
                         .font(.system(size: 24, weight: .semibold, design: .rounded))
                         .foregroundStyle(primaryText)
 
-                    Text("Перед началом нужно один раз докачать движок для выгрузки: Node, Playwright и Chromium.")
+                    Text("Для скачивания нужен встроенный браузер. Установите его один раз — SaveMe подготовит всё автоматически.")
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -304,61 +310,62 @@ struct ContentView: View {
                 message: model.runtimeSetupErrorMessage ?? model.runtimeSetupMessage
             )
 
-            HStack(spacing: 10) {
-                if model.runtimeSetupStage == .ready {
-                    Button {
-                        model.dismissRuntimeOnboarding()
-                        Task { await model.login() }
-                    } label: {
-                        Label("Войти в Instagram", systemImage: "person.crop.circle.badge.checkmark")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(prominentButtonTint)
-
-                    Button {
-                        model.dismissRuntimeOnboarding()
-                    } label: {
-                        Text("Позже")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(secondaryButtonTint)
-                } else {
-                    Button {
-                        Task { await model.bootstrapEnvironment() }
-                    } label: {
-                        HStack(spacing: 8) {
-                            if model.isBusy && model.runtimeSetupStage != .failed {
-                                ProgressView()
-                                    .controlSize(.small)
-                            } else {
-                                Image(systemName: "arrow.down.circle")
-                            }
-                            Text(model.runtimeSetupStage == .failed ? "Повторить установку" : "Установить движок")
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(prominentButtonTint)
-                    .disabled(model.isBusy && model.runtimeSetupStage != .failed)
-
-                    Button {
-                        model.dismissRuntimeOnboarding()
-                    } label: {
-                        Text("Не сейчас")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(secondaryButtonTint)
-                    .disabled(model.isBusy)
-                }
-            }
         }
         .padding(24)
-        .frame(width: 520, alignment: .leading)
-        .cardBackground(cornerRadius: cardCornerRadius, fill: cardFill, stroke: cardStroke)
-        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    var runtimeOnboardingActions: some View {
+        HStack(spacing: 10) {
+            if model.runtimeSetupStage == .ready {
+                Button {
+                    model.dismissRuntimeOnboarding()
+                    Task { await model.login() }
+                } label: {
+                    Label("Войти в Instagram", systemImage: "person.crop.circle.badge.checkmark")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(prominentButtonTint)
+
+                Button {
+                    model.dismissRuntimeOnboarding()
+                } label: {
+                    Text("Позже")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(secondaryButtonTint)
+            } else {
+                Button {
+                    Task { await model.bootstrapEnvironment() }
+                } label: {
+                    HStack(spacing: 8) {
+                        if model.isBusy && model.runtimeSetupStage != .failed {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.down.circle")
+                        }
+                        Text(model.runtimeSetupStage == .failed ? "Повторить установку" : "Установить движок")
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(prominentButtonTint)
+                .disabled(model.isBusy && model.runtimeSetupStage != .failed)
+
+                Button {
+                    model.dismissRuntimeOnboarding()
+                } label: {
+                    Text("Не сейчас")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(secondaryButtonTint)
+                .disabled(model.isBusy)
+            }
+        }
     }
 
     var runtimeOnboardingStages: [AppModel.RuntimeSetupStage] {
@@ -400,7 +407,7 @@ struct ContentView: View {
                         .controlSize(.small)
                 } else {
                     Image(systemName: status.symbol)
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(status.tint)
                 }
             }
@@ -547,105 +554,104 @@ struct ContentView: View {
             }
         }
         .padding(24)
-        .frame(width: 460)
-        .cardBackground(cornerRadius: 28, fill: cardFill, stroke: cardStroke, tint: glassTint)
-        .shadow(color: Color.black.opacity(isDark ? 0.35 : 0.16), radius: 28, y: 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
 
     func homeTwoComposerCard(compact: Bool) -> some View {
-        card("Профили для скачивания") {
-            VStack(alignment: .leading, spacing: 14) {
+        card("Новая загрузка") {
+            VStack(alignment: .leading, spacing: 16) {
                 storiesInputEditor
+
+                HStack(spacing: 12) {
+                    Button {
+                        model.addBatchProfiles()
+                    } label: {
+                        Label("В очередь", systemImage: "plus")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(batchProfileInputCount == 0 || model.isBusy)
+                    .help("Добавить введённые профили в очередь")
+
+                    Spacer(minLength: 0)
+
+                    Menu {
+                        Button("Запомнить очередь", systemImage: "bookmark") { model.rememberCurrentBatchList() }
+                            .disabled(model.batchQueue.isEmpty || model.isBusy)
+                        Button("Очистить поле", systemImage: "xmark") { model.batchInput = "" }
+                            .disabled(model.batchInput.isEmpty || model.isBusy)
+                    } label: {
+                        Label("Ещё", systemImage: "ellipsis")
+                    }
+                    .fixedSize()
+                }
+
+                HStack(spacing: 12) {
+                    storiesDownloadButton
+                    if model.batchIsRunning { storiesStopButton }
+                }
+                if model.notionInfluencerSourceEnabled {
+                    Label(
+                        batchProfileInputCount > 0
+                            ? "Скачаем введённые профили и текущую очередь. Notion не заменит список."
+                            : "Перед запуском очередь заменится актуальным списком из Notion.",
+                        systemImage: "info.circle"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Divider()
+
+                HStack(alignment: .center, spacing: 10) {
+                    Image(systemName: "folder")
+                        .foregroundStyle(queueActionTint)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Папка сохранения")
+                            .font(.caption)
+                            .foregroundStyle(secondaryText)
+                        Text(model.saveDirectory.lastPathComponent)
+                            .font(.callout.weight(.medium))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .help(model.saveDirectory.path)
+                    }
+                    Spacer(minLength: 8)
+                    Button("Изменить…") { model.chooseSaveDirectory() }
+                        .disabled(model.isBusy)
+                }
+
+                DisclosureGroup(isExpanded: $showingDownloadOptions) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        storiesMediaSelectionPicker
+                        storiesDownloadModePicker
+                    }
+                    .padding(.top, 10)
+                } label: {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Параметры загрузки").font(.callout.weight(.medium))
+                        Text("\(model.mediaSelectionMode.title) · \(model.downloadMode.title)")
+                            .font(.caption).foregroundStyle(secondaryText)
+                    }
+                }
+
                 notionInfluencerSourceControl
-
-                if compact {
-                    VStack(spacing: 10) {
-                        storiesActionButton("Добавить", systemImage: "plus", isEnabled: !model.isBusy) {
-                            model.addBatchProfiles()
-                        }
-
-                        storiesActionButton("Запомнить", systemImage: "bookmark", isEnabled: !model.batchQueue.isEmpty && !model.isBusy) {
-                            model.rememberCurrentBatchList()
-                        }
-
-                        storiesActionButton(
-                            "Очистить",
-                            systemImage: "xmark",
-                            isEnabled: !model.batchInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !model.isBusy
-                        ) {
-                            model.batchInput = ""
-                        }
-                    }
-
-                    VStack(spacing: 10) {
-                        storiesClearQueueButton
-                        storiesDownloadButton
-                        storiesStopButton
-                    }
-                } else {
-                    HStack(spacing: 10) {
-                        storiesActionButton("Добавить", systemImage: "plus", isEnabled: !model.isBusy) {
-                            model.addBatchProfiles()
-                        }
-
-                        storiesActionButton("Запомнить", systemImage: "bookmark", isEnabled: !model.batchQueue.isEmpty && !model.isBusy) {
-                            model.rememberCurrentBatchList()
-                        }
-
-                        storiesActionButton(
-                            "Очистить",
-                            systemImage: "xmark",
-                            isEnabled: !model.batchInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !model.isBusy
-                        ) {
-                            model.batchInput = ""
-                        }
-                    }
-
-                    HStack(spacing: 10) {
-                        storiesClearQueueButton
-                        storiesDownloadButton
-                        storiesStopButton
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 14) {
-                    storiesDownloadModePicker
-                    storiesMediaSelectionPicker
-                }
-
-                Group {
-                    if compact {
-                        destinationInlineCard(compact: true)
-                    } else {
-                        destinationInlineCard(compact: false)
-                    }
-                }
-
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: model.isBusy)
     }
 
     func homeTwoQueueCard(compact: Bool) -> some View {
         card("Очередь") {
             VStack(alignment: .leading, spacing: 14) {
-                if compact {
-                    VStack(spacing: 10) {
-                        queueSummaryBadge(text: "Ждёт \(queuedPendingCount)", tint: Color.orange.opacity(isDark ? 0.16 : 0.10))
-                        queueSummaryBadge(text: "Готово \(queuedCompletedCount)", tint: Color.green.opacity(isDark ? 0.16 : 0.10))
-                        queueSummaryBadge(text: "Ошибок \(queuedFailedCount)", tint: Color.red.opacity(isDark ? 0.15 : 0.09))
-                    }
-                } else {
-                    HStack(spacing: 10) {
-                        queueSummaryBadge(text: "Ждёт \(queuedPendingCount)", tint: Color.orange.opacity(isDark ? 0.16 : 0.10))
-                        queueSummaryBadge(text: "Готово \(queuedCompletedCount)", tint: Color.green.opacity(isDark ? 0.16 : 0.10))
-                        queueSummaryBadge(text: "Ошибок \(queuedFailedCount)", tint: Color.red.opacity(isDark ? 0.15 : 0.09))
-                    }
+                HStack(spacing: 10) {
+                    queueSummaryBadge(text: "Ждёт \(queuedPendingCount)", tint: Color.orange.opacity(isDark ? 0.16 : 0.10))
+                    queueSummaryBadge(text: "Готово \(queuedCompletedCount)", tint: Color.green.opacity(isDark ? 0.16 : 0.10))
+                    queueSummaryBadge(text: "Ошибок \(queuedFailedCount)", tint: Color.red.opacity(isDark ? 0.15 : 0.09))
                 }
 
                 if model.batchQueue.isEmpty {
-                    Text("Пока пусто. Добавь профили выше или выбери недавний набор справа.")
+                    Text("Добавьте профили в поле загрузки или выберите сохранённый набор.")
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(secondaryText)
                         .padding(16)
@@ -773,11 +779,13 @@ struct ContentView: View {
                     model.removeRecentBatchList(id: list.id)
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
                         .frame(width: 22, height: 22)
                         .background(Circle().fill(Color.white.opacity(isDark ? 0.06 : 0.42)))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Удалить набор \(list.title)")
+                .help("Удалить набор")
                 .disabled(model.isBusy)
             }
 
@@ -826,7 +834,7 @@ struct ContentView: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
                 Text(title)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
@@ -1189,37 +1197,20 @@ struct ContentView: View {
     }
 
     var homeStatusHeader: some View {
-        HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             homeStatusBadge
-
-            Spacer(minLength: 4)
-
             HStack(spacing: 8) {
-                topStatusChip(title: "Node", isReady: model.workerReady)
-                topStatusChip(title: "Session", isReady: model.sessionReady)
-
-                Button {
-                    Task { await model.refreshEnvironment() }
-                } label: {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .frame(width: 24, height: 24)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .tint(secondaryButtonTint)
-                .help("Проверить среду worker")
-                .disabled(model.isBusy)
-
+                topStatusChip(title: "Движок", isReady: model.workerReady)
+                topStatusChip(title: "Instagram", isReady: model.sessionReady)
+                Spacer(minLength: 0)
                 Button {
                     Task { await model.login() }
                 } label: {
-                    Image(systemName: model.sessionReady ? "person.crop.circle.badge.checkmark" : "person.crop.circle.badge.exclamationmark")
-                        .frame(width: 24, height: 24)
+                    Image(systemName: "person.crop.circle")
                 }
                 .buttonStyle(.bordered)
-                .controlSize(.small)
-                .tint(model.sessionReady ? secondaryButtonTint : prominentButtonTint)
-                .help(model.sessionReady ? "Обновить вход Instagram" : "Войти в Instagram")
+                .accessibilityLabel(model.sessionReady ? "Обновить вход в Instagram" : "Войти в Instagram")
+                .help(model.sessionReady ? "Обновить вход в Instagram" : "Войти в Instagram")
                 .disabled(model.isBusy)
             }
         }
@@ -1227,14 +1218,17 @@ struct ContentView: View {
 
     func topStatusChip(title: String, isReady: Bool) -> some View {
         HStack(spacing: 6) {
-            Circle()
-                .fill(isReady ? Color.green.opacity(0.82) : Color.orange.opacity(0.82))
-                .frame(width: 6, height: 6)
+            Image(systemName: isReady ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                .foregroundStyle(isReady ? Color.green : Color.orange)
+                .font(.system(size: 10, design: .rounded))
 
             Text(title)
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(isReady ? secondaryText : primaryText)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(isReady ? "Готово" : "Требуется настройка")
         .padding(.horizontal, 9)
         .padding(.vertical, 6)
         .background(
@@ -1249,8 +1243,8 @@ struct ContentView: View {
         let title: String
         let tint: Color
 
-        if isStoriesDownloadInProgress {
-            title = "Идёт загрузка"
+        if model.isBusy {
+            title = isStoriesDownloadInProgress ? "Идёт загрузка" : "Подготовка"
             tint = Color.blue.opacity(0.82)
         } else if isError {
             title = "Ошибка"
@@ -1264,7 +1258,7 @@ struct ContentView: View {
         }
 
         return HStack(spacing: 8) {
-            if isStoriesDownloadInProgress {
+            if model.isBusy {
                 ProgressView()
                     .controlSize(.small)
             } else {
@@ -1769,7 +1763,7 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: model.statusTitle.lowercased().contains("ошиб") ? "exclamationmark.triangle.fill" : "stethoscope")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .foregroundStyle(globalStatusTint)
                         .frame(width: 28, height: 28)
                         .background(
@@ -1964,7 +1958,7 @@ struct ContentView: View {
                 Toggle(isOn: $model.preventSleepDuringDownloads) {
                     HStack(alignment: .center, spacing: 10) {
                         Image(systemName: "moon.zzz.fill")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
                             .foregroundStyle(model.preventSleepDuringDownloads ? prominentButtonTint : secondaryText)
 
                         Text("Не давать Mac засыпать и гасить экран")
@@ -2001,7 +1995,7 @@ struct ContentView: View {
                 if model.hasEmbeddedRuntime {
                     HStack(spacing: 10) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
                             .foregroundStyle(Color.green.opacity(0.86))
 
                         Text("Всё встроено — дополнительная установка не нужна")
@@ -2198,6 +2192,7 @@ struct ContentView: View {
     var reelsInputEditor: some View {
         ZStack(alignment: .topLeading) {
             TextEditor(text: $model.reelsInput)
+                .accessibilityLabel("Ссылки на Reels")
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
                 .scrollContentBackground(.hidden)
                 .foregroundStyle(primaryText)
@@ -2220,7 +2215,7 @@ struct ContentView: View {
                     model.reelsInput = ""
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
                         .foregroundStyle(secondaryText)
                         .frame(width: 24, height: 24)
                         .background(
@@ -2342,7 +2337,7 @@ struct ContentView: View {
         let ready = model.sessionReady
         return HStack(spacing: 6) {
             Image(systemName: ready ? "person.crop.circle.badge.checkmark" : "person.crop.circle.badge.exclamationmark")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
 
             Text(ready ? "Сессия активна" : "Нет сессии")
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
@@ -2362,7 +2357,7 @@ struct ContentView: View {
                 if model.downloadedItems.isEmpty {
                     VStack(spacing: 10) {
                         Image(systemName: "tray")
-                            .font(.system(size: 24, weight: .regular))
+                            .font(.system(size: 24, weight: .regular, design: .rounded))
                             .foregroundStyle(tertiaryText)
 
                         Text("Пока ничего нет")
@@ -2409,7 +2404,7 @@ struct ContentView: View {
                     model.revealDownloadedItem(at: item.localPath)
                 } label: {
                     Image(systemName: "folder")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.bordered)
@@ -2537,89 +2532,54 @@ struct ContentView: View {
     }
 
     var storiesInputEditor: some View {
-        ZStack(alignment: .topLeading) {
-            TextEditor(text: $model.batchInput)
-                .font(.system(size: 13, weight: .medium, design: .monospaced))
-                .scrollContentBackground(.hidden)
-                .foregroundStyle(primaryText)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 12)
-                .background(Color.clear)
-                .frame(height: storiesInputExpanded ? 360 : 132)
-
-            if model.batchInput.isEmpty {
-                Text("По одной ссылке или username на строку.\nНапример:\ndian.vegas1\nhttps://www.instagram.com/stevensetu/\nleftlanepapi")
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
-                    .foregroundStyle(tertiaryText)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 18)
-                    .allowsHitTesting(false)
-            }
-
-            if !model.batchInput.isEmpty {
-                Button {
-                    model.batchInput = ""
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $model.batchInput)
+                    .font(.system(size: 13, design: .monospaced))
+                    .scrollContentBackground(.hidden)
+                    .foregroundStyle(primaryText)
+                    .padding(10)
+                    .frame(height: storiesInputExpanded ? 300 : 116)
+                    .accessibilityLabel("Профили Instagram")
+                    .accessibilityHint("По одной ссылке или имени пользователя на строку")
+                if model.batchInput.isEmpty {
+                    Text("Ссылка на профиль или @username\nПо одному на строку")
+                        .font(.system(size: 13, design: .monospaced))
                         .foregroundStyle(secondaryText)
-                        .frame(width: 24, height: 24)
-                        .background(
-                            Circle()
-                                .fill(Color.white.opacity(isDark ? 0.08 : 0.78))
-                        )
+                        .padding(.horizontal, 16).padding(.vertical, 18)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
                 }
-                .buttonStyle(.plain)
-                .padding(.top, 12)
-                .padding(.trailing, 12)
-                .frame(maxWidth: .infinity, alignment: .topTrailing)
-                .transition(.opacity)
             }
-
-            Text("\(batchProfileInputCount) \(batchProfileInputCount == 1 ? "профиль" : batchProfileInputCount < 5 ? "профиля" : "профилей")")
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(quaternaryText)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(Color.white.opacity(isDark ? 0.08 : 0.72))
-                )
-                .padding(.trailing, 12)
-                .padding(.bottom, 12)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-        }
-        .overlay(alignment: .bottomLeading) {
-            if shouldShowStoriesInputExpandButton {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.18)) {
+            Divider()
+            HStack {
+                Text("Профилей: \(batchProfileInputCount)")
+                    .font(.caption).monospacedDigit()
+                    .foregroundStyle(secondaryText)
+                Spacer()
+                if shouldShowStoriesInputExpandButton {
+                    Button(storiesInputExpanded ? "Свернуть" : "Раскрыть") {
                         storiesInputExpanded.toggle()
                     }
-                } label: {
-                    Label(storiesInputExpanded ? "Свернуть" : "Раскрыть", systemImage: storiesInputExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .labelStyle(.titleAndIcon)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(Color.white.opacity(isDark ? 0.08 : 0.72))
-                        )
+                    .buttonStyle(.plain)
+                    .font(.caption)
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(secondaryText)
-                .padding(.leading, 12)
-                .padding(.bottom, 12)
+                if !model.batchInput.isEmpty {
+                    Button { model.batchInput = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(secondaryText)
+                    .accessibilityLabel("Очистить поле профилей")
+                    .help("Очистить поле профилей")
+                    .disabled(model.isBusy)
+                }
             }
+            .padding(.horizontal, 12).padding(.vertical, 8)
         }
         .background(fieldBackground)
-        .overlay(
-            RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
-                .strokeBorder(cardStroke, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous))
-        .animation(.easeInOut(duration: 0.2), value: batchProfileInputCount)
-        .animation(.easeInOut(duration: 0.18), value: storiesInputExpanded)
+        .clipShape(RoundedRectangle(cornerRadius: controlCornerRadius))
+        .overlay(RoundedRectangle(cornerRadius: controlCornerRadius).strokeBorder(cardStroke))
     }
 
     var shouldShowStoriesInputExpandButton: Bool {
@@ -2730,14 +2690,16 @@ struct ContentView: View {
 
     var storiesDownloadButton: some View {
         storiesActionButton(
-            isStoriesDownloadInProgress ? "Загружаю..." : "Скачать",
+            isStoriesDownloadInProgress ? "Загружаем…" : (model.notionInfluencerSourceEnabled && batchProfileInputCount == 0 ? "Скачать из Notion" : "Скачать Stories"),
             systemImage: "arrow.down",
             kind: .primary,
-            isEnabled: !model.batchQueue.isEmpty && !model.isBusy && !model.isRefreshingNotionInfluencers,
+            isEnabled: (!model.batchQueue.isEmpty || batchProfileInputCount > 0 || model.notionInfluencerSourceEnabled) && !model.isBusy && !model.isRefreshingNotionInfluencers,
             isProgressing: isStoriesDownloadInProgress
         ) {
-            Task { await model.runBatchDownloads() }
+            Task { await model.downloadStoriesFromInput() }
         }
+        .keyboardShortcut(.return, modifiers: .command)
+        .help("Начать загрузку Stories (⌘↩)")
     }
 
     var storiesStopButton: some View {
@@ -2797,7 +2759,7 @@ struct ContentView: View {
                         .tint(foreground)
                 } else {
                     Image(systemName: systemImage)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .frame(width: 16)
                 }
 
@@ -2823,7 +2785,7 @@ struct ContentView: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                 Text(title)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
@@ -2948,7 +2910,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: presentation.symbol)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(presentation.accent)
                     .frame(width: 30, height: 30)
                     .background(
@@ -3030,9 +2992,9 @@ struct ContentView: View {
                     .opacity(model.isBusy ? 1 : 0)
 
                 Image(systemName: model.isBusy ? "point.3.connected.trianglepath.dotted" : "sparkle")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(model.isBusy ? prominentButtonTint : tertiaryText)
-                    .symbolEffect(.pulse.byLayer, options: .repeating, value: model.isBusy)
+                    .symbolEffect(.pulse.byLayer, options: .repeating, isActive: model.isBusy && !reduceMotion)
             }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -3041,7 +3003,7 @@ struct ContentView: View {
                     .textCase(.uppercase)
                     .foregroundStyle(quaternaryText)
 
-                if model.isBusy {
+                if model.isBusy && !reduceMotion {
                     TimelineView(.periodic(from: .now, by: 0.6)) { context in
                         Text(animatedBusyStepLabel(at: context.date))
                             .font(.system(size: 13, weight: .semibold, design: .rounded))
@@ -3058,7 +3020,7 @@ struct ContentView: View {
 
             Spacer(minLength: 0)
 
-            if model.isBusy {
+            if model.isBusy && !reduceMotion {
                 TimelineView(.periodic(from: .now, by: 0.24)) { context in
                     busyStepActivityIndicator(at: context.date)
                 }
@@ -3099,36 +3061,11 @@ struct ContentView: View {
     }
 
     func liveIndicatorDot(size: CGFloat) -> some View {
-        TimelineView(.periodic(from: .now, by: 0.05)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            let phase = (sin(t * 4.8) + 1) / 2
-            let glowScale = 0.72 + (phase * 0.58)
-            let glowOpacity = 0.16 + (phase * 0.88)
-            let glowBlur = 0.4 + (phase * 3.8)
-            let coreScale = 0.80 + (phase * 0.34)
-            let coreOpacity = 0.52 + (phase * 0.48)
-            let shadowRadius = 3 + (phase * 18)
-
-            ZStack {
-                Circle()
-                    .fill(Color.green.opacity(isDark ? 0.44 : 0.34))
-                    .frame(width: size * 3.1, height: size * 3.1)
-                    .scaleEffect(glowScale)
-                    .opacity(glowOpacity)
-                    .blur(radius: glowBlur)
-
-                Circle()
-                    .fill(Color.green.opacity(1.0))
-                    .frame(width: size, height: size)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white.opacity(isDark ? 0.30 : 0.62), lineWidth: 1)
-                    )
-                    .scaleEffect(coreScale)
-                    .opacity(coreOpacity)
-                    .shadow(color: Color.green.opacity(isDark ? 0.88 : 0.64), radius: shadowRadius)
-            }
-        }
+        Image(systemName: "circle.fill")
+            .font(.system(size: size, design: .rounded))
+            .foregroundStyle(queueActionTint)
+            .symbolEffect(.pulse, isActive: model.isBusy && !reduceMotion)
+            .accessibilityHidden(true)
     }
 
     func statPill(title: String, value: Int, accent: Color) -> some View {
@@ -3233,9 +3170,8 @@ struct ContentView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .textCase(.uppercase)
-                .foregroundStyle(quaternaryText)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(primaryText)
                 .padding(.horizontal, 18)
                 .padding(.top, 18)
 
@@ -3289,6 +3225,7 @@ struct ContentView: View {
     func textEditorCard(text: Binding<String>, placeholder: String) -> some View {
         ZStack(alignment: .topLeading) {
             TextEditor(text: text)
+                .accessibilityLabel(placeholder)
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
                 .scrollContentBackground(.hidden)
                 .foregroundStyle(primaryText)
@@ -3319,7 +3256,7 @@ struct ContentView: View {
                         .scaleEffect(0.62)
                 } else {
                     Image(systemName: statusSystemImage(for: item.status))
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundStyle(statusColor(for: item.status))
                 }
             }
@@ -3352,7 +3289,7 @@ struct ContentView: View {
                             model.removeBatchProfile(id: item.id)
                         } label: {
                             Image(systemName: "xmark")
-                                .font(.system(size: 11, weight: .bold))
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
                                 .foregroundStyle(secondaryText)
                                 .frame(width: 24, height: 24)
                                 .background(
@@ -3466,45 +3403,34 @@ struct ContentView: View {
     }
 
     var cardBackground: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
-                .fill(.ultraThinMaterial)
-            RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
-                .fill(cardFill)
-        }
-    }
-
-    var sidebarBackground: some View {
-        ZStack {
-            Rectangle()
-                .fill(.thinMaterial)
-            Rectangle()
-                .fill(glassTint.opacity(isDark ? 0.75 : 0.9))
-        }
+        RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
+            .fill(cardFill)
+            .shadow(color: .black.opacity(isDark ? 0.12 : 0.035), radius: 8, y: 3)
     }
 
     var windowBackground: some View {
-        ZStack {
-            LinearGradient(
-                colors: backgroundGradient,
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-
-            Circle()
-                .fill(Color.white.opacity(isDark ? 0.05 : 0.20))
-                .frame(width: 420, height: 420)
-                .blur(radius: 80)
-                .offset(x: -420, y: -280)
-
-            Circle()
-                .fill(prominentButtonTint.opacity(isDark ? 0.12 : 0.10))
-                .frame(width: 520, height: 520)
-                .blur(radius: 90)
-                .offset(x: 460, y: 260)
+        Group {
+            if reduceTransparency {
+                Color(nsColor: .windowBackgroundColor)
+            } else {
+                LinearGradient(
+                    colors: isDark ? [
+                        Color(red: 0.07, green: 0.09, blue: 0.12),
+                        Color(red: 0.09, green: 0.14, blue: 0.20),
+                        Color(red: 0.08, green: 0.16, blue: 0.16),
+                    ] : [
+                        Color(red: 0.96, green: 0.94, blue: 0.89),
+                        Color(red: 0.85, green: 0.92, blue: 0.98),
+                        Color(red: 0.82, green: 0.91, blue: 0.88),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
         }
+        .ignoresSafeArea()
     }
+
 }
 
 private struct CardBackgroundModifier: ViewModifier {
@@ -3517,8 +3443,6 @@ private struct CardBackgroundModifier: ViewModifier {
         content
             .background {
                 ZStack {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(.ultraThinMaterial)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .fill(fill)
                     if let tint {
