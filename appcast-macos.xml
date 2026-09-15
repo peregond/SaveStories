@@ -2,23 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.80</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.81</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.80</title>
-      <pubDate>Mon, 14 Sep 2026 21:47:45 GMT</pubDate>
-      <sparkle:version>151</sparkle:version>
-      <sparkle:shortVersionString>0.6.80</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.80</h2>
-<ul><li>Обновлён интерфейс macOS: фирменный SF Rounded, читаемый градиентный фон и нативная боковая панель.</li><li>Исправлена двойная рамка первого запуска; кнопки доступны при прокрутке.</li><li>Очередь Notion управляется видимым переключателем без раскрывающегося раздела.</li><li>Введённые профили запускаются напрямую, без дублей и неожиданной замены списком Notion.</li><li>Добавлены сочетания клавиш, улучшены контрастность и поддержка системных настроек доступности.</li><li>Исправлены отмена и повторный запуск фоновых операций; усилена проверка упаковки приложения.</li></ul>
-<p>Проверены запуск и 46 Swift-тестов на macOS 27.0 (26A428), Apple Silicon. Минимальная версия системы остаётся macOS 14. Локальная проверка выполнена с SDK 26.5; полноценные сетевые загрузки Instagram и повторная проверка на macOS 14 в этот цикл не входили. Сборка распространяется с ad-hoc подписью, без Developer ID и нотариализации, как предыдущие версии.</p>]]></description>
+      <title>SaveMe 0.6.81</title>
+      <pubDate>Tue, 15 Sep 2026 12:58:55 GMT</pubDate>
+      <sparkle:version>152</sparkle:version>
+      <sparkle:shortVersionString>0.6.81</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.81</h2>
+<ul><li>Новая адаптивная иконка macOS из оригинального проекта Icon Composer: градиент, стеклянные эффекты, тёмное и тонированное оформление.</li><li>Сохранены слои и настройки исходника; иконка компилируется в Assets.car для системных режимов оформления.</li><li>Релизная сборка останавливается, если Icon Composer не удалось скомпилировать, вместо подстановки старой статической иконки.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.80/SaveMe-macOS-v0.6.80.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.81/SaveMe-macOS-v0.6.81.dmg"
         sparkle:os="macos"
-        length="4671402"
+        length="5311467"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="K8PcZFTyom5RwIN07KbsQeMw5JwRLG7UdK6Ns35KmA6Xf1DspmwISo8X3fJgGHhKikeNnL0siak919zCyqOvDQ==" />
+        sparkle:edSignature="I+PDv2Mt2t24bdiaZG3wr9Z9hhIZpzSgSkdJo97QZL5uMt0dxbaOUdm8Paa1KCl2Mu+05/m92CdldBs+QbgWCg==" />
     </item>
   </channel>
 </rss>
