@@ -39,6 +39,11 @@ if [ -n "$ACTOOL" ] && [ -d "$ICON_DOCUMENT" ]; then
   printf 'The selected Xcode could not compile the Icon Composer document; using the static icon.\n' >&2
 fi
 
+if [ "${SAVEME_REQUIRE_COMPOSED_ICON:-0}" = "1" ]; then
+  printf 'A compiled Icon Composer icon is required.\n' >&2
+  exit 1
+fi
+
 if [ -f "$STATIC_ICON" ]; then
   rm -f "$OUTPUT_DIR/Assets.car"
   cp "$STATIC_ICON" "$OUTPUT_DIR/$ICON_NAME.icns"

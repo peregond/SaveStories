@@ -65,6 +65,7 @@ jobs:
         run: |
           export SAVESTORIES_VERSION="${RELEASE_TAG#v}"
           export SAVESTORIES_BUILD="${GITHUB_RUN_NUMBER}"
+          export SAVEME_REQUIRE_COMPOSED_ICON=1
           ./scripts/build_release_dmg.sh
           cp dist/release/SaveMe.dmg "dist/release/SaveMe-macOS-${RELEASE_TAG}.dmg"
 
