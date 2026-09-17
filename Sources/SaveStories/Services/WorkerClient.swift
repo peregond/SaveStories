@@ -392,6 +392,10 @@ final class WorkerClient {
         let candidates = [
             Bundle.main.resourceURL?
                 .appendingPathComponent(AppPaths.resourceBundleName, isDirectory: true)
+                .appendingPathComponent("Contents/Resources", isDirectory: true)
+                .appendingPathComponent(relativePath, isDirectory: false),
+            Bundle.main.resourceURL?
+                .appendingPathComponent(AppPaths.resourceBundleName, isDirectory: true)
                 .appendingPathComponent(relativePath, isDirectory: false),
             Bundle.main.bundleURL
                 .appendingPathComponent("Contents", isDirectory: true)

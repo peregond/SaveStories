@@ -27,7 +27,7 @@ extension ContentView {
                     Button { model.installReadyUpdate() } label: {
                         Label("Обновить до \(version)", systemImage: "arrow.down.circle")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .saveMeGlassButton(prominent: true)
                     .disabled(model.isBusy)
                 }
                 Label(model.isDesignPreview ? "Предпросмотр дизайна" : "На вашем Mac", systemImage: model.isDesignPreview ? "eye" : "internaldrive")
@@ -70,7 +70,10 @@ extension ContentView {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.top, topContentInset)
-        .background(windowBackground)
+        .background {
+            windowBackground
+                .saveMeExtendedBackground(enabled: !reduceTransparency)
+        }
     }
 }
 

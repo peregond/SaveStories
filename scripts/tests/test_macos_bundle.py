@@ -66,6 +66,18 @@ class MacOSBundleTests(unittest.TestCase):
              contextlib.redirect_stdout(io.StringIO()):
             return bundle.main()
 
+    def test_xcode27_structured_resource_bundle(self):
+        root = self.app / "Contents/Resources/SaveMe_SaveMe.bundle"
+        structured = root / "Contents/Resources"
+        children = list(root.iterdir())
+        structured.mkdir(parents=True)
+        for child in children:
+            child.rename(structured / child.name)
+        self.assertEqual(self.invoke("stamp", "--preview"), 0)
+        (structured / "bootstrap_worker.sh").unlink()
+        with self.assertRaises(ValueError):
+            self.invoke("verify")
+
     def test_preview_uses_binary_versions_and_removes_release_update_configuration(self):
         self.assertEqual(self.invoke("stamp", "--preview"), 0)
         info = plistlib.loads(self.plist.read_bytes())

@@ -195,6 +195,10 @@ struct GoogleDriveLinkExporter {
         let candidates = [
             Bundle.main.resourceURL?
                 .appendingPathComponent(AppPaths.resourceBundleName, isDirectory: true)
+                .appendingPathComponent("Contents/Resources", isDirectory: true)
+                .appendingPathComponent("google_drive_copy_link.applescript", isDirectory: false),
+            Bundle.main.resourceURL?
+                .appendingPathComponent(AppPaths.resourceBundleName, isDirectory: true)
                 .appendingPathComponent("google_drive_copy_link.applescript", isDirectory: false),
             Bundle.main.bundleURL
                 .appendingPathComponent("Contents", isDirectory: true)

@@ -27,8 +27,8 @@ mkdir -p "$BUILD_DIR" "$RELEASE_DIR"
 export CLANG_MODULE_CACHE_PATH="$BUILD_DIR/clang-module-cache"
 export SWIFTPM_MODULECACHE_OVERRIDE="$BUILD_DIR/swiftpm-module-cache"
 
-swift build -c release --package-path "$ROOT"
-BIN_DIR="$(swift build -c release --package-path "$ROOT" --show-bin-path)"
+swift build --build-system native -c release --package-path "$ROOT" --sdk "$(xcrun --sdk macosx --show-sdk-path)"
+BIN_DIR="$(swift build --build-system native -c release --package-path "$ROOT" --sdk "$(xcrun --sdk macosx --show-sdk-path)" --show-bin-path)"
 RESOURCE_BUNDLE_PATH="$BIN_DIR/$RESOURCE_BUNDLE_NAME"
 SPARKLE_FRAMEWORK_PATH="$BIN_DIR/Sparkle.framework"
 for artifact in "$BIN_DIR/$EXECUTABLE_NAME" "$BIN_DIR/$MEDIA_MUXER_NAME" "$RESOURCE_BUNDLE_PATH" "$SPARKLE_FRAMEWORK_PATH"; do

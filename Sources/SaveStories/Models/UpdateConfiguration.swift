@@ -23,6 +23,10 @@ struct UpdateConfiguration: Decodable {
         let candidates = [
             Bundle.main.resourceURL?
                 .appendingPathComponent(AppPaths.resourceBundleName, isDirectory: true)
+                .appendingPathComponent("Contents/Resources", isDirectory: true)
+                .appendingPathComponent("update_config.json", isDirectory: false),
+            Bundle.main.resourceURL?
+                .appendingPathComponent(AppPaths.resourceBundleName, isDirectory: true)
                 .appendingPathComponent("update_config.json", isDirectory: false),
             Bundle.main.bundleURL
                 .appendingPathComponent("Contents", isDirectory: true)

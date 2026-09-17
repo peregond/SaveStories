@@ -36,14 +36,17 @@ def inspect(app: Path) -> tuple[dict, str, str, set[str]]:
     executable = contents / "MacOS" / info["CFBundleExecutable"]
     helper = contents / "Helpers/SaveMeMediaMuxer"
     sparkle = contents / "Frameworks/Sparkle.framework/Sparkle"
+    resources = contents / "Resources/SaveMe_SaveMe.bundle"
+    if (resources / "Contents/Resources").is_dir():
+        resources = resources / "Contents/Resources"
     required = [
         executable,
         helper,
         contents / "Resources/SaveMe.icns",
-        contents / "Resources/SaveMe_SaveMe.bundle/bootstrap_worker.sh",
-        contents / "Resources/SaveMe_SaveMe.bundle/update_config.json",
-        contents / "Resources/SaveMe_SaveMe.bundle/google_drive_copy_link.applescript",
-        contents / "Resources/SaveMe_SaveMe.bundle/worker/bridge.py",
+        resources / "bootstrap_worker.sh",
+        resources / "update_config.json",
+        resources / "google_drive_copy_link.applescript",
+        resources / "worker/bridge.py",
         sparkle,
         contents / "SharedSupport/node_worker/package.json",
         contents / "SharedSupport/node_worker/package-lock.json",

@@ -7,22 +7,28 @@ private enum StoriesActionButtonKind {
 }
 
 private struct StoriesActionButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.isEnabled) private var isEnabled
     let fill: Color
     let stroke: Color
 
+    @ViewBuilder
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(fill)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(stroke, lineWidth: 1)
-            )
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .opacity(configuration.isPressed ? 0.86 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+        if #available(macOS 26, *), !reduceTransparency, contrast != .increased {
+            configuration.label
+                .glassEffect(.regular.tint(isEnabled ? fill : Color.gray.opacity(0.15)).interactive(isEnabled && !reduceMotion),
+                             in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        } else {
+            configuration.label
+                .background(fill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(stroke, lineWidth: 1)
+                }
+                .opacity(configuration.isPressed ? 0.86 : 1)
+        }
     }
 }
 
@@ -56,7 +62,7 @@ struct ContentView: View {
     }
 
     let sidebarWidth: CGFloat = 220
-    let cardCornerRadius: CGFloat = 16
+    let cardCornerRadius: CGFloat = 20
     let controlCornerRadius: CGFloat = 12
     let itemCornerRadius: CGFloat = 12
     let innerCornerRadius: CGFloat = 10
@@ -325,7 +331,7 @@ struct ContentView: View {
                     Label("Войти в Instagram", systemImage: "person.crop.circle.badge.checkmark")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .saveMeGlassButton(prominent: true)
                 .tint(prominentButtonTint)
 
                 Button {
@@ -334,7 +340,7 @@ struct ContentView: View {
                     Text("Позже")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
+                .saveMeGlassButton()
                 .tint(secondaryButtonTint)
             } else {
                 Button {
@@ -351,7 +357,7 @@ struct ContentView: View {
                     }
                     .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .saveMeGlassButton(prominent: true)
                 .tint(prominentButtonTint)
                 .disabled(model.isBusy && model.runtimeSetupStage != .failed)
 
@@ -361,7 +367,7 @@ struct ContentView: View {
                     Text("Не сейчас")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
+                .saveMeGlassButton()
                 .tint(secondaryButtonTint)
                 .disabled(model.isBusy)
             }
@@ -540,7 +546,7 @@ struct ContentView: View {
                     Text("Не удалять")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
+                .saveMeGlassButton()
                 .tint(secondaryButtonTint)
 
                 Button {
@@ -549,7 +555,7 @@ struct ContentView: View {
                     Text("Удалить")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .saveMeGlassButton(prominent: true)
                 .tint(prominentButtonTint)
             }
         }
@@ -569,7 +575,7 @@ struct ContentView: View {
                     } label: {
                         Label("В очередь", systemImage: "plus")
                     }
-                    .buttonStyle(.bordered)
+                    .saveMeGlassButton()
                     .disabled(batchProfileInputCount == 0 || model.isBusy)
                     .help("Добавить введённые профили в очередь")
 
@@ -586,10 +592,16 @@ struct ContentView: View {
                     .fixedSize()
                 }
 
-                HStack(spacing: 12) {
-                    storiesDownloadButton
-                    if model.batchIsRunning { storiesStopButton }
+                SaveMeGlassGroup(spacing: 12) {
+                    HStack(spacing: 12) {
+                        storiesDownloadButton
+                        if model.batchIsRunning {
+                            storiesStopButton
+                                .transition(reduceMotion ? .identity : .opacity.combined(with: .scale(scale: 0.96)))
+                        }
+                    }
                 }
+                .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: model.batchIsRunning)
                 if model.notionInfluencerSourceEnabled {
                     Label(
                         batchProfileInputCount > 0
@@ -1208,7 +1220,7 @@ struct ContentView: View {
                 } label: {
                     Image(systemName: "person.crop.circle")
                 }
-                .buttonStyle(.bordered)
+                .saveMeGlassButton()
                 .accessibilityLabel(model.sessionReady ? "Обновить вход в Instagram" : "Войти в Instagram")
                 .help(model.sessionReady ? "Обновить вход в Instagram" : "Войти в Instagram")
                 .disabled(model.isBusy)
@@ -1677,7 +1689,7 @@ struct ContentView: View {
                 } label: {
                     Label("Скопировать логи", systemImage: "doc.on.doc")
                 }
-                .buttonStyle(.bordered)
+                .saveMeGlassButton()
                 .controlSize(.small)
             }
             .padding(.horizontal, 18)
@@ -1721,7 +1733,7 @@ struct ContentView: View {
                     } label: {
                         Label(showingLogsCopiedFeedback ? "Скопировано ✓" : "Скопировать", systemImage: showingLogsCopiedFeedback ? "checkmark" : "doc.on.doc")
                     }
-                    .buttonStyle(.bordered)
+                    .saveMeGlassButton()
                     .controlSize(.small)
                 }
                 .padding(.horizontal, 18)
@@ -1792,7 +1804,7 @@ struct ContentView: View {
                     } label: {
                         Label(showingHomeDiagnostics ? "Скрыть" : "Открыть", systemImage: showingHomeDiagnostics ? "chevron.up" : "chevron.down")
                     }
-                    .buttonStyle(.bordered)
+                    .saveMeGlassButton()
                     .controlSize(.small)
                     .tint(secondaryButtonTint)
                 }
@@ -1820,7 +1832,7 @@ struct ContentView: View {
                         } label: {
                             Label(showingLogsCopiedFeedback ? "Скопировано" : "Скопировать", systemImage: showingLogsCopiedFeedback ? "checkmark" : "doc.on.doc")
                         }
-                        .buttonStyle(.bordered)
+                        .saveMeGlassButton()
                         .controlSize(.small)
                         .tint(secondaryButtonTint)
                     }
@@ -1939,7 +1951,7 @@ struct ContentView: View {
                         }
                         .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .saveMeGlassButton(prominent: true)
                     .tint(secondaryButtonTint)
                     .disabled(model.isCheckingForUpdates)
                 } else {
@@ -2155,7 +2167,7 @@ struct ContentView: View {
                         }
                         .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .saveMeGlassButton(prominent: true)
                     .tint(prominentButtonTint)
                     .disabled(reelsLinkCount == 0 || model.isBusy)
                     .opacity(reelsLinkCount == 0 || model.isBusy ? 0.72 : 1)
@@ -2166,7 +2178,7 @@ struct ContentView: View {
                         Label("Очистить", systemImage: "xmark")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
+                    .saveMeGlassButton()
                     .tint(secondaryButtonTint)
                     .disabled(model.isBusy || model.reelsInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .opacity(model.isBusy || model.reelsInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.72 : 1)
@@ -2273,7 +2285,7 @@ struct ContentView: View {
                         Label("Выбрать папку", systemImage: "folder.badge.plus")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
+                    .saveMeGlassButton()
                     .tint(secondaryButtonTint)
 
                     Button {
@@ -2282,7 +2294,7 @@ struct ContentView: View {
                         Label("Показать в Finder", systemImage: "folder")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
+                    .saveMeGlassButton()
                     .tint(secondaryButtonTint)
                 }
             }
@@ -2407,7 +2419,7 @@ struct ContentView: View {
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                         .frame(width: 28, height: 28)
                 }
-                .buttonStyle(.bordered)
+                .saveMeGlassButton()
                 .tint(secondaryButtonTint)
                 .help("Показать в Finder")
             }
@@ -2443,7 +2455,7 @@ struct ContentView: View {
                     } label: {
                         Label(showingLogsCopiedFeedback ? "Скопировано ✓" : "Скопировать логи", systemImage: showingLogsCopiedFeedback ? "checkmark" : "doc.on.doc")
                     }
-                    .buttonStyle(.bordered)
+                    .saveMeGlassButton()
                     .controlSize(.small)
                 }
                 .padding(.horizontal, 18)
@@ -2624,7 +2636,7 @@ struct ContentView: View {
                     Text("Обновить")
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                 }
-                .buttonStyle(.bordered)
+                .saveMeGlassButton()
                 .controlSize(.small)
                 .tint(secondaryButtonTint)
                 .disabled(model.isBusy || model.isRefreshingNotionInfluencers)
@@ -2675,7 +2687,7 @@ struct ContentView: View {
                     Text("Обновить")
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                 }
-                .buttonStyle(.bordered)
+                .saveMeGlassButton()
                 .controlSize(.small)
                 .tint(secondaryButtonTint)
                 .disabled(model.isBusy || model.isRefreshingNotionRoutingRules)
@@ -2778,7 +2790,7 @@ struct ContentView: View {
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.52)
         .frame(maxWidth: .infinity, minHeight: 46)
-        .animation(.easeInOut(duration: 0.16), value: isEnabled)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: isEnabled)
     }
 
     func ghostButton(_ title: String, systemImage: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
@@ -2793,19 +2805,14 @@ struct ContentView: View {
             }
             .frame(maxWidth: .infinity)
             .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(StoriesActionButtonStyle(
+            fill: Color.white.opacity(isDark ? 0.10 : 0.35),
+            stroke: (tint ?? prominentButtonTint).opacity(0.22)
+        ))
         .foregroundStyle((tint ?? primaryText).opacity(model.isBusy ? 0.45 : 1))
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.white.opacity(isDark ? 0.10 : 0.82))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder((tint ?? prominentButtonTint).opacity(isDark ? 0.22 : 0.18), lineWidth: 1)
-        )
         .disabled(model.isBusy)
         .opacity(model.isBusy ? 0.7 : 1)
         .frame(maxWidth: .infinity, minHeight: 46)
@@ -3205,7 +3212,7 @@ struct ContentView: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.borderedProminent)
+        .saveMeGlassButton(prominent: true)
         .tint(tint ?? (prominent ? prominentButtonTint : secondaryButtonTint))
         .disabled(!allowWhileBusy && model.isBusy)
     }

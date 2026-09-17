@@ -117,7 +117,7 @@ export SWIFTPM_MODULECACHE_OVERRIDE="$BUILD_DIR/swiftpm-module-cache"
 BUILD_CACHE="$BUILD_DIR/.cache"
 mkdir -p "$CLANG_MODULE_CACHE_PATH" "$SWIFTPM_MODULECACHE_OVERRIDE" "$BUILD_CACHE"
 
-SWIFT_BUILD_ARGUMENTS=(-c release --package-path "$ROOT" --cache-path "$BUILD_CACHE")
+SWIFT_BUILD_ARGUMENTS=(--build-system native -c release --package-path "$ROOT" --cache-path "$BUILD_CACHE" --sdk "$(xcrun --sdk macosx --show-sdk-path)")
 swift build "${SWIFT_BUILD_ARGUMENTS[@]}"
 BIN_DIR="$(swift build "${SWIFT_BUILD_ARGUMENTS[@]}" --show-bin-path)"
 RESOURCE_BUNDLE_PATH="$BIN_DIR/$RESOURCE_BUNDLE_NAME"
