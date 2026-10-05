@@ -2,22 +2,23 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.81</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.83</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.81</title>
-      <pubDate>Tue, 15 Sep 2026 12:58:55 GMT</pubDate>
-      <sparkle:version>152</sparkle:version>
-      <sparkle:shortVersionString>0.6.81</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.81</h2>
-<ul><li>Новая адаптивная иконка macOS из оригинального проекта Icon Composer: градиент, стеклянные эффекты, тёмное и тонированное оформление.</li><li>Сохранены слои и настройки исходника; иконка компилируется в Assets.car для системных режимов оформления.</li><li>Релизная сборка останавливается, если Icon Composer не удалось скомпилировать, вместо подстановки старой статической иконки.</li></ul>]]></description>
+      <title>SaveMe 0.6.83</title>
+      <pubDate>Mon, 05 Oct 2026 16:03:18 GMT</pubDate>
+      <sparkle:version>155</sparkle:version>
+      <sparkle:shortVersionString>0.6.83</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.83</h2>
+<ul><li>Исправлено скачивание Reels: загрузчик читает данные видео, встроенные в страницу Instagram, и выбирает ролик по точному коду ссылки.</li><li>Посторонние изображения и обложки больше не сохраняются вместо видео и не считаются дубликатами других Reels.</li><li>Папка автора создаётся после успешного скачивания и проверки файла.</li><li>Удалённые файлы и загрузка в новую папку больше не пропускаются из-за старых записей в истории скачивания.</li></ul>
+<p>Проверено на семи ссылках: сохранены семь полных MP4 с аудиодорожками. Все 64 теста Node worker проходят.</p>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.81/SaveMe-macOS-v0.6.81.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.83/SaveMe-macOS-v0.6.83.dmg"
         sparkle:os="macos"
-        length="5311467"
+        length="5378228"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="I+PDv2Mt2t24bdiaZG3wr9Z9hhIZpzSgSkdJo97QZL5uMt0dxbaOUdm8Paa1KCl2Mu+05/m92CdldBs+QbgWCg==" />
+        sparkle:edSignature="8r/AXagolyVdqkr1MAuMLd/AD8zI6zLNU5eZd1g1RgzHW4jxzhu9XL2dfy9O1Q5ugXZUDARujzq8WE3O/jclCQ==" />
     </item>
   </channel>
 </rss>
