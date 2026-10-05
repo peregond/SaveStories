@@ -10,6 +10,11 @@ on:
         description: "Release tag (for example v0.1.38)"
         required: true
         type: string
+      macos_asset_sha256:
+        description: "Optional SHA-256 of a locally verified macOS DMG already uploaded to the release"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: write
@@ -17,6 +22,7 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  MACOS_ASSET_SHA256: ${{ github.event_name == 'workflow_dispatch' && inputs.macos_asset_sha256 || '' }}
 
 jobs:
   create-release:
@@ -25,6 +31,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Create or update GitHub release
         env:
@@ -44,6 +52,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Select newest available Xcode
         run: |
@@ -62,6 +72,7 @@ jobs:
           node-version: "24"
 
       - name: Build macOS DMG
+        if: env.MACOS_ASSET_SHA256 == ''
         run: |
           export SAVESTORIES_VERSION="${RELEASE_TAG#v}"
           export SAVESTORIES_BUILD="${GITHUB_RUN_NUMBER}"
@@ -71,9 +82,23 @@ jobs:
           cp dist/release/SaveMe.dmg "dist/release/SaveMe-macOS-${RELEASE_TAG}.dmg"
 
       - name: Upload macOS asset to release
+        if: env.MACOS_ASSET_SHA256 == ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$RELEASE_TAG" "dist/release/SaveMe-macOS-${RELEASE_TAG}.dmg" --clobber
+
+      - name: Verify prebuilt macOS release asset
+        if: env.MACOS_ASSET_SHA256 != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ ! "$MACOS_ASSET_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "Invalid macOS asset SHA-256" >&2
+            exit 1
+          fi
+          mkdir -p dist/release
+          gh release download "$RELEASE_TAG" --pattern "SaveMe-macOS-${RELEASE_TAG}.dmg" --dir dist/release
+          printf '%s  %s\n' "$MACOS_ASSET_SHA256" "dist/release/SaveMe-macOS-${RELEASE_TAG}.dmg" | shasum -a 256 -c -
 
   build-windows-winui:
     needs: create-release
@@ -82,6 +107,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup .NET 8 SDK
         uses: actions/setup-dotnet@v4
@@ -205,6 +232,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Download macOS release asset
         env:

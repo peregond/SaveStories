@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
 import { createHash, randomUUID } from "node:crypto";
 
 import {
@@ -220,18 +221,26 @@ function resolveReelItemFromDict(item, expectedShortcode) {
   const hasMedia =
     Array.isArray(item.video_versions) ||
     (item.image_versions2 && typeof item.image_versions2 === "object") ||
-    Array.isArray(item.display_resources);
+    Array.isArray(item.display_resources) ||
+    typeof item.video_url === "string";
   if (!hasMedia) return null;
 
-  const shortcode = extractItemShortcode(item) || expectedShortcode;
+  // Recommendations, avatars and nested previews must never inherit the requested code.
+  const shortcode = extractItemShortcode(item);
   if (!shortcode) return null;
   if (expectedShortcode && shortcode !== sanitizeFilename(expectedShortcode)) return null;
 
   const username = extractItemUsername(item) || shortcode;
   const itemId = item.id ?? item.pk ?? shortcode;
   const itemIdString = String(itemId);
-  const mediaType = Array.isArray(item.video_versions) ? "video" : "image";
-  const sourceUrl = mediaType === "video" ? chooseBestReelVideoUrl(item) : chooseBestReelImageUrl(item);
+  const mediaType = Array.isArray(item.video_versions) || item.video_url || item.is_video === true || item.media_type === 2
+    ? "video" : "image";
+  const sourceUrl = mediaType === "video"
+    ? chooseBestReelVideoUrl(item) || (
+      typeof item.video_url === "string" && isTrustedInstagramMediaUrl(item.video_url) && !shouldSkipReelVariant(item.video_url)
+        ? normalizeMediaUrl(item.video_url) : null
+    )
+    : chooseBestReelImageUrl(item);
   if (!sourceUrl) return null;
 
   let audioSourceUrl = null;
@@ -278,13 +287,20 @@ function walkReelItems(node, expectedShortcode, seenIds, out) {
       seenIds.add(resolved.itemId);
       out.push(resolved);
     } else {
-      out[existingIndex] = mergeResolvedMediaCandidate(out[existingIndex], resolved);
+      out[existingIndex] = mergeReelCandidate(out[existingIndex], resolved);
     }
   }
 
   for (const value of Object.values(node)) {
     walkReelItems(value, expectedShortcode, seenIds, out);
   }
+}
+
+function mergeReelCandidate(existing, candidate) {
+  if (existing.mediaType !== candidate.mediaType) {
+    return existing.mediaType === "video" ? existing : candidate;
+  }
+  return mergeResolvedMediaCandidate(existing, candidate);
 }
 
 function responseUrlLikelyReel(url) {
@@ -314,18 +330,40 @@ function resolveReelItemsFromPayloads(payloads, expectedShortcode, capturedAfter
   for (const entry of source) {
     walkReelItems(entry.payload, expectedShortcode, seenIds, resolved);
   }
-  resolved.sort((a, b) => (b.takenAt || 0) - (a.takenAt || 0));
+  resolved.sort((a, b) => Number(b.mediaType === "video") - Number(a.mediaType === "video") || (b.takenAt || 0) - (a.takenAt || 0));
   return resolved;
 }
 
-async function waitForMetadataReelItems(page, payloads, expectedShortcode, logs, timeoutSeconds = 10, capturedAfter = null) {
+function resolveReelItemsFromScriptTexts(scriptTexts, expectedShortcode) {
+  const payloads = [];
+  for (const text of scriptTexts) {
+    try {
+      payloads.push({ payload: JSON.parse(text) });
+    } catch {
+      // Ignore non-JSON scripts; never evaluate page JavaScript.
+    }
+  }
+  return resolveReelItemsFromPayloads(payloads, expectedShortcode);
+}
+
+async function waitForMetadataReelItems(page, payloads, expectedShortcode, logs, timeoutSeconds = 10, capturedAfter = null, requiresVideo = true) {
   const deadline = Date.now() + timeoutSeconds * 1000;
   let best = [];
   while (Date.now() < deadline) {
+    const scriptTexts = await page.evaluate(() =>
+      [...document.querySelectorAll('script[type="application/json"]')].map((node) => node.textContent || ""),
+    );
+    const pageItems = resolveReelItemsFromScriptTexts(scriptTexts, expectedShortcode);
     const resolved = resolveReelItemsFromPayloads(payloads, expectedShortcode, capturedAfter);
+    for (const item of pageItems) {
+      const index = resolved.findIndex((entry) => entry.itemId === item.itemId);
+      if (index >= 0) resolved[index] = mergeReelCandidate(resolved[index], item);
+      else resolved.push(item);
+    }
+    resolved.sort((a, b) => Number(b.mediaType === "video") - Number(a.mediaType === "video") || (b.takenAt || 0) - (a.takenAt || 0));
     if (resolved.length > 0) {
       best = resolved;
-      break;
+      if (!requiresVideo || resolved.some((item) => item.mediaType === "video")) break;
     }
     await page.waitForTimeout(500);
   }
@@ -345,7 +383,13 @@ function extractUsernameFromTitle(title, fallback) {
 
 async function extractReelFallbackFromDom(page, expectedShortcode, logs) {
   const candidate = await page.evaluate(() => {
-    const video = document.querySelector("video");
+    const visibleVideos = [...document.querySelectorAll("video")].filter((node) => {
+      const rect = node.getBoundingClientRect();
+      return rect.width > 180 && rect.height > 280 &&
+        rect.left < window.innerWidth && rect.right > 0 &&
+        rect.top < window.innerHeight && rect.bottom > 0;
+    });
+    const video = visibleVideos.length === 1 ? visibleVideos[0] : null;
     const imageMeta = document.querySelector('meta[property="og:image"]')?.getAttribute("content") || "";
     const videoMeta = document.querySelector('meta[property="og:video"]')?.getAttribute("content") || "";
     const canonical = document.querySelector('link[rel="canonical"]')?.getAttribute("href") || window.location.href;
@@ -362,14 +406,16 @@ async function extractReelFallbackFromDom(page, expectedShortcode, logs) {
     };
   });
 
-  const sourceUrl = candidate.videoSrc || candidate.videoMeta || candidate.imageSrc;
+  const shortcode = extractReelShortcode(candidate.canonical || page.url());
+  if (!shortcode || shortcode !== expectedShortcode) return null;
+  // Reel thumbnails are not the video. Blob URLs cannot be fetched as media files.
+  const videoUrl = [candidate.videoMeta, candidate.videoSrc].find((url) => isTrustedInstagramMediaUrl(url));
+  const isPost = new URL(page.url()).pathname.startsWith("/p/");
+  const sourceUrl = videoUrl || (isPost && isTrustedInstagramMediaUrl(candidate.imageSrc) ? candidate.imageSrc : null);
   if (!sourceUrl) return null;
 
-  const shortcode = extractReelShortcode(candidate.canonical || page.url()) || expectedShortcode;
-  if (!shortcode) return null;
-
   const username = extractUsernameFromTitle(candidate.title, shortcode);
-  const mediaType = candidate.videoSrc || candidate.videoMeta ? "video" : "image";
+  const mediaType = videoUrl ? "video" : "image";
   logs.push("reel_fallback=dom");
 
   return {
@@ -407,7 +453,7 @@ async function fetchMediaBytes(sourceUrl, browserContext, refererUrl = null) {
   };
 }
 
-async function loadManifestIndex(manifestsDirectory) {
+async function loadManifestIndex(manifestsDirectory, destinationDir) {
   const sources = new Map();
   const hashes = new Map();
   try {
@@ -418,6 +464,9 @@ async function loadManifestIndex(manifestsDirectory) {
       try {
         const manifestPath = path.join(manifestsDirectory, entry);
         const payload = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        if (typeof payload.localPath !== "string" ||
+            path.dirname(path.resolve(payload.localPath)) !== destinationDir ||
+            !(await fs.stat(payload.localPath)).isFile()) continue;
         const sourceURL = payload.sourceURL || payload.sourceUrl;
         const sha256 = payload.sha256;
         if (typeof sourceURL === "string" && sourceURL) {
@@ -475,11 +524,17 @@ function validateDownloadedAudio(body, contentType = "") {
 }
 
 async function nextReelIndex(destinationDir, username) {
-  await fs.mkdir(destinationDir, { recursive: true });
   const prefix = `${sanitizeFilename(username)}-reels-`;
   let highest = 0;
   const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  for (const entry of await fs.readdir(destinationDir)) {
+  let entries;
+  try {
+    entries = await fs.readdir(destinationDir);
+  } catch (error) {
+    if (error.code === "ENOENT") return 1;
+    throw error;
+  }
+  for (const entry of entries) {
     const match = entry.match(new RegExp(`^${escaped}(\\d+)`));
     if (!match) continue;
     highest = Math.max(highest, Number(match[1]));
@@ -577,64 +632,77 @@ async function writeManifest(manifestsDirectory, { itemId, pageUrl, sourceUrl, l
 
 async function persistResolvedReel(resolved, destinationDir, browserContext, manifestsDirectory, logs, deps) {
   const normalizedSource = normalizeMediaUrl(resolved.sourceUrl);
-  const manifestIndex = await loadManifestIndex(manifestsDirectory);
+  const manifestIndex = await loadManifestIndex(manifestsDirectory, destinationDir);
   const existingSource = manifestIndex.sources.get(normalizedSource);
-  if (existingSource && !shouldRepairExistingMutedDashVideo(existingSource, resolved)) {
+  const existsInDestination = async (manifest) => {
+    if (!manifest?.localPath || path.dirname(path.resolve(manifest.localPath)) !== destinationDir) return false;
+    try {
+      return (await fs.stat(manifest.localPath)).isFile();
+    } catch { return false; }
+  };
+  if (await existsInDestination(existingSource) && !shouldRepairExistingMutedDashVideo(existingSource, resolved)) {
     logs.push(`skipped_existing_source=${normalizedSource}`);
     return null;
   }
-  if (existingSource) {
+  if (await existsInDestination(existingSource)) {
     logs.push(`repairing_muted_reel_source=${normalizedSource}`);
   }
   const nextIndexValue = await nextReelIndex(destinationDir, resolved.username);
-  const { localPath, finalSourceUrl, contentLength, audioMuxed, audioPresent } = await downloadReelMedia(
-    normalizedSource,
-    destinationDir,
-    resolved.mediaType,
-    resolved.username,
-    nextIndexValue,
-    browserContext,
-    resolved.pageUrl,
-    resolved.audioSourceUrl,
-    resolved.expectsAudio,
-    deps.mediaMuxerPath,
-    deps.emitProgress,
-  );
-  const fileHash = createHash("sha256").update(await fs.readFile(localPath)).digest("hex");
-  if (manifestIndex.hashes.has(fileHash)) {
-    await fs.rm(localPath, { force: true });
-    logs.push(`skipped_existing_hash=${fileHash}`);
-    return null;
-  }
-  const itemId = randomUUID().replace(/-/g, "");
-  const createdAt = new Date().toISOString();
-  const manifestPath = await writeManifest(
-    manifestsDirectory,
-    {
-      itemId,
-      pageUrl: resolved.pageUrl,
-      sourceUrl: finalSourceUrl,
+  const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), "saveme-reel-"));
+  try {
+    const { localPath: stagedPath, finalSourceUrl, contentLength, audioMuxed, audioPresent } = await downloadReelMedia(
+      normalizedSource,
+      stagingDir,
+      resolved.mediaType,
+      resolved.username,
+      nextIndexValue,
+      browserContext,
+      resolved.pageUrl,
+      resolved.audioSourceUrl,
+      resolved.expectsAudio,
+      deps.mediaMuxerPath,
+      deps.emitProgress,
+    );
+    const fileHash = createHash("sha256").update(await fs.readFile(stagedPath)).digest("hex");
+    if (await existsInDestination(manifestIndex.hashes.get(fileHash))) {
+      logs.push(`skipped_existing_hash=${fileHash}`);
+      return null;
+    }
+    await fs.mkdir(destinationDir, { recursive: true });
+    const localPath = path.join(destinationDir, path.basename(stagedPath));
+    await fs.copyFile(stagedPath, localPath, fs.constants.COPYFILE_EXCL);
+    const itemId = randomUUID().replace(/-/g, "");
+    const createdAt = new Date().toISOString();
+    const manifestPath = await writeManifest(
+      manifestsDirectory,
+      {
+        itemId,
+        pageUrl: resolved.pageUrl,
+        sourceUrl: finalSourceUrl,
+        localPath,
+        mediaType: resolved.mediaType,
+        createdAt,
+        username: resolved.username,
+        shortcode: resolved.shortcode,
+        contentLength,
+        audioMuxed,
+        audioPresent,
+      },
+    );
+    logs.push(`saved=${localPath}`);
+    logs.push(`manifest=${manifestPath}`);
+    return {
+      id: itemId,
+      sourceURL: finalSourceUrl,
+      pageURL: resolved.pageUrl,
       localPath,
+      metadataPath: manifestPath,
       mediaType: resolved.mediaType,
       createdAt,
-      username: resolved.username,
-      shortcode: resolved.shortcode,
-      contentLength,
-      audioMuxed,
-      audioPresent,
-    },
-  );
-  logs.push(`saved=${localPath}`);
-  logs.push(`manifest=${manifestPath}`);
-  return {
-    id: itemId,
-    sourceURL: finalSourceUrl,
-    pageURL: resolved.pageUrl,
-    localPath,
-    metadataPath: manifestPath,
-    mediaType: resolved.mediaType,
-    createdAt,
-  };
+    };
+  } finally {
+    await fs.rm(stagingDir, { recursive: true, force: true });
+  }
 }
 
 async function downloadSingleReelWithPage(page, reelUrl, outputDirectory, deps) {
@@ -670,8 +738,10 @@ async function downloadSingleReelWithPage(page, reelUrl, outputDirectory, deps) 
     await page.waitForTimeout(1400);
     logs.push(`opened=${page.url()}`);
 
-    const resolvedItems = await waitForMetadataReelItems(page, jsonPayloads, shortcode, logs, 10, capturedAfter);
-    const resolved = resolvedItems[0] || (await extractReelFallbackFromDom(page, shortcode, logs));
+    const isReel = !new URL(normalizedUrl).pathname.startsWith("/p/");
+    const resolvedItems = await waitForMetadataReelItems(page, jsonPayloads, shortcode, logs, 10, capturedAfter, isReel);
+    const resolved = resolvedItems.find((item) => !isReel || item.mediaType === "video") ||
+      (await extractReelFallbackFromDom(page, shortcode, logs));
     if (!resolved) {
       return {
         ok: false,
@@ -837,5 +907,6 @@ export {
   normalizeReelUrl,
   resolveReelItemFromDict,
   resolveReelItemsFromPayloads,
+  resolveReelItemsFromScriptTexts,
   splitReelInputs,
 };
