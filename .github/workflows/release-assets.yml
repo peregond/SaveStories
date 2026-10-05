@@ -48,6 +48,8 @@ jobs:
   build-macos:
     needs: create-release
     runs-on: macos-latest
+    outputs:
+      build: ${{ steps.release-metadata.outputs.build }}
 
     steps:
       - name: Checkout
@@ -99,6 +101,23 @@ jobs:
           mkdir -p dist/release
           gh release download "$RELEASE_TAG" --pattern "SaveMe-macOS-${RELEASE_TAG}.dmg" --dir dist/release
           printf '%s  %s\n' "$MACOS_ASSET_SHA256" "dist/release/SaveMe-macOS-${RELEASE_TAG}.dmg" | shasum -a 256 -c -
+
+      - name: Read verified macOS release metadata
+        id: release-metadata
+        run: |
+          app_path="dist/release/SaveMe.app"
+          if [ -n "$MACOS_ASSET_SHA256" ]; then
+            mount_dir="${RUNNER_TEMP}/saveme-release"
+            mkdir -p "$mount_dir"
+            hdiutil attach "dist/release/SaveMe-macOS-${RELEASE_TAG}.dmg" -readonly -nobrowse -mountpoint "$mount_dir"
+            trap 'hdiutil detach "$mount_dir"' EXIT
+            app_path="$mount_dir/SaveMe.app"
+          fi
+          python3 scripts/macos_bundle.py verify --app "$app_path" --require-sdk 27
+          version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app_path/Contents/Info.plist")
+          build=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app_path/Contents/Info.plist")
+          test "$version" = "${RELEASE_TAG#v}"
+          printf 'build=%s\n' "$build" >> "$GITHUB_OUTPUT"
 
   build-windows-winui:
     needs: create-release
@@ -271,7 +290,7 @@ jobs:
             --asset-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/SaveMe-macOS-${RELEASE_TAG}.dmg" \
             --release-url "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_TAG}" \
             --version "${RELEASE_TAG#v}" \
-            --build "${GITHUB_RUN_NUMBER}" \
+            --build "${{ needs.build-macos.outputs.build }}" \
             --mime-type "application/x-apple-diskimage" \
             --notes-file "./release_notes/latest.md" \
             --output "${RUNNER_TEMP}/appcast-macos.xml"
