@@ -136,14 +136,11 @@ public sealed partial class StoriesPage : Page
             }
         }
 
-        if (_queue.Count == 0)
-        {
-            var lines = ProfileInputParser.ParseProfiles(ProfilesInputTextBox.Text);
-            AddQueueItems(lines);
-            ProfilesInputTextBox.Text = string.Empty;
-            UpdateProfilesInputState();
-            RefreshQueueSummary();
-        }
+        var lines = ProfileInputParser.ParseProfiles(ProfilesInputTextBox.Text);
+        AddQueueItems(lines);
+        ProfilesInputTextBox.Text = string.Empty;
+        UpdateProfilesInputState();
+        RefreshQueueSummary();
 
         if (_queue.Count == 0)
         {

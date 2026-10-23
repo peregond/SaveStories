@@ -52,7 +52,10 @@ public static partial class ProfileInputParser
                 ? value
                 : $"https://{value}";
 
-        if (!Uri.TryCreate(candidate, UriKind.Absolute, out var uri))
+        if (!Uri.TryCreate(candidate, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+            || !(uri.Host.Equals("instagram.com", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith(".instagram.com", StringComparison.OrdinalIgnoreCase)))
         {
             return null;
         }
@@ -64,7 +67,27 @@ public static partial class ProfileInputParser
             return null;
         }
 
-        var username = CleanUsername(segments[0]);
+        var usernameSegment = segments[0];
+        if (usernameSegment.Equals("stories", StringComparison.OrdinalIgnoreCase))
+        {
+            if (segments.Length < 2 || segments[1].Equals("highlights", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+            usernameSegment = segments[1];
+        }
+        else if (usernameSegment.Equals("reel", StringComparison.OrdinalIgnoreCase)
+            || usernameSegment.Equals("reels", StringComparison.OrdinalIgnoreCase)
+            || usernameSegment.Equals("p", StringComparison.OrdinalIgnoreCase)
+            || usernameSegment.Equals("tv", StringComparison.OrdinalIgnoreCase)
+            || usernameSegment.Equals("explore", StringComparison.OrdinalIgnoreCase)
+            || usernameSegment.Equals("accounts", StringComparison.OrdinalIgnoreCase)
+            || usernameSegment.Equals("direct", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var username = CleanUsername(usernameSegment);
         return username.Length == 0 ? null : $"https://www.instagram.com/{username}/";
     }
 

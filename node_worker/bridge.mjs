@@ -44,6 +44,12 @@ let didEmitResponse = false;
 const activeSessions = new Set();
 let shutdownInProgress = false;
 
+function remainingStoryTimeout(deadline, maximum) {
+  const remaining = Math.min(maximum, deadline - Date.now());
+  if (remaining <= 0) throw new Error("Исчерпано время выгрузки профиля.");
+  return Math.max(1, Math.floor(remaining));
+}
+
 function emit(ok, status, message, options = {}) {
   if (didEmitResponse) {
     emitProgress(`suppressed_extra_response=${status} :: ${message}`);
@@ -704,21 +710,24 @@ function canonicalStoryItemId(value) {
   return /^\d+$/.test(mediaId) ? mediaId : raw;
 }
 
-function resolveStoryItemFromDict(item, expectedUsername) {
+function resolveStoryItemFromDict(item, expectedUsername, inheritedUsername = null) {
   const hasMedia =
     Array.isArray(item.video_versions) ||
     (item.image_versions2 && typeof item.image_versions2 === "object") ||
-    Array.isArray(item.display_resources);
+    Array.isArray(item.display_resources) || typeof item.video_url === "string";
   if (!hasMedia) return null;
 
-  const username = extractItemUsername(item) || expectedUsername;
-  if (expectedUsername && username && sanitizeFilename(username) !== sanitizeFilename(expectedUsername)) return null;
+  const username = extractItemUsername(item) || inheritedUsername;
+  if (!username) return null;
+  if (expectedUsername && sanitizeFilename(username).toLowerCase() !== sanitizeFilename(expectedUsername).toLowerCase()) return null;
   const itemId = item.id ?? item.pk;
   if (itemId === undefined || itemId === null) return null;
 
   const itemIdString = canonicalStoryItemId(itemId);
-  const mediaType = Array.isArray(item.video_versions) ? "video" : "image";
-  const sourceUrl = mediaType === "video" ? chooseBestVideoUrl(item) : chooseBestImageUrl(item);
+  const mediaType = Array.isArray(item.video_versions) || item.video_url || item.is_video === true || item.media_type === 2 ? "video" : "image";
+  const sourceUrl = mediaType === "video"
+    ? chooseBestVideoUrl(item) || (typeof item.video_url === "string" && isStoryMediaUrl(item.video_url) && !shouldSkipMediaVariant(item.video_url) ? normalizeMediaUrl(item.video_url) : null)
+    : chooseBestImageUrl(item);
   if (!sourceUrl) return null;
 
   let audioSourceUrl = null;
@@ -751,26 +760,60 @@ function resolveStoryItemFromDict(item, expectedUsername) {
   };
 }
 
-function walkStoryItems(node, expectedUsername, seenIds, out) {
+function walkStoryItems(node, expectedUsername, seenIds, out, inheritedUsername = null) {
   if (Array.isArray(node)) {
-    for (const value of node) walkStoryItems(value, expectedUsername, seenIds, out);
+    for (const value of node) walkStoryItems(value, expectedUsername, seenIds, out, inheritedUsername);
     return;
   }
   if (!node || typeof node !== "object") return;
 
-  const resolved = resolveStoryItemFromDict(node, expectedUsername);
+  const ownerUsername = extractItemUsername(node) || inheritedUsername;
+  const resolved = resolveStoryItemFromDict(node, expectedUsername, ownerUsername);
   if (resolved) {
     const existingIndex = out.findIndex((entry) => entry.itemId === resolved.itemId);
     if (existingIndex < 0) {
       seenIds.add(resolved.itemId);
       out.push(resolved);
     } else {
-      out[existingIndex] = mergeResolvedMediaCandidate(out[existingIndex], resolved);
+      out[existingIndex] = mergeStoryCandidate(out[existingIndex], resolved);
     }
   }
   for (const value of Object.values(node)) {
-    walkStoryItems(value, expectedUsername, seenIds, out);
+    walkStoryItems(value, expectedUsername, seenIds, out, ownerUsername);
   }
+}
+
+function mergeStoryCandidate(existing, candidate) {
+  if (existing.mediaType !== candidate.mediaType) return existing.mediaType === "video" ? existing : candidate;
+  return mergeResolvedMediaCandidate(existing, candidate);
+}
+
+function mergeStoryItems(...groups) {
+  const byId = new Map();
+  for (const item of groups.flat()) {
+    const existing = byId.get(item.itemId);
+    byId.set(item.itemId, existing ? mergeStoryCandidate(existing, item) : item);
+  }
+  return [...byId.values()].sort((a, b) => (a.takenAt || 0) - (b.takenAt || 0));
+}
+
+function resolveStoryItemsFromScriptTexts(scriptTexts, expectedUsername) {
+  const payloads = [];
+  const visit = (node) => {
+    if (Array.isArray(node)) { node.forEach(visit); return; }
+    if (!node || typeof node !== "object") return;
+    for (const [key, value] of Object.entries(node)) {
+      const name = key.toLowerCase();
+      if (name.includes("highlight")) continue;
+      if (name === "reel" || name === "reels" || name.includes("reels_media") || /(?:^|_)(?:story|stories)(?:_|$)/.test(name)) {
+        payloads.push({ payload: value });
+      } else visit(value);
+    }
+  };
+  for (const text of scriptTexts) {
+    try { visit(JSON.parse(text)); } catch {}
+  }
+  return resolveStoryItemsFromPayloads(payloads, expectedUsername);
 }
 
 function responseUrlLikelyStory(url) {
@@ -878,7 +921,7 @@ function resolveStoryItemsFromPayloads(payloads, expectedUsername, capturedAfter
   return resolved;
 }
 
-async function fetchStoryItemMetadata(browserContext, pageUrl, expectedUsername, logs) {
+async function fetchStoryItemMetadata(browserContext, pageUrl, expectedUsername, logs, deadline = Infinity) {
   const storyId = storyIdFromUrl(pageUrl);
   if (!storyId) return null;
 
@@ -894,7 +937,7 @@ async function fetchStoryItemMetadata(browserContext, pageUrl, expectedUsername,
   const endpoint = `https://www.instagram.com/api/v1/media/${storyId}/info/`;
   const response = await browserContext.request.get(endpoint, {
     headers,
-    timeout: 20_000,
+    timeout: remainingStoryTimeout(deadline, 20_000),
     failOnStatusCode: false,
   });
   if (!response.ok()) {
@@ -904,8 +947,8 @@ async function fetchStoryItemMetadata(browserContext, pageUrl, expectedUsername,
 
   const payload = await response.json();
   const resolved = [];
-  walkStoryItems(payload, expectedUsername, new Set(), resolved);
-  const exact = resolved.find((item) => item.itemId === storyId) || resolved[0] || null;
+  walkStoryItems(payload, expectedUsername, new Set(), resolved, expectedUsername);
+  const exact = resolved.find((item) => item.itemId === storyId) || null;
   if (exact) {
     logs?.push(`story_info_resolved=${storyId}:audio=${Boolean(exact.audioSourceUrl)}`);
   }
@@ -956,13 +999,15 @@ async function fetchActiveStoryItemsForUsername(browserContext, username, logs, 
     timeout: 20_000,
     failOnStatusCode: false,
   });
+  let primaryItems = [];
   if (reelsMediaResponse.ok()) {
     const reelsMediaPayload = await reelsMediaResponse.json();
     const resolved = [];
-    walkStoryItems(reelsMediaPayload, username, new Set(), resolved);
+    walkStoryItems(reelsMediaPayload, username, new Set(), resolved, username);
     resolved.sort((a, b) => (a.takenAt || 0) - (b.takenAt || 0));
     logs?.push(`story_reels_media_items=${username}:${resolved.length}`);
-    if (resolved.length > 0) {
+    primaryItems = resolved;
+    if (resolved.length > 1) {
       logs?.push(`story_feed_items=${username}:${resolved.length}`);
       return resolved;
     }
@@ -973,25 +1018,38 @@ async function fetchActiveStoryItemsForUsername(browserContext, username, logs, 
   // Keep the previous endpoint as a compatibility fallback for accounts where
   // reels_media is temporarily unavailable.
   const fallbackEndpoint = `https://www.instagram.com/api/v1/feed/user/${userId}/story/`;
-  const fallbackResponse = await browserContext.request.get(fallbackEndpoint, {
-    headers,
-    timeout: 20_000,
-    failOnStatusCode: false,
-  });
+  let fallbackResponse;
+  try {
+    fallbackResponse = await browserContext.request.get(fallbackEndpoint, {
+      headers,
+      timeout: 20_000,
+      failOnStatusCode: false,
+    });
+  } catch (error) {
+    logs?.push(`story_feed_fallback_error=${username}:${errorMessage(error)}`);
+    return primaryItems;
+  }
   if (!fallbackResponse.ok()) {
     logs?.push(`story_feed_status=${username}:${fallbackResponse.status()}`);
-    return [];
+    return primaryItems;
   }
 
-  const storyPayload = await fallbackResponse.json();
+  let storyPayload;
+  try {
+    storyPayload = await fallbackResponse.json();
+  } catch (error) {
+    logs?.push(`story_feed_fallback_error=${username}:${errorMessage(error)}`);
+    return primaryItems;
+  }
   const resolved = [];
-  walkStoryItems(storyPayload, username, new Set(), resolved);
+  walkStoryItems(storyPayload, username, new Set(), resolved, username);
   resolved.sort((a, b) => (a.takenAt || 0) - (b.takenAt || 0));
-  logs?.push(`story_feed_items=${username}:${resolved.length}`);
-  return resolved;
+  const combined = mergeStoryItems(primaryItems, resolved);
+  logs?.push(`story_feed_items=${username}:${combined.length}`);
+  return combined;
 }
 
-async function enrichStoryMediaCandidate(page, candidate, expectedUsername, logs, metadataCache) {
+async function enrichStoryMediaCandidate(page, candidate, expectedUsername, logs, metadataCache, deadline = Infinity) {
   if (!candidate || candidate.mediaType !== "video") return candidate;
   const storyId = storyIdFromUrl(candidate.pageUrl);
   if (!storyId) {
@@ -1006,7 +1064,7 @@ async function enrichStoryMediaCandidate(page, candidate, expectedUsername, logs
   }
 
   try {
-    const resolved = await fetchStoryItemMetadata(page.context(), candidate.pageUrl, expectedUsername, logs);
+    const resolved = await fetchStoryItemMetadata(page.context(), candidate.pageUrl, expectedUsername, logs, deadline);
     if (resolved) {
       metadataCache?.set(storyId, resolved);
       return { ...candidate, ...resolved, pageUrl: candidate.pageUrl };
@@ -1026,10 +1084,14 @@ async function waitForMetadataStoryItems(page, payloads, expectedUsername, logs,
   const deadline = Date.now() + timeoutSeconds * 1000;
   let best = [];
   while (Date.now() < deadline) {
-    const resolved = resolveStoryItemsFromPayloads(payloads, expectedUsername, capturedAfter);
+    const scripts = await page.evaluate(() => [...document.querySelectorAll('script[type="application/json"]')].map((node) => node.textContent || ""));
+    const resolved = mergeStoryItems(
+      resolveStoryItemsFromPayloads(payloads, expectedUsername, capturedAfter),
+      resolveStoryItemsFromScriptTexts(scripts, expectedUsername),
+    );
     if (resolved.length > 0) {
       best = resolved;
-      if (resolved.length > 1) break;
+      break;
     }
     await page.waitForTimeout(600);
   }
@@ -1233,12 +1295,14 @@ async function waitForStoryMedia(
   expectedUsername = null,
   logs = null,
   metadataCache = null,
+  requestDeadline = Infinity,
 ) {
   const deadline = Date.now() + timeoutSeconds * 1000;
   const networkFallbackDeadline = Date.now() + Math.min(timeoutSeconds, 8) * 1000;
   while (Date.now() < deadline) {
     if (isHighlightStoryUrl(page.url())) return null;
-    if (!isActiveStoryPage(page.url())) {
+    if (!isActiveStoryPage(page.url(), expectedUsername)) {
+      if (isActiveStoryPage(page.url())) return null;
       await page.waitForTimeout(800);
       continue;
     }
@@ -1248,7 +1312,7 @@ async function waitForStoryMedia(
     }
     const candidate = await extractMediaCandidate(page);
     if (candidate) {
-      return await enrichStoryMediaCandidate(page, candidate, expectedUsername, logs, metadataCache);
+      return await enrichStoryMediaCandidate(page, candidate, expectedUsername, logs, metadataCache, requestDeadline);
     }
     if (Date.now() < networkFallbackDeadline) {
       await page.waitForTimeout(800);
@@ -1256,7 +1320,7 @@ async function waitForStoryMedia(
     }
     const networkCandidate = latestNetworkCandidate(page, networkCandidates, seenSources);
     if (networkCandidate) {
-      return await enrichStoryMediaCandidate(page, networkCandidate, expectedUsername, logs, metadataCache);
+      return await enrichStoryMediaCandidate(page, networkCandidate, expectedUsername, logs, metadataCache, requestDeadline);
     }
     await page.waitForTimeout(800);
   }
@@ -1337,6 +1401,7 @@ async function advanceToNextStory(
   logs,
   expectedUsername,
   metadataCache,
+  deadline = Infinity,
 ) {
   const actions = [
     ["button", async () => clickStoryNextButton(page)],
@@ -1344,6 +1409,7 @@ async function advanceToNextStory(
     ["media_click", async () => clickNextStory(page)],
   ];
   for (const [actionName, action] of actions) {
+    remainingStoryTimeout(deadline, 6_000);
     try {
       const attempted = await action();
       if (attempted === false) continue;
@@ -1352,15 +1418,16 @@ async function advanceToNextStory(
       continue;
     }
     await page.waitForTimeout(1200);
-    if (!page.url().includes("/stories/")) return false;
+    if (!isActiveStoryPage(page.url(), expectedUsername)) return false;
     const nextMedia = await waitForStoryMedia(
       page,
       networkCandidates,
       seenSources,
-      6,
+      remainingStoryTimeout(deadline, 6_000) / 1000,
       expectedUsername,
       logs,
       metadataCache,
+      deadline,
     );
     if (!nextMedia) continue;
     const nextSignature = storySignature(nextMedia.pageUrl, nextMedia.sourceUrl);
@@ -1411,15 +1478,15 @@ async function clickStoryGateIfNeeded(page, logs) {
   }
 }
 
-async function fetchMediaBytes(sourceUrl, browserContext, refererUrl = null) {
+async function fetchMediaBytes(sourceUrl, browserContext, refererUrl = null, deadline = Infinity) {
   const headers = {};
   if (refererUrl) headers.Referer = refererUrl;
   const response = await withRetry(
     async () => await browserContext.request.get(sourceUrl, {
       headers,
-      timeout: 60_000,
+      timeout: remainingStoryTimeout(deadline, 60_000),
       failOnStatusCode: true,
-      maxRetries: 1,
+      maxRetries: Number.isFinite(deadline) ? 0 : 1,
     }),
     {
       attempts: 3,
@@ -1435,7 +1502,7 @@ async function fetchMediaBytes(sourceUrl, browserContext, refererUrl = null) {
   };
 }
 
-async function loadManifestIndex(manifestsDirectory) {
+async function loadManifestIndex(manifestsDirectory, destinationDir) {
   const sources = new Map();
   const hashes = new Map();
   try {
@@ -1446,6 +1513,9 @@ async function loadManifestIndex(manifestsDirectory) {
       try {
         const manifestPath = path.join(manifestsDirectory, entry);
         const payload = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        if (typeof payload.localPath !== "string" ||
+            path.dirname(path.resolve(payload.localPath)) !== path.resolve(destinationDir) ||
+            !(await fs.stat(payload.localPath)).isFile()) continue;
         const sourceURL = payload.sourceURL || payload.sourceUrl;
         const sha256 = payload.sha256;
         if (typeof sourceURL === "string" && sourceURL) {
@@ -1512,12 +1582,13 @@ async function downloadMedia(
   refererUrl = null,
   audioSourceUrl = null,
   expectsAudio = null,
+  deadline = Infinity,
 ) {
   await fs.mkdir(destinationDir, { recursive: true });
   const normalizedUrl = normalizeMediaUrl(sourceUrl);
   const { body, contentType } = await withRetry(
     async () => {
-      const fetched = await fetchMediaBytes(normalizedUrl, browserContext, refererUrl);
+      const fetched = await fetchMediaBytes(normalizedUrl, browserContext, refererUrl, deadline);
       validateDownloadedMedia(fetched.body, mediaType, fetched.contentType);
       return fetched;
     },
@@ -1549,7 +1620,7 @@ async function downloadMedia(
     expectsAudio,
     fetchAudio: async (url) => await withRetry(
       async () => {
-        const fetched = await fetchMediaBytes(url, browserContext, refererUrl);
+        const fetched = await fetchMediaBytes(url, browserContext, refererUrl, deadline);
         validateDownloadedAudio(fetched.body, fetched.contentType);
         return fetched;
       },
@@ -1606,246 +1677,163 @@ function shouldPersistMedia(mediaType, mediaFilter = "all") {
   return true;
 }
 
-async function persistStoryItems(resolvedItems, destinationDir, username, browserContext, mediaFilter = "all") {
+async function createStoryPersistenceState(destinationDir, username, deadline = Infinity) {
+  return {
+    manifestIndex: await loadManifestIndex(MANIFESTS_DIRECTORY, destinationDir),
+    nextIndexValue: await nextStoryIndex(destinationDir, username),
+    seenSources: new Set(), seenHashes: new Set(), deadline,
+  };
+}
+
+async function persistStoryItems(resolvedItems, destinationDir, username, browserContext, mediaFilter = "all", state = null) {
   const logs = [];
   const items = [];
-  const seenSources = new Set();
-  const seenHashes = new Set();
-  const manifestIndex = await loadManifestIndex(MANIFESTS_DIRECTORY);
-  let nextIndexValue = await nextStoryIndex(destinationDir, username);
+  state ||= await createStoryPersistenceState(destinationDir, username);
+  const { seenSources, seenHashes, manifestIndex } = state;
 
   for (const resolved of resolvedItems) {
     if (!shouldPersistMedia(resolved.mediaType, mediaFilter)) {
       logs.push(`skipped_by_media_filter=${resolved.mediaType}`);
       continue;
     }
-    const normalizedSource = normalizeMediaUrl(resolved.sourceUrl);
-    if (seenSources.has(normalizedSource)) {
-      logs.push(`skipped_current_source=${normalizedSource}`);
-      continue;
-    }
-    const existingSource = manifestIndex.sources.get(normalizedSource);
-    if (existingSource && !shouldRepairExistingMutedDashVideo(existingSource, resolved)) {
-      seenSources.add(normalizedSource);
-      logs.push(`skipped_existing_source=${normalizedSource}`);
-      continue;
-    }
-    if (existingSource) {
-      logs.push(`repairing_muted_dash_source=${normalizedSource}`);
-    }
-    const { localPath, finalSourceUrl, contentLength, audioMuxed, audioPresent } = await downloadMedia(
-      normalizedSource,
-      destinationDir,
-      resolved.mediaType,
-      username,
-      nextIndexValue,
-      browserContext,
-      resolved.pageUrl,
-      resolved.audioSourceUrl,
-      resolved.expectsAudio,
-    );
-    const fileHash = createHash("sha256").update(await fs.readFile(localPath)).digest("hex");
-    if (seenHashes.has(fileHash) || manifestIndex.hashes.has(fileHash)) {
-      await fs.rm(localPath, { force: true });
-      seenSources.add(finalSourceUrl);
-      logs.push(`${seenHashes.has(fileHash) ? "skipped_current_hash" : "skipped_existing_hash"}=${fileHash}`);
-      continue;
-    }
-    const itemId = randomUUID().replace(/-/g, "");
-    const createdAt = new Date().toISOString();
-    const manifestPath = await writeManifest({
-      itemId,
-      pageUrl: resolved.pageUrl,
-      sourceUrl: finalSourceUrl,
-      localPath,
-      mediaType: resolved.mediaType,
-      createdAt,
-      username,
-      storyId: resolved.itemId,
-      contentLength,
-      audioMuxed,
-      audioPresent,
-    });
-    items.push({
-      id: itemId,
-      sourceURL: finalSourceUrl,
-      pageURL: resolved.pageUrl,
-      localPath,
-      metadataPath: manifestPath,
-      mediaType: resolved.mediaType,
-      createdAt,
-    });
-    seenSources.add(finalSourceUrl);
-    seenHashes.add(fileHash);
-    manifestIndex.sources.set(finalSourceUrl, { id: itemId, localPath, manifestPath, audioMuxed, audioPresent });
-    manifestIndex.hashes.set(fileHash, { id: itemId, localPath, manifestPath });
-    nextIndexValue += 1;
-    logs.push(`saved=${localPath}`);
-    logs.push(`manifest=${manifestPath}`);
-  }
-  return { items, logs };
-}
-
-async function collectStorySequence(page, destinationDir, username, jsonPayloads, networkCandidates, metadataCapturedAfter = null, persistMetadataItems = true, mediaFilter = "all", prefetchedItems = []) {
-  const logs = [];
-
-  if (isHighlightStoryUrl(page.url())) {
-    logs.push(`highlight_page_rejected=${page.url()}`);
-    return { items: [], logs };
-  }
-
-  const resolvedItems = prefetchedItems.length > 0
-    ? prefetchedItems
-    : (isActiveStoryPage(page.url(), username)
-      ? await waitForMetadataStoryItems(page, jsonPayloads, username, logs, 12, metadataCapturedAfter)
-      : []);
-  if (prefetchedItems.length > 0) logs.push(`metadata_story_items=${resolvedItems.length}`);
-  if (resolvedItems.length > 0 && persistMetadataItems) {
-    const persisted = await persistStoryItems(resolvedItems, destinationDir, username, page.context(), mediaFilter);
-    logs.push(...persisted.logs);
-    if (persisted.items.length > 0) {
-      return { items: persisted.items, logs };
-    }
-    logs.push("metadata_only_no_new_items");
-  }
-
-  if (!isActiveStoryPage(page.url(), username)) {
-    logs.push(`active_story_page_missing=${page.url()}`);
-    return { items: [], logs };
-  }
-
-  const seenSources = new Set();
-  const seenHashes = new Set();
-  const seenSignatures = new Set();
-  const storyMetadataCache = new Map();
-  const items = [];
-  const manifestIndex = await loadManifestIndex(MANIFESTS_DIRECTORY);
-  let nextIndexValue = await nextStoryIndex(destinationDir, username);
-
-  for (let i = 0; i < 50; i += 1) {
-    const media = await waitForStoryMedia(
-      page,
-      networkCandidates,
-      seenSources,
-      20,
-      username,
-      logs,
-      storyMetadataCache,
-    );
-    if (!media) {
-      logs.push("На странице не найдено видимого media из story.");
-      break;
-    }
-    const normalizedSource = normalizeMediaUrl(media.sourceUrl);
-    const signature = storySignature(media.pageUrl, normalizedSource);
-    if (seenSignatures.has(signature)) {
-      if (!(await advanceToNextStory(
-        page,
-        networkCandidates,
-        new Set([...seenSources, normalizedSource]),
-        signature,
-        logs,
-        username,
-        storyMetadataCache,
-      ))) {
-        break;
+    try {
+      remainingStoryTimeout(state.deadline, 60_000);
+      const normalizedSource = normalizeMediaUrl(resolved.sourceUrl);
+      if (seenSources.has(normalizedSource)) {
+        logs.push(`skipped_current_source=${normalizedSource}`);
+        continue;
       }
-      continue;
-    }
-
-    const existingSource = manifestIndex.sources.get(normalizedSource);
-    if (seenSources.has(normalizedSource)) {
-      seenSignatures.add(signature);
-      logs.push(`skipped_current_source=${normalizedSource}`);
-    } else if (existingSource && !shouldRepairExistingMutedDashVideo(existingSource, media)) {
-      seenSignatures.add(signature);
-      seenSources.add(normalizedSource);
-      logs.push(`skipped_existing_source=${normalizedSource}`);
-    } else {
+      const existingSource = manifestIndex.sources.get(normalizedSource);
+      if (existingSource && !shouldRepairExistingMutedDashVideo(existingSource, resolved)) {
+        seenSources.add(normalizedSource);
+        logs.push(`skipped_existing_source=${normalizedSource}`);
+        continue;
+      }
       if (existingSource) {
         logs.push(`repairing_muted_dash_source=${normalizedSource}`);
-      }
-      if (!shouldPersistMedia(media.mediaType, mediaFilter)) {
-        seenSignatures.add(signature);
-        seenSources.add(normalizedSource);
-        logs.push(`skipped_by_media_filter=${media.mediaType}`);
-        if (!(await advanceToNextStory(
-          page,
-          networkCandidates,
-          new Set([...seenSources, normalizedSource]),
-          signature,
-          logs,
-          username,
-          storyMetadataCache,
-        ))) {
-          break;
-        }
-        continue;
       }
       const { localPath, finalSourceUrl, contentLength, audioMuxed, audioPresent } = await downloadMedia(
         normalizedSource,
         destinationDir,
-        media.mediaType,
+        resolved.mediaType,
         username,
-        nextIndexValue,
-        page.context(),
-        media.pageUrl,
-        media.audioSourceUrl,
-        media.expectsAudio,
+        state.nextIndexValue,
+        browserContext,
+        resolved.pageUrl,
+        resolved.audioSourceUrl,
+        resolved.expectsAudio,
+        state.deadline,
       );
+      state.nextIndexValue += 1;
       const fileHash = createHash("sha256").update(await fs.readFile(localPath)).digest("hex");
       if (seenHashes.has(fileHash) || manifestIndex.hashes.has(fileHash)) {
         await fs.rm(localPath, { force: true });
-        seenSignatures.add(signature);
         seenSources.add(finalSourceUrl);
         logs.push(`${seenHashes.has(fileHash) ? "skipped_current_hash" : "skipped_existing_hash"}=${fileHash}`);
-      } else {
-        const itemId = randomUUID().replace(/-/g, "");
-        const createdAt = new Date().toISOString();
-        const manifestPath = await writeManifest({
-          itemId,
-          pageUrl: media.pageUrl,
-          sourceUrl: finalSourceUrl,
-          localPath,
-          mediaType: media.mediaType,
-          createdAt,
-          username,
-          storyId: media.itemId || storyIdFromUrl(media.pageUrl) || "",
-          contentLength,
-          audioMuxed,
-          audioPresent,
-        });
-        items.push({
-          id: itemId,
-          sourceURL: finalSourceUrl,
-          pageURL: media.pageUrl,
-          localPath,
-          metadataPath: manifestPath,
-          mediaType: media.mediaType,
-          createdAt,
-        });
-        seenSignatures.add(signature);
-        seenSources.add(finalSourceUrl);
-        seenHashes.add(fileHash);
-        manifestIndex.sources.set(finalSourceUrl, { id: itemId, localPath, manifestPath, audioMuxed, audioPresent });
-        manifestIndex.hashes.set(fileHash, { id: itemId, localPath, manifestPath });
-        nextIndexValue += 1;
-        logs.push(`saved=${localPath}`);
-        logs.push(`manifest=${manifestPath}`);
+        continue;
       }
-    }
-    if (!(await advanceToNextStory(
-      page,
-      networkCandidates,
-      new Set([...seenSources, normalizedSource]),
-      signature,
-      logs,
-      username,
-      storyMetadataCache,
-    ))) {
-      break;
+      const itemId = randomUUID().replace(/-/g, "");
+      const createdAt = new Date().toISOString();
+      const manifestPath = await writeManifest({
+        itemId,
+        pageUrl: resolved.pageUrl,
+        sourceUrl: finalSourceUrl,
+        localPath,
+        mediaType: resolved.mediaType,
+        createdAt,
+        username,
+        storyId: resolved.itemId,
+        contentLength,
+        audioMuxed,
+        audioPresent,
+      });
+      items.push({
+        id: itemId,
+        sourceURL: finalSourceUrl,
+        pageURL: resolved.pageUrl,
+        localPath,
+        metadataPath: manifestPath,
+        mediaType: resolved.mediaType,
+        createdAt,
+      });
+      seenSources.add(finalSourceUrl);
+      seenHashes.add(fileHash);
+      manifestIndex.sources.set(finalSourceUrl, { id: itemId, localPath, manifestPath, audioMuxed, audioPresent });
+      manifestIndex.hashes.set(fileHash, { id: itemId, localPath, manifestPath });
+      logs.push(`saved=${localPath}`);
+      logs.push(`manifest=${manifestPath}`);
+    } catch (error) {
+      logs.push(`story_item_failed=${resolved.itemId}:${errorMessage(error)}`);
+      // A file may already be published when manifest writing fails.
+      state.nextIndexValue = Math.max(state.nextIndexValue, await nextStoryIndex(destinationDir, username));
     }
   }
+  return { items, logs, handledSources: [...seenSources] };
+}
+
+async function collectStorySequence(page, destinationDir, username, jsonPayloads, networkCandidates, metadataCapturedAfter = null, persistMetadataItems = true, mediaFilter = "all", prefetchedItems = [], deadline = Infinity) {
+  const logs = [];
+  const items = [];
+  if (isHighlightStoryUrl(page.url())) {
+    logs.push(`highlight_page_rejected=${page.url()}`);
+    return { items, logs };
+  }
+
+  let pageItems = [];
+  try {
+    if (isActiveStoryPage(page.url(), username)) {
+      const scriptTexts = await page.evaluate(() => [...document.querySelectorAll('script[type="application/json"]')].map((node) => node.textContent || ""));
+      pageItems = resolveStoryItemsFromScriptTexts(scriptTexts, username);
+    }
+  } catch (error) {
+    logs.push(`story_page_metadata_error=${errorMessage(error)}`);
+  }
+  let resolvedItems = mergeStoryItems(prefetchedItems, pageItems,
+    resolveStoryItemsFromPayloads(jsonPayloads, username, metadataCapturedAfter));
+  if (resolvedItems.length === 0 && isActiveStoryPage(page.url(), username)) {
+    resolvedItems = await waitForMetadataStoryItems(page, jsonPayloads, username, logs, 12, metadataCapturedAfter);
+  }
+  logs.push(`metadata_story_items=${resolvedItems.length}`);
+  const state = await createStoryPersistenceState(destinationDir, username, deadline);
+  if (resolvedItems.length > 0 && persistMetadataItems) {
+    const persisted = await persistStoryItems(resolvedItems, destinationDir, username, page.context(), mediaFilter, state);
+    items.push(...persisted.items);
+    logs.push(...persisted.logs);
+  }
+
+  // A nonempty metadata response may contain only the current Story. Always
+  // finish walking this author's viewer, keeping everything already saved.
+  if (!isActiveStoryPage(page.url(), username)) {
+    logs.push(`active_story_page_missing=${page.url()}`);
+    return { items, logs };
+  }
+  const seenSources = state.seenSources;
+  const seenSignatures = new Set();
+  const foundIds = new Set(resolvedItems.map((item) => item.itemId));
+  const storyMetadataCache = new Map(resolvedItems.filter((item) =>
+    item.mediaType !== "video" || seenSources.has(normalizeMediaUrl(item.sourceUrl))).map((item) => [item.itemId, item]));
+  try {
+    for (let i = 0; i < 50 && isActiveStoryPage(page.url(), username); i += 1) {
+      const media = await waitForStoryMedia(page, networkCandidates, seenSources,
+        remainingStoryTimeout(deadline, 20_000) / 1000, username, logs, storyMetadataCache, deadline);
+      if (!media) break;
+      const normalizedSource = normalizeMediaUrl(media.sourceUrl);
+      const signature = storyIdFromUrl(media.pageUrl) || storySignature(media.pageUrl, normalizedSource);
+      foundIds.add(media.itemId || signature);
+      if (!seenSignatures.has(signature) && !seenSources.has(normalizedSource)) {
+        const persisted = await persistStoryItems([media], destinationDir, username, page.context(), mediaFilter, state);
+        items.push(...persisted.items);
+        logs.push(...persisted.logs);
+      }
+      seenSignatures.add(signature);
+      seenSources.add(normalizedSource);
+      if (!(await advanceToNextStory(page, networkCandidates, seenSources,
+        storySignature(media.pageUrl, normalizedSource), logs, username, storyMetadataCache, deadline))) break;
+    }
+  } catch (error) {
+    logs.push(`story_traversal_failed=${errorMessage(error)}`);
+  }
+  logs.push(`metadata_story_items=${foundIds.size}`);
   return { items, logs };
 }
 
@@ -1854,7 +1842,34 @@ async function ensureLoggedIn(page) {
   throw new Error("Требуется вход в Instagram. Сначала откройте браузер для входа.");
 }
 
-async function downloadProfileWithPage(page, profileUrl, outputDirectory, mediaFilter = "all") {
+function summarizeStoryDownload(result, username, mediaFilter = "all") {
+  const foundCount = extractFoundCount(result.logs, result.items.length);
+  const savedIds = new Set(result.items.map((item) => storyIdFromUrl(item.pageURL || "")));
+  const failures = [...new Map(result.logs.filter((entry) =>
+    entry.startsWith("story_traversal_failed=") ||
+    (entry.startsWith("story_item_failed=") && !savedIds.has(entry.slice("story_item_failed=".length).split(":")[0])))
+    .map((entry) => [entry.split(":")[0], entry])).values()];
+  const data = { foundCount: String(foundCount), savedCount: String(result.items.length), failedCount: String(failures.length) };
+  if (result.items.length > 0) {
+    return {
+      ok: true, status: failures.length ? "download_partial" : "download_complete",
+      message: `Для профиля ${username} сохранено файлов: ${result.items.length}.` +
+        (failures.length ? ` Не удалось завершить: ${failures.length}. Подробности в логе.` : ""), data,
+    };
+  }
+  if (failures.length) {
+    return { ok: false, status: "download_error", message: `Для профиля ${username} не удалось сохранить stories. ${failures[0].split("=").slice(1).join("=")}`, data };
+  }
+  if (result.logs.some((entry) => entry.startsWith("skipped_existing_"))) {
+    return { ok: true, status: "download_duplicate", message: `Для профиля ${username} все найденные stories уже были сохранены ранее.`, data };
+  }
+  if (mediaFilter === "video_only" && foundCount > 0 && result.logs.some((entry) => entry.startsWith("skipped_by_media_filter="))) {
+    return { ok: true, status: "download_filtered", message: `Для профиля ${username} активные stories найдены, но видео для сохранения не обнаружены.`, data };
+  }
+  return { ok: false, status: "download_empty", message: `Для профиля ${username} не удалось получить активные stories.`, data };
+}
+
+async function downloadProfileWithPage(page, profileUrl, outputDirectory, mediaFilter = "all", deadline = Infinity) {
   const username = extractUsername(profileUrl);
   if (!username) {
     return {
@@ -1899,9 +1914,11 @@ async function downloadProfileWithPage(page, profileUrl, outputDirectory, mediaF
     }
 
     const storyCaptureStartedAt = Date.now() / 1000;
-    if (prefetchedItems.length === 0) {
-      const opened = await clickProfileStoryRing(page, username, logs);
-      if (!opened) {
+    try {
+      if (prefetchedItems.length > 0) {
+        await retryingGoto(page, prefetchedItems[0].pageUrl, { waitUntil: "domcontentloaded" }, logs, "story_first_goto");
+        await ensureLoggedIn(page);
+      } else if (!(await clickProfileStoryRing(page, username, logs))) {
         const fallback = `https://www.instagram.com/stories/${username}/`;
         await retryingGoto(page, fallback, { waitUntil: "domcontentloaded" }, logs, "story_fallback_goto");
         await ensureLoggedIn(page);
@@ -1909,9 +1926,11 @@ async function downloadProfileWithPage(page, profileUrl, outputDirectory, mediaF
       }
       await clickStoryGateIfNeeded(page, logs);
       logs.push(`opened=${page.url()}`);
-    } else {
-      logs.push("story_feed_used=true");
+    } catch (error) {
+      if (prefetchedItems.length === 0) throw error;
+      logs.push(`story_viewer_open_error=${errorMessage(error)}`);
     }
+    if (prefetchedItems.length > 0) logs.push("story_feed_used=true");
 
     const result = await collectStorySequence(
       page,
@@ -1923,55 +1942,11 @@ async function downloadProfileWithPage(page, profileUrl, outputDirectory, mediaF
       true,
       mediaFilter,
       prefetchedItems,
+      deadline,
     );
     logs.push(...result.logs);
-    const foundCountAllStories = extractFoundCount(result.logs, result.items.length);
-    const foundCount = foundCountAllStories;
-
-    if (result.items.length === 0 && mediaFilter === "video_only" && foundCountAllStories > 0) {
-      return {
-        ok: true,
-        status: "download_filtered",
-        message: `Для профиля ${username} активные stories найдены, но видео для сохранения не обнаружены.`,
-        data: { foundCount: String(foundCountAllStories), savedCount: "0" },
-        items: [],
-        logs,
-        username,
-        profileUrl,
-      };
-    }
-
-    if (result.items.length === 0 && result.logs.some((entry) => entry.startsWith("skipped_existing_"))) {
-      return {
-        ok: true,
-        status: "download_duplicate",
-        message: `Для профиля ${username} все найденные stories уже были сохранены ранее.`,
-        data: { foundCount: String(foundCount), savedCount: "0" },
-        items: [],
-        logs,
-        username,
-        profileUrl,
-      };
-    }
-
-    if (result.items.length === 0) {
-      return {
-        ok: false,
-        status: "download_empty",
-        message: `Для профиля ${username} не удалось получить активные stories.`,
-        data: { foundCount: String(foundCount), savedCount: "0" },
-        items: [],
-        logs,
-        username,
-        profileUrl,
-      };
-    }
-
     return {
-      ok: true,
-      status: "download_complete",
-      message: `Для профиля ${username} сохранено файлов: ${result.items.length}.`,
-      data: { foundCount: String(foundCount), savedCount: String(result.items.length) },
+      ...summarizeStoryDownload(result, username, mediaFilter),
       items: result.items,
       logs,
       username,
@@ -2109,7 +2084,7 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
         let result = null;
         try {
           result = await withTimeout(
-            downloadProfileWithPage(page, job.normalizedUrl, outputDirectory, mediaFilter),
+            downloadProfileWithPage(page, job.normalizedUrl, outputDirectory, mediaFilter, Date.now() + BATCH_JOB_TIMEOUT_MS - 5_000),
             BATCH_JOB_TIMEOUT_MS,
             `Выгрузка профиля ${job.normalizedUrl} превысила лимит ожидания.`,
           );
@@ -2309,7 +2284,12 @@ if (isDirectExecution) {
 
 export {
   chooseVisibleStoryMediaCandidate,
+  collectStorySequence,
   downloadMedia,
+  persistStoryItems,
+  waitForMetadataStoryItems,
+  resolveStoryItemsFromScriptTexts,
+  summarizeStoryDownload,
   extractProfileUserIdFromPayloads,
   extractProfileUserIdFromScriptTexts,
   fetchActiveStoryItemsForUsername,

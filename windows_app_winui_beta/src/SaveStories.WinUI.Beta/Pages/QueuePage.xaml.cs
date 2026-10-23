@@ -84,13 +84,10 @@ public sealed partial class QueuePage : Page
             return;
         }
 
-        if (_queue.Count == 0)
-        {
-            var lines = ProfileInputParser.ParseProfiles(QueueInputTextBox.Text);
-            AddQueueItems(lines);
-            QueueInputTextBox.Text = string.Empty;
-            RefreshQueueSummary();
-        }
+        var lines = ProfileInputParser.ParseProfiles(QueueInputTextBox.Text);
+        AddQueueItems(lines);
+        QueueInputTextBox.Text = string.Empty;
+        RefreshQueueSummary();
 
         if (_queue.Count == 0)
         {

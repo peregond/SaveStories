@@ -310,6 +310,9 @@ test("Stories discovery bypasses rate-limited profile lookup when the page suppl
             json: async () => ({ reels: { 424242: { items: [videoMetadata()] } } }),
           };
         }
+        if (url.endsWith("/feed/user/424242/story/")) {
+          return { ok: () => false, status: () => 429 };
+        }
         throw new Error(`unexpected API request: ${url}`);
       },
     },
@@ -318,7 +321,10 @@ test("Stories discovery bypasses rate-limited profile lookup when the page suppl
   const resolved = await fetchActiveStoryItemsForUsername(browserContext, "alice", logs, "424242");
 
   assert.equal(resolved.length, 1);
-  assert.deepEqual(calls, ["https://www.instagram.com/api/v1/feed/reels_media/?reel_ids=424242"]);
+  assert.deepEqual(calls, [
+    "https://www.instagram.com/api/v1/feed/reels_media/?reel_ids=424242",
+    "https://www.instagram.com/api/v1/feed/user/424242/story/",
+  ]);
   assert.ok(logs.includes("story_profile_id_source=alice:page"));
 });
 
