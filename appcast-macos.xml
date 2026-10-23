@@ -2,23 +2,23 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.83</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.84</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.83</title>
-      <pubDate>Mon, 05 Oct 2026 16:04:50 GMT</pubDate>
-      <sparkle:version>154</sparkle:version>
-      <sparkle:shortVersionString>0.6.83</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.83</h2>
-<ul><li>Исправлено скачивание Reels: загрузчик читает данные видео, встроенные в страницу Instagram, и выбирает ролик по точному коду ссылки.</li><li>Посторонние изображения и обложки больше не сохраняются вместо видео и не считаются дубликатами других Reels.</li><li>Папка автора создаётся после успешного скачивания и проверки файла.</li><li>Удалённые файлы и загрузка в новую папку больше не пропускаются из-за старых записей в истории скачивания.</li></ul>
-<p>Проверено на семи ссылках: сохранены семь полных MP4 с аудиодорожками. Все 64 теста Node worker проходят.</p>]]></description>
+      <title>SaveMe 0.6.84</title>
+      <pubDate>Fri, 23 Oct 2026 08:47:11 GMT</pubDate>
+      <sparkle:version>155</sparkle:version>
+      <sparkle:shortVersionString>0.6.84</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.84</h2>
+<ul><li>Исправлено преждевременное завершение выгрузки Stories после одного видео: частичный список больше не принимается за полную последовательность, в том числе в режиме «Только видео».</li><li>Ошибка одного файла больше не прерывает остальные Stories профиля; уже сохранённые файлы учитываются в результате.</li><li>История скачивания проверяется по выбранной папке и наличию файлов: удалённые или перемещённые файлы больше не мешают новой выгрузке.</li><li>В Windows новые вставленные профили добавляются при запуске даже в непустую очередь; ссылки на Stories правильно определяют инфлюенсера.</li></ul>
+<p>Проверено 80 тестов Node worker и 46 проверок Windows, включая выполнение логики ввода и очереди на C#. Выгрузка в пользовательской Windows-сессии Instagram в эту проверку не входила.</p>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.83/SaveMe-macOS-v0.6.83.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.84/SaveMe-macOS-v0.6.84.dmg"
         sparkle:os="macos"
-        length="5378228"
+        length="5384517"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="8r/AXagolyVdqkr1MAuMLd/AD8zI6zLNU5eZd1g1RgzHW4jxzhu9XL2dfy9O1Q5ugXZUDARujzq8WE3O/jclCQ==" />
+        sparkle:edSignature="5XFOz5eLzOidxP71dB2C+PknnAFXhnjb/sU3QsGJ8eSekq3fG1T0pE1UM1bF0VelRfN5orSS/OTjMSUqAMbYCQ==" />
     </item>
   </channel>
 </rss>
