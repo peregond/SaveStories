@@ -753,6 +753,7 @@ function resolveStoryItemFromDict(item, expectedUsername, inheritedUsername = nu
     username: pageUsername,
     pageUrl,
     sourceUrl,
+    posterUrl: mediaType === "video" ? chooseBestImageUrl(item) : null,
     audioSourceUrl,
     expectsAudio,
     mediaType,
@@ -830,11 +831,7 @@ function extractProfileUserIdFromScriptTexts(scriptTexts, expectedUsername) {
 
   const escapedUsername = username.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const usernameToken = `"username"\\s*:\\s*"${escapedUsername}"`;
-  const pkToken = `"pk"\\s*:\\s*"?([0-9]+)"?`;
-  const patterns = [
-    new RegExp(`${pkToken}[^{}]{0,256}${usernameToken}`, "i"),
-    new RegExp(`${usernameToken}[^{}]{0,256}${pkToken}`, "i"),
-  ];
+  const mediaKeys = /"(?:media_type|video_versions|video_url|image_versions2|display_resources|shortcode|code|taken_at)"\s*:/i;
 
   for (const rawText of scriptTexts) {
     if (typeof rawText !== "string" || !rawText) continue;
@@ -845,17 +842,52 @@ function extractProfileUserIdFromScriptTexts(scriptTexts, expectedUsername) {
       variants.push(unescapedText);
     }
     for (const text of variants) {
-      for (const pattern of patterns) {
-        const match = text.match(pattern);
-        if (match?.[1] && /^\d+$/.test(match[1])) return match[1];
+      const jsonTexts = [text, ...[...text.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map((match) => match[1])];
+      let parsedDocument = false;
+      for (const jsonText of jsonTexts) {
+        try {
+          let payload = JSON.parse(jsonText);
+          for (let pass = 0; pass < 3 && typeof payload === "string"; pass += 1) payload = JSON.parse(payload);
+          parsedDocument = true;
+          const found = extractProfileUserIdFromPayloads([{ payload }], username);
+          if (found) return found;
+          // A parsed media object must not become a user through the regex fallback.
+          continue;
+        } catch {}
+
+        // Some inline scripts are assignments rather than pure JSON. Keep a
+        // same-object fallback without associating a media id with its owner.
+        for (const match of jsonText.matchAll(/\{[^{}]*\}/g)) {
+          const objectText = match[0];
+          try {
+            const found = extractProfileUserIdFromPayloads([{ payload: JSON.parse(objectText) }], username);
+            if (found) return found;
+            continue;
+          } catch {}
+          if (mediaKeys.test(objectText) || /"__typename"\s*:\s*"[^"\n]*(?:media|image|video|sidecar|clip)[^"\n]*"/i.test(objectText)) continue;
+          for (const field of ["pk", "user_id", "id"]) {
+            const idToken = `"${field}"\\s*:\\s*"?([0-9]+)"?(?=\\s*[,}])`;
+            const patterns = [
+              new RegExp(`${idToken}[^{}]{0,256}${usernameToken}`, "i"),
+              new RegExp(`${usernameToken}[^{}]{0,256}${idToken}`, "i"),
+            ];
+            for (const pattern of patterns) {
+              const idMatch = objectText.match(pattern);
+              if (idMatch?.[1]) return idMatch[1];
+            }
+          }
+        }
       }
+      // Do not reinterpret JSON strings inside a valid document (for example a
+      // biography) as independent user records by removing their escaping.
+      if (parsedDocument) break;
     }
   }
   return null;
 }
 
 function extractProfileUserIdFromPayloads(payloads, expectedUsername) {
-  const username = sanitizeFilename(expectedUsername).toLowerCase();
+  const username = String(expectedUsername || "").trim().toLowerCase();
   if (!username || !Array.isArray(payloads)) return null;
 
   const visit = (node) => {
@@ -869,10 +901,16 @@ function extractProfileUserIdFromPayloads(payloads, expectedUsername) {
     if (!node || typeof node !== "object") return null;
 
     const nodeUsername = typeof node.username === "string"
-      ? sanitizeFilename(node.username).toLowerCase()
+      ? node.username.trim().toLowerCase()
       : "";
-    if (nodeUsername === username && /^\d+$/.test(String(node.pk ?? ""))) {
-      return String(node.pk);
+    const isMedia = ["media_type", "video_versions", "video_url", "image_versions2", "display_resources", "shortcode", "code", "taken_at"]
+      .some((key) => Object.hasOwn(node, key)) || /(?:media|image|video|sidecar|clip)/i.test(String(node.__typename || ""));
+    if (nodeUsername === username && !isMedia) {
+      for (const field of ["pk", "user_id", "id"]) {
+        const value = node[field];
+        if (typeof value === "number" && !Number.isSafeInteger(value)) continue;
+        if ((typeof value === "string" || typeof value === "number") && /^\d+$/.test(String(value))) return String(value);
+      }
     }
     for (const value of Object.values(node)) {
       const found = visit(value);
@@ -1049,34 +1087,74 @@ async function fetchActiveStoryItemsForUsername(browserContext, username, logs, 
   return combined;
 }
 
-async function enrichStoryMediaCandidate(page, candidate, expectedUsername, logs, metadataCache, deadline = Infinity) {
+function matchingStoryMetadata(candidate, items) {
+  const uniqueMatch = (predicate) => {
+    const matches = items.filter(predicate);
+    return new Set(matches.map((item) => item.itemId)).size === 1 ? matches[0] : null;
+  };
+  const sameUrl = (left, right) => Boolean(left && right && normalizeMediaUrl(left) === normalizeMediaUrl(right));
+  const bySource = uniqueMatch((item) => sameUrl(item.sourceUrl, candidate.sourceUrl));
+  if (bySource) return bySource;
+  // Signed query strings can change while the CDN resource remains the same.
+  const sameResource = (left, right) => {
+    if (!isTrustedInstagramMediaUrl(left) || !isTrustedInstagramMediaUrl(right)) return false;
+    const a = new URL(left), b = new URL(right);
+    return a.hostname === b.hostname && a.pathname === b.pathname;
+  };
+  return uniqueMatch((item) => sameResource(item.sourceUrl, candidate.sourceUrl)) ||
+    uniqueMatch((item) => sameUrl(item.posterUrl, candidate.posterUrl));
+}
+
+async function enrichStoryMediaCandidate(page, candidate, expectedUsername, logs, metadataCache, deadline = Infinity, jsonPayloads = [], metadataCapturedAfter = null) {
   if (!candidate || candidate.mediaType !== "video") return candidate;
-  const storyId = storyIdFromUrl(candidate.pageUrl);
+  const ownsItem = (item) => !expectedUsername ||
+    String(item.username || "").toLowerCase() === sanitizeFilename(expectedUsername).toLowerCase();
+  let metadata = mergeStoryItems(
+    [...(metadataCache?.values() || [])].filter(ownsItem),
+    resolveStoryItemsFromPayloads(jsonPayloads, expectedUsername, metadataCapturedAfter),
+  ).filter((item) => item.mediaType === "video");
+  let storyId = storyIdFromUrl(candidate.pageUrl);
+  let matched = storyId ? metadata.find((item) => item.itemId === storyId) : matchingStoryMetadata(candidate, metadata);
+  if (!matched || (!matched.audioSourceUrl && matched.expectsAudio !== false)) {
+    try {
+      const scripts = await page.evaluate(() => [...document.querySelectorAll('script[type="application/json"]')].map((node) => node.textContent || ""));
+      metadata = mergeStoryItems(metadata, resolveStoryItemsFromScriptTexts(scripts, expectedUsername));
+      matched = storyId ? metadata.find((item) => item.itemId === storyId) : matchingStoryMetadata(candidate, metadata);
+    } catch (error) {
+      logs?.push(`story_identity_metadata_error=${errorMessage(error)}`);
+    }
+  }
+  if (!storyId && matched) {
+    storyId = matched.itemId;
+    logs?.push(`story_identity_resolved=${storyId}`);
+  }
   if (!storyId) {
     return {
       ...candidate,
       expectsAudio: isSeparateDashVideoUrl(candidate.sourceUrl) ? true : null,
     };
   }
-
-  if (metadataCache?.has(storyId)) {
-    return { ...candidate, ...metadataCache.get(storyId), pageUrl: candidate.pageUrl };
+  const pageUrl = matched?.pageUrl || candidate.pageUrl;
+  const enriched = { ...candidate, ...matched, itemId: storyId, pageUrl };
+  if (matched?.audioSourceUrl || matched?.expectsAudio === false) {
+    metadataCache?.set(storyId, matched);
+    return enriched;
   }
 
   try {
-    const resolved = await fetchStoryItemMetadata(page.context(), candidate.pageUrl, expectedUsername, logs, deadline);
+    const resolved = await fetchStoryItemMetadata(page.context(), pageUrl, expectedUsername, logs, deadline);
     if (resolved) {
       metadataCache?.set(storyId, resolved);
-      return { ...candidate, ...resolved, pageUrl: candidate.pageUrl };
+      return { ...enriched, ...resolved, pageUrl };
     }
   } catch (error) {
     logs?.push(`story_info_error=${storyId}:${errorMessage(error)}`);
   }
 
   return {
-    ...candidate,
+    ...enriched,
     itemId: storyId,
-    expectsAudio: isSeparateDashVideoUrl(candidate.sourceUrl) ? true : null,
+    expectsAudio: matched?.expectsAudio ?? (isSeparateDashVideoUrl(candidate.sourceUrl) ? true : null),
   };
 }
 
@@ -1296,9 +1374,13 @@ async function waitForStoryMedia(
   logs = null,
   metadataCache = null,
   requestDeadline = Infinity,
+  jsonPayloads = [],
+  metadataCapturedAfter = null,
 ) {
   const deadline = Date.now() + timeoutSeconds * 1000;
-  const networkFallbackDeadline = Date.now() + Math.min(timeoutSeconds, 8) * 1000;
+  // Advancement waits are shorter than the initial viewer wait. Reserve time
+  // inside either budget for blob-backed video to resolve via network capture.
+  const networkFallbackDeadline = Date.now() + Math.min(timeoutSeconds / 2, 4) * 1000;
   while (Date.now() < deadline) {
     if (isHighlightStoryUrl(page.url())) return null;
     if (!isActiveStoryPage(page.url(), expectedUsername)) {
@@ -1312,7 +1394,7 @@ async function waitForStoryMedia(
     }
     const candidate = await extractMediaCandidate(page);
     if (candidate) {
-      return await enrichStoryMediaCandidate(page, candidate, expectedUsername, logs, metadataCache, requestDeadline);
+      return await enrichStoryMediaCandidate(page, candidate, expectedUsername, logs, metadataCache, requestDeadline, jsonPayloads, metadataCapturedAfter);
     }
     if (Date.now() < networkFallbackDeadline) {
       await page.waitForTimeout(800);
@@ -1320,7 +1402,7 @@ async function waitForStoryMedia(
     }
     const networkCandidate = latestNetworkCandidate(page, networkCandidates, seenSources);
     if (networkCandidate) {
-      return await enrichStoryMediaCandidate(page, networkCandidate, expectedUsername, logs, metadataCache, requestDeadline);
+      return await enrichStoryMediaCandidate(page, networkCandidate, expectedUsername, logs, metadataCache, requestDeadline, jsonPayloads, metadataCapturedAfter);
     }
     await page.waitForTimeout(800);
   }
@@ -1402,6 +1484,8 @@ async function advanceToNextStory(
   expectedUsername,
   metadataCache,
   deadline = Infinity,
+  jsonPayloads = [],
+  metadataCapturedAfter = null,
 ) {
   const actions = [
     ["button", async () => clickStoryNextButton(page)],
@@ -1428,6 +1512,8 @@ async function advanceToNextStory(
       logs,
       metadataCache,
       deadline,
+      jsonPayloads,
+      metadataCapturedAfter,
     );
     if (!nextMedia) continue;
     const nextSignature = storySignature(nextMedia.pageUrl, nextMedia.sourceUrl);
@@ -1763,7 +1849,7 @@ async function persistStoryItems(resolvedItems, destinationDir, username, browse
       logs.push(`saved=${localPath}`);
       logs.push(`manifest=${manifestPath}`);
     } catch (error) {
-      logs.push(`story_item_failed=${resolved.itemId}:${errorMessage(error)}`);
+      logs.push(`story_item_failed=${resolved.itemId || storyIdFromUrl(resolved.pageUrl) || "unknown"}:${errorMessage(error)}`);
       // A file may already be published when manifest writing fails.
       state.nextIndexValue = Math.max(state.nextIndexValue, await nextStoryIndex(destinationDir, username));
     }
@@ -1812,10 +1898,42 @@ async function collectStorySequence(page, destinationDir, username, jsonPayloads
   const foundIds = new Set(resolvedItems.map((item) => item.itemId));
   const storyMetadataCache = new Map(resolvedItems.filter((item) =>
     item.mediaType !== "video" || seenSources.has(normalizeMediaUrl(item.sourceUrl))).map((item) => [item.itemId, item]));
+  const metadataSignature = (item) => JSON.stringify([item.sourceUrl, item.audioSourceUrl, item.expectsAudio]);
+  const attemptedMetadata = new Map(resolvedItems.map((item) => [item.itemId, metadataSignature(item)]));
+  const refreshPlaylist = async () => {
+    let scripts = [];
+    try {
+      scripts = await page.evaluate(() => [...document.querySelectorAll('script[type="application/json"]')].map((node) => node.textContent || ""));
+    } catch {}
+    const discovered = mergeStoryItems(
+      resolveStoryItemsFromPayloads(jsonPayloads, username, metadataCapturedAfter),
+      resolveStoryItemsFromScriptTexts(scripts, username),
+    );
+    const newItems = discovered.filter((item) => attemptedMetadata.get(item.itemId) !== metadataSignature(item));
+    if (!newItems.length) return;
+    for (const item of newItems) {
+      foundIds.add(item.itemId);
+      attemptedMetadata.set(item.itemId, metadataSignature(item));
+    }
+    logs.push(`story_late_playlist_items=${newItems.length}`);
+    if (persistMetadataItems) {
+      const persisted = await persistStoryItems(newItems, destinationDir, username, page.context(), mediaFilter, state);
+      items.push(...persisted.items);
+      logs.push(...persisted.logs);
+    }
+    for (const item of discovered) {
+      if (item.mediaType !== "video" || seenSources.has(normalizeMediaUrl(item.sourceUrl))) {
+        storyMetadataCache.set(item.itemId, item);
+      }
+    }
+  };
   try {
     for (let i = 0; i < 50 && isActiveStoryPage(page.url(), username); i += 1) {
       const media = await waitForStoryMedia(page, networkCandidates, seenSources,
-        remainingStoryTimeout(deadline, 20_000) / 1000, username, logs, storyMetadataCache, deadline);
+        remainingStoryTimeout(deadline, 20_000) / 1000, username, logs, storyMetadataCache, deadline, jsonPayloads, metadataCapturedAfter);
+      // Playback can start at an unread Story while the complete playlist
+      // arrives later. Save every newly discovered item, including earlier ones.
+      await refreshPlaylist();
       if (!media) break;
       const normalizedSource = normalizeMediaUrl(media.sourceUrl);
       const signature = storyIdFromUrl(media.pageUrl) || storySignature(media.pageUrl, normalizedSource);
@@ -1828,7 +1946,7 @@ async function collectStorySequence(page, destinationDir, username, jsonPayloads
       seenSignatures.add(signature);
       seenSources.add(normalizedSource);
       if (!(await advanceToNextStory(page, networkCandidates, seenSources,
-        storySignature(media.pageUrl, normalizedSource), logs, username, storyMetadataCache, deadline))) break;
+        storySignature(media.pageUrl, normalizedSource), logs, username, storyMetadataCache, deadline, jsonPayloads, metadataCapturedAfter))) break;
     }
   } catch (error) {
     logs.push(`story_traversal_failed=${errorMessage(error)}`);
@@ -1918,11 +2036,14 @@ async function downloadProfileWithPage(page, profileUrl, outputDirectory, mediaF
       if (prefetchedItems.length > 0) {
         await retryingGoto(page, prefetchedItems[0].pageUrl, { waitUntil: "domcontentloaded" }, logs, "story_first_goto");
         await ensureLoggedIn(page);
-      } else if (!(await clickProfileStoryRing(page, username, logs))) {
-        const fallback = `https://www.instagram.com/stories/${username}/`;
-        await retryingGoto(page, fallback, { waitUntil: "domcontentloaded" }, logs, "story_fallback_goto");
+      } else {
+        // A full navigation includes the author's embedded reel playlist. The
+        // profile ring uses SPA navigation and can open only the first unread
+        // Story, with no playlist captured before playback advances.
+        const storyPageUrl = `https://www.instagram.com/stories/${username}/`;
+        await retryingGoto(page, storyPageUrl, { waitUntil: "domcontentloaded" }, logs, "story_page_goto");
         await ensureLoggedIn(page);
-        logs.push(`profile_fallback=${fallback}`);
+        logs.push(`story_page_opened=${username}`);
       }
       await clickStoryGateIfNeeded(page, logs);
       logs.push(`opened=${page.url()}`);
@@ -1985,6 +2106,78 @@ async function profileCommand(profileUrl, outputDirectory, headless = true, medi
   }
 }
 
+function buildProfileProgressLines(result, profileUrl, slot) {
+  const username = sanitizeFilename(extractUsername(profileUrl) || result?.username || "unknown");
+  const status = /^[a-z_]{1,48}$/.test(result?.status || "") ? result.status : "unknown";
+  const count = (value) => /^\d{1,8}$/.test(String(value ?? "")) ? String(Number(value)) : "0";
+  const details = new Map();
+  const errors = { item: 0, audio: 0, traversal: 0 };
+  let duplicates = 0;
+  const perProfileValue = (value) => {
+    const match = String(value).match(/^([A-Za-z0-9._-]+):(\d{1,8}|page)$/);
+    return match && match[1].toLowerCase() === username.toLowerCase() ? match[2] : null;
+  };
+  const apiKeys = new Map([
+    ["story_profile_info_status", "api_profile"],
+    ["story_reels_media_status", "api_playlist"],
+    ["story_feed_status", "api_fallback"],
+    ["story_reels_media_items", "playlist_items"],
+    ["story_feed_items", "feed_items"],
+  ]);
+  for (const entry of Array.isArray(result?.logs) ? result.logs : []) {
+    if (typeof entry !== "string") continue;
+    const separator = entry.indexOf("=");
+    const key = entry.slice(0, separator);
+    const value = entry.slice(separator + 1);
+    if (apiKeys.has(key)) {
+      const safeValue = perProfileValue(value);
+      if (safeValue && safeValue !== "page") details.set(apiKeys.get(key), safeValue);
+    } else if (key === "metadata_story_items" && /^\d{1,8}$/.test(value)) {
+      details.set("metadata_items", count(value));
+    } else if (key === "story_profile_id_source" && perProfileValue(value) === "page") {
+      details.set("profile_id", "page");
+    } else if (key === "story_profile_id_missing" && value.toLowerCase() === username.toLowerCase()) {
+      details.set("profile_id", "missing");
+    } else if (key === "opened") {
+      let viewer = "other";
+      try {
+        const opened = new URL(value);
+        if (opened.hostname === "instagram.com" || opened.hostname.endsWith(".instagram.com")) {
+          if (isHighlightStoryUrl(opened.href)) viewer = "highlight";
+          else if (isActiveStoryPage(opened.href, username)) viewer = storyIdFromUrl(opened.href) ? "story_with_id" : "story_without_id";
+          else if (opened.pathname.startsWith("/accounts/login")) viewer = "login";
+          else if (opened.pathname.startsWith("/challenge")) viewer = "challenge";
+          else if (opened.pathname.toLowerCase() === `/${username.toLowerCase()}/`) viewer = "profile";
+        }
+      } catch {}
+      details.set("viewer", viewer);
+    } else if (key === "story_item_failed") {
+      errors.item += 1;
+      if (/аудиодорож|без звука|audio/i.test(value)) errors.audio += 1;
+    } else if (key === "story_traversal_failed") {
+      errors.traversal += 1;
+    } else if (key.startsWith("skipped_existing_")) {
+      duplicates += 1;
+    } else if (key === "story_feed_error" || key === "story_feed_fallback_error") {
+      details.set(key === "story_feed_error" ? "api_discovery_error" : "api_fallback_error", "true");
+    } else if (key === "story_viewer_open_error" || key === "story_page_metadata_error") {
+      details.set(key === "story_viewer_open_error" ? "viewer_open_error" : "page_metadata_error", "true");
+    }
+  }
+  const fields = [
+    `status=${status}`,
+    `found=${count(result?.data?.foundCount)}`,
+    `saved=${count(result?.data?.savedCount)}`,
+    ...[...details].map(([key, value]) => `${key}=${value}`),
+  ];
+  if (errors.item) fields.push(`item_errors=${errors.item}`);
+  if (errors.audio) fields.push(`audio_errors=${errors.audio}`);
+  if (errors.traversal) fields.push(`traversal_errors=${errors.traversal}`);
+  if (duplicates) fields.push(`duplicates=${duplicates}`);
+  const safeSlot = /^\d{1,4}$/.test(String(slot)) ? slot : 0;
+  return [`batch_slot_${safeSlot}_profile=${username} ${fields.join(" ")}`];
+}
+
 async function profileBatchCommand(profileUrls, outputDirectory, headless = true, mediaFilter = "all") {
   await ensureDirectories();
   const normalizedUrls = profileUrls
@@ -2006,6 +2199,15 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
   let session = null;
   let batchAbortMessage = null;
   let contextClosed = false;
+
+  try {
+    const workerPackage = JSON.parse(await fs.readFile(new URL("./package.json", import.meta.url), "utf8"));
+    if (/^\d+(?:\.\d+){1,3}(?:[-+][A-Za-z0-9.-]+)?$/.test(workerPackage.version || "")) {
+      const versionLine = `worker_version=${workerPackage.version}`;
+      logs.push(versionLine);
+      emitProgress(versionLine);
+    }
+  } catch {}
 
   try {
     session = await launchContext(headless);
@@ -2090,6 +2292,12 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
           );
         } catch (error) {
           const message = errorMessage(error);
+          for (const line of buildProfileProgressLines({
+            status: "download_error", logs: [`story_traversal_failed=${message}`],
+          }, job.normalizedUrl, slot)) {
+            logs.push(line);
+            emitProgress(line);
+          }
           batchResults[job.index] = buildFailureResult(job.normalizedUrl, message);
           processedCount += 1;
           logs.push(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
@@ -2104,11 +2312,20 @@ async function profileBatchCommand(profileUrls, outputDirectory, headless = true
 
         if (!result) {
           const message = "Воркер не вернул результат пакетной выгрузки.";
+          for (const line of buildProfileProgressLines({ status: "download_error" }, job.normalizedUrl, slot)) {
+            logs.push(line);
+            emitProgress(line);
+          }
           batchResults[job.index] = buildFailureResult(job.normalizedUrl, message);
           processedCount += 1;
           logs.push(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
           emitProgress(`batch_slot_${slot}_error=${job.normalizedUrl} :: ${message}`);
           continue;
+        }
+
+        for (const line of buildProfileProgressLines(result, job.normalizedUrl, slot)) {
+          logs.push(line);
+          emitProgress(line);
         }
 
         if (headless) {
@@ -2283,11 +2500,15 @@ if (isDirectExecution) {
 }
 
 export {
+  buildProfileProgressLines,
   chooseVisibleStoryMediaCandidate,
   collectStorySequence,
+  downloadProfileWithPage,
   downloadMedia,
   persistStoryItems,
   waitForMetadataStoryItems,
+  waitForStoryMedia,
+  enrichStoryMediaCandidate,
   resolveStoryItemsFromScriptTexts,
   summarizeStoryDownload,
   extractProfileUserIdFromPayloads,
