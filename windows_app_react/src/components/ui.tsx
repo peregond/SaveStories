@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 export function Card({ title, aside, children }: { title?: string; aside?: ReactNode; children: ReactNode }) {
   return (
@@ -21,8 +21,8 @@ export function Segmented<T extends string>({ value, onChange, options, label, d
   );
 }
 
-export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
-  return <button className="switch" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)} />;
+export function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
+  return <button className="switch" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)} />;
 }
 
 export function Empty({ icon, text }: { icon: ReactNode; text: string }) {
@@ -41,4 +41,44 @@ export function Banner({ tone, children, onClose, action }: { tone: "ok" | "err"
 
 export function Pill({ tone, children }: { tone: "" | "ok" | "run" | "err" | "warn"; children: ReactNode }) {
   return <span className={`pill ${tone}`}><i />{children}</span>;
+}
+
+/** Подпись шага/раздела: «1. УКАЖИ, ГДЕ…». */
+export function StepTitle({ children }: { children: ReactNode }) {
+  return <div className="step-title">{children}</div>;
+}
+
+export function Dialog({ title, children, primary, secondary, onPrimary, onSecondary }: {
+  title: string; children: ReactNode; primary: string; secondary: string; onPrimary: () => void; onSecondary: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onSecondary(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onSecondary]);
+  return (
+    <div className="scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onSecondary(); }}>
+      <div className="dialog" role="dialog" aria-modal="true" aria-label={title}>
+        <h2>{title}</h2>
+        <div className="dialog-body">{children}</div>
+        <div className="row dialog-actions">
+          <button className="btn" onClick={onSecondary}>{secondary}</button>
+          <button className="btn go" style={{ height: 38, fontSize: 14 }} autoFocus onClick={onPrimary}>{primary}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Строка «путь + кнопки» для выбора папок. */
+export function PathRow({ path, placeholder, onPick, onOpen, disabled }: {
+  path: string; placeholder: string; onPick: () => void; onOpen: () => void; disabled?: boolean;
+}) {
+  return (
+    <div className="pathbox">
+      <span title={path} className={path ? "" : "dim"}>{path || placeholder}</span>
+      <button className="btn sm" disabled={disabled} onClick={onPick}>Выбрать</button>
+      <button className="btn sm ghost" disabled={!path} onClick={onOpen}>Открыть</button>
+    </div>
+  );
 }

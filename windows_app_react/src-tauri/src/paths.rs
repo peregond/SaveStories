@@ -37,6 +37,10 @@ impl AppPaths {
         Self { resource_root: root }
     }
 
+    pub fn resource_root(&self) -> &Path {
+        &self.resource_root
+    }
+
     pub fn application_support(&self) -> PathBuf {
         env_path("SAVESTORIES_APP_SUPPORT").unwrap_or_else(|| local_root().join(APP_NAME))
     }

@@ -64,13 +64,15 @@ fn worker_command(paths: &AppPaths, runtime: &str) -> Result<std::process::Comma
         .env("SAVESTORIES_BROWSER_PROFILE", paths.browser_profile())
         .env("SAVESTORIES_MANIFESTS", paths.manifests_directory())
         .env("SAVESTORIES_PLAYWRIGHT_BROWSERS", paths.playwright_browsers())
+        // Воркер уважает уже заданную PLAYWRIGHT_BROWSERS_PATH, поэтому закрепляем свою папку Chromium явно.
+        .env("PLAYWRIGHT_BROWSERS_PATH", paths.playwright_browsers())
         .env("SAVESTORIES_DEFAULT_DOWNLOADS", paths.default_downloads())
         .env("SAVESTORIES_LOGS", paths.logs_directory())
         .env("SAVESTORIES_WORKER_RUNTIME", runtime);
     Ok(cmd)
 }
 
-pub async fn run<F>(on_log: F, state: &WorkerState, paths: &AppPaths, request: Value) -> Result<Value, String>
+pub async fn run<F>(on_log: F, state: &WorkerState, paths: &AppPaths, request: Value, timeout: Option<std::time::Duration>) -> Result<Value, String>
 where
     F: Fn(&str) + Send + 'static,
 {
@@ -83,12 +85,12 @@ where
         *slot = Some(notify.clone());
         notify
     };
-    let result = run_inner(on_log, paths, request, cancel).await;
+    let result = run_inner(on_log, paths, request, cancel, timeout).await;
     *state.cancel.lock().unwrap() = None;
     result
 }
 
-async fn run_inner<F>(on_log: F, paths: &AppPaths, request: Value, cancel: Arc<Notify>) -> Result<Value, String>
+async fn run_inner<F>(on_log: F, paths: &AppPaths, request: Value, cancel: Arc<Notify>, timeout: Option<std::time::Duration>) -> Result<Value, String>
 where
     F: Fn(&str) + Send + 'static,
 {
@@ -138,6 +140,19 @@ where
             out_task.abort();
             err_task.abort();
             return Ok(cancelled());
+        }
+        _ = async {
+            match timeout {
+                Some(limit) => tokio::time::sleep(limit).await,
+                None => std::future::pending::<()>().await,
+            }
+        } => {
+            kill_tree(pid);
+            let _ = child.kill().await;
+            out_task.abort();
+            err_task.abort();
+            let minutes = timeout.map(|t| t.as_secs() / 60).unwrap_or(0);
+            return Ok(process_failure(format!("Команда worker превысила таймаут {minutes} мин.")));
         }
     };
 
@@ -256,7 +271,7 @@ mod tests {
         let logs = Arc::new(Mutex::new(Vec::<String>::new()));
         let sink = logs.clone();
         let state = WorkerState::default();
-        let out = run(move |l| sink.lock().unwrap().push(l.to_string()), &state, &paths, json!({"command":"ping"})).await.unwrap();
+        let out = run(move |l| sink.lock().unwrap().push(l.to_string()), &state, &paths, json!({"command":"ping"}), None).await.unwrap();
         assert_eq!(out["ok"], true);
         assert_eq!(out["message"], "ping");
         assert_eq!(logs.lock().unwrap().as_slice(), ["step one"]);
@@ -274,9 +289,22 @@ mod tests {
             tokio::time::sleep(std::time::Duration::from_millis(600)).await;
             assert!(canceller.cancel());
         });
-        let out = run(|_| {}, &state, &paths, json!({"command":"x"})).await.unwrap();
+        let out = run(|_| {}, &state, &paths, json!({"command":"x"}), None).await.unwrap();
         assert_eq!(out["status"], "cancelled");
         assert!(!state.cancel());
+    }
+
+    #[tokio::test]
+    async fn timeout_kills_a_stuck_worker() {
+        if !have_node() { return; }
+        let root = fake_root("timeout", "process.stdin.resume(); setInterval(()=>{}, 1000);");
+        std::env::set_var("SAVESTORIES_APP_SUPPORT", root.join("data"));
+        let paths = AppPaths::with_root(root);
+        let started = std::time::Instant::now();
+        let out = run(|_| {}, &WorkerState::default(), &paths, json!({"command":"x"}), Some(std::time::Duration::from_millis(500))).await.unwrap();
+        assert_eq!(out["status"], "process_error");
+        assert!(out["message"].as_str().unwrap().contains("таймаут"));
+        assert!(started.elapsed() < std::time::Duration::from_secs(5));
     }
 
     #[tokio::test]
@@ -285,7 +313,7 @@ mod tests {
         let root = fake_root("crash", "process.stdin.resume(); process.stderr.write('kaboom\\n'); process.exit(3);");
         std::env::set_var("SAVESTORIES_APP_SUPPORT", root.join("data"));
         let paths = AppPaths::with_root(root);
-        let out = run(|_| {}, &WorkerState::default(), &paths, json!({"command":"x"})).await.unwrap();
+        let out = run(|_| {}, &WorkerState::default(), &paths, json!({"command":"x"}), None).await.unwrap();
         assert_eq!(out["status"], "process_error");
         assert_eq!(out["message"], "kaboom");
     }

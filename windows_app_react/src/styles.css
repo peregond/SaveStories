@@ -209,3 +209,29 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .linklike { background: none; border: 0; color: var(--accent); padding: 0; text-decoration: underline; }
 .progress.indeterminate > div { width: 35%; animation: slide 1.3s ease-in-out infinite; }
 @keyframes slide { 0% { margin-left: -35%; } 100% { margin-left: 100%; } }
+
+/* Шаги, диалоги, прочее */
+.step-title { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); margin: 18px 0 8px; }
+.step-title:first-child { margin-top: 0; }
+.dim { color: var(--text-2); direction: ltr !important; }
+.scrim { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(8, 14, 20, .45); backdrop-filter: blur(3px); }
+.dialog { width: min(480px, calc(100vw - 48px)); max-height: calc(100vh - 64px); display: flex; flex-direction: column; padding: 22px; border-radius: var(--radius-card); background: #f8fafb; border: 1px solid var(--card-stroke); box-shadow: 0 24px 64px rgba(0,0,0,.35); }
+:root[data-theme="dark"] .dialog { background: #222b35; }
+.dialog h2 { font-size: 17px; margin-bottom: 10px; }
+.dialog-body { overflow: auto; color: var(--text-2); white-space: pre-wrap; font-size: 13.5px; user-select: text; }
+.dialog-actions { margin-top: 18px; justify-content: flex-end; }
+textarea.tall { min-height: 140px; }
+.rules { width: 100%; min-height: 170px; resize: vertical; padding: 12px 14px; border: 1px solid var(--card-stroke); border-radius: var(--radius-item); background: var(--input); color: var(--text); font: 13px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+.rules:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+.digest { width: 100%; min-height: 220px; resize: vertical; padding: 12px 14px; border: 1px solid var(--card-stroke); border-radius: var(--radius-item); background: var(--input); color: var(--text); font: 12.5px/1.55 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+.statusline { margin-top: 12px; padding: 10px 12px; border-radius: var(--radius-item); background: var(--item); font-size: 13px; user-select: text; }
+.checks { display: grid; gap: 6px; margin-top: 12px; font-size: 13px; }
+.checks div { display: flex; gap: 8px; align-items: baseline; }
+.checks b { font-weight: 600; min-width: 150px; }
+.checks span { color: var(--text-2); overflow-wrap: anywhere; user-select: text; }
+.tick.ok { color: var(--ok); } .tick.bad { color: var(--danger); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 190px; overflow: auto; }
+.chip { padding: 3px 10px; border-radius: 999px; background: var(--item); font-size: 12.5px; }
+.cols.sorting { grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); }
+.metrics.five { grid-template-columns: 1fr 1fr 1fr; }
+.live { margin-top: 12px; font-size: 13px; color: var(--text-2); }

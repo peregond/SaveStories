@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { Banner, Card, Empty, Pill, Segmented } from "../components/ui";
+import { Card, Empty, Pill, Segmented, Switch } from "../components/ui";
 import { IconBookmark, IconDownload, IconEmpty, IconFolder, IconStop, IconTrash } from "../icons";
-import { parseBatchLinks, pluralProfiles, profileName } from "../parse";
+import { parseProfiles, pluralProfiles, profileName } from "../parse";
 import type { Store } from "../store";
-import { QueueList, statusPill } from "./shared";
+import { EnvironmentBanners, QueueList, statusPill } from "./shared";
 
 export function Stories({ s }: { s: Store }) {
   const [text, setText] = useState("");
-  const links = parseBatchLinks(text);
+  const links = parseProfiles(text);
   const total = links.length + s.pending;
   const pill = statusPill(s);
+  const canRun = s.runtime?.chromiumInstalled !== false;
 
   const run = async () => {
     const value = text;
@@ -19,20 +20,7 @@ export function Stories({ s }: { s: Store }) {
 
   return (
     <>
-      {s.session === "login_required" && s.workerReady && (
-        <Banner tone="warn" action={<button className="btn sm primary" onClick={s.login}>Войти в Instagram</button>}>
-          Сессия Instagram не найдена. Откройте браузер и войдите — приложение само найдёт сессию.
-        </Banner>
-      )}
-      {s.session === "waiting_login" && <Banner tone="warn">Ожидаю вход в Instagram в отдельном окне браузера…</Banner>}
-      {s.session === "error" && (
-        <Banner tone="err" action={<button className="btn sm" disabled={!!s.busy} onClick={() => s.checkSession()}>Проверить снова</button>}>
-          Не удалось проверить сессию Instagram: {s.sessionSummary}
-        </Banner>
-      )}
-      {s.workerReady === false && <Banner tone="err">{s.workerSummary}</Banner>}
-      {s.notice && <Banner tone={s.notice.tone} onClose={() => s.setNotice(null)}>{s.notice.text}</Banner>}
-
+      <EnvironmentBanners s={s} />
       <div className="cols">
         <div className="stack">
           <Card title="Профили">
@@ -47,7 +35,7 @@ export function Stories({ s }: { s: Store }) {
               <span className="counter">{links.length} {pluralProfiles(links.length)}</span>
             </div>
             <div className="actions">
-              <button className="btn go" disabled={!total || !!s.busy} onClick={run}>
+              <button className="btn go" disabled={(!total && !s.settings.notionInfluencerEnabled) || !!s.busy || !canRun} onClick={run}>
                 <IconDownload /> {!links.length && s.retryOnly ? "Повторить" : "Скачать"}{total ? ` · ${total}` : ""}
               </button>
               <button className="btn danger" disabled={s.busy !== "batch" && s.busy !== "reels"} onClick={s.stop}><IconStop /> Стоп</button>
@@ -59,18 +47,34 @@ export function Stories({ s }: { s: Store }) {
             </div>
           </Card>
 
+          <Card title="Список из Notion">
+            <div className="setting" style={{ paddingTop: 0 }}>
+              <div>
+                <div>Автосписок инфлюенсеров</div>
+                <div className="hint">{s.notionSummary || (s.settings.notionInfluencerEnabled ? "Перед запуском очередь обновится из Notion не чаще одного раза в день." : "Автосписок Notion выключен.")}</div>
+              </div>
+              <Switch checked={s.settings.notionInfluencerEnabled} disabled={!!s.busy || s.notionBusy} label="Автосписок Notion" onChange={(v) => s.updateSettings({ notionInfluencerEnabled: v })} />
+            </div>
+            <div className="row">
+              <button className="btn sm" disabled={!!s.busy || s.notionBusy} onClick={() => void s.refreshNotionInfluencers({ replace: true, force: true })}>
+                {s.notionBusy ? "Загружаю…" : "Обновить из Notion"}
+              </button>
+            </div>
+          </Card>
+
           <Card title="Параметры">
             <div className="field-label">Браузер</div>
             <Segmented label="Режим браузера" value={s.settings.downloadMode} disabled={!!s.busy} onChange={(v) => s.updateSettings({ downloadMode: v })}
               options={[{ value: "background", label: "В фоне" }, { value: "visible", label: "Видимый" }]} />
+            <div className="hint" style={{ marginTop: 6 }}>{s.settings.downloadMode === "background" ? "Браузер скрыт, работает незаметно." : "Откроется окно Chromium во время выгрузки."}</div>
             <div className="field-label">Что сохранять</div>
             <Segmented label="Тип медиа" value={s.settings.mediaFilter} disabled={!!s.busy} onChange={(v) => s.updateSettings({ mediaFilter: v })}
               options={[{ value: "all", label: "Фото и видео" }, { value: "video_only", label: "Только видео" }]} />
-            <div className="field-label">Папка</div>
+            <div className="field-label">Папка сохранения</div>
             <div className="pathbox">
               <span title={s.settings.saveDirectory}>{s.settings.saveDirectory}</span>
               <button className="btn sm" disabled={!!s.busy} onClick={s.pickDirectory}><IconFolder size={16} /> Выбрать</button>
-              <button className="btn sm ghost" onClick={s.openSaveDirectory}>Открыть</button>
+              <button className="btn sm ghost" disabled={!!s.busy} onClick={s.openSaveDirectory}>Открыть</button>
             </div>
           </Card>
         </div>
@@ -86,16 +90,24 @@ export function Stories({ s }: { s: Store }) {
           </Card>
 
           <Card title="Результат">
-            <div className="metrics">
+            <div className="metrics five">
               <Metric v={s.stats.profiles} l="Профилей" />
+              <Metric v={`${s.stats.done}/${s.stats.profiles}`} l="Обработано" />
+              <Metric v={s.stats.found} l="Найдено" />
               <Metric v={s.stats.saved} l="Сохранено" />
-              <Metric v={s.stats.files} l="Найдено файлов" />
-              <Metric v={s.stats.folders} l="Готово профилей" />
+              <Metric v={s.stats.files} l="Файлов" />
+              <Metric v={s.live.folders} l="Папок создано" />
             </div>
+            <div className="live">Файлов загружено: {s.live.files}  ·  Папок создано: {s.live.folders}</div>
           </Card>
 
           {s.entries.length > 0 && (
-            <Card title="Очередь" aside={<button className="btn sm ghost" disabled={!!s.busy} onClick={s.clearQueue}>Очистить</button>}>
+            <Card title="Очередь" aside={
+              <span className="row" style={{ gap: 4 }}>
+                {s.failedCount > 0 && <button className="btn sm ghost" disabled={!!s.busy} onClick={s.retryFailed}>Только ошибочные</button>}
+                <button className="btn sm ghost" disabled={!!s.busy} onClick={s.clearQueue}>Очистить</button>
+              </span>
+            }>
               <QueueList s={s} />
             </Card>
           )}
@@ -124,7 +136,7 @@ export function Stories({ s }: { s: Store }) {
   );
 }
 
-const Metric = ({ v, l }: { v: number; l: string }) => <div className="metric"><b>{v}</b><span>{l}</span></div>;
+const Metric = ({ v, l }: { v: number | string; l: string }) => <div className="metric"><b>{v}</b><span>{l}</span></div>;
 
 export function LogCard({ lines }: { lines: string[] }) {
   const [copied, setCopied] = useState(false);
@@ -135,8 +147,8 @@ export function LogCard({ lines }: { lines: string[] }) {
   };
   return (
     <Card title="Журнал" aside={<button className="btn sm ghost" onClick={copy}>{copied ? "Скопировано" : "Копировать"}</button>}>
-      <div className="log" tabIndex={0}>{lines.slice(-80).map((l, i) => (
-        <div key={i} className={/error|ошибк|✗/i.test(l) ? "e" : l.startsWith("✓") ? "s" : undefined}>{l}</div>
+      <div className="log" tabIndex={0}>{lines.slice(-120).map((l, i) => (
+        <div key={i} className={/error|ошибк|✗|failed/i.test(l) ? "e" : /_done=|✓/.test(l) ? "s" : undefined}>{l}</div>
       ))}</div>
     </Card>
   );

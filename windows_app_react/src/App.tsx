@@ -1,17 +1,21 @@
 import { useEffect, useState, type ComponentType } from "react";
-import { createApi, type Api, type Theme } from "./api";
-import { IconQueue, IconReels, IconSettings, IconStories } from "./icons";
+import { createApi, type Api } from "./api";
+import { Dialog } from "./components/ui";
+import { IconQueue, IconReels, IconSettings, IconSort, IconStories } from "./icons";
+import { themeForHour } from "./parse";
 import { Queue } from "./screens/Queue";
 import { Reels } from "./screens/Reels";
 import { Settings } from "./screens/Settings";
+import { Sorting } from "./screens/Sorting";
 import { Stories } from "./screens/Stories";
 import { useStore, type Store } from "./store";
 
-type Page = "stories" | "queue" | "reels" | "settings";
+type Page = "stories" | "queue" | "reels" | "sorting" | "settings";
 const NAV: { id: Page; title: string; sub: string; Icon: ComponentType<{ size?: number }> }[] = [
   { id: "stories", title: "Stories", sub: "Выгрузка из профилей", Icon: IconStories },
-  { id: "queue", title: "Очередь", sub: "Пакетная выгрузка", Icon: IconQueue },
+  { id: "queue", title: "Списочная", sub: "Пакетная выгрузка", Icon: IconQueue },
   { id: "reels", title: "Reels", sub: "Видео по ссылкам", Icon: IconReels },
+  { id: "sorting", title: "Сортировка", sub: "Разложить файлы по странам и блогерам", Icon: IconSort },
 ];
 
 export default function App() {
@@ -20,22 +24,28 @@ export default function App() {
   return api ? <Shell api={api} /> : null;
 }
 
-function useTheme(theme: Theme) {
+/** Итоговая тема: по времени суток, иначе выбранная (или системная). */
+function useTheme(theme: "system" | "light" | "dark", byTime: boolean, loaded: boolean) {
   useEffect(() => {
+    if (!loaded) return;
     const mq = matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => { document.documentElement.dataset.theme = theme === "system" ? (mq.matches ? "dark" : "light") : theme; };
+    const apply = () => {
+      const resolved = byTime ? themeForHour(new Date().getHours()) : theme === "system" ? (mq.matches ? "dark" : "light") : theme;
+      document.documentElement.dataset.theme = resolved;
+    };
     apply();
     mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
-  }, [theme]);
+    const timer = window.setInterval(apply, 60_000);
+    return () => { mq.removeEventListener("change", apply); window.clearInterval(timer); };
+  }, [theme, byTime, loaded]);
 }
 
 function Shell({ api }: { api: Api }) {
   const s = useStore(api);
   const [page, setPage] = useState<Page>(() => (new URLSearchParams(location.search).get("page") as Page) || "stories");
-  useTheme(s.settings.theme);
+  useTheme(s.settings.theme, s.settings.automaticThemeByTime, s.loaded);
 
-  const current = page === "settings" ? { title: "Настройки", sub: "Вход, обновления и данные" } : NAV.find((n) => n.id === page)!;
+  const current = page === "settings" ? { title: "Настройки", sub: "Вход, модули, обновления и данные" } : NAV.find((n) => n.id === page)!;
   return (
     <div className="app">
       <nav className="sidebar" aria-label="Разделы">
@@ -59,11 +69,22 @@ function Shell({ api }: { api: Api }) {
           {page === "stories" && <Stories s={s} />}
           {page === "queue" && <Queue s={s} />}
           {page === "reels" && <Reels s={s} />}
+          {page === "sorting" && <Sorting s={s} />}
           {page === "settings" && <Settings s={s} />}
         </div>
       </main>
+      {s.cleanupOffer && (
+        <Dialog title={s.cleanupOffer.title} primary="Удалить" secondary="Не удалять" onPrimary={s.confirmCleanup} onSecondary={s.dismissCleanup}>
+          {`${s.cleanupOffer.intro}\n\n${previewNames(s.cleanupOffer.folders)}`}
+        </Dialog>
+      )}
     </div>
   );
+}
+
+function previewNames(folders: string[]): string {
+  const names = folders.map((f) => f.split(/[\\/]/).filter(Boolean).pop() ?? f).slice(0, 12);
+  return folders.length > 12 ? `${names.join("\n")}\nи ещё ${folders.length - 12}` : names.join("\n");
 }
 
 function UpdateButton({ s }: { s: Store }) {

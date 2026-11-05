@@ -17,3 +17,7 @@ export const IconTrash = make(<><path d="M4 7h16M10 11v6M14 11v6" /><path d="M6 
 export const IconRefresh = make(<><path d="M20 11a8 8 0 0 0-14.5-4M4 5v4h4" /><path d="M4 13a8 8 0 0 0 14.5 4M20 19v-4h-4" /></>);
 export const IconEmpty = make(<><rect x="4" y="5" width="16" height="14" rx="3" /><path d="M8 10h8M8 14h5" /></>);
 export const IconArrowUp = make(<path d="M12 19V6m0 0-5 5m5-5 5 5" />);
+export const IconSort = make(<><path d="M4 7h10M4 12h7M4 17h4" /><path d="m16 15 3 3 3-3M19 18V6" /></>);
+export const IconCopy = make(<><rect x="9" y="9" width="11" height="11" rx="2.5" /><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15" /></>);
+export const IconUndo = make(<><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></>);
+export const IconBroom = make(<><path d="M14 4 20 10" /><path d="m13 7-8 8a2.8 2.8 0 0 0 4 4l8-8" /><path d="m7 13 4 4" /></>);
