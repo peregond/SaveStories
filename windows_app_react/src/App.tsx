@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from "react";
 import { createApi, type Api } from "./api";
+import { Logo } from "./components/Logo";
 import { Dialog } from "./components/ui";
 import { IconQueue, IconReels, IconSettings, IconSort, IconStories } from "./icons";
 import { themeForHour } from "./parse";
@@ -73,8 +74,8 @@ function Shell({ api }: { api: Api }) {
     <div className="app">
       <nav className="sidebar" aria-label="Разделы">
         <div className="brand">
-          <div className="brand-mark"><IconStories size={20} /></div>
-          <div><div className="brand-name">SaveMe</div><div className="brand-sub">для Windows</div></div>
+          <Logo />
+          <div className="brand-name">SaveMe</div>
         </div>
         {NAV.map(({ id, title, Icon }) => (
           <button key={id} className="nav-item" aria-current={page === id ? "page" : undefined} onClick={() => setPage(id)}><Icon /><span>{title}</span></button>
