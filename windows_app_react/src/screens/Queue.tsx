@@ -1,44 +1,36 @@
 import { useState } from "react";
-import { parseProfiles } from "../bridge";
-import { Card, Empty } from "../components/ui";
+import { Banner, Card, Empty } from "../components/ui";
 import { IconDownload, IconEmpty, IconStop } from "../icons";
-import type { Runner } from "../useRunner";
+import { parseBatchLinks } from "../parse";
+import type { Store } from "../store";
+import { QueueList } from "./shared";
 
-const STATUS: Record<string, [string, string]> = {
-  pending: ["", "Ожидает"], running: ["run", "В работе"], done: ["ok", "Готово"], failed: ["err", "Ошибка"],
-};
-
-export function Queue({ r }: { r: Runner }) {
+export function Queue({ s }: { s: Store }) {
   const [text, setText] = useState("");
-  const profiles = parseProfiles(text);
+  const links = parseBatchLinks(text);
   return (
-    <div className="cols">
-      <Card title="Добавить профили">
-        <div className="editor">
-          <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={"Вставьте ссылки или username,\nпо одному на строку"} aria-label="Список профилей" />
-          <span className="counter">{profiles.length}</span>
-        </div>
-        <div className="actions">
-          <button className="btn go" disabled={!profiles.length || r.running} onClick={() => { r.start(profiles); setText(""); }}><IconDownload /> Скачать очередь</button>
-          <button className="btn danger" disabled={!r.running} onClick={r.stop}><IconStop /> Стоп</button>
-        </div>
-      </Card>
-      <Card title="Очередь" aside={r.entries.length ? <button className="btn sm ghost" disabled={r.running} onClick={r.clear}>Очистить</button> : null}>
-        {r.entries.length === 0 ? <Empty icon={<IconEmpty size={32} />} text="Очередь пока пуста" /> : (
-          <div className="list">
-            {r.entries.map((e) => {
-              const [cls, label] = STATUS[e.status];
-              return (
-                <div className="item" key={e.url}>
-                  <div className="avatar">{e.url[0].toUpperCase()}</div>
-                  <div className="grow"><div className="name">{e.url}</div><div className="hint">{e.message}</div></div>
-                  <span className={`pill ${cls}`}><i />{label}</span>
-                </div>
-              );
-            })}
+    <>
+      {s.notice && <Banner tone={s.notice.tone} onClose={() => s.setNotice(null)}>{s.notice.text}</Banner>}
+      <div className="cols">
+        <Card title="Добавить профили">
+          <div className="editor">
+            <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={"Вставьте ссылки или username,\nпо одному на строку"} aria-label="Список профилей" />
+            <span className="counter">{links.length}</span>
           </div>
-        )}
-      </Card>
-    </div>
+          <div className="actions">
+            <button className="btn go" disabled={!!s.busy || (!links.length && !s.pending)} onClick={async () => { const v = text; setText(""); await s.startQueue(v); }}>
+              <IconDownload /> {!links.length && s.retryOnly ? "Повторить ошибочные" : "Скачать очередь"}{links.length + s.pending ? ` · ${links.length + s.pending}` : ""}
+            </button>
+            <button className="btn danger" disabled={s.busy !== "batch"} onClick={s.stop}><IconStop /> Стоп</button>
+          </div>
+          <div className="row" style={{ marginTop: 10 }}>
+            <button className="btn sm ghost" disabled={!links.length || !!s.busy} onClick={() => { s.addProfiles(text); setText(""); }}>Только добавить в очередь</button>
+          </div>
+        </Card>
+        <Card title="Очередь" aside={s.entries.length ? <button className="btn sm ghost" disabled={!!s.busy} onClick={s.clearQueue}>Очистить</button> : null}>
+          {s.entries.length === 0 ? <Empty icon={<IconEmpty size={32} />} text="Очередь пока пуста" /> : <QueueList s={s} />}
+        </Card>
+      </div>
+    </>
   );
 }

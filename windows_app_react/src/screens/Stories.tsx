@@ -1,96 +1,143 @@
 import { useState } from "react";
-import { parseProfiles } from "../bridge";
-import { Card, Empty, Segmented } from "../components/ui";
+import { Banner, Card, Empty, Pill, Segmented } from "../components/ui";
 import { IconBookmark, IconDownload, IconEmpty, IconFolder, IconStop, IconTrash } from "../icons";
-import type { Runner } from "../useRunner";
+import { parseBatchLinks, pluralProfiles, profileName } from "../parse";
+import type { Store } from "../store";
+import { QueueList, statusPill } from "./shared";
 
-export function Stories({ r, ready }: { r: Runner; ready: boolean }) {
+export function Stories({ s }: { s: Store }) {
   const [text, setText] = useState("");
-  const [saved, setSaved] = useState<string[][]>([]);
-  const profiles = parseProfiles(text);
-  const state = r.running ? "run" : r.entries.length && r.entries.every((e) => e.status === "done") ? "ok" : ready ? "ok" : "warn";
-  const label = r.running ? "Выгрузка" : r.entries.length && r.entries.every((e) => e.status === "done") ? "Завершено" : ready ? "Готово" : "Нужен вход";
+  const links = parseBatchLinks(text);
+  const total = links.length + s.pending;
+  const pill = statusPill(s);
+
+  const run = async () => {
+    const value = text;
+    setText("");
+    await s.startQueue(value);
+  };
 
   return (
-    <div className="cols">
-      <div className="stack">
-        <Card title="Профили">
-          <div className="editor">
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={"По одной ссылке или username на строку\ndian.vegas1\nhttps://www.instagram.com/stevensetu/"}
-              aria-label="Список профилей"
-            />
-            <span className="counter">{profiles.length} {plural(profiles.length)}</span>
-          </div>
-          <div className="actions">
-            <button className="btn go" disabled={!profiles.length || r.running} onClick={() => r.start(profiles)}>
-              <IconDownload /> Скачать{profiles.length ? ` · ${profiles.length}` : ""}
-            </button>
-            <button className="btn danger" disabled={!r.running} onClick={r.stop}><IconStop /> Стоп</button>
-          </div>
-          <div className="row" style={{ marginTop: 10 }}>
-            <button className="btn sm ghost" disabled={!profiles.length} onClick={() => { setSaved((s) => [profiles, ...s].slice(0, 6)); }}>
-              <IconBookmark size={16} /> Запомнить набор
-            </button>
-            <button className="btn sm ghost" disabled={!text} onClick={() => setText("")}>Очистить</button>
-          </div>
-        </Card>
+    <>
+      {s.session === "login_required" && s.workerReady && (
+        <Banner tone="warn" action={<button className="btn sm primary" onClick={s.login}>Войти в Instagram</button>}>
+          Сессия Instagram не найдена. Откройте браузер и войдите — приложение само найдёт сессию.
+        </Banner>
+      )}
+      {s.session === "waiting_login" && <Banner tone="warn">Ожидаю вход в Instagram в отдельном окне браузера…</Banner>}
+      {s.session === "error" && (
+        <Banner tone="err" action={<button className="btn sm" disabled={!!s.busy} onClick={() => s.checkSession()}>Проверить снова</button>}>
+          Не удалось проверить сессию Instagram: {s.sessionSummary}
+        </Banner>
+      )}
+      {s.workerReady === false && <Banner tone="err">{s.workerSummary}</Banner>}
+      {s.notice && <Banner tone={s.notice.tone} onClose={() => s.setNotice(null)}>{s.notice.text}</Banner>}
 
-        <Card title="Параметры">
-          <div className="field-label">Браузер</div>
-          <Segmented label="Режим браузера" value={r.browser} onChange={r.setBrowser}
-            options={[{ value: "background", label: "В фоне" }, { value: "visible", label: "Видимый" }]} />
-          <div className="field-label">Что сохранять</div>
-          <Segmented label="Тип медиа" value={r.media} onChange={r.setMedia}
-            options={[{ value: "all", label: "Фото и видео" }, { value: "video", label: "Только видео" }]} />
-          <div className="field-label">Папка</div>
-          <div className="pathbox">
-            <span title={r.directory}>{r.directory}</span>
-            <button className="btn sm" onClick={r.pick}><IconFolder size={16} /> Выбрать</button>
-          </div>
-        </Card>
-      </div>
-
-      <div className="stack">
-        <Card title="Состояние" aside={<span className={`pill ${state}`}><i />{label}</span>}>
-          <div className="step">{r.step}</div>
-          {r.entries.length > 0 && <div className="progress" role="progressbar" aria-valuenow={r.progress}><div style={{ width: `${r.progress}%` }} /></div>}
-        </Card>
-
-        <Card title="Результат">
-          <div className="metrics">
-            <Metric v={r.stats.profiles} l="Профилей" />
-            <Metric v={r.stats.saved} l="Сохранено" />
-            <Metric v={r.stats.files} l="Файлов" />
-            <Metric v={r.stats.folders} l="Папок" />
-          </div>
-        </Card>
-
-        <Card title="Недавние наборы">
-          {saved.length === 0 ? <Empty icon={<IconEmpty size={28} />} text="Сохранённые наборы появятся здесь" /> : (
-            <div className="list">
-              {saved.map((s, i) => (
-                <div className="item" key={i}>
-                  <div className="grow"><div className="name">{s.slice(0, 2).join(", ")}{s.length > 2 ? ` +${s.length - 2}` : ""}</div><div className="hint">{s.length} {plural(s.length)}</div></div>
-                  <button className="btn sm" onClick={() => setText(s.join("\n"))}>Вставить</button>
-                  <button className="btn sm ghost" aria-label="Удалить набор" onClick={() => setSaved((x) => x.filter((_, j) => j !== i))}><IconTrash size={16} /></button>
-                </div>
-              ))}
+      <div className="cols">
+        <div className="stack">
+          <Card title="Профили">
+            <div className="editor">
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                disabled={s.busy === "batch"}
+                placeholder={"По одной ссылке или username на строку\ndian.vegas1\nhttps://www.instagram.com/stevensetu/"}
+                aria-label="Список профилей"
+              />
+              <span className="counter">{links.length} {pluralProfiles(links.length)}</span>
             </div>
-          )}
-        </Card>
-
-        {r.log.length > 0 && (
-          <Card title="Журнал">
-            <div className="log">{r.log.map((l, i) => <div key={i} className={l.startsWith("✓") ? "s" : undefined}>{l}</div>)}</div>
+            <div className="actions">
+              <button className="btn go" disabled={!total || !!s.busy} onClick={run}>
+                <IconDownload /> {!links.length && s.retryOnly ? "Повторить" : "Скачать"}{total ? ` · ${total}` : ""}
+              </button>
+              <button className="btn danger" disabled={s.busy !== "batch" && s.busy !== "reels"} onClick={s.stop}><IconStop /> Стоп</button>
+            </div>
+            <div className="row" style={{ marginTop: 10 }}>
+              <button className="btn sm ghost" disabled={!links.length || !!s.busy} onClick={() => { s.addProfiles(text); setText(""); }}>В очередь</button>
+              <button className="btn sm ghost" disabled={!links.length} onClick={() => s.rememberList(links)}><IconBookmark size={16} /> Запомнить набор</button>
+              <button className="btn sm ghost" disabled={!text} onClick={() => setText("")}>Очистить</button>
+            </div>
           </Card>
-        )}
+
+          <Card title="Параметры">
+            <div className="field-label">Браузер</div>
+            <Segmented label="Режим браузера" value={s.settings.downloadMode} disabled={!!s.busy} onChange={(v) => s.updateSettings({ downloadMode: v })}
+              options={[{ value: "background", label: "В фоне" }, { value: "visible", label: "Видимый" }]} />
+            <div className="field-label">Что сохранять</div>
+            <Segmented label="Тип медиа" value={s.settings.mediaFilter} disabled={!!s.busy} onChange={(v) => s.updateSettings({ mediaFilter: v })}
+              options={[{ value: "all", label: "Фото и видео" }, { value: "video_only", label: "Только видео" }]} />
+            <div className="field-label">Папка</div>
+            <div className="pathbox">
+              <span title={s.settings.saveDirectory}>{s.settings.saveDirectory}</span>
+              <button className="btn sm" disabled={!!s.busy} onClick={s.pickDirectory}><IconFolder size={16} /> Выбрать</button>
+              <button className="btn sm ghost" onClick={s.openSaveDirectory}>Открыть</button>
+            </div>
+          </Card>
+        </div>
+
+        <div className="stack">
+          <Card title="Состояние" aside={<Pill tone={pill.tone}>{pill.label}</Pill>}>
+            <div className="step">{s.step}</div>
+            {s.entries.length > 0 && (
+              s.busy === "batch"
+                ? <div className="progress indeterminate" role="progressbar" aria-label="Выгрузка идёт"><div /></div>
+                : <div className="progress" role="progressbar" aria-valuenow={s.progress}><div style={{ width: `${s.progress}%` }} /></div>
+            )}
+          </Card>
+
+          <Card title="Результат">
+            <div className="metrics">
+              <Metric v={s.stats.profiles} l="Профилей" />
+              <Metric v={s.stats.saved} l="Сохранено" />
+              <Metric v={s.stats.files} l="Найдено файлов" />
+              <Metric v={s.stats.folders} l="Готово профилей" />
+            </div>
+          </Card>
+
+          {s.entries.length > 0 && (
+            <Card title="Очередь" aside={<button className="btn sm ghost" disabled={!!s.busy} onClick={s.clearQueue}>Очистить</button>}>
+              <QueueList s={s} />
+            </Card>
+          )}
+
+          <Card title="Недавние наборы">
+            {s.settings.recentLists.length === 0 ? <Empty icon={<IconEmpty size={28} />} text="Сохранённые наборы появятся здесь" /> : (
+              <div className="list">
+                {s.settings.recentLists.map((list, i) => (
+                  <div className="item" key={list.join("|")}>
+                    <div className="grow">
+                      <div className="name">{list.slice(0, 2).join(", ")}{list.length > 2 ? ` +${list.length - 2}` : ""}</div>
+                      <div className="hint">{list.length} {pluralProfiles(list.length)}</div>
+                    </div>
+                    <button className="btn sm" disabled={!!s.busy} onClick={() => { s.addProfiles(list.map(profileName).join("\n")); }}>В очередь</button>
+                    <button className="btn sm ghost" aria-label="Удалить набор" onClick={() => s.removeList(i)}><IconTrash size={16} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {s.log.length > 0 && <LogCard lines={s.log} />}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
 const Metric = ({ v, l }: { v: number; l: string }) => <div className="metric"><b>{v}</b><span>{l}</span></div>;
-function plural(n: number) { const m = n % 100, d = n % 10; return m > 10 && m < 15 ? "профилей" : d === 1 ? "профиль" : d >= 2 && d <= 4 ? "профиля" : "профилей"; }
+
+export function LogCard({ lines }: { lines: string[] }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    await navigator.clipboard?.writeText(lines.join("\n")).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <Card title="Журнал" aside={<button className="btn sm ghost" onClick={copy}>{copied ? "Скопировано" : "Копировать"}</button>}>
+      <div className="log" tabIndex={0}>{lines.slice(-80).map((l, i) => (
+        <div key={i} className={/error|ошибк|✗/i.test(l) ? "e" : l.startsWith("✓") ? "s" : undefined}>{l}</div>
+      ))}</div>
+    </Card>
+  );
+}
