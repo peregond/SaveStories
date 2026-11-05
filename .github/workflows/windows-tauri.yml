@@ -14,6 +14,11 @@ on:
   push:
     tags:
       - "tauri-v*"
+    # Пуш файла-маркера в любую ветку собирает и публикует prerelease (тег — первая строка файла).
+    branches:
+      - "**"
+    paths:
+      - "windows_app_react/PRERELEASE_REQUEST"
 
 permissions:
   contents: write
@@ -115,12 +120,24 @@ jobs:
             dist/windows-tauri/SaveMe-Windows-Setup-*.exe
             dist/windows-tauri/SaveMe-Windows-Setup-*.exe.sha256
 
-      - name: Publish prerelease (tag builds, or manual run with publish_prerelease)
-        if: startsWith(github.ref, 'refs/tags/tauri-v') || inputs.publish_prerelease
+      - name: Resolve prerelease tag
+        id: tag
+        shell: pwsh
+        run: |
+          $tag = ""
+          if ("${{ github.ref_type }}" -eq "tag") { $tag = "${{ github.ref_name }}" }
+          elseif ("${{ inputs.publish_prerelease }}" -eq "true") { $tag = "${{ inputs.prerelease_tag }}" }
+          elseif ("${{ github.event_name }}" -eq "push") { $tag = (Get-Content windows_app_react/PRERELEASE_REQUEST -TotalCount 1).Trim() }
+          if ($tag -ne "" -and $tag -notmatch '^[A-Za-z0-9._-]+$') { throw "Недопустимое имя тега: $tag" }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          Write-Host "Prerelease tag: '$tag'"
+
+      - name: Publish prerelease
+        if: steps.tag.outputs.tag != ''
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.publish_prerelease && inputs.prerelease_tag || github.ref_name }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: |
           $files = Get-ChildItem -Path "dist\windows-tauri" -Filter "SaveMe-Windows-Setup-*" -File | ForEach-Object { $_.FullName }
           # Повторный запуск с тем же тегом заменяет прежний prerelease.

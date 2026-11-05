@@ -75,7 +75,9 @@ npm run tauri dev      # приложение целиком (Rust, Node; на W
 ./windows_app_react/build_windows.ps1 -SkipInstaller
 ```
 
-В CI: воркфлоу **Build Windows (React + Tauri)** — вручную или по тегу `tauri-v*` (тогда создаётся prerelease).
+В CI: воркфлоу **Build Windows (React + Tauri)** собирает установщик и публикует prerelease: по тегу `tauri-v*`, вручную
+(`publish_prerelease`) или пушем изменения файла `windows_app_react/PRERELEASE_REQUEST` (его первая строка — тег; файл можно просто
+править, чтобы пересобрать). Prerelease не виден запросу «последней версии», поэтому установленные клиенты сами на него не обновятся.
 Проверки на PR — воркфлоу **Windows React CI** (Linux и Windows).
 
 Чтобы выпускать этот клиент вместо WinUI, в `.github/workflows/release-assets.yml` замените job `build-windows-winui` шагами
