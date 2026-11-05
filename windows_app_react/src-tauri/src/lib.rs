@@ -197,14 +197,15 @@ async fn drive_export(records: Vec<SortedFileRecord>) -> Result<DriveExport, Str
 
 // ------------------------------------------------------------------ Notion и очистка
 
+// Адреса страниц зашиты в приложение: интерфейс не может заставить бэкенд ходить по произвольным ссылкам.
 #[tauri::command]
-async fn notion_fetch_rules(url: Option<String>) -> Result<String, String> {
-    notion::fetch_rules(url.as_deref().unwrap_or(notion::DEFAULT_RULES_URL)).await
+async fn notion_fetch_rules() -> Result<String, String> {
+    notion::fetch_rules(notion::DEFAULT_RULES_URL).await
 }
 
 #[tauri::command]
-async fn notion_fetch_profiles(url: Option<String>) -> Result<Vec<String>, String> {
-    notion::fetch_profiles(url.as_deref().unwrap_or(notion::DEFAULT_INFLUENCERS_URL)).await
+async fn notion_fetch_profiles() -> Result<Vec<String>, String> {
+    notion::fetch_profiles(notion::DEFAULT_INFLUENCERS_URL).await
 }
 
 #[tauri::command]

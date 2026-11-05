@@ -122,6 +122,22 @@ export interface Api {
   onUpdateProgress(cb: (percent: number, message: string) => void): Promise<() => void>;
 }
 
+/** Копирование в буфер: современный API, а если он недоступен или запрещён — через временное поле. */
+export async function copyToClipboard(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch { /* пробуем запасной способ */ }
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
+  document.body.appendChild(area);
+  area.select();
+  const ok = document.execCommand("copy");
+  area.remove();
+  if (!ok) throw new Error("Не удалось скопировать в буфер обмена.");
+}
+
 const tauriApi: Api = {
   info: () => invoke("app_info"),
   getSettings: () => invoke("settings_get"),
@@ -135,14 +151,14 @@ const tauriApi: Api = {
     return typeof picked === "string" ? picked : null;
   },
   openPath: (path) => invoke("open_path", { path }),
-  copyText: (text) => navigator.clipboard.writeText(text),
+  copyText: copyToClipboard,
   parseRules: (rules, remembered) => invoke("sorting_parse_rules", { rules, remembered }),
   sortFromSource: (source, destination, rules, remembered) => invoke("sorting_run_source", { source, destination, rules, remembered }),
   sortItems: (items, destination, rules, remembered) => invoke("sorting_run_items", { items, destination, rules, remembered }),
   undoSorting: (records) => invoke("sorting_undo", { records }),
   exportDriveLinks: (records) => invoke("drive_export", { records }),
-  fetchNotionRules: () => invoke("notion_fetch_rules", { url: null }),
-  fetchNotionProfiles: () => invoke("notion_fetch_profiles", { url: null }),
+  fetchNotionRules: () => invoke("notion_fetch_rules"),
+  fetchNotionProfiles: () => invoke("notion_fetch_profiles"),
   findEmptyFolders: (root) => invoke("cleanup_find", { root }),
   deleteEmptyFolders: (folders) => invoke("cleanup_delete", { folders }),
   snapshot: (root) => invoke("dir_snapshot", { root }),

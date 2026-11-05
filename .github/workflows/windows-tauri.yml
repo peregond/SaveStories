@@ -1,0 +1,116 @@
+name: Build Windows (React + Tauri)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "tauri-v*"
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node 24 LTS
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          if (Get-Command ISCC.exe -ErrorAction SilentlyContinue) {
+            Write-Host "Inno Setup already available."
+          } else {
+            choco install innosetup -y --no-progress
+          }
+
+      - name: Frontend tests
+        shell: pwsh
+        working-directory: windows_app_react
+        run: |
+          npm ci
+          npm test
+
+      - name: Rust tests
+        shell: pwsh
+        working-directory: windows_app_react/src-tauri
+        run: |
+          npm --prefix .. run build
+          cargo test --lib
+
+      - name: Build app and installer
+        shell: pwsh
+        run: ./windows_app_react/build_windows.ps1
+
+      - name: Smoke-test the executable
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $exe = "dist\windows-tauri\SaveMe-Windows\SaveMe-Windows.exe"
+          if (-not (Test-Path $exe)) { throw "Executable not found: $exe" }
+          $process = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 10
+          if ($process.HasExited) {
+            throw "App exited early with code $($process.ExitCode)"
+          }
+          Stop-Process -Id $process.Id -Force
+
+      - name: Sign installer (optional)
+        shell: pwsh
+        env:
+          WINDOWS_SIGN_PFX_BASE64: ${{ secrets.WINDOWS_SIGN_PFX_BASE64 }}
+          WINDOWS_SIGN_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGN_PFX_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGN_PFX_BASE64) -or [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGN_PFX_PASSWORD)) {
+            Write-Host "Signing secrets are not configured. Skipping code-sign."
+            exit 0
+          }
+          $setup = Get-ChildItem -Path "dist\windows-tauri" -Filter "SaveMe-Windows-Setup-*.exe" -File | Select-Object -First 1
+          $pfxPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [System.IO.File]::WriteAllBytes($pfxPath, [System.Convert]::FromBase64String($env:WINDOWS_SIGN_PFX_BASE64))
+          $securePassword = ConvertTo-SecureString $env:WINDOWS_SIGN_PFX_PASSWORD -AsPlainText -Force
+          Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword | Out-Null
+          $signtool = Get-Command signtool.exe -ErrorAction SilentlyContinue
+          if (-not $signtool) { throw "signtool.exe not found." }
+          & $signtool.Source sign /fd SHA256 /td SHA256 /tr "http://timestamp.digicert.com" /a $setup.FullName
+          if ($LASTEXITCODE -ne 0) { throw "signtool failed with code $LASTEXITCODE" }
+
+      - name: Write checksum
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem -Path "dist\windows-tauri" -Filter "SaveMe-Windows-Setup-*.exe" -File | Select-Object -First 1
+          if (-not $setup) { throw "Installer was not produced." }
+          $hash = Get-FileHash -Algorithm SHA256 $setup.FullName
+          "{0}  {1}" -f $hash.Hash.ToLower(), $setup.Name | Set-Content -Encoding UTF8 "$($setup.FullName).sha256"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SaveMe-Windows-Tauri-Setup
+          path: |
+            dist/windows-tauri/SaveMe-Windows-Setup-*.exe
+            dist/windows-tauri/SaveMe-Windows-Setup-*.exe.sha256
+
+      - name: Publish prerelease (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/tauri-v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $files = Get-ChildItem -Path "dist\windows-tauri" -Filter "SaveMe-Windows-Setup-*" -File | ForEach-Object { $_.FullName }
+          gh release create "${{ github.ref_name }}" $files --prerelease --title "SaveMe Windows (Tauri) ${{ github.ref_name }}" --notes "Предварительная сборка нового клиента на React + Tauri."

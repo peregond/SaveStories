@@ -73,6 +73,27 @@ def main() -> int:
         errors,
     )
 
+    # Клиент Windows на React + Tauri: версия должна совпадать во всех трёх манифестах.
+    react = ROOT / "windows_app_react"
+    check_equal(
+        "windows_app_react/package.json version",
+        json.loads((react / "package.json").read_text(encoding="utf-8"))["version"],
+        expected,
+        errors,
+    )
+    check_equal(
+        "windows_app_react/src-tauri/tauri.conf.json version",
+        json.loads((react / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))["version"],
+        expected,
+        errors,
+    )
+    check_equal(
+        "windows_app_react/src-tauri/Cargo.toml version",
+        extract_regex(react / "src-tauri/Cargo.toml", r'^version = "([0-9.]+)"'),
+        expected,
+        errors,
+    )
+
     if errors:
         for error in errors:
             print(error, file=sys.stderr)
