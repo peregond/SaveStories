@@ -1,0 +1,40 @@
+[package]
+name = "saveme-windows"
+version = "0.6.86"
+description = "SaveMe for Windows"
+edition = "2021"
+publish = false
+
+[lib]
+name = "saveme_lib"
+crate-type = ["rlib"]
+
+[[bin]]
+name = "SaveMe-Windows"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+tokio = { version = "1", features = ["process", "io-util", "sync", "macros", "rt", "time"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
+futures-util = "0.3"
+sha2 = "0.10"
+regex = "1"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_System_Power", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_Storage_FileSystem", "Win32_Foundation"] }
+winreg = "0.55"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

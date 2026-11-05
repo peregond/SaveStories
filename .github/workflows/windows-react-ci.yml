@@ -1,0 +1,97 @@
+name: Windows React CI
+
+on:
+  pull_request:
+    paths:
+      - "windows_app_react/**"
+      - "node_worker/**"
+      - "scripts/check_version_consistency.py"
+      - ".github/workflows/windows-react-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "windows_app_react/**"
+      - ".github/workflows/windows-react-ci.yml"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  frontend:
+    name: React UI (tests and build)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node 24 LTS
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        working-directory: windows_app_react
+        run: npm ci
+
+      - name: Unit tests
+        working-directory: windows_app_react
+        run: npm test
+
+      - name: Type-check and build
+        working-directory: windows_app_react
+        run: npm run build
+
+  rust-linux:
+    name: Rust backend (Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node 24 LTS
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Install Tauri system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev pkg-config
+
+      - name: Build the UI bundle (required by tauri::generate_context)
+        working-directory: windows_app_react
+        run: |
+          npm ci
+          npm run build
+
+      - name: Rust tests
+        working-directory: windows_app_react/src-tauri
+        run: cargo test --lib
+
+  rust-windows:
+    name: Rust backend (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node 24 LTS
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Build the UI bundle
+        shell: pwsh
+        working-directory: windows_app_react
+        run: |
+          npm ci
+          npm run build
+
+      - name: Rust tests
+        shell: pwsh
+        working-directory: windows_app_react/src-tauri
+        run: cargo test --lib
