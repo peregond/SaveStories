@@ -11,6 +11,14 @@ on:
         description: "Тег prerelease"
         type: string
         default: "tauri-preview"
+      publish_release:
+        description: "Опубликовать ПОЛНОЦЕННЫЙ релиз (клиенты увидят его как обновление). Только из main."
+        type: boolean
+        default: false
+      release_tag:
+        description: "Тег релиза, должен совпадать с VERSION (например v0.6.86)"
+        type: string
+        default: ""
   push:
     tags:
       - "tauri-v*"
@@ -71,18 +79,11 @@ jobs:
         shell: pwsh
         run: ./windows_app_react/build_windows.ps1
 
-      - name: Smoke-test the executable
-        continue-on-error: true
+      - name: Upgrade test (previous release -> new installer, then run worker and app)
         shell: pwsh
         run: |
-          $exe = "dist\windows-tauri\SaveMe-Windows\SaveMe-Windows.exe"
-          if (-not (Test-Path $exe)) { throw "Executable not found: $exe" }
-          $process = Start-Process -FilePath $exe -PassThru
-          Start-Sleep -Seconds 10
-          if ($process.HasExited) {
-            throw "App exited early with code $($process.ExitCode)"
-          }
-          Stop-Process -Id $process.Id -Force
+          $version = (Get-Content VERSION -Raw).Trim()
+          ./windows_app_react/upgrade_test.ps1 -Setup "$PWD\dist\windows-tauri\SaveMe-Windows-Setup-v$version.exe"
 
       - name: Sign installer (optional)
         shell: pwsh
@@ -143,3 +144,20 @@ jobs:
           # Повторный запуск с тем же тегом заменяет прежний prerelease.
           gh release delete $env:RELEASE_TAG --cleanup-tag --yes 2>$null
           gh release create $env:RELEASE_TAG $files --target "${{ github.sha }}" --prerelease --title "SaveMe Windows (Tauri) $env:RELEASE_TAG" --notes "Предварительная сборка нового клиента на React + Tauri. Не заменяет выпускаемый клиент, существующие установки сами на неё не обновятся."
+
+      - name: Publish release (manual run on main only)
+        if: inputs.publish_release && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          $tag = "${{ inputs.release_tag }}"
+          if ($tag -ne "v$version") { throw "release_tag '$tag' не совпадает с VERSION 'v$version'" }
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) { throw "Релиз $tag уже существует, перезаписывать его нельзя." }
+          $files = Get-ChildItem -Path "dist\windows-tauri" -Filter "SaveMe-Windows-Setup-v$version.exe*" -File | ForEach-Object { $_.FullName }
+          if ($files.Count -ne 2) { throw "Ожидались установщик и .sha256, найдено: $($files.Count)" }
+          gh release create $tag $files --target "${{ github.sha }}" --title "SaveMe $version" --notes-file release_notes/latest.md --latest
+          if ($LASTEXITCODE -ne 0) { throw "gh release create завершился с кодом $LASTEXITCODE" }
+          Write-Host "Опубликован релиз $tag"
