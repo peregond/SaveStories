@@ -53,6 +53,8 @@ export interface AppInfo {
   defaultDownloads: string;
   runtimeEmbedded: boolean;
   autoUpdate: boolean;
+  /** Нативный материал окна (Mica) включён: интерфейс должен быть прозрачным, а не рисовать свой фон. */
+  nativeGlass: boolean;
 }
 
 export interface WorkerRequest {
@@ -88,6 +90,9 @@ export type UpdateCheck =
 
 export interface Api {
   info(): Promise<AppInfo>;
+  /** Сообщает, что интерфейс отрисован: окно создаётся скрытым и показывается тут (без белой вспышки). */
+  appReady(): Promise<void>;
+  setWindowTheme(theme: "light" | "dark" | "system"): Promise<void>;
   getSettings(): Promise<Settings>;
   saveSettings(settings: Settings): Promise<void>;
   run(request: WorkerRequest, timeoutSecs?: number): Promise<WorkerResponse>;
@@ -140,6 +145,8 @@ export async function copyToClipboard(text: string): Promise<void> {
 
 const tauriApi: Api = {
   info: () => invoke("app_info"),
+  appReady: () => invoke("app_ready"),
+  setWindowTheme: (theme) => invoke("window_set_theme", { theme }),
   getSettings: () => invoke("settings_get"),
   saveSettings: (settings) => invoke("settings_save", { settings }),
   run: (request, timeoutSecs) => invoke("worker_run", { request, timeoutSecs: timeoutSecs ?? null }),

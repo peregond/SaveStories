@@ -11,6 +11,13 @@ const params = new URLSearchParams(typeof location === "undefined" ? "" : locati
 const nameOf = (url: string) => url.replace(/\/+$/, "").split("/").pop() ?? url;
 
 export function createDemoApi(): Api {
+  // Только для демо: имитация обоев под прозрачным окном (в приложении под ним настоящий Mica).
+  if (params.get("glass") === "native" && typeof document !== "undefined") {
+    const dark = params.get("theme") === "dark";
+    document.documentElement.style.background = dark
+      ? "radial-gradient(900px 600px at 15% 10%, #2b3a55 0%, transparent 60%), radial-gradient(800px 600px at 90% 90%, #1f4a45 0%, transparent 60%), #151a22"
+      : "radial-gradient(900px 600px at 15% 10%, #c9d9f2 0%, transparent 60%), radial-gradient(800px 600px at 90% 90%, #cfe8dd 0%, transparent 60%), #e8ecf1";
+  }
   let settings: Settings = {
     theme: (params.get("theme") as Settings["theme"]) || "system", automaticThemeByTime: false,
     downloadMode: "background", mediaFilter: "video_only", saveDirectory: "C:\\Users\\you\\Downloads\\SaveMe",
@@ -26,7 +33,7 @@ export function createDemoApi(): Api {
   let bootstrapListeners: Array<(l: string) => void> = [];
   let cancelled = false;
   const log = (l: string) => logListeners.forEach((cb) => cb(l));
-  const info: AppInfo = { version: "0.6.85", appSupport: "C:\\Users\\you\\AppData\\Local\\SaveMe", defaultDownloads: settings.saveDirectory, runtimeEmbedded: true, autoUpdate: true };
+  const info: AppInfo = { version: "0.6.85", appSupport: "C:\\Users\\you\\AppData\\Local\\SaveMe", defaultDownloads: settings.saveDirectory, runtimeEmbedded: true, autoUpdate: true, nativeGlass: params.get("glass") === "native" };
 
   const record = (blogger: string, rules: string, file: string, from: string): SortedFileRecord => {
     const rule = rules.split("\n").map((l) => l.split("=").map((x) => x.trim())).find(([u]) => u?.toLowerCase() === blogger.toLowerCase());
@@ -41,6 +48,8 @@ export function createDemoApi(): Api {
 
   return {
     info: async () => info,
+    appReady: async () => {},
+    setWindowTheme: async () => {},
     getSettings: async () => structuredClone(settings),
     saveSettings: async (s) => { settings = structuredClone(s); },
     onLog: async (cb) => { logListeners.push(cb); return () => { logListeners = logListeners.filter((l) => l !== cb); }; },

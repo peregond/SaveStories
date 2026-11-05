@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Banner, Pill } from "../components/ui";
 import { IconTrash } from "../icons";
 import { profileName } from "../parse";
@@ -22,21 +23,26 @@ const ENTRY: Record<EntryStatus, [Tone, string]> = {
   pending: ["", "В очереди"], running: ["run", "Скачивается"], completed: ["ok", "Готово"], failed: ["err", "Ошибка"], stopped: ["warn", "Остановлено"],
 };
 
+const QueueRow = memo(function QueueRow({ url, status, message, disabled, onRemove }: {
+  url: string; status: EntryStatus; message: string; disabled: boolean; onRemove: (url: string) => void;
+}) {
+  const [tone, label] = ENTRY[status];
+  const name = profileName(url);
+  return (
+    <div className="item">
+      <div className="avatar sm">{name[0]?.toUpperCase()}</div>
+      <div className="grow"><div className="name">{name}</div><div className="hint">{message}</div></div>
+      <Pill tone={tone}>{label}</Pill>
+      <button className="btn sm ghost" aria-label={`Убрать ${name}`} disabled={disabled} onClick={() => onRemove(url)}><IconTrash size={16} /></button>
+    </div>
+  );
+});
+
+/** Строки перерисовываются только при смене своих данных, а не всей очереди на каждую строку журнала. */
 export function QueueList({ s }: { s: Store }) {
   return (
     <div className="list">
-      {s.entries.map((e) => {
-        const [tone, label] = ENTRY[e.status];
-        const name = profileName(e.url);
-        return (
-          <div className="item" key={e.url}>
-            <div className="avatar sm">{name[0]?.toUpperCase()}</div>
-            <div className="grow"><div className="name">{name}</div><div className="hint">{e.message}</div></div>
-            <Pill tone={tone}>{label}</Pill>
-            <button className="btn sm ghost" aria-label={`Убрать ${name}`} disabled={!!s.busy} onClick={() => s.removeEntry(e.url)}><IconTrash size={16} /></button>
-          </div>
-        );
-      })}
+      {s.entries.map((e) => <QueueRow key={e.url} url={e.url} status={e.status} message={e.message} disabled={!!s.busy} onRemove={s.removeEntry} />)}
     </div>
   );
 }

@@ -1,14 +1,16 @@
-import { useEffect, useState, type ComponentType } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from "react";
 import { createApi, type Api } from "./api";
 import { Dialog } from "./components/ui";
 import { IconQueue, IconReels, IconSettings, IconSort, IconStories } from "./icons";
 import { themeForHour } from "./parse";
-import { Queue } from "./screens/Queue";
-import { Reels } from "./screens/Reels";
-import { Settings } from "./screens/Settings";
-import { Sorting } from "./screens/Sorting";
 import { Stories } from "./screens/Stories";
 import { useStore, type Store } from "./store";
+
+// Остальные экраны грузятся при первом открытии: меньше JS при старте и в памяти.
+const Queue = lazy(() => import("./screens/Queue").then((m) => ({ default: m.Queue })));
+const Reels = lazy(() => import("./screens/Reels").then((m) => ({ default: m.Reels })));
+const Sorting = lazy(() => import("./screens/Sorting").then((m) => ({ default: m.Sorting })));
+const Settings = lazy(() => import("./screens/Settings").then((m) => ({ default: m.Settings })));
 
 type Page = "stories" | "queue" | "reels" | "sorting" | "settings";
 const NAV: { id: Page; title: string; sub: string; Icon: ComponentType<{ size?: number }> }[] = [
@@ -25,25 +27,46 @@ export default function App() {
 }
 
 /** Итоговая тема: по времени суток, иначе выбранная (или системная). */
-function useTheme(theme: "system" | "light" | "dark", byTime: boolean, loaded: boolean) {
+function useTheme(api: Api, theme: "system" | "light" | "dark", byTime: boolean, loaded: boolean) {
+  const applied = useRef("");
   useEffect(() => {
     if (!loaded) return;
     const mq = matchMedia("(prefers-color-scheme: dark)");
     const apply = () => {
       const resolved = byTime ? themeForHour(new Date().getHours()) : theme === "system" ? (mq.matches ? "dark" : "light") : theme;
       document.documentElement.dataset.theme = resolved;
+      const windowTheme = byTime || theme !== "system" ? resolved : "system";
+      if (applied.current === `${windowTheme}|${resolved}`) return;
+      applied.current = `${windowTheme}|${resolved}`;
+      void api.setWindowTheme(windowTheme).catch(() => {});
     };
     apply();
     mq.addEventListener("change", apply);
     const timer = window.setInterval(apply, 60_000);
     return () => { mq.removeEventListener("change", apply); window.clearInterval(timer); };
-  }, [theme, byTime, loaded]);
+  }, [api, theme, byTime, loaded]);
 }
 
 function Shell({ api }: { api: Api }) {
   const s = useStore(api);
   const [page, setPage] = useState<Page>(() => (new URLSearchParams(location.search).get("page") as Page) || "stories");
-  useTheme(s.settings.theme, s.settings.automaticThemeByTime, s.loaded);
+  useTheme(api, s.settings.theme, s.settings.automaticThemeByTime, s.loaded);
+
+  // Материал окна и показ окна: после загрузки настроек, один раз, после первой отрисовки.
+  useEffect(() => {
+    if (!s.loaded || !s.info) return;
+    document.documentElement.dataset.glass = s.info.nativeGlass ? "native" : "fallback";
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => void api.appReady().catch(() => {})));
+    return () => cancelAnimationFrame(id);
+  }, [api, s.loaded, s.info]);
+
+  // Свёрнутое окно: останавливаем бесконечные анимации.
+  useEffect(() => {
+    const sync = () => { document.documentElement.dataset.hidden = String(document.hidden); };
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => document.removeEventListener("visibilitychange", sync);
+  }, []);
 
   const current = page === "settings" ? { title: "Настройки", sub: "Вход, модули, обновления и данные" } : NAV.find((n) => n.id === page)!;
   return (
@@ -54,11 +77,11 @@ function Shell({ api }: { api: Api }) {
           <div><div className="brand-name">SaveMe</div><div className="brand-sub">для Windows</div></div>
         </div>
         {NAV.map(({ id, title, Icon }) => (
-          <button key={id} className="nav-item" aria-current={page === id ? "page" : undefined} onClick={() => setPage(id)}><Icon />{title}</button>
+          <button key={id} className="nav-item" aria-current={page === id ? "page" : undefined} onClick={() => setPage(id)}><Icon /><span>{title}</span></button>
         ))}
         <div className="nav-spacer" />
         <UpdateButton s={s} />
-        <button className="nav-item" aria-current={page === "settings" ? "page" : undefined} onClick={() => setPage("settings")}><IconSettings />Настройки</button>
+        <button className="nav-item" aria-current={page === "settings" ? "page" : undefined} onClick={() => setPage("settings")}><IconSettings /><span>Настройки</span></button>
         <div className="sidebar-foot"><span>Версия {s.info?.version ?? ""}</span></div>
       </nav>
       <main className="main">
@@ -66,11 +89,13 @@ function Shell({ api }: { api: Api }) {
           <div><h1 className="page-title">{current.title}</h1><div className="page-sub">{current.sub}</div></div>
         </header>
         <div className="page-body">
-          {page === "stories" && <Stories s={s} />}
-          {page === "queue" && <Queue s={s} />}
-          {page === "reels" && <Reels s={s} />}
-          {page === "sorting" && <Sorting s={s} />}
-          {page === "settings" && <Settings s={s} />}
+          <Suspense fallback={null}>
+            {page === "stories" && <Stories s={s} />}
+            {page === "queue" && <Queue s={s} />}
+            {page === "reels" && <Reels s={s} />}
+            {page === "sorting" && <Sorting s={s} />}
+            {page === "settings" && <Settings s={s} />}
+          </Suspense>
         </div>
       </main>
       {s.cleanupOffer && (

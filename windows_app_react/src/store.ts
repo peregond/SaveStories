@@ -62,8 +62,21 @@ export function useStore(api: Api) {
   const busyRef = useRef(busy);
   busyRef.current = busy;
 
+  // Воркер может писать десятки строк в секунду: копим их и обновляем состояние раз в 250 мс.
+  const logBuffer = useRef<string[]>([]);
+  const logTimer = useRef<number | undefined>(undefined);
   const pushLog = useCallback((line: string) => {
-    setLog((l) => [...l.slice(-(LOG_LIMIT - 1)), `${stamp()}  ${line}`]);
+    logBuffer.current.push(`${stamp()}  ${line}`);
+    if (logTimer.current !== undefined) return;
+    logTimer.current = window.setTimeout(() => {
+      logTimer.current = undefined;
+      const batch = logBuffer.current;
+      logBuffer.current = [];
+      setLog((l) => {
+        const next = l.concat(batch);
+        return next.length > LOG_LIMIT ? next.slice(-LOG_LIMIT) : next;
+      });
+    }, 250);
   }, []);
 
   const updateSettings = useCallback((patch: Partial<Settings>) => {
@@ -214,7 +227,7 @@ export function useStore(api: Api) {
   useEffect(() => {
     if (session !== "waiting_login") return;
     const id = window.setInterval(async () => {
-      if (busyRef.current) return;
+      if (busyRef.current || document.hidden) return;
       if (await checkSession({ silent: true })) {
         pushLog("Сессия Instagram найдена. Окно входа можно закрыть.");
         setNotice({ tone: "ok", text: "Вход выполнен: сессия Instagram сохранена." });
@@ -226,7 +239,8 @@ export function useStore(api: Api) {
   // Пока идёт пакетная выгрузка, раз в 2 секунды обновляем счётчики файлов.
   useEffect(() => {
     if (busy !== "batch") return;
-    const id = window.setInterval(() => void refreshLive(true), 2000);
+    // Обход папки — самая дорогая периодическая операция: реже и только если окно видно.
+    const id = window.setInterval(() => { if (!document.hidden) void refreshLive(true); }, 4000);
     return () => window.clearInterval(id);
   }, [busy, refreshLive]);
 

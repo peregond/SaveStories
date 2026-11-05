@@ -16,11 +16,14 @@ use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::Value;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State, Theme, WebviewWindow};
 
 use paths::AppPaths;
 use settings::Settings;
 use sorting::{DriveOutcome, RememberedBlogger, SortItem, SortedFileRecord};
+
+/// Удалось ли включить нативный материал окна (Mica). Если нет — интерфейс рисует свой непрозрачный фон.
+struct NativeGlass(bool);
 
 struct App {
     paths: AppPaths,
@@ -40,11 +43,13 @@ struct AppInfo {
     default_downloads: String,
     runtime_embedded: bool,
     auto_update: bool,
+    native_glass: bool,
 }
 
 #[tauri::command]
-fn app_info(app: State<'_, App>) -> AppInfo {
+fn app_info(app: State<'_, App>, glass: State<'_, NativeGlass>) -> AppInfo {
     AppInfo {
+        native_glass: glass.0,
         version: updater::CURRENT_VERSION,
         app_support: app.paths.application_support().to_string_lossy().into_owned(),
         default_downloads: app.paths.default_downloads().to_string_lossy().into_owned(),
@@ -61,6 +66,35 @@ fn settings_get(app: State<'_, App>) -> Settings {
 #[tauri::command]
 fn settings_save(app: State<'_, App>, settings: Settings) -> Result<(), String> {
     settings::save(&app.paths, &settings)
+}
+
+/// Показывает окно после первой отрисовки интерфейса (окно создаётся скрытым).
+#[tauri::command]
+fn app_ready(window: WebviewWindow) {
+    let _ = window.show();
+}
+
+/// Тема окна (рамка и материал Mica) должна совпадать с темой интерфейса, а не только с системной.
+#[tauri::command]
+fn window_set_theme(window: WebviewWindow, theme: String) {
+    let theme = match theme.as_str() {
+        "dark" => Some(Theme::Dark),
+        "light" => Some(Theme::Light),
+        _ => None,
+    };
+    let _ = window.set_theme(theme);
+}
+
+/// Mica есть только в Windows 11 и дёшево рисуется системой (в отличие от размытия в CSS).
+#[cfg(windows)]
+fn apply_native_glass(window: &WebviewWindow) -> bool {
+    use tauri::window::{Effect, EffectsBuilder};
+    window.set_effects(EffectsBuilder::new().effect(Effect::Mica).build()).is_ok()
+}
+
+#[cfg(not(windows))]
+fn apply_native_glass(_window: &WebviewWindow) -> bool {
+    false
 }
 
 /// Открывает папку в Проводнике (создаёт её, если нет — как ShellFolderService.OpenFolder).
@@ -345,6 +379,20 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            let mut glass = false;
+            if let Some(window) = app.get_webview_window("main") {
+                glass = apply_native_glass(&window);
+                // Страховка: если интерфейс по какой-то причине не сообщил о готовности, окно всё равно появится.
+                let fallback = window.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(Duration::from_secs(4));
+                    let _ = fallback.show();
+                });
+            }
+            app.manage(NativeGlass(glass));
+            Ok(())
+        })
         .manage(App {
             paths: AppPaths::new(),
             worker: worker::WorkerState::default(),
@@ -354,6 +402,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             app_info,
+            app_ready,
+            window_set_theme,
             settings_get,
             settings_save,
             open_path,
