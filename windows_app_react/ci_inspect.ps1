@@ -59,7 +59,7 @@ function Save-DesktopScreenshot([string]$name) {
 
 function Start-Tauri {
     $env:SAVESTORIES_APP_SUPPORT = $data
-    $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=9222"
+    $env:SAVEME_CDP_PORT = "9222"
     return Start-Process -FilePath $exe -PassThru
 }
 
@@ -88,7 +88,7 @@ $app2 = Start-Tauri
 $phase2 = $LASTEXITCODE
 $cold = Measure-App $app2.Id 5
 Stop-Tauri $app2
-Remove-Item Env:\WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS -ErrorAction SilentlyContinue
+Remove-Item Env:\SAVEME_CDP_PORT -ErrorAction SilentlyContinue
 
 $report.Add("| Клиент | Процессов | Рабочий набор, МБ | Частная память, МБ | CPU в простое, % ядра |")
 $report.Add("|---|---|---|---|---|")

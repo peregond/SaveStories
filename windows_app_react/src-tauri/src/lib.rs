@@ -19,7 +19,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::Value;
-use tauri::{AppHandle, Emitter, Manager, State, Theme, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, State, Theme, WebviewWindow, WebviewWindowBuilder};
 use tauri_plugin_window_state::StateFlags;
 
 use paths::AppPaths;
@@ -417,6 +417,20 @@ pub fn run() {
         )
         .setup(|app| {
             let mut glass = false;
+            // Окно создаём сами (а не из конфигурации), чтобы проверочный запуск в CI мог открыть порт отладки WebView2.
+            // Порт включается только переменной SAVEME_CDP_PORT; у обычного пользователя её нет.
+            let config = app.config().app.windows.iter().find(|w| w.label == "main").cloned();
+            if let Some(config) = config {
+                #[allow(unused_mut)]
+                let mut builder = WebviewWindowBuilder::from_config(app.handle(), &config)?;
+                #[cfg(windows)]
+                if let Some(port) = std::env::var("SAVEME_CDP_PORT").ok().and_then(|v| v.trim().parse::<u16>().ok()) {
+                    builder = builder.additional_browser_args(&format!(
+                        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port={port}"
+                    ));
+                }
+                builder.build()?;
+            }
             if let Some(window) = app.get_webview_window("main") {
                 glass = apply_native_glass(&window);
                 // Страховка: если интерфейс по какой-то причине не сообщил о готовности, окно всё равно появится.
