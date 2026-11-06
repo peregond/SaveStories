@@ -132,7 +132,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
   border-radius: var(--radius-card); box-shadow: var(--shadow), inset 0 1px 0 var(--card-highlight);
   padding: 18px 20px 20px; contain: layout style;
 }
-.card-title { font-size: 15px; font-weight: 650; display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; min-height: 26px; }
+.card-title { font-size: 15px; font-weight: 650; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 14px; min-height: 26px; }
+.card-title > .row { flex: none; flex-wrap: nowrap; }
 .hint { color: var(--text-2); font-size: 12.5px; }
 
 /* Поля */
@@ -152,7 +153,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* Кнопки */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  height: 36px; padding: 0 16px; border-radius: var(--radius-control);
+  height: 36px; padding: 0 16px; border-radius: var(--radius-control); white-space: nowrap;
   border: 1px solid var(--card-stroke); background: var(--item); font-weight: 550;
   transition: background-color .12s, opacity .12s, transform .06s;
 }
@@ -213,9 +214,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(286%); } }
 
 .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.metrics.five { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.metric { padding: 11px 14px; border-radius: var(--radius-item); background: var(--item); }
-.metric b { display: block; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.25; }
+.metrics.five { grid-template-columns: repeat(3, minmax(0, 1fr)); container-type: inline-size; }
+/* Размер цифр подстраивается под ширину плиток, чтобы «122/122» помещалось и в узком окне. */
+.metrics.five .metric b { font-size: clamp(14px, 4.4cqw, 24px); }
+@media (min-width: 981px) and (max-width: 1100px) { .metrics.five { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.metric { min-width: 0; padding: 11px 12px; border-radius: var(--radius-item); background: var(--item); }
+.metric b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.25; }
 .metric span { font-size: 12px; color: var(--text-2); }
 .live { margin-top: 12px; font-size: 13px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 

@@ -3061,7 +3061,7 @@ dependencies = [
 
 [[package]]
 name = "saveme-windows"
-version = "0.6.90"
+version = "0.6.91"
 dependencies = [
  "futures-util",
  "regex",
