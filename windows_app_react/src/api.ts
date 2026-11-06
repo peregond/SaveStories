@@ -66,6 +66,8 @@ export interface WorkerRequest {
   mediaFilter?: string;
 }
 
+export interface StoredEntry { url: string; status: string; message: string }
+
 export interface BatchResult { url: string; status: string; message: string; foundCount?: number; savedCount?: number }
 export interface WorkerItem { id: string; localPath: string; mediaType: string; sourceURL?: string; pageURL?: string; metadataPath?: string; createdAt?: string }
 export interface WorkerResponse {
@@ -95,6 +97,8 @@ export interface Api {
   setWindowTheme(theme: "light" | "dark" | "system"): Promise<void>;
   getSettings(): Promise<Settings>;
   saveSettings(settings: Settings): Promise<void>;
+  loadQueue(): Promise<StoredEntry[]>;
+  saveQueue(entries: StoredEntry[]): Promise<void>;
   run(request: WorkerRequest, timeoutSecs?: number): Promise<WorkerResponse>;
   cancel(): Promise<boolean>;
   login(request: WorkerRequest): Promise<void>;
@@ -149,6 +153,8 @@ const tauriApi: Api = {
   setWindowTheme: (theme) => invoke("window_set_theme", { theme }),
   getSettings: () => invoke("settings_get"),
   saveSettings: (settings) => invoke("settings_save", { settings }),
+  loadQueue: () => invoke("queue_load"),
+  saveQueue: (entries) => invoke("queue_save", { entries }),
   run: (request, timeoutSecs) => invoke("worker_run", { request, timeoutSecs: timeoutSecs ?? null }),
   cancel: () => invoke("worker_cancel"),
   login: (request) => invoke("worker_login", { request }),

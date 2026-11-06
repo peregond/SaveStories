@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Api, AppInfo, Preflight, ReleaseInfo, RuntimeStatus, Settings, WorkerItem, WorkerResponse } from "./api";
+import { restoreEntries, restoreNotice } from "./queue";
 import { isToday, parseProfiles, parseReelLines, profileFromProgress, profileName, progressDetail, workerTimeoutSecs } from "./parse";
 import { useSorting } from "./sorting";
 
@@ -86,7 +87,21 @@ export function useStore(api: Api) {
     void api.saveSettings(next).catch((e) => pushLog(`[settings] ${errorText(e)}`));
   }, [api, pushLog]);
 
-  const commit = useCallback((next: Entry[]) => { entriesRef.current = next; setEntries(next); }, []);
+  // Очередь сохраняется на диск с небольшой задержкой и не раньше, чем восстановлена с диска.
+  const queueReady = useRef(false);
+  const queueTimer = useRef<number | undefined>(undefined);
+  const flushQueue = useCallback(() => {
+    window.clearTimeout(queueTimer.current);
+    queueTimer.current = undefined;
+    if (queueReady.current) void api.saveQueue(entriesRef.current).catch(() => {});
+  }, [api]);
+  const commit = useCallback((next: Entry[]) => {
+    entriesRef.current = next;
+    setEntries(next);
+    if (!queueReady.current) return;
+    window.clearTimeout(queueTimer.current);
+    queueTimer.current = window.setTimeout(flushQueue, 500);
+  }, [flushQueue]);
   const headless = settings.downloadMode === "background";
 
   // ---- Живая статистика выгрузки (файлы в папке сохранения минус то, что было до запуска)
@@ -215,6 +230,16 @@ export function useStore(api: Api) {
       const [i, s] = await Promise.all([api.info(), api.getSettings()]);
       if (!alive) return;
       setInfo(i); setSettingsState(s); settingsRef.current = s; setLoaded(true);
+      try {
+        const restored = restoreEntries(await api.loadQueue());
+        if (restored.entries.length) {
+          entriesRef.current = restored.entries;
+          setEntries(restored.entries);
+          const text = restoreNotice(restored);
+          if (text) setNotice({ tone: "warn", text });
+        }
+      } catch { /* очередь не восстановилась — работаем с пустой */ }
+      queueReady.current = true;
       await probe();
       const last = Date.parse(s.lastUpdateCheckAt);
       if (!(Date.now() - last < TWELVE_HOURS)) void checkUpdates({ silent: true });
@@ -222,6 +247,12 @@ export function useStore(api: Api) {
     return () => { alive = false; offs.forEach((off) => off()); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api]);
+
+  // Закрытие окна: сохраняем очередь сразу, не дожидаясь задержки.
+  useEffect(() => {
+    window.addEventListener("pagehide", flushQueue);
+    return () => window.removeEventListener("pagehide", flushQueue);
+  }, [flushQueue]);
 
   // Пока ждём вход в браузере, раз в 3 секунды проверяем сессию.
   useEffect(() => {

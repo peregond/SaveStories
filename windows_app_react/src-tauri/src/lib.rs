@@ -1,7 +1,10 @@
 mod cleanup;
+mod crash;
 mod gdrive;
 mod notion;
+mod pathguard;
 mod paths;
+mod queue;
 mod runtime;
 mod settings;
 mod sleep;
@@ -17,6 +20,7 @@ use std::time::Duration;
 use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State, Theme, WebviewWindow};
+use tauri_plugin_window_state::StateFlags;
 
 use paths::AppPaths;
 use settings::Settings;
@@ -97,13 +101,37 @@ fn apply_native_glass(_window: &WebviewWindow) -> bool {
     false
 }
 
-/// Открывает папку в Проводнике (создаёт её, если нет — как ShellFolderService.OpenFolder).
 #[tauri::command]
-fn open_path(path: String) -> Result<(), String> {
+fn queue_load(app: State<'_, App>) -> Vec<queue::QueueEntry> {
+    queue::load(&app.paths)
+}
+
+#[tauri::command]
+fn queue_save(app: State<'_, App>, entries: Vec<queue::QueueEntry>) -> Result<(), String> {
+    queue::save(&app.paths, entries)
+}
+
+/// Папки, которые интерфейс вправе открыть: данные приложения и папки, выбранные пользователем.
+fn openable_roots(paths: &AppPaths, s: &Settings) -> Vec<PathBuf> {
+    let mut roots = vec![paths.application_support(), paths.playwright_browsers(), paths.default_downloads()];
+    for chosen in [&s.save_directory, &s.sorting_source_directory, &s.sorting_destination_directory, &s.empty_folder_cleanup_directory] {
+        if !chosen.trim().is_empty() {
+            roots.push(PathBuf::from(chosen));
+        }
+    }
+    roots
+}
+
+/// Открывает папку в Проводнике (создаёт её, если нет — как ShellFolderService.OpenFolder).
+/// Только внутри папок приложения и выбранных пользователем: иначе интерфейс мог бы открыть любой путь, включая сетевой.
+#[tauri::command]
+fn open_path(app: State<'_, App>, path: String) -> Result<(), String> {
     if path.trim().is_empty() {
         return Err("Папка не выбрана.".into());
     }
-    let dir = PathBuf::from(&path);
+    let roots = openable_roots(&app.paths, &settings::load(&app.paths));
+    let dir = pathguard::allowed(&path, &roots)
+        .ok_or("Эту папку открыть нельзя: она не входит в папки приложения и выбранные вами папки.")?;
     std::fs::create_dir_all(&dir).map_err(|e| format!("Не удалось создать папку: {e}"))?;
     #[cfg(windows)]
     let program = "explorer";
@@ -371,6 +399,8 @@ fn release_from_value(v: &Value) -> Result<updater::ReleaseInfo, String> {
 }
 
 pub fn run() {
+    let paths = AppPaths::new();
+    crash::install_hook(paths.logs_directory(), updater::CURRENT_VERSION);
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
@@ -379,6 +409,12 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_dialog::init())
+        // Размер и положение окна запоминаются. Видимость не восстанавливаем: окно показывает app_ready после отрисовки.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED)
+                .build(),
+        )
         .setup(|app| {
             let mut glass = false;
             if let Some(window) = app.get_webview_window("main") {
@@ -394,7 +430,7 @@ pub fn run() {
             Ok(())
         })
         .manage(App {
-            paths: AppPaths::new(),
+            paths,
             worker: worker::WorkerState::default(),
             sleep: sleep::SleepGuard::default(),
             installer: Mutex::new(None),
@@ -406,6 +442,8 @@ pub fn run() {
             window_set_theme,
             settings_get,
             settings_save,
+            queue_load,
+            queue_save,
             open_path,
             worker_run,
             worker_cancel,

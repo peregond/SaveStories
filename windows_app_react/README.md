@@ -4,9 +4,8 @@
 Дизайн повторяет macOS-версию: градиентный фон, стеклянные карточки, светлая/тёмная/системная тема.
 Бэкенд на Rust, выгрузка — прежний `node_worker` (Node + Playwright).
 
-> **Статус: готов к проверке на Windows, релизный клиент пока не заменён.** Выпускаемый клиент —
-> `windows_app_winui_beta/` (WinUI 3); этот проект собирается отдельным воркфлоу и не затрагивает релизы.
-> Установщик использует тот же `AppId` и папку, что и WinUI, поэтому встанет поверх него.
+> **Статус: выпускаемый клиент Windows с версии 0.6.86** (до неё выпускался WinUI 3 из `windows_app_winui_beta/`).
+> Установщик использует тот же `AppId` и папку, что у WinUI, поэтому ставится поверх него и обновляет старые установки.
 
 ## Паритет с WinUI-клиентом
 
@@ -80,8 +79,9 @@ npm run tauri dev      # приложение целиком (Rust, Node; на W
 править, чтобы пересобрать). Prerelease не виден запросу «последней версии», поэтому установленные клиенты сами на него не обновятся.
 Проверки на PR — воркфлоу **Windows React CI** (Linux и Windows).
 
-Чтобы выпускать этот клиент вместо WinUI, в `.github/workflows/release-assets.yml` замените job `build-windows-winui` шагами
-из `windows-tauri.yml` (имя ассета `SaveMe-Windows-Setup-<tag>.exe` и `.sha256` остаётся тем же, поэтому старые клиенты обновятся).
+Релизный воркфлоу `.github/workflows/release-assets.yml` собирает этот клиент (job `build-windows`): на тег `vX.Y.Z` он проверяет,
+что тег совпадает с `VERSION`, прогоняет тесты, собирает установщик, проверяет обновление поверх предыдущего релиза и загружает
+`SaveMe-Windows-Setup-vX.Y.Z.exe` и `.sha256` (имена те же, поэтому установленные клиенты обновятся сами).
 
 При смене версии правьте: `VERSION`, `windows_app_react/package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`
 (и `Cargo.lock` через `cargo update -p saveme-windows`); `scripts/check_version_consistency.py` проверяет совпадение.

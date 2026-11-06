@@ -52,6 +52,10 @@ export function createDemoApi(): Api {
     setWindowTheme: async () => {},
     getSettings: async () => structuredClone(settings),
     saveSettings: async (s) => { settings = structuredClone(s); },
+    loadQueue: async () => (params.get("queue") === "restore"
+      ? [{ url: "https://www.instagram.com/dian.vegas1/", status: "completed", message: "Сохранено 3" }, { url: "https://www.instagram.com/stevensetu/", status: "running", message: "Скачивается…" }, { url: "https://www.instagram.com/leftlanepapi/", status: "pending", message: "" }]
+      : []),
+    saveQueue: async () => {},
     onLog: async (cb) => { logListeners.push(cb); return () => { logListeners = logListeners.filter((l) => l !== cb); }; },
     onBootstrapLog: async (cb) => { bootstrapListeners.push(cb); return () => { bootstrapListeners = bootstrapListeners.filter((l) => l !== cb); }; },
     cancel: async () => { cancelled = true; return true; },

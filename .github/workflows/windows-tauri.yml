@@ -83,7 +83,10 @@ jobs:
         shell: pwsh
         run: |
           $version = (Get-Content VERSION -Raw).Trim()
-          ./windows_app_react/upgrade_test.ps1 -Setup "$PWD\dist\windows-tauri\SaveMe-Windows-Setup-v$version.exe"
+          $setup = "$PWD\dist\windows-tauri\SaveMe-Windows-Setup-v$version.exe"
+          # Обновление с нового клиента (0.6.86) и со старого WinUI-клиента (0.6.85): у части пользователей ещё он.
+          ./windows_app_react/upgrade_test.ps1 -Setup $setup -PreviousTag v0.6.86
+          ./windows_app_react/upgrade_test.ps1 -Setup $setup -PreviousTag v0.6.85 -SkipBrowserCheck
 
       - name: Sign installer (optional)
         shell: pwsh

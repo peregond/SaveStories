@@ -119,7 +119,7 @@ jobs:
           test "$version" = "${RELEASE_TAG#v}"
           printf 'build=%s\n' "$build" >> "$GITHUB_OUTPUT"
 
-  build-windows-winui:
+  build-windows:
     needs: create-release
     runs-on: windows-latest
 
@@ -129,51 +129,15 @@ jobs:
         with:
           ref: ${{ env.RELEASE_TAG }}
 
-      - name: Setup .NET 8 SDK
-        uses: actions/setup-dotnet@v4
+      - name: Setup Node 24 LTS
+        uses: actions/setup-node@v6
         with:
-          dotnet-version: "8.0.x"
+          node-version: "24"
 
-      - name: Restore WinUI solution
-        shell: pwsh
-        run: |
-          dotnet restore .\windows_app_winui_beta\SaveStories.WinUI.Beta.sln
-
-      - name: Build WinUI solution
-        shell: pwsh
-        run: |
-          dotnet build .\windows_app_winui_beta\SaveStories.WinUI.Beta.sln -c Release -p:Platform=x64
-
-      - name: Publish WinUI app
-        shell: pwsh
-        run: |
-          $outDir = "dist\winui"
-          if (Test-Path $outDir) {
-            Remove-Item $outDir -Force -Recurse
-          }
-          dotnet publish .\windows_app_winui_beta\src\SaveStories.WinUI.Beta\SaveStories.WinUI.Beta.csproj `
-            -c Release `
-            -r win-x64 `
-            --self-contained true `
-            -p:WindowsPackageType=None `
-            -p:WindowsAppSDKSelfContained=true `
-            -o $outDir
-
-      - name: Smoke-test WinUI executable
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          $exe = "dist\winui\SaveMe.WinUI.exe"
-          if (-not (Test-Path $exe)) {
-            throw "Executable not found: $exe"
-          }
-          $process = Start-Process -FilePath $exe -PassThru
-          Start-Sleep -Seconds 8
-          if ($process.HasExited) {
-            Write-Host "Smoke test warning: app exited too early with code $($process.ExitCode)"
-            exit 0
-          }
-          Stop-Process -Id $process.Id -Force
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
 
       - name: Install Inno Setup
         shell: pwsh
@@ -184,24 +148,52 @@ jobs:
             choco install innosetup -y --no-progress
           }
 
-      - name: Build WinUI installer EXE
+      - name: Check that the tag matches VERSION
         shell: pwsh
         run: |
-          $version = "${{ env.RELEASE_TAG }}" -replace '^v', ''
-          $sourceDir = (Resolve-Path "dist\winui").Path
-          $outputDir = (Resolve-Path "dist").Path
-          $baseName = "SaveMe-Windows-Setup-${{ env.RELEASE_TAG }}"
-          $env:SAVESTORIES_VERSION = $version
-          & ISCC.exe `
-            "/DSourceDir=$sourceDir" `
-            "/DOutputDir=$outputDir" `
-            "/DOutputBaseFilename=$baseName" `
-            ".\windows_app_winui_beta\SaveStories-WinUI-Beta.iss"
-          if ($LASTEXITCODE -ne 0) {
-            throw "ISCC failed with code $LASTEXITCODE"
+          $version = (Get-Content VERSION -Raw).Trim()
+          if ("${{ env.RELEASE_TAG }}" -ne "v$version") {
+            throw "Tag ${{ env.RELEASE_TAG }} does not match VERSION v$version"
           }
 
-      - name: Sign WinUI installer (optional)
+      - name: Frontend and Rust tests
+        shell: pwsh
+        run: |
+          Push-Location windows_app_react
+          npm ci
+          npm test
+          if ($LASTEXITCODE -ne 0) { throw "Frontend tests failed" }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw "Frontend build failed" }
+          Pop-Location
+          Push-Location windows_app_react/src-tauri
+          cargo test --lib
+          if ($LASTEXITCODE -ne 0) { throw "Rust tests failed" }
+          Pop-Location
+
+      - name: Build app and installer (React + Tauri)
+        shell: pwsh
+        run: ./windows_app_react/build_windows.ps1
+
+      - name: Find the previous release
+        id: previous
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tags = gh release list --limit 10 --exclude-pre-releases --json tagName --jq '.[].tagName'
+          $previous = $tags | Where-Object { $_ -ne $env:RELEASE_TAG } | Select-Object -First 1
+          "tag=$previous" >> $env:GITHUB_OUTPUT
+          Write-Host "Previous release: '$previous'"
+
+      - name: Upgrade test (previous release -> new installer, then run worker and app)
+        if: steps.previous.outputs.tag != ''
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          ./windows_app_react/upgrade_test.ps1 -Setup "$PWD\dist\windows-tauri\SaveMe-Windows-Setup-v$version.exe" -PreviousTag "${{ steps.previous.outputs.tag }}"
+
+      - name: Sign installer (optional)
         shell: pwsh
         env:
           WINDOWS_SIGN_PFX_BASE64: ${{ secrets.WINDOWS_SIGN_PFX_BASE64 }}
@@ -211,7 +203,7 @@ jobs:
             Write-Host "Signing secrets are not configured. Skipping code-sign."
             exit 0
           }
-          $setup = Get-ChildItem -Path "dist" -Filter "SaveMe-Windows-Setup-*.exe" -File | Select-Object -First 1
+          $setup = Get-ChildItem -Path "dist\windows-tauri" -Filter "SaveMe-Windows-Setup-*.exe" -File | Select-Object -First 1
           if (-not $setup) {
             throw "Installer not found for signing."
           }
@@ -228,14 +220,14 @@ jobs:
             throw "signtool failed with code $LASTEXITCODE"
           }
 
-      - name: Upload WinUI installer to release
+      - name: Upload Windows installer to release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $artifact = Get-ChildItem -Path "dist" -Filter "SaveMe-Windows-Setup-${{ env.RELEASE_TAG }}.exe" -File | Select-Object -First 1
+          $artifact = Get-ChildItem -Path "dist\windows-tauri" -Filter "SaveMe-Windows-Setup-${{ env.RELEASE_TAG }}.exe" -File | Select-Object -First 1
           if (-not $artifact) {
-            throw "Windows WinUI installer was not produced."
+            throw "Windows installer was not produced."
           }
           $shaPath = "$($artifact.FullName).sha256"
           $hash = Get-FileHash -Algorithm SHA256 $artifact.FullName
