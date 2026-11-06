@@ -29,6 +29,7 @@ import {
   shouldSkipMediaVariant,
 } from "./media_utils.mjs";
 import { downloadReelsCommand } from "./reels_downloader.mjs";
+import { isUnikCommand, runUnikCommand } from "./unik_worker.mjs";
 import { saveVideoWithAudio } from "./media_audio_pipeline.mjs";
 import {
   buildWorkerResponse,
@@ -2443,7 +2444,9 @@ async function main() {
     const headless = request.headless ?? true;
     const mediaFilter = request.mediaFilter ?? "all";
 
-    if (command === "environment") {
+    if (isUnikCommand(command)) {
+      await runUnikCommand(request, { emit, emitProgress, supportDirectory: APP_SUPPORT });
+    } else if (command === "environment") {
       await environmentCommand();
     } else if (command === "health") {
       await healthCommand();

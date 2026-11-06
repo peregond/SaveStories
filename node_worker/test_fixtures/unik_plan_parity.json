@@ -1,0 +1,883 @@
+{
+ "plain_story": {
+  "job": {
+   "input": {
+    "filePath": "/in/src.mp4",
+    "mediaKind": "video"
+   },
+   "output": {
+    "container": "mp4",
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+   },
+   "transforms": {
+    "resize": {
+     "width": 1080,
+     "height": 1920,
+     "fit": "cover",
+     "backgroundStyle": "bars",
+     "backgroundColor": "#111111"
+    },
+    "fps": 30,
+    "bitrate": "2M",
+    "audioNormalize": true,
+    "stripMetadata": true,
+    "hueShift": 0,
+    "saturation": 1,
+    "sharpness": 0
+   }
+  },
+  "ffmpegArgs": [
+   "-y",
+   "-i",
+   "/in/src.mp4",
+   "-vf",
+   "scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,setsar=1",
+   "-map",
+   "0:v:0",
+   "-r",
+   "30",
+   "-map",
+   "0:a?",
+   "-shortest",
+   "-af",
+   "loudnorm=I=-16:TP=-1.5:LRA=11,apad",
+   "-map_metadata",
+   "-1",
+   "-threads",
+   "2",
+   "-c:v",
+   "libx264",
+   "-preset",
+   "veryfast",
+   "-crf",
+   "25",
+   "-pix_fmt",
+   "yuv420p",
+   "-movflags",
+   "+faststart",
+   "-maxrate",
+   "2300k",
+   "-bufsize",
+   "4600k",
+   "-c:a",
+   "aac",
+   "-b:a",
+   "128k",
+   "/out/plain_story.mp4"
+  ]
+ },
+ "contain_bars": {
+  "job": {
+   "input": {
+    "filePath": "/in/src.mp4",
+    "mediaKind": "video"
+   },
+   "output": {
+    "container": "mp4",
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+   },
+   "transforms": {
+    "resize": {
+     "width": 1200,
+     "height": 628,
+     "fit": "contain",
+     "backgroundStyle": "bars",
+     "backgroundColor": "#111111"
+    },
+    "fps": 30,
+    "bitrate": "5M",
+    "audioNormalize": true,
+    "stripMetadata": true,
+    "hueShift": 0,
+    "saturation": 1,
+    "sharpness": 0
+   }
+  },
+  "ffmpegArgs": [
+   "-y",
+   "-i",
+   "/in/src.mp4",
+   "-vf",
+   "scale=1200:628:force_original_aspect_ratio=decrease:flags=lanczos,pad=1200:628:(ow-iw)/2:(oh-ih)/2:#111111,setsar=1",
+   "-map",
+   "0:v:0",
+   "-r",
+   "30",
+   "-map",
+   "0:a?",
+   "-shortest",
+   "-af",
+   "loudnorm=I=-16:TP=-1.5:LRA=11,apad",
+   "-map_metadata",
+   "-1",
+   "-threads",
+   "2",
+   "-c:v",
+   "libx264",
+   "-preset",
+   "veryfast",
+   "-crf",
+   "20",
+   "-pix_fmt",
+   "yuv420p",
+   "-movflags",
+   "+faststart",
+   "-maxrate",
+   "5750k",
+   "-bufsize",
+   "11500k",
+   "-c:a",
+   "aac",
+   "-b:a",
+   "128k",
+   "/out/contain_bars.mp4"
+  ]
+ },
+ "contain_solid": {
+  "job": {
+   "input": {
+    "filePath": "/in/src.mp4",
+    "mediaKind": "video"
+   },
+   "output": {
+    "container": "mp4",
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+   },
+   "transforms": {
+    "resize": {
+     "width": 1080,
+     "height": 1080,
+     "fit": "contain",
+     "backgroundStyle": "solid",
+     "backgroundColor": "#ff0000"
+    },
+    "fps": 30,
+    "bitrate": "2M",
+    "audioNormalize": true,
+    "stripMetadata": true,
+    "hueShift": 0,
+    "saturation": 1,
+    "sharpness": 0
+   }
+  },
+  "ffmpegArgs": [
+   "-y",
+   "-i",
+   "/in/src.mp4",
+   "-vf",
+   "scale=1080:1080:force_original_aspect_ratio=decrease:flags=lanczos,pad=1080:1080:(ow-iw)/2:(oh-ih)/2:#ff0000,setsar=1",
+   "-map",
+   "0:v:0",
+   "-r",
+   "30",
+   "-map",
+   "0:a?",
+   "-shortest",
+   "-af",
+   "loudnorm=I=-16:TP=-1.5:LRA=11,apad",
+   "-map_metadata",
+   "-1",
+   "-threads",
+   "2",
+   "-c:v",
+   "libx264",
+   "-preset",
+   "veryfast",
+   "-crf",
+   "25",
+   "-pix_fmt",
+   "yuv420p",
+   "-movflags",
+   "+faststart",
+   "-maxrate",
+   "2300k",
+   "-bufsize",
+   "4600k",
+   "-c:a",
+   "aac",
+   "-b:a",
+   "128k",
+   "/out/contain_solid.mp4"
+  ]
+ },
+ "contain_blur": {
+  "job": {
+   "input": {
+    "filePath": "/in/src.mp4",
+    "mediaKind": "video"
+   },
+   "output": {
+    "container": "mp4",
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+   },
+   "transforms": {
+    "resize": {
+     "width": 1080,
+     "height": 1920,
+     "fit": "contain",
+     "backgroundStyle": "blur"
+    },
+    "fps": 30,
+    "bitrate": "2M",
+    "audioNormalize": true,
+    "stripMetadata": true,
+    "hueShift": 8,
+    "saturation": 1.18,
+    "sharpness": 0.28
+   }
+  },
+  "ffmpegArgs": [
+   "-y",
+   "-i",
+   "/in/src.mp4",
+   "-filter_complex",
+   "[0:v]split=2[bgsrc][fgsrc];[bgsrc]scale=1080:1920:flags=lanczos,gblur=sigma=42,eq=brightness=-0.03:saturation=1.08[bgv];[fgsrc]scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos[fgv];[bgv][fgv]overlay=(W-w)/2:(H-h)/2[resizeout];[resizeout]hue=h=8,eq=saturation=1.18,unsharp=5:5:0.28:5:5:0.0[adjustedv];[adjustedv]setsar=1[vfinal]",
+   "-map",
+   "[vfinal]",
+   "-r",
+   "30",
+   "-map",
+   "0:a?",
+   "-shortest",
+   "-af",
+   "loudnorm=I=-16:TP=-1.5:LRA=11,apad",
+   "-map_metadata",
+   "-1",
+   "-threads",
+   "2",
+   "-c:v",
+   "libx264",
+   "-preset",
+   "veryfast",
+   "-crf",
+   "25",
+   "-pix_fmt",
+   "yuv420p",
+   "-movflags",
+   "+faststart",
+   "-maxrate",
+   "2300k",
+   "-bufsize",
+   "4600k",
+   "-c:a",
+   "aac",
+   "-b:a",
+   "128k",
+   "/out/contain_blur.mp4"
+  ]
+ },
+ "style_cinematic_speed": {
+  "job": {
+   "input": {
+    "filePath": "/in/src.mp4",
+    "mediaKind": "video"
+   },
+   "output": {
+    "container": "mp4",
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+   },
+   "transforms": {
+    "resize": {
+     "width": 1080,
+     "height": 1920,
+     "fit": "cover",
+     "backgroundStyle": "bars",
+     "backgroundColor": "#111111"
+    },
+    "fps": 30,
+    "bitrate": "2M",
+    "audioNormalize": true,
+    "stripMetadata": true,
+    "hueShift": -14,
+    "saturation": 0.82,
+    "sharpness": 0.48,
+    "speedFactor": 0.5
+   }
+  },
+  "ffmpegArgs": [
+   "-y",
+   "-i",
+   "/in/src.mp4",
+   "-vf",
+   "scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,hue=h=-14,eq=saturation=0.82,unsharp=5:5:0.48:5:5:0.0,setpts=2.000000*PTS,setsar=1",
+   "-map",
+   "0:v:0",
+   "-r",
+   "30",
+   "-map",
+   "0:a?",
+   "-shortest",
+   "-af",
+   "atempo=0.5000,loudnorm=I=-16:TP=-1.5:LRA=11,apad",
+   "-map_metadata",
+   "-1",
+   "-threads",
+   "2",
+   "-c:v",
+   "libx264",
+   "-preset",
+   "veryfast",
+   "-crf",
+   "25",
+   "-pix_fmt",
+   "yuv420p",
+   "-movflags",
+   "+faststart",
+   "-maxrate",
+   "2300k",
+   "-bufsize",
+   "4600k",
+   "-c:a",
+   "aac",
+   "-b:a",
+   "128k",
+   "/out/style_cinematic_speed.mp4"
+  ]
+ },
+ "fast_speed_4x": {
+  "job": {
+   "input": {
+    "filePath": "/in/src.mp4",
+    "mediaKind": "video"
+   },
+   "output": {
+    "container": "mp4",
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+   },
+   "transforms": {
+    "resize": {
+     "width": 1080,
+     "height": 1920,
+     "fit": "cover",
+     "backgroundStyle": "bars",
+     "backgroundColor": "#111111"
+    },
+    "fps": 30,
+    "bitrate": "6M",
+    "audioNormalize": true,
+    "stripMetadata": true,
+    "hueShift": 0,
+    "saturation": 1,
+    "sharpness": 0,
+    "speedFactor": 4
+   }
+  },
+  "ffmpegArgs": [
+   "-y",
+   "-i",
+   "/in/src.mp4",
+   "-vf",
+   "scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,setpts=0.250000*PTS,setsar=1",
+   "-map",
+   "0:v:0",
+   "-r",
+   "30",
+   "-map",
+   "0:a?",
+   "-shortest",
+   "-af",
+   "atempo=2,atempo=2.0000,loudnorm=I=-16:TP=-1.5:LRA=11,apad",
+   "-map_metadata",
+   "-1",
+   "-threads",
+   "2",
+   "-c:v",
+   "libx264",
+   "-preset",
+   "medium",
+   "-crf",
+   "17",
+   "-pix_fmt",
+   "yuv420p",
+   "-movflags",
+   "+faststart",
+   "-maxrate",
+   "6900k",
+   "-bufsize",
+   "13800k",
+   "-c:a",
+   "aac",
+   "-b:a",
+   "128k",
+   "/out/fast_speed_4x.mp4"
+  ]
+ },
+ "age_mark_portrait": {
+  "job": {
+   "input": {
+    "filePath": "/in/src.mp4",
+    "mediaKind": "video"
+   },
+   "output": {
+    "container": "mp4",
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+   },
+   "transforms": {
+    "resize": {
+     "width": 1080,
+     "height": 1920,
+     "fit": "cover",
+     "backgroundStyle": "bars",
+     "backgroundColor": "#111111"
+    },
+    "fps": 30,
+    "bitrate": "2M",
+    "audioNormalize": true,
+    "stripMetadata": true,
+    "hueShift": 0,
+    "saturation": 1,
+    "sharpness": 0,
+    "ageMark": {
+     "enabled": true,
+     "portraitFilePath": "/m/p.png",
+     "squareFilePath": "/m/s.png",
+     "fourByFiveFilePath": "/m/f.png"
+    }
+   }
+  },
+  "ffmpegArgs": [
+   "-y",
+   "-i",
+   "/in/src.mp4",
+   "-loop",
+   "1",
+   "-i",
+   "/m/p.png",
+   "-filter_complex",
+   "[0:v]scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920[basev];[1:v]scale=1080:1920:flags=lanczos[overlayv];[basev][overlayv]overlay=0:0:shortest=1[vout];[vout]setsar=1[vfinal]",
+   "-map",
+   "[vfinal]",
+   "-r",
+   "30",
+   "-map",
+   "0:a?",
+   "-shortest",
+   "-af",
+   "loudnorm=I=-16:TP=-1.5:LRA=11,apad",
+   "-map_metadata",
+   "-1",
+   "-threads",
+   "2",
+   "-c:v",
+   "libx264",
+   "-preset",
+   "veryfast",
+   "-crf",
+   "25",
+   "-pix_fmt",
+   "yuv420p",
+   "-movflags",
+   "+faststart",
+   "-maxrate",
+   "2300k",
+   "-bufsize",
+   "4600k",
+   "-c:a",
+   "aac",
+   "-b:a",
+   "128k",
+   "/out/age_mark_portrait.mp4"
+  ]
+ },
+ "age_mark_4x5": {
+  "job": {
+   "input": {
+    "filePath": "/in/src.mp4",
+    "mediaKind": "video"
+   },
+   "output": {
+    "container": "mp4",
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+   },
+   "transforms": {
+    "resize": {
+     "width": 1080,
+     "height": 1350,
+     "fit": "cover",
+     "backgroundStyle": "bars"
+    },
+    "fps": 30,
+    "bitrate": "2M",
+    "audioNormalize": true,
+    "stripMetadata": true,
+    "hueShift": 0,
+    "saturation": 1,
+    "sharpness": 0,
+    "ageMark": {
+     "enabled": true,
+     "portraitFilePath": "/m/p.png",
+     "squareFilePath": "/m/s.png",
+     "fourByFiveFilePath": "/m/f.png"
+    }
+   }
+  },
+  "ffmpegArgs": [
+   "-y",
+   "-i",
+   "/in/src.mp4",
+   "-loop",
+   "1",
+   "-i",
+   "/m/f.png",
+   "-filter_complex",
+   "[0:v]scale=1080:1350:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1350[basev];[1:v]scale=1080:1350:flags=lanczos[overlayv];[basev][overlayv]overlay=0:0:shortest=1[vout];[vout]setsar=1[vfinal]",
+   "-map",
+   "[vfinal]",
+   "-r",
+   "30",
+   "-map",
+   "0:a?",
+   "-shortest",
+   "-af",
+   "loudnorm=I=-16:TP=-1.5:LRA=11,apad",
+   "-map_metadata",
+   "-1",
+   "-threads",
+   "2",
+   "-c:v",
+   "libx264",
+   "-preset",
+   "veryfast",
+   "-crf",
+   "25",
+   "-pix_fmt",
+   "yuv420p",
+   "-movflags",
+   "+faststart",
+   "-maxrate",
+   "2300k",
+   "-bufsize",
+   "4600k",
+   "-c:a",
+   "aac",
+   "-b:a",
+   "128k",
+   "/out/age_mark_4x5.mp4"
+  ]
+ },
+ "intro_overlay_age": {
+  "job": {
+   "input": {
+    "filePath": "/in/src.mp4",
+    "mediaKind": "video"
+   },
+   "output": {
+    "container": "mp4",
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+   },
+   "transforms": {
+    "resize": {
+     "width": 1080,
+     "height": 1920,
+     "fit": "cover",
+     "backgroundStyle": "bars",
+     "backgroundColor": "#111111"
+    },
+    "fps": 30,
+    "bitrate": "2M",
+    "audioNormalize": true,
+    "stripMetadata": true,
+    "hueShift": 3,
+    "saturation": 1,
+    "sharpness": 0,
+    "introImage": {
+     "enabled": true,
+     "imageFilePath": "/m/intro.png",
+     "durationMs": 700
+    },
+    "videoOverlay": {
+     "enabled": true,
+     "videoFilePath": "/m/o.mp4",
+     "opacity": 0.3
+    },
+    "ageMark": {
+     "enabled": true,
+     "squareFilePath": "/m/s.png"
+    },
+    "speedFactor": 1.1
+   }
+  },
+  "ffmpegArgs": [
+   "-y",
+   "-i",
+   "/in/src.mp4",
+   "-loop",
+   "1",
+   "-i",
+   "/m/intro.png",
+   "-stream_loop",
+   "-1",
+   "-i",
+   "/m/o.mp4",
+   "-loop",
+   "1",
+   "-i",
+   "/m/s.png",
+   "-filter_complex",
+   "[0:v]scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920[basev];[basev]hue=h=3[adjustedv];[1:v]scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,trim=duration=0.7,setpts=PTS-STARTPTS[introv];[adjustedv][introv]overlay=0:0:enable='between(t,0,0.7)'[introout];[3:v]scale=1080:1920:flags=lanczos[overlayv];[introout][overlayv]overlay=0:0:shortest=1[vout];[2:v]scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,format=rgba,colorchannelmixer=aa=0.3[vidoverlay];[vout][vidoverlay]overlay=0:0:shortest=1[voverlay];[voverlay]setpts=0.909091*PTS[vspeed];[vspeed]setsar=1[vfinal]",
+   "-map",
+   "[vfinal]",
+   "-r",
+   "30",
+   "-map",
+   "0:a?",
+   "-shortest",
+   "-af",
+   "atempo=1.1000,loudnorm=I=-16:TP=-1.5:LRA=11,apad",
+   "-map_metadata",
+   "-1",
+   "-threads",
+   "2",
+   "-c:v",
+   "libx264",
+   "-preset",
+   "veryfast",
+   "-crf",
+   "25",
+   "-pix_fmt",
+   "yuv420p",
+   "-movflags",
+   "+faststart",
+   "-maxrate",
+   "2300k",
+   "-bufsize",
+   "4600k",
+   "-c:a",
+   "aac",
+   "-b:a",
+   "128k",
+   "/out/intro_overlay_age.mp4"
+  ]
+ },
+ "audio_replace_custom_date": {
+  "job": {
+   "input": {
+    "filePath": "/in/src.mp4",
+    "mediaKind": "video"
+   },
+   "output": {
+    "container": "mp4",
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+   },
+   "transforms": {
+    "resize": {
+     "width": 1080,
+     "height": 1920,
+     "fit": "cover",
+     "backgroundStyle": "bars",
+     "backgroundColor": "#111111"
+    },
+    "fps": 30,
+    "bitrate": "2M",
+    "audioNormalize": true,
+    "stripMetadata": false,
+    "hueShift": 0,
+    "saturation": 1,
+    "sharpness": 0,
+    "audioReplacePath": "/m/a.mp3",
+    "metadata": {
+     "mode": "custom-date",
+     "customDate": "2026-11-06"
+    }
+   }
+  },
+  "ffmpegArgs": [
+   "-y",
+   "-i",
+   "/in/src.mp4",
+   "-i",
+   "/m/a.mp3",
+   "-vf",
+   "scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,setsar=1",
+   "-map",
+   "0:v:0",
+   "-r",
+   "30",
+   "-map",
+   "1:a:0",
+   "-shortest",
+   "-af",
+   "loudnorm=I=-16:TP=-1.5:LRA=11,apad",
+   "-metadata",
+   "creation_time=2026-11-06T12:00:00Z",
+   "-threads",
+   "2",
+   "-c:v",
+   "libx264",
+   "-preset",
+   "veryfast",
+   "-crf",
+   "25",
+   "-pix_fmt",
+   "yuv420p",
+   "-movflags",
+   "+faststart",
+   "-maxrate",
+   "2300k",
+   "-bufsize",
+   "4600k",
+   "-c:a",
+   "aac",
+   "-b:a",
+   "128k",
+   "/out/audio_replace_custom_date.mp4"
+  ]
+ },
+ "image_png": {
+  "job": {
+   "input": {
+    "filePath": "/in/p.png",
+    "mediaKind": "image"
+   },
+   "output": {
+    "container": "png",
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+   },
+   "transforms": {
+    "resize": {
+     "width": 1080,
+     "height": 1920,
+     "fit": "cover",
+     "backgroundStyle": "bars",
+     "backgroundColor": "#111111"
+    },
+    "audioNormalize": true,
+    "stripMetadata": true,
+    "hueShift": 0,
+    "saturation": 1,
+    "sharpness": 0,
+    "ageMark": {
+     "enabled": true,
+     "squareFilePath": "/m/s.png"
+    }
+   }
+  },
+  "ffmpegArgs": [
+   "-y",
+   "-i",
+   "/in/p.png",
+   "-i",
+   "/m/s.png",
+   "-filter_complex",
+   "[0:v]scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920[basev];[1:v]scale=1080:1920:flags=lanczos[overlayv];[basev][overlayv]overlay=0:0:shortest=1[vout];[vout]setsar=1[vfinal]",
+   "-map",
+   "[vfinal]",
+   "-map_metadata",
+   "-1",
+   "-frames:v",
+   "1",
+   "-c:v",
+   "png",
+   "/out/image_png.png"
+  ]
+ },
+ "image_jpg_blur": {
+  "job": {
+   "input": {
+    "filePath": "/in/p.jpg",
+    "mediaKind": "image"
+   },
+   "output": {
+    "container": "jpg",
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+   },
+   "transforms": {
+    "resize": {
+     "width": 1080,
+     "height": 1080,
+     "fit": "contain",
+     "backgroundStyle": "blur"
+    },
+    "fps": 30,
+    "bitrate": "2M",
+    "audioNormalize": true,
+    "stripMetadata": true,
+    "hueShift": 0,
+    "saturation": 1,
+    "sharpness": 0
+   }
+  },
+  "ffmpegArgs": [
+   "-y",
+   "-i",
+   "/in/p.jpg",
+   "-filter_complex",
+   "[0:v]split=2[bgsrc][fgsrc];[bgsrc]scale=1080:1080:flags=lanczos,gblur=sigma=42,eq=brightness=-0.03:saturation=1.08[bgv];[fgsrc]scale=1080:1080:force_original_aspect_ratio=decrease:flags=lanczos[fgv];[bgv][fgv]overlay=(W-w)/2:(H-h)/2[resizeout];[resizeout]setsar=1[vfinal]",
+   "-map",
+   "[vfinal]",
+   "-map_metadata",
+   "-1",
+   "-frames:v",
+   "1",
+   "-c:v",
+   "mjpeg",
+   "-q:v",
+   "2",
+   "/out/image_jpg_blur.jpg"
+  ]
+ },
+ "hevc_no_resize": {
+  "job": {
+   "input": {
+    "filePath": "/in/x.mov",
+    "mediaKind": "video"
+   },
+   "output": {
+    "container": "mp4",
+    "videoCodec": "hevc",
+    "audioCodec": "aac"
+   },
+   "transforms": {
+    "audioNormalize": false,
+    "stripMetadata": false
+   }
+  },
+  "ffmpegArgs": [
+   "-y",
+   "-i",
+   "/in/x.mov",
+   "-vf",
+   "setsar=1",
+   "-map",
+   "0:v:0",
+   "-map",
+   "0:a?",
+   "-shortest",
+   "-af",
+   "apad",
+   "-threads",
+   "2",
+   "-c:v",
+   "libx265",
+   "-preset",
+   "veryfast",
+   "-crf",
+   "25",
+   "-pix_fmt",
+   "yuv420p",
+   "-movflags",
+   "+faststart",
+   "-maxrate",
+   "2300k",
+   "-bufsize",
+   "4600k",
+   "-c:a",
+   "aac",
+   "-b:a",
+   "128k",
+   "/out/hevc_no_resize.mp4"
+  ]
+ }
+}
