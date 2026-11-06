@@ -115,7 +115,7 @@ fn queue_save(app: State<'_, App>, entries: Vec<queue::QueueEntry>) -> Result<()
 /// Папки, которые интерфейс вправе открыть: данные приложения и папки, выбранные пользователем.
 fn openable_roots(paths: &AppPaths, s: &Settings) -> Vec<PathBuf> {
     let mut roots = vec![paths.application_support(), paths.playwright_browsers(), paths.default_downloads()];
-    for chosen in [&s.save_directory, &s.sorting_source_directory, &s.sorting_destination_directory, &s.empty_folder_cleanup_directory] {
+    for chosen in [&s.save_directory, &s.sorting_source_directory, &s.sorting_destination_directory, &s.empty_folder_cleanup_directory, &s.unik_output_directory] {
         if !chosen.trim().is_empty() {
             roots.push(PathBuf::from(chosen));
         }
@@ -147,7 +147,8 @@ fn open_path(app: State<'_, App>, path: String) -> Result<(), String> {
 
 #[tauri::command]
 async fn worker_run(handle: AppHandle, app: State<'_, App>, request: Value, timeout_secs: Option<u64>) -> Result<Value, String> {
-    let is_download = request.get("command").and_then(Value::as_str).is_some_and(|c| c.starts_with("download_"));
+    // Выгрузка и обработка видео идут долго: на это время компьютер не должен засыпать.
+    let is_download = request.get("command").and_then(Value::as_str).is_some_and(|c| c.starts_with("download_") || c == "unik_process");
     let keep_awake = is_download && settings::load(&app.paths).prevent_sleep;
     if keep_awake {
         app.sleep.acquire();

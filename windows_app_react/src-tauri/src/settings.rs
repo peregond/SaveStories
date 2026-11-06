@@ -33,6 +33,10 @@ pub struct Settings {
     pub notion_influencer_cached_profiles: Vec<String>,
     pub notion_routing_rules_last_refresh_at: String,
     pub notion_routing_rules_cached_rules: String,
+    // Уникализатор
+    pub unik_output_directory: String,
+    /// Настройки раздела целиком (JSON): интерфейс сам хранит и разбирает их.
+    pub unik_options: String,
 }
 
 impl Default for Settings {
@@ -58,6 +62,8 @@ impl Default for Settings {
             notion_influencer_cached_profiles: Vec::new(),
             notion_routing_rules_last_refresh_at: String::new(),
             notion_routing_rules_cached_rules: String::new(),
+            unik_output_directory: String::new(),
+            unik_options: String::new(),
         }
     }
 }

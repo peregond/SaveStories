@@ -3,6 +3,7 @@ import type { Api, AppInfo, Preflight, ReleaseInfo, RuntimeStatus, Settings, Wor
 import { restoreEntries, restoreNotice } from "./queue";
 import { isToday, parseProfiles, parseReelLines, profileCounts, profileFromProgress, profileName, progressDetail, workerTimeoutSecs } from "./parse";
 import { useSorting } from "./sorting";
+import { useUnik } from "./unik";
 
 export type Session = "unknown" | "checking" | "ready" | "login_required" | "waiting_login" | "error";
 export type EntryStatus = "pending" | "running" | "completed" | "failed" | "stopped";
@@ -21,7 +22,7 @@ const emptyTotals: Totals = { found: 0, saved: 0, processed: 0, files: 0 };
 export const defaultSettings: Settings = {
   theme: "system", automaticThemeByTime: true, downloadMode: "background", mediaFilter: "video_only", saveDirectory: "",
   preventSleep: true, recentLists: [], lastUpdateCheckAt: "", runtimePromptShown: false,
-  emptyFolderCleanupDirectory: "", sortingSourceDirectory: "", sortingDestinationDirectory: "", sortingRules: "", rememberedBloggers: [],
+  emptyFolderCleanupDirectory: "", sortingSourceDirectory: "", sortingDestinationDirectory: "", sortingRules: "", rememberedBloggers: [], unikOutputDirectory: "", unikOptions: "",
   notionInfluencerEnabled: false, notionRoutingRulesEnabled: false, notionInfluencerLastRefreshAt: "", notionInfluencerCachedProfiles: [],
   notionRoutingRulesLastRefreshAt: "", notionRoutingRulesCachedRules: "",
 };
@@ -43,7 +44,7 @@ export function useStore(api: Api) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [totals, setTotals] = useState<Totals>(emptyTotals);
   const [live, setLive] = useState({ files: 0, folders: 0 });
-  const [busy, setBusy] = useState<null | "batch" | "reels" | "probe">(null);
+  const [busy, setBusy] = useState<null | "batch" | "reels" | "probe" | "unik">(null);
   const [stopping, setStopping] = useState(false);
   const [step, setStep] = useState("Ожидание команды.");
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -63,6 +64,7 @@ export function useStore(api: Api) {
   const liveCounts = useRef({ found: 0, saved: 0 });
   const busyRef = useRef(busy);
   busyRef.current = busy;
+  const unikRef = useRef<ReturnType<typeof useUnik> | null>(null);
 
   // Воркер может писать десятки строк в секунду: копим их и обновляем состояние раз в 250 мс.
   const logBuffer = useRef<string[]>([]);
@@ -118,6 +120,7 @@ export function useStore(api: Api) {
 
   // ---- Прогресс воркера: строки batch_slot_N_start / _done / _error
   const onWorkerLine = useCallback((line: string) => {
+    if (line.startsWith("unik_")) { unikRef.current?.handleLine(line); return; }
     pushLog(line);
     if (!line.startsWith("batch_slot_")) return;
     // Итоги профиля приходят сразу после него: плитки «Найдено» и «Сохранено» растут по ходу выгрузки, а не только в конце.
@@ -239,6 +242,7 @@ export function useStore(api: Api) {
       const [i, s] = await Promise.all([api.info(), api.getSettings()]);
       if (!alive) return;
       setInfo(i); setSettingsState(s); settingsRef.current = s; setLoaded(true);
+      unikRef.current?.loadSaved(s.unikOptions);
       try {
         const restored = restoreEntries(await api.loadQueue());
         if (restored.entries.length) {
@@ -555,6 +559,8 @@ export function useStore(api: Api) {
   }, [api]);
   const openAppData = useCallback(() => { if (info) api.openPath(info.appSupport).catch((e) => setNotice({ tone: "err", text: errorText(e) })); }, [api, info]);
 
+  const unik = useUnik({ api, settingsRef, updateSettings, busy, setBusy, setNotice, pushLog });
+  unikRef.current = unik;
   const sorting = useSorting({ api, settingsRef, updateSettings, latestItems, setLatestItems, requestCleanup, setNotice, pushLog });
 
   const stats = useMemo(() => ({
@@ -573,12 +579,12 @@ export function useStore(api: Api) {
 
   return {
     api, info, settings, loaded, updateSettings, workerReady, workerSummary, runtime, bootstrapping, preflight, session, sessionSummary,
-    entries, stats, live, retryOnly, failedCount, busy, running: busy === "batch" || busy === "reels", stopping, step, notice, setNotice, log, progress, pending,
+    entries, stats, live, retryOnly, failedCount, busy, running: busy === "batch" || busy === "reels" || busy === "unik", stopping, step, notice, setNotice, log, progress, pending,
     latestItems, cleanupOffer, notionBusy, notionSummary, reels, update, headless, sorting,
     probe, checkSession, login, installChromium, runPreflight, exportDiagnostics,
     addProfiles, startQueue, stop, clearQueue, retryFailed, removeEntry, refreshNotionInfluencers,
     addReels, downloadReels, retryFailedReels, clearReelsQueue, rememberList, removeList, checkUpdates, prepareUpdate, installUpdate,
-    pickDirectory, openSaveDirectory, openAppData, requestCleanup, confirmCleanup, dismissCleanup,
+    unik, onFilesDropped: api.onFilesDropped, pickDirectory, openSaveDirectory, openAppData, requestCleanup, confirmCleanup, dismissCleanup,
   };
 }
 export type Store = ReturnType<typeof useStore>;

@@ -54,7 +54,7 @@ try {
 
   if (phase === "first") {
     // Все экраны открываются
-    for (const [label, selector, slug] of [["Stories", "textarea", "stories"], ["Reels", "textarea", "reels"], ["Сортировка", ".rules", "sorting"], ["Настройки", ".kv", "settings"]]) {
+    for (const [label, selector, slug] of [["Stories", "textarea", "stories"], ["Reels", "textarea", "reels"], ["Уникализатор", ".dropzone", "unik"], ["Сортировка", ".rules", "sorting"], ["Настройки", ".kv", "settings"]]) {
       await page.getByRole("button", { name: label, exact: true }).first().click();
       try { await page.waitForSelector(selector, { timeout: 8000 }); check(`Экран «${label}» открывается`, true); }
       catch (e) { check(`Экран «${label}» открывается`, false, String(e).slice(0, 120)); }

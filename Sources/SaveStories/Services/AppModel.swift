@@ -344,6 +344,9 @@ final class AppModel: ObservableObject {
     @Published var rememberedBloggers: [RememberedBlogger] = []
 
     let worker = WorkerClient()
+    /// Раздел «Уникализатор»: своё состояние и свой процесс воркера; изменения пробрасываются в интерфейс через AppModel.
+    let unikalizator: UnikalizatorModel
+    private var unikalizatorChanges: AnyCancellable?
     let bootstrapper = WorkerBootstrapper()
     let appUpdater: AppUpdater
     let isDesignPreview: Bool
@@ -364,7 +367,12 @@ final class AppModel: ObservableObject {
 
     init(isDesignPreview: Bool = false) {
         self.isDesignPreview = isDesignPreview
+        unikalizator = UnikalizatorModel(isPreview: isDesignPreview)
         appUpdater = AppUpdater(isEnabled: !isDesignPreview)
+        // Все свойства уже заданы — можно подписаться: изменения раздела «Уникализатор» перерисовывают интерфейс.
+        unikalizatorChanges = unikalizator.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
         if isDesignPreview {
             saveDirectory = URL(fileURLWithPath: "/Users/preview/Downloads/SaveMe", isDirectory: true)
             workerReady = true

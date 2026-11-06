@@ -308,6 +308,7 @@ pub async fn download_installer(paths: &AppPaths, release: &ReleaseInfo, on_prog
 /// Параметры установщика при обновлении изнутри приложения. Установщик ставится в профиль пользователя
 /// (`PrivilegesRequired=lowest`), поэтому повышение прав не нужно. `/SILENT` показывает только окно прогресса,
 /// `/RELAUNCH` просит запустить приложение снова (в тихом режиме обычный пункт «Запустить» пропускается).
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn installer_arguments(log: &Path) -> String {
     format!("/SILENT /SP- /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /NORESTART /RELAUNCH /LOG=\"{}\"", log.display())
 }
