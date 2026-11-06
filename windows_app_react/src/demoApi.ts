@@ -33,7 +33,7 @@ export function createDemoApi(): Api {
   let bootstrapListeners: Array<(l: string) => void> = [];
   let cancelled = false;
   const log = (l: string) => logListeners.forEach((cb) => cb(l));
-  const info: AppInfo = { version: "0.6.86", appSupport: "C:\\Users\\you\\AppData\\Local\\SaveMe", defaultDownloads: settings.saveDirectory, runtimeEmbedded: true, autoUpdate: true, nativeGlass: params.get("glass") === "native" };
+  const info: AppInfo = { version: "0.6.87", appSupport: "C:\\Users\\you\\AppData\\Local\\SaveMe", defaultDownloads: settings.saveDirectory, runtimeEmbedded: true, autoUpdate: true, nativeGlass: params.get("glass") === "native" };
 
   const record = (blogger: string, rules: string, file: string, from: string): SortedFileRecord => {
     const rule = rules.split("\n").map((l) => l.split("=").map((x) => x.trim())).find(([u]) => u?.toLowerCase() === blogger.toLowerCase());
