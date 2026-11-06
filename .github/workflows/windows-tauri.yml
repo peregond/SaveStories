@@ -88,6 +88,20 @@ jobs:
           ./windows_app_react/upgrade_test.ps1 -Setup $setup -PreviousTag v0.6.86
           ./windows_app_react/upgrade_test.ps1 -Setup $setup -PreviousTag v0.6.85 -SkipBrowserCheck
 
+      - name: Inspect the installed app (screenshots, UI flow over CDP, memory and CPU vs WinUI)
+        shell: pwsh
+        run: |
+          # После проверки обновления установлена новая версия. Сравнение с WinUI идёт последним шагом сценария.
+          ./windows_app_react/ci_inspect.ps1 -OutDir "$PWD\inspect" -CompareWinUITag v0.6.85
+
+      - name: Upload inspection artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SaveMe-Windows-Inspect
+          path: inspect/**
+          if-no-files-found: warn
+
       - name: Sign installer (optional)
         shell: pwsh
         env:

@@ -83,7 +83,13 @@ npm run tauri dev      # приложение целиком (Rust, Node; на W
 что тег совпадает с `VERSION`, прогоняет тесты, собирает установщик, проверяет обновление поверх предыдущего релиза и загружает
 `SaveMe-Windows-Setup-vX.Y.Z.exe` и `.sha256` (имена те же, поэтому установленные клиенты обновятся сами).
 
-При смене версии правьте: `VERSION`, `windows_app_react/package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`
+Проверки на настоящей Windows (`ci_inspect.ps1`, шаг в `Build Windows (React + Tauri)`): установленное приложение запускается с
+отладочным портом WebView2, `ci_inspect.mjs` через Playwright проходит все экраны со скриншотами, добавляет профили в очередь,
+приложение убивается и запускается заново — очередь должна восстановиться. Скриншоты, `metrics.md` (память и процессор Tauri
+против WinUI 0.6.85) и JSON лежат в артефакте `SaveMe-Windows-Inspect`.
+
+Подъём версии одной командой: `python3 scripts/bump_version.py 0.6.87` (меняет все файлы атомарно и запускает проверку согласованности).
+Вручную версия живёт в: `VERSION`, `windows_app_react/package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`
 (и `Cargo.lock` через `cargo update -p saveme-windows`); `scripts/check_version_consistency.py` проверяет совпадение.
 
 ## Что проверено и что нет
