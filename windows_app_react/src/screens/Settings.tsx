@@ -84,7 +84,12 @@ export function Settings({ s }: { s: Store }) {
                 </div>
               </>
             )}
-            {u.phase === "ready" && <div className="row" style={{ marginTop: 12 }}><button className="btn go" onClick={s.installUpdate}>Установить обновление</button></div>}
+            {u.phase === "ready" && (
+              <div className="row" style={{ marginTop: 12 }}>
+                <button className="btn go" disabled={s.running} onClick={s.installUpdate}>Установить и перезапустить</button>
+                <span className="hint">{s.running ? "Идёт выгрузка — дождись окончания или останови её." : "Приложение закроется и откроется снова уже новой версией."}</span>
+              </div>
+            )}
           </Card>
           <Card title="Данные">
             <dl className="kv">

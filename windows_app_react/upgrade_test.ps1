@@ -3,7 +3,7 @@
 # Запуск: ./windows_app_react/upgrade_test.ps1 -Setup <путь к новому установщику> [-PreviousTag v0.6.85]
 param(
     [Parameter(Mandatory = $true)][string]$Setup,
-    [string]$PreviousTag = "v0.6.86",
+    [string]$PreviousTag = "v0.6.88",
     [switch]$SkipBrowserCheck
 )
 $ErrorActionPreference = "Stop"

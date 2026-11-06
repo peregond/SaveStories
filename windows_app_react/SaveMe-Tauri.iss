@@ -47,6 +47,8 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 [Run]
 Filename: "{tmp}\MicrosoftEdgeWebview2Setup.exe"; Parameters: "/silent /install"; StatusMsg: "Устанавливаю Microsoft Edge WebView2…"; Flags: waituntilterminated; Check: not WebView2Installed
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
+; Обновление изнутри приложения идёт в тихом режиме с /RELAUNCH: запускаем новую версию сами.
+Filename: "{app}\{#MyAppExeName}"; Flags: nowait; Check: RelaunchRequested
 
 [UninstallRun]
 Filename: "{cmd}"; Parameters: "/C taskkill /IM ""SaveMe-Windows.exe"" /F /T >NUL 2>NUL & exit /B 0"; Flags: runhidden waituntilterminated; RunOnceId: "KillSaveMe"
@@ -83,6 +85,16 @@ Root: HKCU; Subkey: "Software\SaveStories.WinUI.Beta"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\DimaSave"; Flags: uninsdeletekey
 
 [Code]
+function RelaunchRequested: Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), '/RELAUNCH') = 0 then
+      Result := True;
+end;
+
 const
   WebView2ClientKey = 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
 
