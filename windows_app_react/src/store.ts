@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Api, AppInfo, Preflight, ReleaseInfo, RuntimeStatus, Settings, WorkerItem, WorkerResponse } from "./api";
 import { restoreEntries, restoreNotice } from "./queue";
-import { isToday, parseProfiles, parseReelLines, profileFromProgress, profileName, progressDetail, workerTimeoutSecs } from "./parse";
+import { isToday, parseProfiles, parseReelLines, profileCounts, profileFromProgress, profileName, progressDetail, workerTimeoutSecs } from "./parse";
 import { useSorting } from "./sorting";
 
 export type Session = "unknown" | "checking" | "ready" | "login_required" | "waiting_login" | "error";
@@ -60,6 +60,7 @@ export function useStore(api: Api) {
   const entriesRef = useRef<Entry[]>([]);
   const baseline = useRef({ files: 0, folders: 0 });
   const lastStatsAt = useRef(0);
+  const liveCounts = useRef({ found: 0, saved: 0 });
   const busyRef = useRef(busy);
   busyRef.current = busy;
 
@@ -119,6 +120,14 @@ export function useStore(api: Api) {
   const onWorkerLine = useCallback((line: string) => {
     pushLog(line);
     if (!line.startsWith("batch_slot_")) return;
+    // Итоги профиля приходят сразу после него: плитки «Найдено» и «Сохранено» растут по ходу выгрузки, а не только в конце.
+    const counts = profileCounts(line);
+    if (counts) {
+      liveCounts.current = { found: liveCounts.current.found + counts.found, saved: liveCounts.current.saved + counts.saved };
+      setTotals((t) => ({ ...t, ...liveCounts.current }));
+      void refreshLive();
+      return;
+    }
     const kind = line.includes("_start=") ? "start" : line.includes("_done=") ? "done" : line.includes("_error=") ? "error" : "";
     if (!kind) return;
     const who = profileFromProgress(line).toLowerCase();
@@ -405,6 +414,7 @@ export function useStore(api: Api) {
     const s = settingsRef.current;
     setStopping(false); setBusy("batch"); setNotice(null);
     setTotals({ ...emptyTotals, processed: 0 });
+    liveCounts.current = { found: 0, saved: 0 };
     try { baseline.current = await api.snapshot(s.saveDirectory); } catch { baseline.current = { files: 0, folders: 0 }; }
     setLive({ files: 0, folders: 0 });
     commit(entriesRef.current.map((e) => (urls.includes(e.url) ? { ...e, status: "pending" as const, message: "Ожидает обработки в общем окне браузера." } : e)));
@@ -552,9 +562,9 @@ export function useStore(api: Api) {
     processed: totals.processed,
     found: totals.found,
     saved: totals.saved,
-    files: totals.files,
+    files: Math.max(totals.files, live.files),
     done: entries.filter((e) => e.status === "completed").length,
-  }), [entries, totals]);
+  }), [entries, totals, live.files]);
   const finished = entries.filter((e) => e.status === "completed" || e.status === "failed" || e.status === "stopped").length;
   const progress = entries.length ? Math.round((finished / entries.length) * 100) : 0;
   const pending = entries.filter((e) => e.status === "pending" || e.status === "failed").length;

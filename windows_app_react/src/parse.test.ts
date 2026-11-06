@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  isToday, normalizeProfile, parseProfiles, parseReelLines, pluralProfiles, profileFromProgress, profileName, progressDetail, themeForHour, workerTimeoutSecs,
+  isToday, normalizeProfile, parseProfiles, parseReelLines, pluralProfiles, profileCounts, profileFromProgress, profileName, progressDetail, themeForHour, workerTimeoutSecs,
 } from "./parse";
 
 describe("profile parsing (WinUI rules)", () => {
@@ -70,5 +70,16 @@ describe("helpers", () => {
     expect(isToday("2026-11-04T23:59:00", now)).toBe(false);
     expect(isToday("", now)).toBe(false);
     expect(isToday("garbage", now)).toBe(false);
+  });
+});
+
+describe("profileCounts", () => {
+  it("reads found and saved from a per-profile progress line", () => {
+    expect(profileCounts("batch_slot_2_profile=anna status=download_complete found=5 saved=3 playlist_items=5")).toEqual({ found: 5, saved: 3 });
+  });
+  it("is not confused by *_error= fields and ignores other lines", () => {
+    expect(profileCounts("batch_slot_1_profile=bob status=x found=0 saved=0 api_discovery_error=true item_errors=2")).toEqual({ found: 0, saved: 0 });
+    expect(profileCounts("batch_slot_1_done=https://www.instagram.com/anna/")).toBeNull();
+    expect(profileCounts("saved=9")).toBeNull();
   });
 });
