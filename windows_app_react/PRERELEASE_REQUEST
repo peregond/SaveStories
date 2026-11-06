@@ -1,3 +1,3 @@
 tauri-preview
 # Первая строка — тег prerelease. Пуш изменения этого файла запускает воркфлоу "Build Windows (React + Tauri)" и публикует установщик.
-# Попытка: 7 (PSModulePath для powershell.exe)
+# Попытка: 8 (тестовый установщик — настоящий PE)

@@ -422,7 +422,14 @@ mod tests {
     }
 
     fn fake_installer() -> Vec<u8> {
-        // Не настоящий exe и без подписи — как наши релизы; достаточно большой, чтобы прийти несколькими кусками.
+        // В Windows подпись проверяет настоящий PowerShell: для файла, который не является исполняемым PE, он отвечает
+        // «UnknownError» (и мы такое отвергаем). Поэтому там нужен настоящий неподписанный PE — как наш установщик Inno.
+        // Берём сам тестовый exe. В других системах подпись не проверяется, хватает набора байтов.
+        if cfg!(windows) {
+            if let Ok(bytes) = std::env::current_exe().and_then(std::fs::read) {
+                return bytes;
+            }
+        }
         let mut bytes = b"MZ fake unsigned installer ".to_vec();
         bytes.extend((0..400_000u32).map(|i| (i % 251) as u8));
         bytes
