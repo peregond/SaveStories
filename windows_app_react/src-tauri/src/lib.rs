@@ -1,6 +1,7 @@
 mod cleanup;
 mod crash;
 mod gdrive;
+mod memory;
 mod notion;
 mod pathguard;
 mod paths;
@@ -441,6 +442,19 @@ pub fn run() {
                 });
             }
             app.manage(NativeGlass(glass));
+            if let Some(window) = app.get_webview_window("main") {
+                let saver = std::sync::Arc::new(memory::MemorySaver::default());
+                let target = window.clone();
+                let handle = app.handle().clone();
+                window.on_window_event(move |event| {
+                    if matches!(event, tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Focused(_)) {
+                        let busy_handle = handle.clone();
+                        let is_busy: std::sync::Arc<dyn Fn() -> bool + Send + Sync> =
+                            std::sync::Arc::new(move || busy_handle.state::<App>().sleep.is_active());
+                        saver.on_window_changed(&target, is_busy);
+                    }
+                });
+            }
             Ok(())
         })
         .manage(App {
