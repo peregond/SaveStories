@@ -20,3 +20,5 @@ export const IconSort = make(<><path d="M4 7h10M4 12h7M4 17h4" /><path d="m16 15
 export const IconCopy = make(<><rect x="9" y="9" width="11" height="11" rx="2.5" /><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15" /></>);
 export const IconUndo = make(<><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></>);
 export const IconBroom = make(<><path d="M14 4 20 10" /><path d="m13 7-8 8a2.8 2.8 0 0 0 4 4l8-8" /><path d="m7 13 4 4" /></>);
+
+export const IconUnik = make(<><path d="M4 20 15 9" /><path d="m13 5 1.2 2.8L17 9l-2.8 1.2L13 13l-1.2-2.8L9 9l2.8-1.2z" /><path d="M18.5 14l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z" /></>);

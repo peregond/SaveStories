@@ -104,6 +104,20 @@ jobs:
             update-e2e/*.json
           if-no-files-found: warn
 
+      - name: Unikalizator (real FFmpeg download and processing)
+        shell: pwsh
+        run: ./windows_app_react/unik_e2e.ps1 -OutDir "$PWD\unik-e2e"
+
+      - name: Upload Unikalizator artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SaveMe-Windows-Unikalizator
+          path: |
+            unik-e2e/*.png
+            unik-e2e/*.txt
+          if-no-files-found: warn
+
       - name: Inspect the installed app (screenshots, UI flow over CDP, memory and CPU vs WinUI)
         shell: pwsh
         run: |

@@ -2,20 +2,22 @@ import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 
 import { createApi, type Api } from "./api";
 import { Logo } from "./components/Logo";
 import { Dialog } from "./components/ui";
-import { IconReels, IconSettings, IconSort, IconStories } from "./icons";
+import { IconReels, IconSettings, IconSort, IconStories, IconUnik } from "./icons";
 import { themeForHour } from "./parse";
 import { Stories } from "./screens/Stories";
 import { useStore, type Store } from "./store";
 
 // Остальные экраны грузятся при первом открытии: меньше JS при старте и в памяти.
 const Reels = lazy(() => import("./screens/Reels").then((m) => ({ default: m.Reels })));
+const Unikalizer = lazy(() => import("./screens/Unikalizer").then((m) => ({ default: m.Unikalizer })));
 const Sorting = lazy(() => import("./screens/Sorting").then((m) => ({ default: m.Sorting })));
 const Settings = lazy(() => import("./screens/Settings").then((m) => ({ default: m.Settings })));
 
-type Page = "stories" | "reels" | "sorting" | "settings";
+type Page = "stories" | "reels" | "unik" | "sorting" | "settings";
 const NAV: { id: Page; title: string; sub: string; Icon: ComponentType<{ size?: number }> }[] = [
   { id: "stories", title: "Stories", sub: "Выгрузка из профилей", Icon: IconStories },
   { id: "reels", title: "Reels", sub: "Видео по ссылкам", Icon: IconReels },
+  { id: "unik", title: "Уникализатор", sub: "Обработка видео и картинок: форматы, вариации, плашка 18+", Icon: IconUnik },
   { id: "sorting", title: "Сортировка", sub: "Разложить файлы по странам и блогерам", Icon: IconSort },
 ];
 
@@ -91,6 +93,7 @@ function Shell({ api }: { api: Api }) {
           <Suspense fallback={null}>
             {page === "stories" && <Stories s={s} />}
             {page === "reels" && <Reels s={s} />}
+            {page === "unik" && <Unikalizer s={s} />}
             {page === "sorting" && <Sorting s={s} />}
             {page === "settings" && <Settings s={s} />}
           </Suspense>

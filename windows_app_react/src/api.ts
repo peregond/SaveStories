@@ -3,6 +3,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 
 export type Theme = "system" | "light" | "dark";
@@ -32,6 +33,9 @@ export interface Settings {
   notionInfluencerCachedProfiles: string[];
   notionRoutingRulesLastRefreshAt: string;
   notionRoutingRulesCachedRules: string;
+  unikOutputDirectory: string;
+  /** Настройки «Уникализатора» (JSON): разбирает сам раздел. */
+  unikOptions: string;
 }
 
 export interface SortedFileRecord {
@@ -64,6 +68,10 @@ export interface WorkerRequest {
   outputDirectory?: string;
   headless?: boolean;
   mediaFilter?: string;
+  /** «Уникализатор»: файлы на проверку / исходники / настройки обработки. */
+  files?: string[];
+  sources?: string[];
+  options?: unknown;
 }
 
 export interface StoredEntry { url: string; status: string; message: string }
@@ -104,6 +112,10 @@ export interface Api {
   login(request: WorkerRequest): Promise<void>;
   onLog(cb: (line: string) => void): Promise<() => void>;
   pickDirectory(current: string, title?: string): Promise<string | null>;
+  /** Выбор файлов: extensions — без точки. Возвращает пустой список, если окно закрыли. */
+  pickFiles(title: string, extensions: string[], multiple: boolean): Promise<string[]>;
+  /** Файлы, перетащенные на окно приложения. */
+  onFilesDropped(cb: (paths: string[]) => void): Promise<() => void>;
   openPath(path: string): Promise<void>;
   copyText(text: string): Promise<void>;
   // Сортировка
@@ -163,6 +175,11 @@ const tauriApi: Api = {
     const picked = await open({ directory: true, multiple: false, defaultPath: current || undefined, title: title ?? "Выбор папки" });
     return typeof picked === "string" ? picked : null;
   },
+  pickFiles: async (title, extensions, multiple) => {
+    const picked = await open({ directory: false, multiple, title, filters: [{ name: "Файлы", extensions }] });
+    return Array.isArray(picked) ? picked : typeof picked === "string" ? [picked] : [];
+  },
+  onFilesDropped: (cb) => getCurrentWebview().onDragDropEvent((e) => { if (e.payload.type === "drop") cb(e.payload.paths); }),
   openPath: (path) => invoke("open_path", { path }),
   copyText: copyToClipboard,
   parseRules: (rules, remembered) => invoke("sorting_parse_rules", { rules, remembered }),
