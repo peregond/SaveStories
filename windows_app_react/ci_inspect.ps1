@@ -57,9 +57,8 @@ function Save-DesktopScreenshot([string]$name) {
     } catch { Write-Warning "Снимок рабочего стола не получился: $($_.Exception.Message)" }
 }
 
-function Start-Tauri([string]$extraArgs = "") {
+function Start-Tauri {
     $env:SAVESTORIES_APP_SUPPORT = $data
-    if ($extraArgs -ne "") { $env:SAVEME_WV_EXTRA_ARGS = $extraArgs } else { Remove-Item Env:\SAVEME_WV_EXTRA_ARGS -ErrorAction SilentlyContinue }
     $env:SAVEME_CDP_PORT = "9222"
     return Start-Process -FilePath $exe -PassThru
 }
@@ -125,29 +124,6 @@ try {
     }
     Stop-Tauri $app3
 } catch { $minimizedOk = $false; Write-Warning "Проверка свёрнутого окна не удалась: $($_.Exception.Message)" }
-
-# ---- Варианты флагов Chromium (только замер; значения подбираются по результатам)
-$variants = @(
-    @("флаг: --in-process-gpu", "--in-process-gpu"),
-    @("флаги: GPU внутри + без изоляции сайтов + 1 рендерер", "--in-process-gpu --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,IsolateOrigins,site-per-process --renderer-process-limit=1"),
-    @("флаги: те же + без фоновых сервисов", "--in-process-gpu --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,IsolateOrigins,site-per-process,OptimizationHints,MediaRouter,Translate --renderer-process-limit=1 --disable-background-networking --disable-component-update --disable-domain-reliability --no-pings")
-)
-$n = 0
-foreach ($v in $variants) {
-    $n++
-    try {
-        $pv = Start-Tauri $v[1]
-        & $node $script "--playwright=$playwright" "--out=$OutDir" "--phase=ping-variant$n"
-        $uiOk = ($LASTEXITCODE -eq 0)
-        $mv = Measure-App $pv.Id 8
-        Save-DesktopScreenshot "desktop-variant$n"
-        $note = if ($uiOk) { "" } else { " (интерфейс НЕ отвечает)" }
-        $report.Add("| Tauri $($v[0])$note | $($mv.Processes) | $($mv.WorkingSetMB) | $($mv.PrivateMB) | $($mv.CpuPercentOfOneCore) |")
-        Write-Host ("Вариант {0} [{1}]: процессов {2}, рабочий набор {3} МБ, частная {4} МБ, интерфейс ок: {5}" -f $n, $v[1], $mv.Processes, $mv.WorkingSetMB, $mv.PrivateMB, $uiOk)
-        Stop-Tauri $pv
-    } catch { Write-Warning "Вариант $n не измерен: $($_.Exception.Message)" }
-}
-Remove-Item Env:\SAVEME_WV_EXTRA_ARGS -ErrorAction SilentlyContinue
 
 # ---- Сравнение с прежним WinUI-клиентом (поверх устанавливается он; сравнение — последний шаг)
 if ($CompareWinUITag -ne "") {

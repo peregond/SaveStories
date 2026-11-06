@@ -425,21 +425,10 @@ pub fn run() {
                 #[allow(unused_mut)]
                 let mut builder = WebviewWindowBuilder::from_config(app.handle(), &config)?;
                 #[cfg(windows)]
-                {
-                    let port = std::env::var("SAVEME_CDP_PORT").ok().and_then(|v| v.trim().parse::<u16>().ok());
-                    // Только для замеров в CI: дополнительные флаги Chromium (по умолчанию пусто).
-                    let extra = std::env::var("SAVEME_WV_EXTRA_ARGS").unwrap_or_default();
-                    if port.is_some() || !extra.trim().is_empty() {
-                        let mut args = String::from("--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection");
-                        if let Some(port) = port {
-                            args.push_str(&format!(" --remote-debugging-port={port}"));
-                        }
-                        if !extra.trim().is_empty() {
-                            args.push(' ');
-                            args.push_str(extra.trim());
-                        }
-                        builder = builder.additional_browser_args(&args);
-                    }
+                if let Some(port) = std::env::var("SAVEME_CDP_PORT").ok().and_then(|v| v.trim().parse::<u16>().ok()) {
+                    builder = builder.additional_browser_args(&format!(
+                        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port={port}"
+                    ));
                 }
                 builder.build()?;
             }
