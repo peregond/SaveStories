@@ -221,6 +221,9 @@ fn verify_signature(path: &Path) -> Result<(), String> {
     let output = std::process::Command::new("powershell.exe")
         .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "(Get-AuthenticodeSignature -LiteralPath $env:SAVEME_SIGNATURE_PATH).Status"])
         .env("SAVEME_SIGNATURE_PATH", path)
+        // Windows PowerShell 5.1 не должен брать пути модулей у PowerShell 7 (родительский pwsh их подменяет) —
+        // иначе модуль Microsoft.PowerShell.Security не загружается. Без переменной пути вычисляются заново.
+        .env_remove("PSModulePath")
         .creation_flags(0x0800_0000)
         .output()
         .map_err(|e| format!("Не удалось проверить подпись установщика: {e}"))?;
