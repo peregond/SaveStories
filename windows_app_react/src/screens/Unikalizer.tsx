@@ -53,7 +53,7 @@ export function Unikalizer({ s }: { s: Store }) {
     <>
       {u.ffmpeg.phase === "missing" && (
         <Banner tone="warn" action={<button className="btn sm" onClick={() => void u.installFfmpeg()}>Установить FFmpeg</button>}>
-          Для обработки нужен FFmpeg. Он скачивается один раз (около 80 МБ) и хранится в папке приложения.
+          Для обработки нужен FFmpeg. Он скачивается один раз (около 110 МБ) и хранится в папке приложения.
         </Banner>
       )}
       {u.ffmpeg.phase === "error" && (
