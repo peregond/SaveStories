@@ -52,10 +52,21 @@ struct Progress {
 }
 
 fn api_url() -> String {
+    // Для проверки всего пути обновления на Windows-раннере: адрес можно подменить только на локальный сервер.
+    if let Ok(custom) = std::env::var("SAVEME_UPDATE_API") {
+        if is_loopback_url(&custom) {
+            return custom.trim().to_owned();
+        }
+    }
     serde_json::from_str::<Value>(UPDATE_CONFIG)
         .ok()
         .and_then(|v| v.get("windowsLatestReleaseAPI").and_then(Value::as_str).map(|s| s.trim().to_owned()))
         .unwrap_or_default()
+}
+
+fn is_loopback_url(url: &str) -> bool {
+    let url = url.trim();
+    url.starts_with("http://127.0.0.1:") && !url.contains(['@', ' '])
 }
 
 /// Автоустановка доступна только из установленной версии (рядом лежит unins000.exe).
@@ -294,18 +305,24 @@ pub async fn download_installer(paths: &AppPaths, release: &ReleaseInfo, on_prog
     Ok(installer)
 }
 
+/// Параметры установщика при обновлении изнутри приложения. Установщик ставится в профиль пользователя
+/// (`PrivilegesRequired=lowest`), поэтому повышение прав не нужно. `/SILENT` показывает только окно прогресса,
+/// `/RELAUNCH` просит запустить приложение снова (в тихом режиме обычный пункт «Запустить» пропускается).
+pub fn installer_arguments(log: &Path) -> String {
+    format!("/SILENT /SP- /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /NORESTART /RELAUNCH /LOG=\"{}\"", log.display())
+}
+
 #[cfg(windows)]
 pub fn launch_installer(installer: &Path) -> Result<(), String> {
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::UI::Shell::ShellExecuteW;
     let wide = |s: &std::ffi::OsStr| s.encode_wide().chain(Some(0)).collect::<Vec<u16>>();
     let dir = installer.parent().unwrap_or(Path::new("."));
-    let log = dir.join("installer.log");
-    let args = format!("/SP- /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /NORESTART /LOG=\"{}\"", log.display());
+    let args = installer_arguments(&dir.join("installer.log"));
     let result = unsafe {
         ShellExecuteW(
             std::ptr::null_mut(),
-            wide("runas".as_ref()).as_ptr(),
+            wide("open".as_ref()).as_ptr(),
             wide(installer.as_os_str()).as_ptr(),
             wide(args.as_ref()).as_ptr(),
             wide(dir.as_os_str()).as_ptr(),
@@ -327,6 +344,25 @@ pub fn launch_installer(_installer: &Path) -> Result<(), String> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn installer_runs_without_elevation_and_relaunches() {
+        let args = installer_arguments(Path::new("C:\\Users\\me\\installer.log"));
+        for wanted in ["/SILENT", "/RELAUNCH", "/CLOSEAPPLICATIONS", "/NORESTART", "/LOG=\"C:\\Users\\me\\installer.log\""] {
+            assert!(args.contains(wanted), "нет {wanted} в {args}");
+        }
+        assert!(!args.contains("VERYSILENT"));
+    }
+
+    #[test]
+    fn update_address_can_only_be_replaced_by_a_local_server() {
+        assert!(is_loopback_url("http://127.0.0.1:8123/releases/latest"));
+        assert!(!is_loopback_url("https://127.0.0.1:8123/x"));
+        assert!(!is_loopback_url("http://evil.example/releases/latest"));
+        assert!(!is_loopback_url("http://127.0.0.1:80@evil.example/x"));
+        assert!(!is_loopback_url("http://localhost:8123/x"));
+        assert!(!is_loopback_url(""));
+    }
 
     #[test]
     fn compares_versions_like_python_client() {

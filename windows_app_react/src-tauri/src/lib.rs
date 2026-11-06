@@ -371,12 +371,22 @@ async fn update_prepare(handle: AppHandle, app: State<'_, App>, release: Value) 
 }
 
 #[tauri::command]
-fn update_install(app: State<'_, App>) -> Result<(), String> {
+fn update_install(handle: AppHandle, app: State<'_, App>) -> Result<(), String> {
+    if app.sleep.is_active() {
+        return Err("Идёт выгрузка. Дождись её окончания или останови, потом установи обновление.".into());
+    }
     let installer = app.installer.lock().unwrap().clone().ok_or("Сначала подготовь обновление.")?;
     if !installer.exists() {
         return Err(format!("Установщик обновления не найден: {}", installer.display()));
     }
-    updater::launch_installer(&installer)
+    updater::launch_installer(&installer)?;
+    // Установщик заменяет файлы приложения: закрываемся сами, не дожидаясь принудительного закрытия.
+    // Очередь уже сохранена на диск; установщик запустит приложение снова (/RELAUNCH).
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(1500));
+        handle.exit(0);
+    });
+    Ok(())
 }
 
 fn release_from_value(v: &Value) -> Result<updater::ReleaseInfo, String> {

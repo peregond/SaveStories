@@ -84,9 +84,25 @@ jobs:
         run: |
           $version = (Get-Content VERSION -Raw).Trim()
           $setup = "$PWD\dist\windows-tauri\SaveMe-Windows-Setup-v$version.exe"
-          # Обновление с нового клиента (0.6.86) и со старого WinUI-клиента (0.6.85): у части пользователей ещё он.
-          ./windows_app_react/upgrade_test.ps1 -Setup $setup -PreviousTag v0.6.86
+          # Обновление с предыдущего Tauri-клиента (0.6.88) и со старого WinUI-клиента (0.6.85): у части пользователей ещё он.
+          ./windows_app_react/upgrade_test.ps1 -Setup $setup -PreviousTag v0.6.88
           ./windows_app_react/upgrade_test.ps1 -Setup $setup -PreviousTag v0.6.85 -SkipBrowserCheck
+
+      - name: Update from inside the app (check, download, silent install, relaunch)
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          ./windows_app_react/update_e2e.ps1 -Setup "$PWD\dist\windows-tauri\SaveMe-Windows-Setup-v$version.exe" -OutDir "$PWD\update-e2e"
+
+      - name: Upload update test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SaveMe-Windows-Update-Test
+          path: |
+            update-e2e/*.log
+            update-e2e/*.json
+          if-no-files-found: warn
 
       - name: Inspect the installed app (screenshots, UI flow over CDP, memory and CPU vs WinUI)
         shell: pwsh

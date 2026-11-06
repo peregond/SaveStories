@@ -115,7 +115,7 @@ function previewNames(folders: string[]): string {
 
 function UpdateButton({ s }: { s: Store }) {
   const { phase, release } = s.update;
-  if (phase === "ready") return <button className="btn update-btn" onClick={s.installUpdate}>Установить {release?.version}</button>;
+  if (phase === "ready") return <button className="btn update-btn" disabled={s.running} title={s.running ? "Идёт выгрузка" : "Приложение перезапустится"} onClick={s.installUpdate}>Установить {release?.version}</button>;
   if (phase === "available" && release) return <button className="btn update-btn" disabled={!s.info?.autoUpdate || !!s.busy} onClick={s.prepareUpdate}>Обновить до {release.version}</button>;
   if (phase === "downloading") return <div className="sidebar-foot">Загрузка обновления {s.update.percent}%</div>;
   return null;
