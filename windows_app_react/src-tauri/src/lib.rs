@@ -1,6 +1,7 @@
 mod cleanup;
 mod crash;
 mod gdrive;
+mod memory;
 mod notion;
 mod pathguard;
 mod paths;
@@ -424,10 +425,21 @@ pub fn run() {
                 #[allow(unused_mut)]
                 let mut builder = WebviewWindowBuilder::from_config(app.handle(), &config)?;
                 #[cfg(windows)]
-                if let Some(port) = std::env::var("SAVEME_CDP_PORT").ok().and_then(|v| v.trim().parse::<u16>().ok()) {
-                    builder = builder.additional_browser_args(&format!(
-                        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port={port}"
-                    ));
+                {
+                    let port = std::env::var("SAVEME_CDP_PORT").ok().and_then(|v| v.trim().parse::<u16>().ok());
+                    // Только для замеров в CI: дополнительные флаги Chromium (по умолчанию пусто).
+                    let extra = std::env::var("SAVEME_WV_EXTRA_ARGS").unwrap_or_default();
+                    if port.is_some() || !extra.trim().is_empty() {
+                        let mut args = String::from("--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection");
+                        if let Some(port) = port {
+                            args.push_str(&format!(" --remote-debugging-port={port}"));
+                        }
+                        if !extra.trim().is_empty() {
+                            args.push(' ');
+                            args.push_str(extra.trim());
+                        }
+                        builder = builder.additional_browser_args(&args);
+                    }
                 }
                 builder.build()?;
             }
@@ -441,6 +453,19 @@ pub fn run() {
                 });
             }
             app.manage(NativeGlass(glass));
+            if let Some(window) = app.get_webview_window("main") {
+                let saver = std::sync::Arc::new(memory::MemorySaver::default());
+                let target = window.clone();
+                let handle = app.handle().clone();
+                window.on_window_event(move |event| {
+                    if matches!(event, tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Focused(_)) {
+                        let busy_handle = handle.clone();
+                        let is_busy: std::sync::Arc<dyn Fn() -> bool + Send + Sync> =
+                            std::sync::Arc::new(move || busy_handle.state::<App>().sleep.is_active());
+                        saver.on_window_changed(&target, is_busy);
+                    }
+                });
+            }
             Ok(())
         })
         .manage(App {

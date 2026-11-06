@@ -57,8 +57,9 @@ function Save-DesktopScreenshot([string]$name) {
     } catch { Write-Warning "Снимок рабочего стола не получился: $($_.Exception.Message)" }
 }
 
-function Start-Tauri {
+function Start-Tauri([string]$extraArgs = "") {
     $env:SAVESTORIES_APP_SUPPORT = $data
+    if ($extraArgs -ne "") { $env:SAVEME_WV_EXTRA_ARGS = $extraArgs } else { Remove-Item Env:\SAVEME_WV_EXTRA_ARGS -ErrorAction SilentlyContinue }
     $env:SAVEME_CDP_PORT = "9222"
     return Start-Process -FilePath $exe -PassThru
 }
@@ -95,6 +96,59 @@ $report.Add("|---|---|---|---|---|")
 $report.Add("| Tauri (после сценария) | $($idle.Processes) | $($idle.WorkingSetMB) | $($idle.PrivateMB) | $($idle.CpuPercentOfOneCore) |")
 $report.Add("| Tauri (холодный запуск, 5 с) | $($cold.Processes) | $($cold.WorkingSetMB) | $($cold.PrivateMB) | $($cold.CpuPercentOfOneCore) |")
 
+# ---- Экономия памяти: свёрнутое окно (Low, затем заморозка) и разворачивание
+Add-Type -Namespace Win -Name User32 -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr hWnd, int nCmdShow);'
+Write-Host "== Свёрнутое окно =="
+$minimizedOk = $true
+try {
+    $app3 = Start-Tauri
+    & $node $script "--playwright=$playwright" "--out=$OutDir" "--phase=ping-start"
+    if ($LASTEXITCODE -ne 0) { throw "интерфейс не поднялся" }
+    $open = Measure-App $app3.Id 8
+    $app3.Refresh()
+    $hwnd = $app3.MainWindowHandle
+    if ($hwnd -eq [System.IntPtr]::Zero) { throw "нет дескриптора окна" }
+    [Win.User32]::ShowWindow($hwnd, 6) | Out-Null   # SW_MINIMIZE
+    Start-Sleep -Seconds 3
+    $min3 = Measure-App $app3.Id 3
+    Start-Sleep -Seconds 25
+    $min30 = Measure-App $app3.Id 3
+    [Win.User32]::ShowWindow($hwnd, 9) | Out-Null   # SW_RESTORE
+    Start-Sleep -Seconds 2
+    & $node $script "--playwright=$playwright" "--out=$OutDir" "--phase=ping-restored"
+    if ($LASTEXITCODE -ne 0) { $minimizedOk = $false; Write-Warning "После разворачивания интерфейс не отвечает" }
+    $after = Measure-App $app3.Id 5
+    foreach ($row in @(@("развёрнуто, 8 с в простое", $open), @("свёрнуто, через 3 с (Low)", $min3), @("свёрнуто, через 30 с (заморожено)", $min30), @("после разворачивания", $after))) {
+        $m = $row[1]
+        $report.Add("| Tauri: $($row[0]) | $($m.Processes) | $($m.WorkingSetMB) | $($m.PrivateMB) | $($m.CpuPercentOfOneCore) |")
+        Write-Host ("Tauri {0}: рабочий набор {1} МБ, частная {2} МБ, CPU {3}%" -f $row[0], $m.WorkingSetMB, $m.PrivateMB, $m.CpuPercentOfOneCore)
+    }
+    Stop-Tauri $app3
+} catch { $minimizedOk = $false; Write-Warning "Проверка свёрнутого окна не удалась: $($_.Exception.Message)" }
+
+# ---- Варианты флагов Chromium (только замер; значения подбираются по результатам)
+$variants = @(
+    @("флаг: --in-process-gpu", "--in-process-gpu"),
+    @("флаги: GPU внутри + без изоляции сайтов + 1 рендерер", "--in-process-gpu --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,IsolateOrigins,site-per-process --renderer-process-limit=1"),
+    @("флаги: те же + без фоновых сервисов", "--in-process-gpu --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,IsolateOrigins,site-per-process,OptimizationHints,MediaRouter,Translate --renderer-process-limit=1 --disable-background-networking --disable-component-update --disable-domain-reliability --no-pings")
+)
+$n = 0
+foreach ($v in $variants) {
+    $n++
+    try {
+        $pv = Start-Tauri $v[1]
+        & $node $script "--playwright=$playwright" "--out=$OutDir" "--phase=ping-variant$n"
+        $uiOk = ($LASTEXITCODE -eq 0)
+        $mv = Measure-App $pv.Id 8
+        Save-DesktopScreenshot "desktop-variant$n"
+        $note = if ($uiOk) { "" } else { " (интерфейс НЕ отвечает)" }
+        $report.Add("| Tauri $($v[0])$note | $($mv.Processes) | $($mv.WorkingSetMB) | $($mv.PrivateMB) | $($mv.CpuPercentOfOneCore) |")
+        Write-Host ("Вариант {0} [{1}]: процессов {2}, рабочий набор {3} МБ, частная {4} МБ, интерфейс ок: {5}" -f $n, $v[1], $mv.Processes, $mv.WorkingSetMB, $mv.PrivateMB, $uiOk)
+        Stop-Tauri $pv
+    } catch { Write-Warning "Вариант $n не измерен: $($_.Exception.Message)" }
+}
+Remove-Item Env:\SAVEME_WV_EXTRA_ARGS -ErrorAction SilentlyContinue
+
 # ---- Сравнение с прежним WinUI-клиентом (поверх устанавливается он; сравнение — последний шаг)
 if ($CompareWinUITag -ne "") {
     try {
@@ -123,5 +177,6 @@ $summary -join "`n" | Set-Content (Join-Path $OutDir "metrics.md") -Encoding UTF
 if ($env:GITHUB_STEP_SUMMARY) { $summary -join "`n" | Add-Content $env:GITHUB_STEP_SUMMARY -Encoding UTF8 }
 Write-Host ($summary -join "`n")
 
+if (-not $minimizedOk) { throw "Свёрнутое окно: интерфейс не вернулся после разворачивания (или не поднялся)." }
 if ($phase1 -ne 0 -or $phase2 -ne 0) { throw "Сценарий в интерфейсе не прошёл (фаза 1: $phase1, фаза 2: $phase2). Подробности в логе и ui-*.json." }
 Write-Host "Проверка установленного приложения пройдена."

@@ -69,6 +69,14 @@ try {
     const names = await page.$$eval(".item .name", (els) => els.map((e) => e.textContent));
     check("Профили появились в очереди", names.includes("ci_user1") && names.includes("ci_user2"), names.join(", "));
     await shot("queue-added");
+  } else if (phase.startsWith("ping")) {
+    // Короткая проверка «интерфейс живой»: переключаем экраны и ждём отрисовки (после сворачивания/разворачивания, с флагами).
+    for (const [label, selector] of [["Настройки", ".kv"], ["Stories", "textarea"]]) {
+      await page.getByRole("button", { name: label, exact: true }).first().click();
+      try { await page.waitForSelector(selector, { timeout: 8000 }); check(`Интерфейс отвечает: «${label}»`, true); }
+      catch (e) { check(`Интерфейс отвечает: «${label}»`, false, String(e).slice(0, 120)); }
+    }
+    await shot("ping");
   } else {
     // После перезапуска очередь должна вернуться с диска
     const banner = await page.$$eval(".banner", (els) => els.map((e) => e.textContent));

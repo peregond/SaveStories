@@ -32,6 +32,8 @@ regex = "1"
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_System_Power", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_Storage_FileSystem", "Win32_Foundation"] }
 winreg = "0.55"
+webview2-com = "0.39"
+windows-core = "0.62"
 
 [profile.release]
 panic = "abort"

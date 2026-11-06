@@ -24,6 +24,11 @@ impl SleepGuard {
         *slot = Some(tx);
     }
 
+    /// Идёт ли выгрузка (держится ли блокировка сна).
+    pub fn is_active(&self) -> bool {
+        self.stop.lock().unwrap().is_some()
+    }
+
     pub fn release(&self) {
         if let Some(tx) = self.stop.lock().unwrap().take() {
             let _ = tx.send(());
