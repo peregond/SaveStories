@@ -266,8 +266,7 @@ mod tests {
         if !have_node() { return; }
         let script = "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const r=JSON.parse(d);process.stderr.write('step one\\n');process.stdout.write(JSON.stringify({ok:true,status:'ok',message:r.command,items:[]}));});";
         let root = fake_root("roundtrip", script);
-        std::env::set_var("SAVESTORIES_APP_SUPPORT", root.join("data"));
-        let paths = AppPaths::with_root(root);
+        let paths = AppPaths::with_support(root.clone(), root.join("data"));
         let logs = Arc::new(Mutex::new(Vec::<String>::new()));
         let sink = logs.clone();
         let state = WorkerState::default();
@@ -281,8 +280,7 @@ mod tests {
     async fn cancel_stops_a_long_running_worker() {
         if !have_node() { return; }
         let root = fake_root("cancel", "process.stdin.resume(); setInterval(()=>{}, 1000);");
-        std::env::set_var("SAVESTORIES_APP_SUPPORT", root.join("data"));
-        let paths = AppPaths::with_root(root);
+        let paths = AppPaths::with_support(root.clone(), root.join("data"));
         let state = Arc::new(WorkerState::default());
         let canceller = state.clone();
         tokio::spawn(async move {
@@ -298,8 +296,7 @@ mod tests {
     async fn timeout_kills_a_stuck_worker() {
         if !have_node() { return; }
         let root = fake_root("timeout", "process.stdin.resume(); setInterval(()=>{}, 1000);");
-        std::env::set_var("SAVESTORIES_APP_SUPPORT", root.join("data"));
-        let paths = AppPaths::with_root(root);
+        let paths = AppPaths::with_support(root.clone(), root.join("data"));
         let started = std::time::Instant::now();
         let out = run(|_| {}, &WorkerState::default(), &paths, json!({"command":"x"}), Some(std::time::Duration::from_millis(500))).await.unwrap();
         assert_eq!(out["status"], "process_error");
@@ -311,8 +308,7 @@ mod tests {
     async fn crash_without_output_reports_process_error() {
         if !have_node() { return; }
         let root = fake_root("crash", "process.stdin.resume(); process.stderr.write('kaboom\\n'); process.exit(3);");
-        std::env::set_var("SAVESTORIES_APP_SUPPORT", root.join("data"));
-        let paths = AppPaths::with_root(root);
+        let paths = AppPaths::with_support(root.clone(), root.join("data"));
         let out = run(|_| {}, &WorkerState::default(), &paths, json!({"command":"x"}), None).await.unwrap();
         assert_eq!(out["status"], "process_error");
         assert_eq!(out["message"], "kaboom");

@@ -11,6 +11,8 @@ const LEGACY_APP_NAMES: [&str; 2] = ["SaveStories", "DimaSave"];
 #[derive(Clone, Debug)]
 pub struct AppPaths {
     resource_root: PathBuf,
+    /// Для тестов: фиксированная папка данных, не зависящая от переменных окружения (тесты идут параллельно).
+    support_override: Option<PathBuf>,
 }
 
 fn env_path(key: &str) -> Option<PathBuf> {
@@ -29,12 +31,17 @@ fn local_root() -> PathBuf {
 
 impl AppPaths {
     pub fn new() -> Self {
-        Self { resource_root: detect_resource_root() }
+        Self { resource_root: detect_resource_root(), support_override: None }
     }
 
     #[cfg(test)]
     pub fn with_root(root: PathBuf) -> Self {
-        Self { resource_root: root }
+        Self { resource_root: root, support_override: None }
+    }
+
+    #[cfg(test)]
+    pub fn with_support(root: PathBuf, support: PathBuf) -> Self {
+        Self { resource_root: root, support_override: Some(support) }
     }
 
     pub fn resource_root(&self) -> &Path {
@@ -42,6 +49,9 @@ impl AppPaths {
     }
 
     pub fn application_support(&self) -> PathBuf {
+        if let Some(fixed) = &self.support_override {
+            return fixed.clone();
+        }
         env_path("SAVESTORIES_APP_SUPPORT").unwrap_or_else(|| local_root().join(APP_NAME))
     }
 
@@ -63,6 +73,10 @@ impl AppPaths {
 
     pub fn updates_directory(&self) -> PathBuf {
         self.application_support().join("updates")
+    }
+
+    pub fn queue_file(&self) -> PathBuf {
+        self.application_support().join("queue.json")
     }
 
     pub fn settings_file(&self) -> PathBuf {
@@ -130,7 +144,7 @@ impl AppPaths {
     }
 
     fn migrate_legacy_application_support(&self) {
-        if env_path("SAVESTORIES_APP_SUPPORT").is_some() {
+        if self.support_override.is_some() || env_path("SAVESTORIES_APP_SUPPORT").is_some() {
             return;
         }
         let root = local_root();

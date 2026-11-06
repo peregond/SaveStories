@@ -82,7 +82,10 @@ fn client() -> Result<reqwest::Client, String> {
 }
 
 pub async fn check_latest() -> Result<CheckResult, String> {
-    let url = api_url();
+    check_latest_at(&api_url(), CURRENT_VERSION).await
+}
+
+pub async fn check_latest_at(url: &str, current_version: &str) -> Result<CheckResult, String> {
     if url.is_empty() {
         return Ok(CheckResult::Disabled);
     }
@@ -104,7 +107,7 @@ pub async fn check_latest() -> Result<CheckResult, String> {
     if version.is_empty() {
         return Err("GitHub API не вернул tag_name для latest release.".into());
     }
-    if version_key(&version) <= version_key(CURRENT_VERSION) {
+    if version_key(&version) <= version_key(current_version) {
         return Ok(CheckResult::UpToDate);
     }
     let assets = payload.get("assets").and_then(Value::as_array).cloned().unwrap_or_default();
@@ -199,22 +202,35 @@ pub fn verify_digest(path: &Path, digest: &str, checksum_text: &str) -> Result<(
     Ok(())
 }
 
+/// Что делать с установщиком по статусу Authenticode. Релизы пока не подписаны (`NotSigned`), как и у WinUI-клиента,
+/// поэтому их принимаем (целостность проверяет SHA-256 из релиза). Подписанный, но повреждённый или недоверенный
+/// файл (`HashMismatch`, `NotTrusted`, `UnknownError`…) — отвергаем: это признак подмены.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn signature_verdict(status: &str) -> Result<(), String> {
+    match status.trim() {
+        "Valid" | "NotSigned" => Ok(()),
+        other => Err(format!("Подпись установщика обновления недействительна (статус {other}). Обновление остановлено.")),
+    }
+}
+
 #[cfg(windows)]
 fn verify_signature(path: &Path) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
-    let script = "$signature = Get-AuthenticodeSignature -LiteralPath $args[0]; if ($signature.Status -ne 'Valid') { Write-Error ('Installer signature is not valid: ' + $signature.Status); exit 1 }";
+    // Путь передаём через переменную окружения: `-Command` склеивает остальные аргументы с текстом команды
+    // (путь превращался в часть выражения и мог быть выполнен), а так в команду он не попадает вовсе.
     let output = std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script])
-        .arg(path)
+        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "(Get-AuthenticodeSignature -LiteralPath $env:SAVEME_SIGNATURE_PATH).Status"])
+        .env("SAVEME_SIGNATURE_PATH", path)
+        // Windows PowerShell 5.1 не должен брать пути модулей у PowerShell 7 (родительский pwsh их подменяет) —
+        // иначе модуль Microsoft.PowerShell.Security не загружается. Без переменной пути вычисляются заново.
+        .env_remove("PSModulePath")
         .creation_flags(0x0800_0000)
         .output()
-        .map_err(|e| e.to_string())?;
-    if output.status.success() {
-        Ok(())
-    } else {
-        let details = String::from_utf8_lossy(if output.stderr.is_empty() { &output.stdout } else { &output.stderr }).trim().to_owned();
-        Err(format!("Подпись установщика обновления недействительна. {details}"))
+        .map_err(|e| format!("Не удалось проверить подпись установщика: {e}"))?;
+    if !output.status.success() {
+        return Err(format!("Не удалось проверить подпись установщика: {}", String::from_utf8_lossy(&output.stderr).trim()));
     }
+    signature_verdict(&String::from_utf8_lossy(&output.stdout))
 }
 
 #[cfg(not(windows))]
@@ -226,16 +242,26 @@ pub async fn prepare_install(app: &AppHandle, paths: &AppPaths, release: &Releas
     if !supports_auto_install() {
         return Err("Автоустановка доступна только для версии, установленной через инсталлятор. Скачай новый установщик вручную.".into());
     }
+    let version = release.version.clone();
+    download_installer(paths, release, |percent| {
+        let _ = app.emit("update-progress", Progress { percent, message: format!("Скачивание обновления {version}: {percent}%") });
+    })
+    .await
+}
+
+/// Скачивает установщик, сверяет SHA-256 и подпись. Выделено из `prepare_install`, чтобы проверять весь путь без окна приложения.
+pub async fn download_installer(paths: &AppPaths, release: &ReleaseInfo, on_progress: impl Fn(u32)) -> Result<PathBuf, String> {
     paths.ensure_directories().map_err(|e| e.to_string())?;
     let root = paths.updates_directory().join(&release.version);
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
+    // Имя приходит от сервера: только простое имя файла, без каталогов и «..».
+    if Path::new(&release.asset.name).file_name().and_then(|n| n.to_str()) != Some(release.asset.name.as_str()) || release.asset.name.contains("..") {
+        return Err("Недопустимое имя файла установщика в релизе. Обновление остановлено.".into());
+    }
     let installer = root.join(&release.asset.name);
 
-    let emit = |percent: u32| {
-        let _ = app.emit("update-progress", Progress { percent, message: format!("Скачивание обновления {}: {percent}%", release.version) });
-    };
-    emit(0);
+    on_progress(0);
     let http = client()?;
     let response = http.get(&release.asset.url).send().await.and_then(|r| r.error_for_status()).map_err(|e| format!("Не удалось скачать обновление: {e}"))?;
     let total = response.content_length().filter(|n| *n > 0).unwrap_or(release.asset.size);
@@ -250,7 +276,7 @@ pub async fn prepare_install(app: &AppHandle, paths: &AppPaths, release: &Releas
             let percent = ((done * 100) / total).min(100) as u32;
             if percent != last {
                 last = percent;
-                emit(percent);
+                on_progress(percent);
             }
         }
     }
@@ -337,5 +363,153 @@ mod tests {
         assert!(verify_digest(&path, &good.replace("ba78", "ba79"), "").is_err());
         assert!(verify_digest(&path, "", "").is_err());
         assert!(verify_digest(&path, "", &good[7..]).is_ok());
+    }
+
+    // ---- Весь путь обновления против локального HTTP-сервера (тот же код, что в приложении, без окна и без GitHub)
+
+    use crate::util::temp_dir;
+    use std::collections::HashMap;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    /// Минимальный HTTP-сервер. `routes` получает адрес сервера (`http://127.0.0.1:порт`) и возвращает путь → тело ответа.
+    async fn serve(routes: impl FnOnce(&str) -> HashMap<String, Vec<u8>>) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let routes = std::sync::Arc::new(routes(&base));
+        tokio::spawn(async move {
+            loop {
+                let Ok((mut socket, _)) = listener.accept().await else { break };
+                let routes = routes.clone();
+                tokio::spawn(async move {
+                    let mut buf = vec![0u8; 4096];
+                    let n = socket.read(&mut buf).await.unwrap_or(0);
+                    let request = String::from_utf8_lossy(&buf[..n]).into_owned();
+                    let path = request.split_whitespace().nth(1).unwrap_or("/").to_string();
+                    let response = match routes.get(&path) {
+                        Some(body) => {
+                            let mut r = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len()).into_bytes();
+                            r.extend_from_slice(body);
+                            r
+                        }
+                        None => b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec(),
+                    };
+                    let _ = socket.write_all(&response).await;
+                    let _ = socket.shutdown().await;
+                });
+            }
+        });
+        base
+    }
+
+    fn sha256_hex(bytes: &[u8]) -> String {
+        Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect()
+    }
+
+    /// Сервер «релизов» (как GitHub): API `/latest` и установщик. `served` — что реально отдаём, `declared` — под что считаем digest.
+    async fn release_server(declared: &[u8], served: &[u8], with_digest: bool) -> String {
+        let name = "SaveMe-Windows-Setup-v9.9.9.exe";
+        let digest = if with_digest { format!("sha256:{}", sha256_hex(declared)) } else { String::new() };
+        let served = served.to_vec();
+        serve(|base| {
+            let api = serde_json::json!({
+                "tag_name": "v9.9.9", "name": "SaveMe 9.9.9", "body": "Заметки", "html_url": format!("{base}/release"), "published_at": "2026-11-06T00:00:00Z",
+                "assets": [{"name": name, "browser_download_url": format!("{base}/{name}"), "size": served.len(), "digest": digest}],
+            });
+            HashMap::from([("/latest".to_string(), api.to_string().into_bytes()), (format!("/{name}"), served)])
+        })
+        .await
+    }
+
+    fn fake_installer() -> Vec<u8> {
+        // В Windows подпись проверяет настоящий PowerShell: для файла, который не является исполняемым PE, он отвечает
+        // «UnknownError» (и мы такое отвергаем). Поэтому там нужен настоящий неподписанный PE — как наш установщик Inno.
+        // Берём сам тестовый exe. В других системах подпись не проверяется, хватает набора байтов.
+        if cfg!(windows) {
+            if let Ok(bytes) = std::env::current_exe().and_then(std::fs::read) {
+                return bytes;
+            }
+        }
+        let mut bytes = b"MZ fake unsigned installer ".to_vec();
+        bytes.extend((0..400_000u32).map(|i| (i % 251) as u8));
+        bytes
+    }
+
+    fn test_paths(name: &str) -> AppPaths {
+        let root = temp_dir(name);
+        AppPaths::with_support(root.clone(), root.join("data"))
+    }
+
+    #[tokio::test]
+    async fn update_flow_end_to_end_against_a_local_server() {
+        let bytes = fake_installer();
+        let base = release_server(&bytes, &bytes, true).await;
+
+        // 1. Проверка версии
+        let found = check_latest_at(&format!("{base}/latest"), "0.6.86").await.unwrap();
+        let CheckResult::UpdateAvailable { release } = found else { panic!("ожидалось обновление, получено {found:?}") };
+        assert_eq!(release.version, "9.9.9");
+        assert_eq!(release.asset.name, "SaveMe-Windows-Setup-v9.9.9.exe");
+        assert!(matches!(check_latest_at(&format!("{base}/latest"), "9.9.9").await.unwrap(), CheckResult::UpToDate));
+        assert!(matches!(check_latest_at(&format!("{base}/latest"), "10.0.0").await.unwrap(), CheckResult::UpToDate));
+        assert!(matches!(check_latest_at("", "0.6.86").await.unwrap(), CheckResult::Disabled));
+
+        // 2. Скачивание, прогресс, SHA-256 и подпись (на Windows — настоящий PowerShell: наш установщик не подписан)
+        let paths = test_paths("update-e2e");
+        let seen = std::sync::Mutex::new(Vec::new());
+        let installer = download_installer(&paths, &release, |p| seen.lock().unwrap().push(p)).await.unwrap();
+        assert_eq!(std::fs::read(&installer).unwrap(), bytes);
+        let seen = seen.into_inner().unwrap();
+        assert_eq!(seen.first(), Some(&0));
+        assert_eq!(seen.last(), Some(&100));
+        assert!(seen.windows(2).all(|w| w[0] <= w[1]), "прогресс не убывает: {seen:?}");
+    }
+
+    #[tokio::test]
+    async fn tampered_installer_is_rejected() {
+        let good = fake_installer();
+        let mut evil = good.clone();
+        evil[1000] ^= 0xFF;
+        let base = release_server(&good, &evil, true).await;
+        let CheckResult::UpdateAvailable { release } = check_latest_at(&format!("{base}/latest"), "0.6.86").await.unwrap() else { panic!() };
+        let err = download_installer(&test_paths("update-tamper"), &release, |_| {}).await.unwrap_err();
+        assert!(err.contains("SHA256"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn installer_name_cannot_escape_the_updates_folder() {
+        let bytes = fake_installer();
+        let base = release_server(&bytes, &bytes, true).await;
+        let CheckResult::UpdateAvailable { release } = check_latest_at(&format!("{base}/latest"), "0.6.86").await.unwrap() else { panic!() };
+        for evil in ["..\\..\\evil.exe", "../../evil.exe", "sub/dir.exe", "..", "a..b.exe"] {
+            let mut r = release.clone();
+            r.asset.name = evil.to_string();
+            let err = download_installer(&test_paths("update-name"), &r, |_| {}).await.unwrap_err();
+            assert!(err.contains("Недопустимое имя"), "{evil}: {err}");
+        }
+    }
+
+    #[tokio::test]
+    async fn release_without_a_digest_is_rejected() {
+        let bytes = fake_installer();
+        let base = release_server(&bytes, &bytes, false).await;
+        let CheckResult::UpdateAvailable { release } = check_latest_at(&format!("{base}/latest"), "0.6.86").await.unwrap() else { panic!() };
+        let err = download_installer(&test_paths("update-nodigest"), &release, |_| {}).await.unwrap_err();
+        assert!(err.contains("digest"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn unreachable_server_gives_a_readable_error() {
+        let err = check_latest_at("http://127.0.0.1:1/latest", "0.6.86").await.unwrap_err();
+        assert!(err.contains("Не удалось проверить обновления"), "{err}");
+    }
+
+    #[test]
+    fn signature_policy_accepts_unsigned_but_rejects_broken_signatures() {
+        assert!(signature_verdict("Valid").is_ok());
+        assert!(signature_verdict("NotSigned\r\n").is_ok(), "наши релизы пока не подписаны, как и у WinUI-клиента");
+        for bad in ["HashMismatch", "NotTrusted", "UnknownError", "NotSupportedFileFormat", ""] {
+            assert!(signature_verdict(bad).is_err(), "{bad}");
+        }
     }
 }

@@ -14,6 +14,7 @@ DefaultDirName={localappdata}\Programs\SaveMeWindows
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
+SetupIconFile={#SourcePath}src-tauri\icons\icon.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -48,10 +49,10 @@ Filename: "{tmp}\MicrosoftEdgeWebview2Setup.exe"; Parameters: "/silent /install"
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "{cmd}"; Parameters: "/C taskkill /IM ""SaveMe-Windows.exe"" /F /T >NUL 2>NUL & exit /B 0"; Flags: runhidden waituntilterminated
-Filename: "{cmd}"; Parameters: "/C taskkill /IM ""SaveMe.WinUI.exe"" /F /T >NUL 2>NUL & exit /B 0"; Flags: runhidden waituntilterminated
-Filename: "{cmd}"; Parameters: "/C taskkill /IM ""SaveStories.WinUI.Beta.exe"" /F /T >NUL 2>NUL & exit /B 0"; Flags: runhidden waituntilterminated
-Filename: "{cmd}"; Parameters: "/C taskkill /IM ""SaveStories-Windows.exe"" /F /T >NUL 2>NUL & exit /B 0"; Flags: runhidden waituntilterminated
+Filename: "{cmd}"; Parameters: "/C taskkill /IM ""SaveMe-Windows.exe"" /F /T >NUL 2>NUL & exit /B 0"; Flags: runhidden waituntilterminated; RunOnceId: "KillSaveMe"
+Filename: "{cmd}"; Parameters: "/C taskkill /IM ""SaveMe.WinUI.exe"" /F /T >NUL 2>NUL & exit /B 0"; Flags: runhidden waituntilterminated; RunOnceId: "KillSaveStoriesWindows"
+Filename: "{cmd}"; Parameters: "/C taskkill /IM ""SaveStories.WinUI.Beta.exe"" /F /T >NUL 2>NUL & exit /B 0"; Flags: runhidden waituntilterminated; RunOnceId: "KillWinUI"
+Filename: "{cmd}"; Parameters: "/C taskkill /IM ""SaveStories-Windows.exe"" /F /T >NUL 2>NUL & exit /B 0"; Flags: runhidden waituntilterminated; RunOnceId: "KillWinUIBeta"
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"

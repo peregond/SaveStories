@@ -205,8 +205,7 @@ mod tests {
     #[test]
     fn preflight_reports_missing_pieces_and_exports_diagnostics() {
         let root = temp_dir("preflight");
-        std::env::set_var("SAVESTORIES_APP_SUPPORT", root.join("data"));
-        let paths = AppPaths::with_root(root.clone());
+        let paths = AppPaths::with_support(root.clone(), root.join("data"));
         let pf = preflight(&paths, &root.join("dl"));
         assert!(!pf.ok);
         assert!(pf.checks.iter().any(|c| c.name == "node_worker" && !c.ok));

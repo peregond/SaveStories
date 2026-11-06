@@ -3,7 +3,8 @@
 # Запуск: ./windows_app_react/upgrade_test.ps1 -Setup <путь к новому установщику> [-PreviousTag v0.6.85]
 param(
     [Parameter(Mandatory = $true)][string]$Setup,
-    [string]$PreviousTag = "v0.6.85"
+    [string]$PreviousTag = "v0.6.86",
+    [switch]$SkipBrowserCheck
 )
 $ErrorActionPreference = "Stop"
 $work = Join-Path ([System.IO.Path]::GetTempPath()) "saveme-upgrade-test"
@@ -34,7 +35,11 @@ $url = "https://github.com/peregond/SaveStories/releases/download/$PreviousTag/S
 Write-Host "Скачиваю прежний релиз: $url"
 Invoke-WebRequest -Uri $url -OutFile $old
 Install-Silent $old "previous"
-Assert-Path "SaveMe.WinUI.exe"
+# Прежний релиз может быть WinUI-клиентом (до 0.6.86) или уже новым клиентом на Tauri.
+$hadWinUI = Test-Path (Join-Path $installDir "SaveMe.WinUI.exe")
+$hadTauri = Test-Path (Join-Path $installDir "SaveMe-Windows.exe")
+if (-not ($hadWinUI -or $hadTauri)) { throw "Прежний релиз $PreviousTag не установился (нет ни SaveMe.WinUI.exe, ни SaveMe-Windows.exe)" }
+Write-Host "Прежний клиент: $(if ($hadWinUI) { 'WinUI' } else { 'Tauri' })"
 
 # 2. Новый установщик поверх
 Install-Silent $Setup "new"
@@ -43,7 +48,7 @@ Assert-Path "unins000.exe"
 Assert-Path "runtime\node\node.exe"
 Assert-Path "node_worker\bridge.mjs"
 Assert-Path "node_worker\node_modules\playwright\cli.js"
-Assert-Path "SaveMe.WinUI.exe" $false
+if ($hadWinUI) { Assert-Path "SaveMe.WinUI.exe" $false }
 
 # 3. Воркер запускается из установленной папки встроенным Node
 $env:SAVESTORIES_APP_SUPPORT = Join-Path $work "appdata"
@@ -62,7 +67,7 @@ Write-Host "OK: приложение работает (PID $($app.Id))"
 Stop-Process -Id $app.Id -Force
 
 # 5. Chromium и проверка сессии: сбой сети не должен блокировать выпуск, поэтому только предупреждение
-try {
+if (-not $SkipBrowserCheck) { try {
     $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $work "browsers"
     $env:SAVESTORIES_PLAYWRIGHT_BROWSERS = $env:PLAYWRIGHT_BROWSERS_PATH
     & $node (Join-Path $installDir "node_worker\node_modules\playwright\cli.js") install chromium
@@ -72,5 +77,5 @@ try {
     if ($session.status -notin @("session_missing", "session_ready")) { Write-Warning "Неожиданный статус check_session: $($session.status)" }
 } catch {
     Write-Warning "Проверка Chromium пропущена: $($_.Exception.Message)"
-}
+} }
 Write-Host "Проверка обновления пройдена."

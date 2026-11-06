@@ -33,7 +33,7 @@ export function createDemoApi(): Api {
   let bootstrapListeners: Array<(l: string) => void> = [];
   let cancelled = false;
   const log = (l: string) => logListeners.forEach((cb) => cb(l));
-  const info: AppInfo = { version: "0.6.86", appSupport: "C:\\Users\\you\\AppData\\Local\\SaveMe", defaultDownloads: settings.saveDirectory, runtimeEmbedded: true, autoUpdate: true, nativeGlass: params.get("glass") === "native" };
+  const info: AppInfo = { version: "0.6.87", appSupport: "C:\\Users\\you\\AppData\\Local\\SaveMe", defaultDownloads: settings.saveDirectory, runtimeEmbedded: true, autoUpdate: true, nativeGlass: params.get("glass") === "native" };
 
   const record = (blogger: string, rules: string, file: string, from: string): SortedFileRecord => {
     const rule = rules.split("\n").map((l) => l.split("=").map((x) => x.trim())).find(([u]) => u?.toLowerCase() === blogger.toLowerCase());
@@ -52,6 +52,10 @@ export function createDemoApi(): Api {
     setWindowTheme: async () => {},
     getSettings: async () => structuredClone(settings),
     saveSettings: async (s) => { settings = structuredClone(s); },
+    loadQueue: async () => (params.get("queue") === "restore"
+      ? [{ url: "https://www.instagram.com/dian.vegas1/", status: "completed", message: "Сохранено 3" }, { url: "https://www.instagram.com/stevensetu/", status: "running", message: "Скачивается…" }, { url: "https://www.instagram.com/leftlanepapi/", status: "pending", message: "" }]
+      : []),
+    saveQueue: async () => {},
     onLog: async (cb) => { logListeners.push(cb); return () => { logListeners = logListeners.filter((l) => l !== cb); }; },
     onBootstrapLog: async (cb) => { bootstrapListeners.push(cb); return () => { bootstrapListeners = bootstrapListeners.filter((l) => l !== cb); }; },
     cancel: async () => { cancelled = true; return true; },

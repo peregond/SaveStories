@@ -1,6 +1,6 @@
 [package]
 name = "saveme-windows"
-version = "0.6.86"
+version = "0.6.87"
 description = "SaveMe for Windows"
 edition = "2021"
 publish = false
@@ -20,9 +20,10 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-single-instance = "2"
+tauri-plugin-window-state = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
-tokio = { version = "1", features = ["process", "io-util", "sync", "macros", "rt", "time"] }
+tokio = { version = "1", features = ["process", "io-util", "sync", "macros", "rt", "time", "net"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
 futures-util = "0.3"
 sha2 = "0.10"
