@@ -3,6 +3,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test, { after } from "node:test";
+import { filenameDatePrefix } from "./media_utils.mjs";
+const D = filenameDatePrefix();
 
 // These scenarios use actual MP4 fixtures but no browser, Instagram session or network.
 const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "saveme-blob-stories-"));
@@ -140,7 +142,7 @@ test("blob video traversal saves the next video before another navigation with a
   assert.equal(result.items.length, 2, "Both available video Stories must be reported, despite blob sources and a URL with no item id");
   assert.deepEqual(navigationDownloads, [1, 2], "Do not press the next control again before resolving and saving the second Story");
   const names = (await fs.readdir(destination)).sort();
-  assert.deepEqual(names, ["alice-001.mp4", "alice-002.mp4"]);
+  assert.deepEqual(names, [`${D}-alice-001.mp4`, `${D}-alice-002.mp4`]);
   for (const name of names) {
     const inspection = await inspectMp4(path.join(destination, name));
     assert.equal(inspection.hasVideo, true);

@@ -15,12 +15,14 @@ import {
   storyIdFromUrl,
 } from "./dash_media.mjs";
 import {
+  downloadedFileName,
   extractUsername,
   isAudioOnlyVariant,
   isSeparateDashVideoUrl,
   isStoryMediaUrl,
   mediaVariantTag,
   mediaVariantScore,
+  nextFileNumber,
   normalizeMediaUrl,
   sanitizeFilename,
   shouldRepairExistingMutedDashVideo,
@@ -1179,14 +1181,7 @@ async function waitForMetadataStoryItems(page, payloads, expectedUsername, logs,
 
 async function nextStoryIndex(destinationDir, username) {
   await fs.mkdir(destinationDir, { recursive: true });
-  const prefix = `${sanitizeFilename(username)}-`;
-  let highest = 0;
-  for (const entry of await fs.readdir(destinationDir)) {
-    const match = entry.match(new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\d+)`));
-    if (!match) continue;
-    highest = Math.max(highest, Number(match[1]));
-  }
-  return highest + 1;
+  return nextFileNumber(await fs.readdir(destinationDir), username);
 }
 
 function installNetworkCapture(page, logs) {
@@ -1685,7 +1680,7 @@ async function downloadMedia(
   }
   const normalizedAudioUrl = audioSourceUrl ? normalizeMediaUrl(audioSourceUrl) : null;
   const suffix = mediaType === "video" ? ".mp4" : extensionFor(contentType, normalizedUrl, mediaType);
-  const filename = `${sanitizeFilename(username)}-${String(index).padStart(3, "0")}${suffix}`;
+  const filename = downloadedFileName(username, index, suffix);
   const localPath = path.join(destinationDir, filename);
 
   if (mediaType !== "video") {

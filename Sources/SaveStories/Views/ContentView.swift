@@ -1033,24 +1033,6 @@ struct ContentView: View {
         }
     }
 
-    var destinationCard: some View {
-        card("Папка сохранения") {
-            VStack(alignment: .leading, spacing: 12) {
-                horizontalMonospaceField(model.saveDirectory.path, fontSize: 13)
-
-                HStack(spacing: 10) {
-                    button("Выбрать папку", systemImage: "folder") {
-                        model.chooseSaveDirectory()
-                    }
-
-                    button("Показать", systemImage: "arrow.up.forward.app") {
-                        model.openSaveDirectory()
-                    }
-                }
-            }
-        }
-    }
-
     var profileCard: some View {
         card("Ссылка на профиль") {
             VStack(alignment: .leading, spacing: 12) {
@@ -1066,114 +1048,6 @@ struct ContentView: View {
                     Task { await model.downloadProfileStories() }
                 }
             }
-        }
-    }
-
-    var batchInputCard: some View {
-        card("Добавить профили") {
-            VStack(alignment: .leading, spacing: 12) {
-                textEditorCard(
-                    text: $model.batchInput,
-                    placeholder: "Вставь по одной ссылке или username на строку.\nНапример:\nhttps://www.instagram.com/dian.vegas1/\nmonetentony"
-                )
-                .frame(height: 144)
-
-                HStack(spacing: 10) {
-                    button("Добавить в очередь", systemImage: "plus") {
-                        model.addBatchProfiles()
-                    }
-
-                    button("Очистить поле", systemImage: "xmark") {
-                        model.batchInput = ""
-                    }
-                }
-            }
-        }
-    }
-
-    var batchQueueCard: some View {
-        card("Очередь профилей") {
-            VStack(alignment: .leading, spacing: 12) {
-                if model.batchTotalCount > 0 {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Сейчас \(model.batchCurrentIndex) из \(model.batchTotalCount), осталось \(model.batchRemainingCount)")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundStyle(primaryText)
-
-                        if !model.batchCurrentURL.isEmpty {
-                            Text(model.batchCurrentURL)
-                                .font(.system(size: 12, weight: .medium, design: .monospaced))
-                                .foregroundStyle(secondaryText)
-                                .lineLimit(2)
-                                .textSelection(.enabled)
-                        }
-                    }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                            .fill(itemFill)
-                    )
-                }
-
-                if model.batchQueue.isEmpty {
-                    Text("Очередь пока пустая. Добавь несколько профилей, и приложение обработает их по одному.")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                                .fill(itemFill)
-                        )
-                } else {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 10) {
-                            ForEach(model.batchQueue) { item in
-                                batchQueueItem(item)
-                            }
-                        }
-                    }
-                    .frame(maxHeight: 260)
-                }
-
-                HStack(spacing: 10) {
-                    button("Скачать очередь", systemImage: "square.stack.3d.down.forward.fill", prominent: true) {
-                        Task { await model.runBatchDownloads() }
-                    }
-                    .disabled(model.batchQueue.isEmpty || model.isBusy)
-
-                    button("Остановить", systemImage: "stop.fill", allowWhileBusy: true) {
-                        model.stopBatchDownloads()
-                    }
-                    .disabled(!model.batchIsRunning)
-
-                    button("Очистить очередь", systemImage: "trash") {
-                        model.clearBatchQueue()
-                    }
-                    .disabled(model.batchQueue.isEmpty || model.isBusy)
-                }
-            }
-        }
-    }
-
-    var batchModeCard: some View {
-        card("Режим выгрузки") {
-            VStack(alignment: .leading, spacing: 12) {
-                downloadModePicker(showTitle: false)
-
-                Text("Этот режим использует общую сессию Instagram и прогоняет список профилей строго по очереди.")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    var mediaFilterCard: some View {
-        card("Что сохранять") {
-            mediaSelectionPicker(showTitle: false)
         }
     }
 

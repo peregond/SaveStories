@@ -3,7 +3,6 @@ import SwiftUI
 extension ContentView {
     enum AppSection: String, CaseIterable, Identifiable {
         case main
-        case batch
         case reels
         case sorting
         case settings
@@ -14,8 +13,6 @@ extension ContentView {
             switch self {
             case .main:
                 "Stories"
-            case .batch:
-                "Очередь профилей"
             case .reels:
                 "Reels"
             case .sorting:
@@ -29,8 +26,6 @@ extension ContentView {
             switch self {
             case .main:
                 "Stories из профилей"
-            case .batch:
-                "Очередь профилей"
             case .reels:
                 "Видео по ссылкам"
             case .sorting:
@@ -44,8 +39,6 @@ extension ContentView {
             switch self {
             case .main:
                 "rectangle.stack"
-            case .batch:
-                "list.bullet.rectangle.portrait"
             case .reels:
                 "play.rectangle.on.rectangle"
             case .sorting:
@@ -59,8 +52,6 @@ extension ContentView {
             switch self {
             case .main:
                 "📱"
-            case .batch:
-                "📋"
             case .reels:
                 "📹"
             case .sorting:

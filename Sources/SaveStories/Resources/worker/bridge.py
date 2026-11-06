@@ -687,7 +687,7 @@ def download_media(
         raise RuntimeError("Скачан только фрагмент видео вместо полного файла.")
 
     suffix = extension_for(content_type, normalized_url, media_type)
-    filename = f"{sanitize_filename(username)}-{index:03d}{suffix}"
+    filename = downloaded_file_name(username, index, suffix)
     path = destination_dir / filename
     path.write_bytes(body)
     return path, normalized_url
@@ -1182,17 +1182,30 @@ def wait_for_metadata_story_items(
     return best_result
 
 
-def next_story_index(destination_dir: Path, username: str) -> int:
-    prefix = f"{sanitize_filename(username)}-"
+def filename_date_prefix(now: datetime | None = None) -> str:
+    """Дата в имени файла: дд.мм.гг по местному времени."""
+    now = now or datetime.now()
+    return f"{now.day:02d}.{now.month:02d}.{now.year % 100:02d}"
+
+
+def downloaded_file_name(username: str, index: int, suffix: str, now: datetime | None = None) -> str:
+    """Имя скачанного файла: дд.мм.гг-аккаунт-номер.расширение."""
+    return f"{filename_date_prefix(now)}-{sanitize_filename(username)}-{index:03d}{suffix}"
+
+
+def next_file_number(entries: list[str], username: str, now: datetime | None = None) -> int:
+    """Следующий номер среди файлов этого дня и аккаунта: нумерация начинается заново каждый день."""
+    prefix = f"{filename_date_prefix(now)}-{sanitize_filename(username)}-"
     highest = 0
-
-    for candidate in destination_dir.glob(f"{prefix}*"):
-        match = re.match(rf"^{re.escape(prefix)}(\d+)", candidate.name)
-        if not match:
-            continue
-        highest = max(highest, int(match.group(1)))
-
+    for name in entries:
+        match = re.match(rf"^{re.escape(prefix)}(\d+)", name)
+        if match:
+            highest = max(highest, int(match.group(1)))
     return highest + 1
+
+
+def next_story_index(destination_dir: Path, username: str) -> int:
+    return next_file_number([candidate.name for candidate in destination_dir.glob("*")], username)
 
 
 def install_network_capture(page, logs: list[str]) -> list[StoryMedia]:

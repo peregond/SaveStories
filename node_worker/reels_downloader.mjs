@@ -10,8 +10,10 @@ import {
   mergeResolvedMediaCandidate,
 } from "./dash_media.mjs";
 import {
+  downloadedFileName,
   isAudioOnlyVariant,
   mediaVariantTag,
+  nextFileNumber,
   normalizeMediaUrl,
   sanitizeFilename,
   shouldRepairExistingMutedDashVideo,
@@ -524,9 +526,6 @@ function validateDownloadedAudio(body, contentType = "") {
 }
 
 async function nextReelIndex(destinationDir, username) {
-  const prefix = `${sanitizeFilename(username)}-reels-`;
-  let highest = 0;
-  const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   let entries;
   try {
     entries = await fs.readdir(destinationDir);
@@ -534,12 +533,7 @@ async function nextReelIndex(destinationDir, username) {
     if (error.code === "ENOENT") return 1;
     throw error;
   }
-  for (const entry of entries) {
-    const match = entry.match(new RegExp(`^${escaped}(\\d+)`));
-    if (!match) continue;
-    highest = Math.max(highest, Number(match[1]));
-  }
-  return highest + 1;
+  return nextFileNumber(entries, username, { kind: "reels" });
 }
 
 async function downloadReelMedia(
@@ -569,7 +563,7 @@ async function downloadReelMedia(
     throw new Error("Скачан только фрагмент видео из Reels вместо полного файла.");
   }
   const suffix = mediaType === "video" ? ".mp4" : extensionFor(contentType, normalizedUrl, mediaType);
-  const filename = `${sanitizeFilename(username)}-reels-${String(index).padStart(3, "0")}${suffix}`;
+  const filename = downloadedFileName(username, index, suffix, { kind: "reels" });
   const localPath = path.join(destinationDir, filename);
   if (mediaType !== "video") {
     await fs.writeFile(localPath, body);

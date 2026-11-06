@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import test, { after } from "node:test";
 import { inspectMp4Buffer } from "./mp4_muxer.mjs";
+import { filenameDatePrefix } from "./media_utils.mjs";
+const D = filenameDatePrefix();
 
 // Exercise the production persistence loop without touching the user's history,
 // Instagram session, or downloads directory.
@@ -75,7 +77,7 @@ test("Stories restore a missing file despite a manifest for the same source URL"
   const root = await newCase("missing-source");
   const destination = path.join(root, "alice");
   const item = videoItem("1001");
-  await seedManifest("missing", item.sourceUrl, path.join(destination, "alice-001.mp4"));
+  await seedManifest("missing", item.sourceUrl, path.join(destination, `${D}-alice-001.mp4`));
   const context = fakeBrowserContext(new Map([[item.sourceUrl, { body: videoBody, contentType: "video/mp4" }]]));
 
   const result = await persistStoryItems([item], destination, "alice", context, "video_only");
@@ -89,7 +91,7 @@ test("Stories restore a missing file when only an old content-hash manifest matc
   const root = await newCase("missing-hash");
   const destination = path.join(root, "alice");
   const item = videoItem("1002");
-  await seedManifest("expired-url", "https://scontent.cdninstagram.com/old-signed-url.mp4", path.join(destination, "alice-001.mp4"));
+  await seedManifest("expired-url", "https://scontent.cdninstagram.com/old-signed-url.mp4", path.join(destination, `${D}-alice-001.mp4`));
   const context = fakeBrowserContext(new Map([[item.sourceUrl, { body: videoBody, contentType: "video/mp4" }]]));
 
   const result = await persistStoryItems([item], destination, "alice", context, "video_only");
@@ -186,7 +188,7 @@ test("a failed manifest write preserves its published video and reserves a new f
   assert.equal(manifestWriteFailed, true, "The fault must occur after the first video has been published");
   assert.equal(result.items.length, 1, result.logs.join("\n"));
   assert.deepEqual(context.calls, [first.sourceUrl, later.sourceUrl]);
-  const firstPublishedPath = path.join(destination, "alice-001.mp4");
+  const firstPublishedPath = path.join(destination, `${D}-alice-001.mp4`);
   assert.deepEqual(await fs.readFile(firstPublishedPath), videoBody, "The earlier video must survive its manifest error");
   assert.notEqual(result.items[0].localPath, firstPublishedPath, "Later media must not reuse the published video's filename");
   assert.deepEqual(await fs.readFile(result.items[0].localPath), laterBody);

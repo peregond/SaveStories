@@ -114,3 +114,27 @@ test("legacy Windows audioMuxed false is repaired when the resolved video expect
     false,
   );
 });
+
+import { downloadedFileName, filenameDatePrefix, nextFileNumber } from "./media_utils.mjs";
+import test2 from "node:test";
+import assert2 from "node:assert/strict";
+
+test2("file names are дд.мм.гг-аккаунт-номер", () => {
+  const day = new Date(2026, 10, 6);
+  assert2.equal(filenameDatePrefix(day), "06.11.26");
+  assert2.equal(downloadedFileName("marco.vegas1", 2, ".mp4", { now: day }), "06.11.26-marco.vegas1-002.mp4");
+  assert2.equal(downloadedFileName("alice", 12, ".jpg", { now: day }), "06.11.26-alice-012.jpg");
+  assert2.equal(downloadedFileName("alice", 1, ".mp4", { kind: "reels", now: day }), "06.11.26-alice-reels-001.mp4");
+  assert2.equal(filenameDatePrefix(new Date(2027, 0, 5)), "05.01.27");
+});
+
+test2("numbering restarts every day and is per account and kind", () => {
+  const day = new Date(2026, 10, 6);
+  const files = ["06.11.26-alice-001.mp4", "06.11.26-alice-007.jpg", "05.11.26-alice-099.mp4", "alice-050.mp4", "06.11.26-alice-reels-004.mp4", "06.11.26-bob-009.mp4"];
+  assert2.equal(nextFileNumber(files, "alice", { now: day }), 8);
+  assert2.equal(nextFileNumber(files, "alice", { kind: "reels", now: day }), 5);
+  assert2.equal(nextFileNumber(files, "bob", { now: day }), 10);
+  assert2.equal(nextFileNumber(files, "carol", { now: day }), 1);
+  assert2.equal(nextFileNumber(files, "alice", { now: new Date(2026, 10, 7) }), 1);
+  assert2.equal(nextFileNumber(["06X11X26-a.b-001.mp4"], "a.b", { now: day }), 1);
+});

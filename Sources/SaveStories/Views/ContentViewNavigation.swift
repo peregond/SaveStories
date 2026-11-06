@@ -7,7 +7,7 @@ extension ContentView {
             set: { if let section = $0 { selectedSection = section } }
         )) {
             Section("Библиотека") {
-                ForEach([AppSection.main, .reels, .batch, .sorting]) { section in
+                ForEach([AppSection.main, .reels, .sorting]) { section in
                     Label(section.title, systemImage: section.systemImage)
                         .padding(.vertical, 5)
                         .tag(section)
@@ -62,7 +62,6 @@ extension ContentView {
         Group {
             switch selectedSection {
             case .main: homeTwoView
-            case .batch: batchView
             case .reels: reelsView
             case .sorting: sortingView
             case .settings: settingsView
@@ -104,11 +103,8 @@ struct AppNavigationCommands: Commands {
             Button("Reels") { section = .reels }
                 .keyboardShortcut("2", modifiers: .command)
                 .disabled(section == nil)
-            Button("Очередь профилей") { section = .batch }
-                .keyboardShortcut("3", modifiers: .command)
-                .disabled(section == nil)
             Button("Сортировка") { section = .sorting }
-                .keyboardShortcut("4", modifiers: .command)
+                .keyboardShortcut("3", modifiers: .command)
                 .disabled(section == nil)
         }
     }

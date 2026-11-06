@@ -2,21 +2,19 @@ import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 
 import { createApi, type Api } from "./api";
 import { Logo } from "./components/Logo";
 import { Dialog } from "./components/ui";
-import { IconQueue, IconReels, IconSettings, IconSort, IconStories } from "./icons";
+import { IconReels, IconSettings, IconSort, IconStories } from "./icons";
 import { themeForHour } from "./parse";
 import { Stories } from "./screens/Stories";
 import { useStore, type Store } from "./store";
 
 // Остальные экраны грузятся при первом открытии: меньше JS при старте и в памяти.
-const Queue = lazy(() => import("./screens/Queue").then((m) => ({ default: m.Queue })));
 const Reels = lazy(() => import("./screens/Reels").then((m) => ({ default: m.Reels })));
 const Sorting = lazy(() => import("./screens/Sorting").then((m) => ({ default: m.Sorting })));
 const Settings = lazy(() => import("./screens/Settings").then((m) => ({ default: m.Settings })));
 
-type Page = "stories" | "queue" | "reels" | "sorting" | "settings";
+type Page = "stories" | "reels" | "sorting" | "settings";
 const NAV: { id: Page; title: string; sub: string; Icon: ComponentType<{ size?: number }> }[] = [
   { id: "stories", title: "Stories", sub: "Выгрузка из профилей", Icon: IconStories },
-  { id: "queue", title: "Списочная", sub: "Пакетная выгрузка", Icon: IconQueue },
   { id: "reels", title: "Reels", sub: "Видео по ссылкам", Icon: IconReels },
   { id: "sorting", title: "Сортировка", sub: "Разложить файлы по странам и блогерам", Icon: IconSort },
 ];
@@ -92,7 +90,6 @@ function Shell({ api }: { api: Api }) {
         <div className="page-body">
           <Suspense fallback={null}>
             {page === "stories" && <Stories s={s} />}
-            {page === "queue" && <Queue s={s} />}
             {page === "reels" && <Reels s={s} />}
             {page === "sorting" && <Sorting s={s} />}
             {page === "settings" && <Settings s={s} />}

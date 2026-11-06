@@ -3,6 +3,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test, { after } from "node:test";
+import { filenameDatePrefix } from "./media_utils.mjs";
+const D = filenameDatePrefix();
 
 // Exercise the real bridge without reading or writing a user's runtime/session.
 const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "saveme-story-sequence-"));
@@ -192,7 +194,7 @@ test("a singleton prefetch preserves its saved file and continues to the next St
   assert.deepEqual(downloads, stories.slice(0, 2).map((entry) => entry.image_versions2.candidates[0].url));
   assert.ok(advanceCount() >= 2);
   const names = (await fs.readdir(destination)).sort();
-  assert.deepEqual(names, ["alice-001.jpg", "alice-002.jpg"]);
+  assert.deepEqual(names, [`${D}-alice-001.jpg`, `${D}-alice-002.jpg`]);
   assert.deepEqual(await fs.readFile(path.join(destination, names[0])), imageBytes("111"));
   assert.deepEqual(await fs.readFile(path.join(destination, names[1])), imageBytes("222"));
 });
@@ -203,7 +205,7 @@ test("viewer traversal stops when Instagram advances to a different influencer",
   const result = await collectStorySequence(page, destination, "alice", [], [], null, false);
   assert.equal(result.items.length, 1, result.logs.join("\n"));
   assert.deepEqual(downloads, [stories[0].image_versions2.candidates[0].url]);
-  assert.deepEqual(await fs.readdir(destination), ["alice-001.jpg"]);
+  assert.deepEqual(await fs.readdir(destination), [`${D}-alice-001.jpg`]);
 });
 
 test("a singleton playlist is supplemented from the per-user Story endpoint", async () => {
