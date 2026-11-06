@@ -216,9 +216,11 @@ pub fn signature_verdict(status: &str) -> Result<(), String> {
 #[cfg(windows)]
 fn verify_signature(path: &Path) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
+    // Путь передаём через переменную окружения: `-Command` склеивает остальные аргументы с текстом команды
+    // (путь превращался в часть выражения и мог быть выполнен), а так в команду он не попадает вовсе.
     let output = std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "(Get-AuthenticodeSignature -LiteralPath $args[0]).Status"])
-        .arg(path)
+        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "(Get-AuthenticodeSignature -LiteralPath $env:SAVEME_SIGNATURE_PATH).Status"])
+        .env("SAVEME_SIGNATURE_PATH", path)
         .creation_flags(0x0800_0000)
         .output()
         .map_err(|e| format!("Не удалось проверить подпись установщика: {e}"))?;
@@ -250,6 +252,10 @@ pub async fn download_installer(paths: &AppPaths, release: &ReleaseInfo, on_prog
     let root = paths.updates_directory().join(&release.version);
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
+    // Имя приходит от сервера: только простое имя файла, без каталогов и «..».
+    if Path::new(&release.asset.name).file_name().and_then(|n| n.to_str()) != Some(release.asset.name.as_str()) || release.asset.name.contains("..") {
+        return Err("Недопустимое имя файла установщика в релизе. Обновление остановлено.".into());
+    }
     let installer = root.join(&release.asset.name);
 
     on_progress(0);
@@ -458,6 +464,19 @@ mod tests {
         let CheckResult::UpdateAvailable { release } = check_latest_at(&format!("{base}/latest"), "0.6.86").await.unwrap() else { panic!() };
         let err = download_installer(&test_paths("update-tamper"), &release, |_| {}).await.unwrap_err();
         assert!(err.contains("SHA256"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn installer_name_cannot_escape_the_updates_folder() {
+        let bytes = fake_installer();
+        let base = release_server(&bytes, &bytes, true).await;
+        let CheckResult::UpdateAvailable { release } = check_latest_at(&format!("{base}/latest"), "0.6.86").await.unwrap() else { panic!() };
+        for evil in ["..\\..\\evil.exe", "../../evil.exe", "sub/dir.exe", "..", "a..b.exe"] {
+            let mut r = release.clone();
+            r.asset.name = evil.to_string();
+            let err = download_installer(&test_paths("update-name"), &r, |_| {}).await.unwrap_err();
+            assert!(err.contains("Недопустимое имя"), "{evil}: {err}");
+        }
     }
 
     #[tokio::test]
