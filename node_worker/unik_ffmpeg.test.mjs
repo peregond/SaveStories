@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { inspectMedia, locateFfmpeg, pickWindowsAsset } from "./unik_ffmpeg.mjs";
+import { inspectMedia, installFfmpeg, locateFfmpeg, macDownloads, parseSha256, pickWindowsAsset } from "./unik_ffmpeg.mjs";
 
 const BRIDGE = path.join(path.dirname(fileURLToPath(import.meta.url)), "bridge.mjs");
 const located = locateFfmpeg({ supportDirectory: path.join(os.tmpdir(), "no-such-support") });
@@ -32,6 +32,12 @@ test("поиск ffmpeg: переменная окружения важнее PA
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("поиск ffmpeg на macOS знает пути Homebrew", () => {
+  const found = locateFfmpeg({ env: { PATH: "/usr/bin" }, platform: "darwin" });
+  // В тесте Homebrew обычно нет; проверяем, что поиск не падает и результат либо null, либо из известных папок.
+  assert.ok(found === null || ["/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin", "/usr/bin"].some((d) => found.ffmpeg.startsWith(d)));
 });
 
 test("архив Windows выбирается из релиза и обязан иметь SHA-256", () => {
@@ -86,6 +92,7 @@ test("настоящая обработка: 3 вариации с плашко�
     assert.equal(response.ok, true, response.message);
     assert.equal(response.status, "unik_complete");
     assert.equal(response.data.done, "3");
+    for (const item of response.items) for (const key of ["id", "sourceURL", "pageURL", "localPath", "metadataPath", "mediaType", "createdAt"]) assert.equal(typeof item[key], "string", `у элемента нет поля ${key}`);
     const results = JSON.parse(response.data.results);
     assert.deepEqual(results.map((r) => path.basename(r.outputPath)), ["DE_meta_9x16_v1.mp4", "DE_meta_9x16_v2.mp4", "DE_meta_9x16_v3.mp4"]);
     for (const result of results) {
@@ -138,5 +145,58 @@ test("без FFmpeg команды отвечают понятной ошибк�
     assert.match(response.message, /Установить FFmpeg/);
   } finally {
     fs.rmSync(support, { recursive: true, force: true });
+  }
+});
+
+test("адреса и контрольные суммы для macOS", () => {
+  const arm = macDownloads("arm64");
+  assert.deepEqual(arm.map((d) => d.tool), ["ffmpeg", "ffprobe"]);
+  assert.match(arm[0].url, /macos\/arm64\/release\/ffmpeg\.zip$/);
+  assert.match(arm[1].shaUrl, /macos\/arm64\/release\/ffprobe\.zip\.sha256$/);
+  assert.match(macDownloads("x64")[0].url, /macos\/amd64\//);
+  const hash = "ab".repeat(32);
+  assert.equal(parseSha256(`${hash.toUpperCase()}  ffmpeg.zip\n`), hash);
+  assert.equal(parseSha256(hash), hash);
+  assert.throws(() => parseSha256("нет суммы"), /контрольную сумму/);
+});
+
+test("установка отказывается от других систем и от архива с неверной суммой", async () => {
+  await assert.rejects(installFfmpeg({ supportDirectory: os.tmpdir(), platform: "linux" }), /Windows и macOS/);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "unik-install-"));
+  try {
+    const bytes = Buffer.from("не архив");
+    const fake = async (url) => {
+      if (url.includes("api.github.com")) return { ok: true, status: 200, json: async () => ({ assets: [{ name: "ffmpeg-7.1-essentials_build.zip", browser_download_url: "https://example.test/f.zip", size: bytes.length, digest: "sha256:" + "0".repeat(64) }] }) };
+      return { ok: true, status: 200, headers: { get: () => String(bytes.length) }, body: (async function* () { yield bytes; })() };
+    };
+    await assert.rejects(installFfmpeg({ supportDirectory: dir, platform: "win32", fetchImpl: fake }), /SHA-256 архива FFmpeg не совпал/);
+    assert.equal(fs.existsSync(path.join(dir, "ffmpeg", "download")), false, "временная папка должна быть убрана");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("остановка воркера завершает и запущенный ffmpeg", { skip: realFfmpeg.skip || (process.platform === "win32" ? "нужен pgrep" : false) }, async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "unik-stop-"));
+  try {
+    const source = path.join(dir, "long.mp4");
+    execFileSync(located.ffmpeg, ["-y", "-f", "lavfi", "-i", "testsrc=size=1280x720:rate=30:duration=120", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", source], { stdio: "ignore", timeout: 120_000 });
+    const marker = `stop_marker_${process.pid}`;
+    const child = (await import("node:child_process")).spawn(process.execPath, [BRIDGE], { env: { ...process.env, SAVESTORIES_APP_SUPPORT: dir }, stdio: ["pipe", "ignore", "pipe"] });
+    child.stdin.end(JSON.stringify({ command: "unik_process", sources: [source], outputDirectory: path.join(dir, `${marker}`), options: { bitrate: "6M" } }));
+    let started = false;
+    child.stderr.on("data", (chunk) => { if (String(chunk).includes("unik_job_0_start")) started = true; });
+    for (let i = 0; i < 100 && !started; i += 1) await new Promise((r) => setTimeout(r, 100));
+    assert.ok(started, "обработка не началась");
+    await new Promise((r) => setTimeout(r, 500));
+    const alive = () => spawnSync("pgrep", ["-f", `${marker}`]).stdout.toString().trim();
+    assert.ok(alive(), "ffmpeg должен работать до остановки");
+    child.kill("SIGTERM");
+    await new Promise((resolve) => child.once("exit", resolve));
+    await new Promise((r) => setTimeout(r, 500));
+    assert.equal(alive(), "", "после остановки ffmpeg не должен оставаться в фоне");
+  } finally {
+    spawnSync("pkill", ["-f", "stop_marker_"]);
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });

@@ -7,6 +7,10 @@ struct WorkerRequest: Codable, Sendable {
     let outputDirectory: String?
     let headless: Bool?
     let mediaFilter: String?
+    /// «Уникализатор»: файлы на проверку, исходники и настройки обработки (у остальных команд не задаются).
+    var files: [String]? = nil
+    var sources: [String]? = nil
+    var options: UnikOptions? = nil
 }
 
 struct WorkerItem: Codable, Identifiable, Hashable, Sendable {

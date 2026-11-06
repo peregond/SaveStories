@@ -125,7 +125,11 @@ async function processCommand({ emit, emitProgress, request, supportDirectory })
   const summary = `Готово: ${done} из ${planned.length + skipped.length}${failed ? `, ошибок: ${failed}` : ""}.`;
   emit(done > 0, done > 0 ? "unik_complete" : "unik_failed", summary, {
     data: { total: String(planned.length + skipped.length), done: String(done), failed: String(failed), results: JSON.stringify(results), outputDirectory: path.resolve(request.outputDirectory) },
-    items: results.filter((r) => r.status === "completed").map((r) => ({ localPath: r.outputPath, sourceUrl: r.source, mediaType: r.outputPath.endsWith(".mp4") ? "video" : "image" })),
+    // Полный набор полей: клиент macOS (Swift) разбирает элементы ответа строго.
+    items: results.filter((r) => r.status === "completed").map((r) => ({
+      id: r.outputPath, sourceURL: r.source, pageURL: "", localPath: r.outputPath, metadataPath: "",
+      mediaType: r.outputPath.endsWith(".mp4") ? "video" : "image", createdAt: new Date().toISOString(),
+    })),
   });
 }
 

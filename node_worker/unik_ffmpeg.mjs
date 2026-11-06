@@ -22,6 +22,8 @@ export function locateFfmpeg({ supportDirectory, env = process.env, platform = p
   if (env.SAVESTORIES_FFMPEG_DIR) directories.push([env.SAVESTORIES_FFMPEG_DIR, "env"]);
   if (supportDirectory) directories.push([path.join(ffmpegHome(supportDirectory), "bin"), "app"]);
   for (const entry of String(env.PATH ?? env.Path ?? "").split(path.delimiter).filter(Boolean)) directories.push([entry, "path"]);
+  // Приложение macOS запускается без путей Homebrew и MacPorts в PATH — проверяем привычные места.
+  if (platform === "darwin") for (const entry of ["/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin"]) directories.push([entry, "path"]);
   for (const [directory, source] of directories) {
     const ffmpeg = path.join(directory, exeName("ffmpeg", platform));
     const ffprobe = path.join(directory, exeName("ffprobe", platform));
@@ -103,45 +105,95 @@ async function findFile(root, fileName) {
   return null;
 }
 
+// macOS: статические сборки (arm64 и Intel) с контрольными суммами рядом; ffmpeg и ffprobe — отдельными архивами.
+const MAC_BASE = "https://ffmpeg.martin-riedl.de/redirect/latest/macos";
+
+export function macDownloads(arch = process.arch) {
+  const folder = arch === "arm64" ? "arm64" : "amd64";
+  return ["ffmpeg", "ffprobe"].map((tool) => ({ tool, url: `${MAC_BASE}/${folder}/release/${tool}.zip`, shaUrl: `${MAC_BASE}/${folder}/release/${tool}.zip.sha256` }));
+}
+
+/** SHA-256 из текста вида «<hash>  имя» или просто «<hash>». */
+export function parseSha256(text) {
+  const match = /\b([0-9a-fA-F]{64})\b/.exec(String(text ?? ""));
+  if (!match) throw new Error("Не удалось прочитать контрольную сумму FFmpeg.");
+  return match[1].toLowerCase();
+}
+
+async function extractMacZip(zipPath, directory) {
+  await fs.mkdir(directory, { recursive: true });
+  await execFileAsync("ditto", ["-x", "-k", zipPath, directory], { timeout: 600_000, maxBuffer: 16 * 1024 * 1024 });
+}
+
+async function installOnMac({ home, work, onProgress, onMessage, fetchImpl, arch }) {
+  const bin = path.join(home, "bin");
+  await fs.mkdir(bin, { recursive: true });
+  const downloads = macDownloads(arch);
+  for (const [index, item] of downloads.entries()) {
+    onMessage?.(`Скачиваю ${item.tool}…`);
+    const shaResponse = await fetchImpl(item.shaUrl, { headers: { "User-Agent": "SaveMe-FFmpeg" } });
+    if (!shaResponse.ok) throw new Error(`Не удалось получить контрольную сумму ${item.tool}: HTTP ${shaResponse.status}.`);
+    const expected = parseSha256(await shaResponse.text());
+    const zipPath = path.join(work, `${item.tool}.zip`);
+    const actual = await downloadWithProgress(item.url, zipPath, 0, (p) => onProgress?.(Math.floor((index * 100 + p) / downloads.length)), fetchImpl);
+    if (actual !== expected) throw new Error(`SHA-256 архива ${item.tool} не совпал с указанным на сайте. Установка остановлена.`);
+    const unpacked = path.join(work, `${item.tool}-unpacked`);
+    await extractMacZip(zipPath, unpacked);
+    const binary = await findFile(unpacked, item.tool);
+    if (!binary) throw new Error(`В архиве нет ${item.tool}.`);
+    const destination = path.join(bin, item.tool);
+    await fs.copyFile(binary, destination);
+    await fs.chmod(destination, 0o755);
+  }
+  return { ffmpeg: path.join(bin, "ffmpeg"), ffprobe: path.join(bin, "ffprobe") };
+}
+
+async function installOnWindows({ home, work, onProgress, onMessage, fetchImpl }) {
+  onMessage?.("Ищу актуальную сборку FFmpeg…");
+  const response = await fetchImpl(WINDOWS_RELEASES_API, { headers: { Accept: "application/vnd.github+json", "User-Agent": "SaveMe-FFmpeg" } });
+  if (!response.ok) throw new Error(`GitHub не ответил: HTTP ${response.status}.`);
+  const asset = pickWindowsAsset(await response.json());
+
+  onMessage?.(`Скачиваю ${asset.name} (${Math.round(asset.size / 1048576)} МБ)…`);
+  const zipPath = path.join(work, asset.name);
+  const actual = await downloadWithProgress(asset.url, zipPath, asset.size, onProgress, fetchImpl);
+  if (actual !== asset.sha256) throw new Error("SHA-256 архива FFmpeg не совпал с указанным в релизе. Установка остановлена.");
+
+  onMessage?.("Распаковываю…");
+  const unpacked = path.join(work, "unpacked");
+  await extractZip(zipPath, unpacked);
+  const ffmpegSource = await findFile(unpacked, "ffmpeg.exe");
+  const ffprobeSource = await findFile(unpacked, "ffprobe.exe");
+  if (!ffmpegSource || !ffprobeSource) throw new Error("В архиве FFmpeg нет ffmpeg.exe или ffprobe.exe.");
+
+  const bin = path.join(home, "bin");
+  await fs.mkdir(bin, { recursive: true });
+  const ffmpeg = path.join(bin, "ffmpeg.exe");
+  const ffprobe = path.join(bin, "ffprobe.exe");
+  await fs.copyFile(ffmpegSource, ffmpeg);
+  await fs.copyFile(ffprobeSource, ffprobe);
+  return { ffmpeg, ffprobe, label: asset.name };
+}
+
 /**
- * Докачивает FFmpeg в <support>/ffmpeg/bin. Проверяет SHA-256 из ответа GitHub API.
+ * Докачивает FFmpeg в <support>/ffmpeg/bin и проверяет контрольные суммы.
  * @returns {Promise<{ffmpeg:string, ffprobe:string, version:string}>}
  */
-export async function installFfmpeg({ supportDirectory, onProgress, onMessage, fetchImpl = fetch, platform = process.platform } = {}) {
-  if (platform !== "win32") throw new Error("Автоматическая установка FFmpeg доступна на Windows. На macOS поставьте FFmpeg через Homebrew: brew install ffmpeg.");
+export async function installFfmpeg({ supportDirectory, onProgress, onMessage, fetchImpl = fetch, platform = process.platform, arch = process.arch } = {}) {
+  if (platform !== "win32" && platform !== "darwin") throw new Error("Автоматическая установка FFmpeg доступна на Windows и macOS.");
   const home = ffmpegHome(supportDirectory);
   const work = path.join(home, "download");
   await fs.rm(work, { recursive: true, force: true });
   await fs.mkdir(work, { recursive: true });
   try {
-    onMessage?.("Ищу актуальную сборку FFmpeg…");
-    const response = await fetchImpl(WINDOWS_RELEASES_API, { headers: { Accept: "application/vnd.github+json", "User-Agent": "SaveMe-FFmpeg" } });
-    if (!response.ok) throw new Error(`GitHub не ответил: HTTP ${response.status}.`);
-    const asset = pickWindowsAsset(await response.json());
-
-    onMessage?.(`Скачиваю ${asset.name} (${Math.round(asset.size / 1048576)} МБ)…`);
-    const zipPath = path.join(work, asset.name);
-    const actual = await downloadWithProgress(asset.url, zipPath, asset.size, onProgress, fetchImpl);
-    if (actual !== asset.sha256) throw new Error("SHA-256 архива FFmpeg не совпал с указанным в релизе. Установка остановлена.");
-
-    onMessage?.("Распаковываю…");
-    const unpacked = path.join(work, "unpacked");
-    await extractZip(zipPath, unpacked);
-    const ffmpegSource = await findFile(unpacked, "ffmpeg.exe");
-    const ffprobeSource = await findFile(unpacked, "ffprobe.exe");
-    if (!ffmpegSource || !ffprobeSource) throw new Error("В архиве FFmpeg нет ffmpeg.exe или ffprobe.exe.");
-
-    const bin = path.join(home, "bin");
-    await fs.mkdir(bin, { recursive: true });
-    const ffmpeg = path.join(bin, "ffmpeg.exe");
-    const ffprobe = path.join(bin, "ffprobe.exe");
-    await fs.copyFile(ffmpegSource, ffmpeg);
-    await fs.copyFile(ffprobeSource, ffprobe);
-    const version = await ffmpegVersion(ffmpeg);
-    if (!version) throw new Error("Скачанный ffmpeg.exe не запускается.");
-    await fs.writeFile(path.join(home, "version.txt"), `${version}\n${asset.name}\n`);
+    const installed = platform === "win32"
+      ? await installOnWindows({ home, work, onProgress, onMessage, fetchImpl })
+      : await installOnMac({ home, work, onProgress, onMessage, fetchImpl, arch });
+    const version = await ffmpegVersion(installed.ffmpeg);
+    if (!version) throw new Error("Скачанный ffmpeg не запускается.");
+    await fs.writeFile(path.join(home, "version.txt"), `${version}\n${installed.label ?? ""}\n`);
     onProgress?.(100);
-    return { ffmpeg, ffprobe, version };
+    return { ffmpeg: installed.ffmpeg, ffprobe: installed.ffprobe, version };
   } finally {
     await fs.rm(work, { recursive: true, force: true });
   }
@@ -181,9 +233,36 @@ function errorTail(stderr) {
 /**
  * Запускает ffmpeg с прогрессом (0–100). Результат — промис; при ошибке в тексте последние строки stderr.
  */
+// Запущенные ffmpeg: при остановке воркера (кнопка «Стоп» посылает SIGTERM только процессу Node) их нужно завершить,
+// иначе обработка продолжится в фоне.
+const activeChildren = new Set();
+let exitHooksInstalled = false;
+
+export function killActiveFfmpeg() {
+  for (const child of activeChildren) {
+    try { child.kill("SIGKILL"); } catch { /* уже завершён */ }
+  }
+  activeChildren.clear();
+}
+
+function installExitHooks() {
+  if (exitHooksInstalled) return;
+  exitHooksInstalled = true;
+  process.once("exit", killActiveFfmpeg);
+  for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
+    process.once(signal, () => {
+      killActiveFfmpeg();
+      process.exit(signal === "SIGINT" ? 130 : 143);
+    });
+  }
+}
+
 export function runFfmpeg(ffmpegPath, args, { durationSeconds = 0, onProgress } = {}) {
   return new Promise((resolve, reject) => {
+    installExitHooks();
     const child = spawn(ffmpegPath, ["-hide_banner", "-progress", "pipe:1", "-nostats", ...args], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+    activeChildren.add(child);
+    child.once("close", () => activeChildren.delete(child));
     let buffer = "";
     let stderr = "";
     let outTimeMs = null;
