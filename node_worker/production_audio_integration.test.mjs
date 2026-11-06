@@ -5,6 +5,8 @@ import path from "node:path";
 import test from "node:test";
 
 import { inspectMp4 } from "./mp4_muxer.mjs";
+import { filenameDatePrefix } from "./media_utils.mjs";
+const D = filenameDatePrefix();
 
 // bridge.mjs normally discovers user-scoped runtime paths during module load.
 // Keep imports hermetic while exercising the exact production download code.
@@ -396,7 +398,7 @@ test("Stories bridge downloadMedia uses the audio pipeline and propagates audioP
   assert.equal(inspection.hasAudio, true);
   assert.equal(inspection.videoTracks.length, 1);
   assert.equal(inspection.audioTracks.length, 1);
-  assert.deepEqual(await fs.readdir(directory), ["alice-001.mp4"]);
+  assert.deepEqual(await fs.readdir(directory), [`${D}-alice-001.mp4`]);
 });
 
 test("Reels download uses the audio pipeline and propagates audioPresent", async (t) => {
@@ -427,5 +429,5 @@ test("Reels download uses the audio pipeline and propagates audioPresent", async
   assert.equal(inspection.hasAudio, true);
   assert.equal(inspection.videoTracks.length, 1);
   assert.equal(inspection.audioTracks.length, 1);
-  assert.deepEqual(await fs.readdir(directory), ["alice-reels-001.mp4"]);
+  assert.deepEqual(await fs.readdir(directory), [`${D}-alice-reels-001.mp4`]);
 });

@@ -128,7 +128,35 @@ function mediaVariantScore(url, mediaType) {
   return score;
 }
 
+/** Дата в имени файла: дд.мм.гг по местному времени. */
+function filenameDatePrefix(now = new Date()) {
+  const two = (n) => String(n).padStart(2, "0");
+  return `${two(now.getDate())}.${two(now.getMonth() + 1)}.${two(now.getFullYear() % 100)}`;
+}
+
+/** Имя скачанного файла: `дд.мм.гг-аккаунт-номер.расширение`; для Reels — `дд.мм.гг-аккаунт-reels-номер.расширение`. */
+function downloadedFileName(username, index, suffix, { kind = "story", now = new Date() } = {}) {
+  const middle = kind === "reels" ? `${sanitizeFilename(username)}-reels` : sanitizeFilename(username);
+  return `${filenameDatePrefix(now)}-${middle}-${String(index).padStart(3, "0")}${suffix}`;
+}
+
+/** Следующий номер среди файлов с тем же днём и аккаунтом (и видом): нумерация начинается заново каждый день. */
+function nextFileNumber(entries, username, { kind = "story", now = new Date() } = {}) {
+  const middle = kind === "reels" ? `${sanitizeFilename(username)}-reels` : sanitizeFilename(username);
+  const prefix = `${filenameDatePrefix(now)}-${middle}-`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`^${prefix}(\\d+)`);
+  let highest = 0;
+  for (const entry of entries) {
+    const match = String(entry).match(pattern);
+    if (match) highest = Math.max(highest, Number(match[1]));
+  }
+  return highest + 1;
+}
+
 export {
+  downloadedFileName,
+  filenameDatePrefix,
+  nextFileNumber,
   extractUsername,
   isAudioOnlyVariant,
   isSeparateDashVideoUrl,

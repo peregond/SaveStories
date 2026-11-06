@@ -13,6 +13,8 @@ import {
   resolveReelItemsFromPayloads,
   resolveReelItemsFromScriptTexts,
 } from "./reels_downloader.mjs";
+import { filenameDatePrefix } from "./media_utils.mjs";
+const D = filenameDatePrefix();
 
 test("splitReelInputs supports commas and new lines", () => {
   assert.deepEqual(
@@ -126,7 +128,7 @@ test('command downloads preloaded video into the author folder and detects a rea
   const result = await downloadReelsCommand([targetUrl], null, true, deps);
   assert.equal(result.status, 'download_complete', result.logs.join('\n'));
   assert.equal(result.items.length, 1);
-  assert.equal(result.items[0].localPath, path.join(root, 'downloads', 'alice', 'alice-reels-001.mp4'));
+  assert.equal(result.items[0].localPath, path.join(root, 'downloads', 'alice', `${D}-alice-reels-001.mp4`));
   assert.deepEqual(await fs.readFile(result.items[0].localPath), await fs.readFile(new URL('./test_fixtures/audio/video-only.mp4', import.meta.url)));
   const again = await downloadReelsCommand([targetUrl], null, true, deps);
   assert.equal(again.status, 'download_duplicate');
@@ -141,7 +143,7 @@ test('missing files and a new destination are downloaded instead of skipped by o
   assert.equal(restored.status, 'download_complete');
   const elsewhere = await downloadReelsCommand([targetUrl], path.join(root, 'elsewhere'), true, deps);
   assert.equal(elsewhere.status, 'download_complete');
-  assert.equal(elsewhere.items[0].localPath, path.join(root, 'elsewhere', 'alice', 'alice-reels-001.mp4'));
+  assert.equal(elsewhere.items[0].localPath, path.join(root, 'elsewhere', 'alice', `${D}-alice-reels-001.mp4`));
   const originalDestination = await downloadReelsCommand([targetUrl], null, true, deps);
   assert.equal(originalDestination.status, 'download_duplicate');
 });

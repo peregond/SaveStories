@@ -687,10 +687,70 @@ def download_media(
         raise RuntimeError("Скачан только фрагмент видео вместо полного файла.")
 
     suffix = extension_for(content_type, normalized_url, media_type)
-    filename = f"{sanitize_filename(username)}-{index:03d}{suffix}"
+    filename = downloaded_file_name(username, index, suffix)
     path = destination_dir / filename
     path.write_bytes(body)
+    if media_type == "video":
+        clear_track_preview_flag(path)
     return path, normalized_url
+
+
+def clear_track_preview_flag(path: Path) -> int:
+    """Сбрасывает бит track_in_preview (0x4) в tkhd каждого трека MP4 прямо в файле.
+
+    Инстаграм ставит флаги 0x7; с этим битом плеер Windows рисует у вертикальных видео полосу справа, а с 0x3 — нет.
+    Меняется один байт на трек, поток и размеры не затрагиваются. Файл без moov не меняется. Возвращает число изменённых треков.
+    """
+    try:
+        with path.open("r+b") as handle:
+            size = path.stat().st_size
+            offset = 0
+            while offset + 8 <= size:
+                handle.seek(offset)
+                header = handle.read(16)
+                if len(header) < 8:
+                    return 0
+                box_size = int.from_bytes(header[0:4], "big")
+                box_type = header[4:8]
+                if box_size == 1 and len(header) >= 16:
+                    box_size = int.from_bytes(header[8:16], "big")
+                elif box_size == 0:
+                    box_size = size - offset
+                if box_size < 8 or offset + box_size > size:
+                    return 0
+                if box_type != b"moov":
+                    offset += box_size
+                    continue
+                if box_size > 64 * 1024 * 1024:
+                    return 0
+                handle.seek(offset)
+                moov = bytearray(handle.read(box_size))
+                patched = 0
+
+                def children(start: int, end: int):
+                    position = start
+                    while position + 8 <= end:
+                        child_size = int.from_bytes(moov[position:position + 4], "big")
+                        if child_size < 8 or position + child_size > end:
+                            return
+                        yield bytes(moov[position + 4:position + 8]), position, child_size
+                        position += child_size
+
+                for kind, trak_offset, trak_size in children(8, len(moov)):
+                    if kind != b"trak":
+                        continue
+                    for inner, inner_offset, inner_size in children(trak_offset + 8, trak_offset + trak_size):
+                        if inner != b"tkhd" or inner_size < 12:
+                            continue
+                        flags_byte = inner_offset + 8 + 3
+                        if moov[flags_byte] & 0x04:
+                            handle.seek(offset + flags_byte)
+                            handle.write(bytes([moov[flags_byte] & ~0x04 & 0xFF]))
+                            patched += 1
+                return patched
+    except OSError:
+        return 0
+    return 0
 
 
 def write_manifest(item_id: str, page_url: str, source_url: str, local_path: Path, media_type: str, created_at: str) -> Path:
@@ -1182,17 +1242,30 @@ def wait_for_metadata_story_items(
     return best_result
 
 
-def next_story_index(destination_dir: Path, username: str) -> int:
-    prefix = f"{sanitize_filename(username)}-"
+def filename_date_prefix(now: datetime | None = None) -> str:
+    """Дата в имени файла: дд.мм.гг по местному времени."""
+    now = now or datetime.now()
+    return f"{now.day:02d}.{now.month:02d}.{now.year % 100:02d}"
+
+
+def downloaded_file_name(username: str, index: int, suffix: str, now: datetime | None = None) -> str:
+    """Имя скачанного файла: дд.мм.гг-аккаунт-номер.расширение."""
+    return f"{filename_date_prefix(now)}-{sanitize_filename(username)}-{index:03d}{suffix}"
+
+
+def next_file_number(entries: list[str], username: str, now: datetime | None = None) -> int:
+    """Следующий номер среди файлов этого дня и аккаунта: нумерация начинается заново каждый день."""
+    prefix = f"{filename_date_prefix(now)}-{sanitize_filename(username)}-"
     highest = 0
-
-    for candidate in destination_dir.glob(f"{prefix}*"):
-        match = re.match(rf"^{re.escape(prefix)}(\d+)", candidate.name)
-        if not match:
-            continue
-        highest = max(highest, int(match.group(1)))
-
+    for name in entries:
+        match = re.match(rf"^{re.escape(prefix)}(\d+)", name)
+        if match:
+            highest = max(highest, int(match.group(1)))
     return highest + 1
+
+
+def next_story_index(destination_dir: Path, username: str) -> int:
+    return next_file_number([candidate.name for candidate in destination_dir.glob("*")], username)
 
 
 def install_network_capture(page, logs: list[str]) -> list[StoryMedia]:

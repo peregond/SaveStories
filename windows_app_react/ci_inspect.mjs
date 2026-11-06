@@ -54,7 +54,7 @@ try {
 
   if (phase === "first") {
     // Все экраны открываются
-    for (const [label, selector, slug] of [["Stories", "textarea", "stories"], ["Списочная", "textarea", "queue"], ["Reels", "textarea", "reels"], ["Сортировка", ".rules", "sorting"], ["Настройки", ".kv", "settings"]]) {
+    for (const [label, selector, slug] of [["Stories", "textarea", "stories"], ["Reels", "textarea", "reels"], ["Сортировка", ".rules", "sorting"], ["Настройки", ".kv", "settings"]]) {
       await page.getByRole("button", { name: label, exact: true }).first().click();
       try { await page.waitForSelector(selector, { timeout: 8000 }); check(`Экран «${label}» открывается`, true); }
       catch (e) { check(`Экран «${label}» открывается`, false, String(e).slice(0, 120)); }
@@ -69,6 +69,19 @@ try {
     const names = await page.$$eval(".item .name", (els) => els.map((e) => e.textContent));
     check("Профили появились в очереди", names.includes("ci_user1") && names.includes("ci_user2"), names.join(", "));
     await shot("queue-added");
+    // Ничего не должно вылезать за границы карточек (строки очереди выходили за карточку в 0.6.89).
+    const overflow = await page.evaluate(() => {
+      const out = [];
+      for (const card of document.querySelectorAll(".card")) {
+        const cr = card.getBoundingClientRect();
+        for (const el of card.querySelectorAll("*")) {
+          const r = el.getBoundingClientRect();
+          if (r.width > 0 && r.right > cr.right + 1 && getComputedStyle(el).position !== "absolute") out.push(`${el.tagName}.${String(el.className).slice(0, 24)} +${Math.round(r.right - cr.right)}px`);
+        }
+      }
+      return out.slice(0, 5);
+    });
+    check("Ничего не вылезает за границы карточек", overflow.length === 0, overflow.join("; "));
   } else if (phase.startsWith("ping")) {
     // Короткая проверка «интерфейс живой»: переключаем экраны и ждём отрисовки (после сворачивания/разворачивания, с флагами).
     for (const [label, selector] of [["Настройки", ".kv"], ["Stories", "textarea"]]) {

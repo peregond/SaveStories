@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { inspectMp4, inspectMp4Buffer, muxMp4Tracks } from "./mp4_muxer.mjs";
+import { clearTrackPreviewFlag } from "./mp4_track_flags.mjs";
 
 function temporaryPathFor(localPath, label) {
   return path.join(
@@ -139,6 +140,7 @@ async function saveVideoWithAudio({
     await fs.writeFile(videoPath, videoBody, { flag: "wx" });
 
     if (sourceInspection.hasAudio) {
+      await clearTrackPreviewFlag(videoPath);
       await publishTemporaryFile(videoPath, localPath);
       emitProgress?.(`embedded_audio_verified=${path.basename(localPath)}`);
       return {
@@ -153,6 +155,7 @@ async function saveVideoWithAudio({
       if (expectsAudio !== false) {
         throw new Error("Instagram отдал видео без звука, а отдельную аудиодорожку получить не удалось.");
       }
+      await clearTrackPreviewFlag(videoPath);
       await publishTemporaryFile(videoPath, localPath);
       return {
         contentLength: videoBody.length,
@@ -189,6 +192,7 @@ async function saveVideoWithAudio({
     if (!muxedStat.isFile() || muxedStat.size < 512) {
       throw new Error("Объединённый видеофайл не прошёл проверку целостности.");
     }
+    await clearTrackPreviewFlag(muxedPath);
     await publishTemporaryFile(muxedPath, localPath);
     emitProgress?.(`dash_audio_muxed=${path.basename(localPath)}:${muxer}`);
     return {

@@ -93,6 +93,13 @@ export function profileFromProgress(line: string): string {
   return value;
 }
 
+/** Итоги профиля из строки `batch_slot_N_profile=имя status=… found=X saved=Y …`; для остальных строк — null. */
+export function profileCounts(line: string): { found: number; saved: number } | null {
+  if (!/^batch_slot_\d+_profile=/.test(line)) return null;
+  const num = (key: string) => Number(new RegExp(`(?:^|\\s)${key}=(\\d+)`).exec(line)?.[1] ?? 0);
+  return { found: num("found"), saved: num("saved") };
+}
+
 export function progressDetail(line: string): string {
   const i = line.indexOf(" :: ");
   return i < 0 ? "" : line.slice(i + 4).trim();

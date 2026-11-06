@@ -39,52 +39,6 @@ extension ContentView {
         }
     }
 
-    var batchView: some View {
-        GeometryReader { proxy in
-            let compact = proxy.size.width < 980
-            let horizontalPadding = contentHorizontalPadding(for: proxy.size.width)
-
-            if compact {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 18) {
-                        batchMainColumn
-                        activityPanel
-                    }
-                    .padding(.horizontal, horizontalPadding)
-                    .padding(.bottom, 28)
-                    .padding(.top, 4)
-                }
-            } else {
-                HStack(spacing: 24) {
-                    ScrollView {
-                        batchMainColumn
-                            .padding(.vertical, 4)
-                    }
-                    .frame(maxWidth: 560, maxHeight: .infinity, alignment: .topLeading)
-
-                    activityPanel
-                }
-                .padding(.horizontal, horizontalPadding)
-                .padding(.bottom, 28)
-            }
-        }
-    }
-
-    var batchMainColumn: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            detailHero(
-                eyebrow: "Списочная выгрузка",
-                title: "Пакетная очередь профилей",
-                subtitle: "Добавь сразу несколько ссылок или usernames. Приложение последовательно выгрузит stories для каждого профиля."
-            )
-            batchInputCard
-            batchQueueCard
-            destinationCard
-            batchModeCard
-            mediaFilterCard
-        }
-    }
-
     var reelsView: some View {
         GeometryReader { proxy in
             let compact = proxy.size.width < 980
