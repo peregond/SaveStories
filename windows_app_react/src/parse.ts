@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 // Разбор ссылок. Правила повторяют ProfileInputParser.cs из выпускаемого WinUI-клиента.
 
 const TOKEN_TRIM = /^[<>"'`()[\]{},;]+|[<>"'`()[\]{},;]+$/g;
@@ -108,10 +109,10 @@ export function progressDetail(line: string): string {
 export function pluralProfiles(n: number): string {
   const m = n % 100;
   const d = n % 10;
-  if (m > 10 && m < 15) return "профилей";
-  if (d === 1) return "профиль";
-  if (d >= 2 && d <= 4) return "профиля";
-  return "профилей";
+  if (m > 10 && m < 15) return t("профилей");
+  if (d === 1) return t("профиль");
+  if (d >= 2 && d <= 4) return t("профиля");
+  return t("профилей");
 }
 
 /** Рабочие часы темы по времени суток: день 7–19 — светлая, иначе тёмная (TimeOfDayThemeService). */

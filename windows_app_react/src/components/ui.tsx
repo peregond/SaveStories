@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 
+import { t } from "../i18n";
 export function Card({ title, aside, children }: { title?: string; aside?: ReactNode; children: ReactNode }) {
   return (
     <section className="card">
@@ -34,7 +35,7 @@ export function Banner({ tone, children, onClose, action }: { tone: "ok" | "err"
     <div className={`banner ${tone}`} role={tone === "err" ? "alert" : "status"}>
       <span className="grow">{children}</span>
       {action}
-      {onClose && <button className="btn sm ghost" aria-label="Закрыть" onClick={onClose}>✕</button>}
+      {onClose && <button className="btn sm ghost" aria-label={t("Закрыть")} onClick={onClose}>✕</button>}
     </div>
   );
 }
@@ -77,8 +78,8 @@ export function PathRow({ path, placeholder, onPick, onOpen, disabled }: {
   return (
     <div className="pathbox">
       <span title={path} className={path ? "" : "dim"}>{path || placeholder}</span>
-      <button className="btn sm" disabled={disabled} onClick={onPick}>Выбрать</button>
-      <button className="btn sm ghost" disabled={!path} onClick={onOpen}>Открыть</button>
+      <button className="btn sm" disabled={disabled} onClick={onPick}>{t("Выбрать")}</button>
+      <button className="btn sm ghost" disabled={!path} onClick={onOpen}>{t("Открыть")}</button>
     </div>
   );
 }

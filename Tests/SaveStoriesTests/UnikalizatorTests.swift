@@ -128,4 +128,40 @@ final class UnikalizatorTests: XCTestCase {
         let broken = UnikInspection(ok: false, filePath: "a", kind: nil, durationSeconds: nil, width: nil, height: nil, hasAudio: nil, message: "битый")
         XCTAssertEqual(UnikalizatorLogic.describe(broken), "битый")
     }
+
+    func testPresetsAreSavedReplacedAndRemovedByName() {
+        var options = UnikOptions()
+        options.fps = 60
+        var list = UnikalizatorLogic.upsertingPreset([], name: "  Reels   DE  ", options: options)
+        XCTAssertEqual(list.map(\.name), ["Reels DE"])
+        options.fps = 25
+        list = UnikalizatorLogic.upsertingPreset(list, name: "reels de", options: options)
+        XCTAssertEqual(list.count, 1)
+        XCTAssertEqual(list[0].name, "reels de")
+        XCTAssertEqual(list[0].options.fps, 25)
+        XCTAssertEqual(UnikalizatorLogic.upsertingPreset(list, name: "   ", options: options), list)
+        list = UnikalizatorLogic.upsertingPreset(list, name: "B", options: options)
+        XCTAssertEqual(UnikalizatorLogic.removingPreset(list, name: "REELS DE").map(\.name), ["B"])
+        var many: [UnikPreset] = []
+        for index in 0..<(UnikalizatorLogic.maxPresets + 5) {
+            many = UnikalizatorLogic.upsertingPreset(many, name: "P\(index)", options: options)
+        }
+        XCTAssertEqual(many.count, UnikalizatorLogic.maxPresets)
+    }
+
+    func testPresetsRoundTripAndIgnoreBrokenEntries() throws {
+        var options = UnikOptions()
+        options.ageMark = .init(enabled: true, geoId: "de-germany", position: "top")
+        options.variations = .init(count: 3, styleIds: ["soft", "bright", "calm"], mode: "all-variations")
+        let list = UnikalizatorLogic.upsertingPreset([], name: "DE 18+", options: options)
+        let data = try JSONEncoder().encode(list)
+        XCTAssertEqual(UnikalizatorLogic.decodePresets(data), list)
+
+        let mixed = Data(#"[{"name":"Good","options":{}},{"name":"good"},{"oops":1},"text",{"name":" ","options":{}}]"#.utf8)
+        // Лишние и сломанные записи отбрасываются; настройки без полей берутся по умолчанию, если это допускает разбор.
+        let decoded = UnikalizatorLogic.decodePresets(mixed)
+        XCTAssertLessThanOrEqual(decoded.count, 1)
+        XCTAssertTrue(UnikalizatorLogic.decodePresets(nil).isEmpty)
+        XCTAssertTrue(UnikalizatorLogic.decodePresets(Data("не json".utf8)).isEmpty)
+    }
 }

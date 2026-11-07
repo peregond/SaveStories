@@ -4,23 +4,24 @@ import { IconTrash } from "../icons";
 import { profileName } from "../parse";
 import type { EntryStatus, Store } from "../store";
 
+import { t } from "../i18n";
 type Tone = "" | "ok" | "run" | "err" | "warn";
 
 export function statusPill(s: Store): { tone: Tone; label: string } {
-  if (s.stopping) return { tone: "warn", label: "Остановка" };
-  if (s.busy === "batch" || s.busy === "reels") return { tone: "run", label: "Выгрузка" };
-  if (s.busy === "probe" || s.bootstrapping) return { tone: "run", label: "Проверка" };
-  if (s.workerReady === false) return { tone: "err", label: "Ошибка среды" };
-  if (s.runtime && !s.runtime.chromiumInstalled) return { tone: "warn", label: "Нужен Chromium" };
-  if (s.session === "error") return { tone: "err", label: "Ошибка сессии" };
-  if (s.session === "login_required") return { tone: "warn", label: "Нужен вход" };
-  if (s.session === "waiting_login") return { tone: "warn", label: "Жду вход" };
-  if (s.session === "ready") return { tone: "ok", label: "Готово" };
-  return { tone: "", label: "Проверка…" };
+  if (s.stopping) return { tone: "warn", label: t("Остановка") };
+  if (s.busy === "batch" || s.busy === "reels") return { tone: "run", label: t("Выгрузка") };
+  if (s.busy === "probe" || s.bootstrapping) return { tone: "run", label: t("Проверка") };
+  if (s.workerReady === false) return { tone: "err", label: t("Ошибка среды") };
+  if (s.runtime && !s.runtime.chromiumInstalled) return { tone: "warn", label: t("Нужен Chromium") };
+  if (s.session === "error") return { tone: "err", label: t("Ошибка сессии") };
+  if (s.session === "login_required") return { tone: "warn", label: t("Нужен вход") };
+  if (s.session === "waiting_login") return { tone: "warn", label: t("Жду вход") };
+  if (s.session === "ready") return { tone: "ok", label: t("Готово") };
+  return { tone: "", label: t("Проверка…") };
 }
 
 const ENTRY: Record<EntryStatus, [Tone, string]> = {
-  pending: ["", "В очереди"], running: ["run", "Скачивается"], completed: ["ok", "Готово"], failed: ["err", "Ошибка"], stopped: ["warn", "Остановлено"],
+  pending: ["", t("В очереди")], running: ["run", t("Скачивается")], completed: ["ok", t("Готово")], failed: ["err", t("Ошибка")], stopped: ["warn", t("Остановлено")],
 };
 
 const QueueRow = memo(function QueueRow({ url, status, message, disabled, onRemove }: {
@@ -33,7 +34,7 @@ const QueueRow = memo(function QueueRow({ url, status, message, disabled, onRemo
       <div className="avatar sm">{name[0]?.toUpperCase()}</div>
       <div className="grow"><div className="name">{name}</div><div className="hint">{message}</div></div>
       <Pill tone={tone}>{label}</Pill>
-      <button className="btn sm ghost" aria-label={`Убрать ${name}`} disabled={disabled} onClick={() => onRemove(url)}><IconTrash size={16} /></button>
+      <button className="btn sm ghost" aria-label={t("Убрать {0}", [name])} disabled={disabled} onClick={() => onRemove(url)}><IconTrash size={16} /></button>
     </div>
   );
 });
@@ -52,14 +53,14 @@ export function EnvironmentBanners({ s }: { s: Store }) {
   return (
     <>
       {s.runtime && !s.runtime.chromiumInstalled && s.workerReady !== false && (
-        <BannerRow tone="warn" label={s.bootstrapping ? "Скачиваю…" : "Докачать Chromium"} text="Нужно докачать Chromium: браузер для выгрузки скачивается один раз (~150 МБ)." busy={s.bootstrapping} onClick={s.installChromium} />
+        <BannerRow tone="warn" label={s.bootstrapping ? t("Скачиваю…") : t("Докачать Chromium")} text={t("Нужно докачать Chromium: браузер для выгрузки скачивается один раз (~150 МБ).")} busy={s.bootstrapping} onClick={s.installChromium} />
       )}
       {s.runtime?.chromiumInstalled && s.session === "login_required" && s.workerReady && (
-        <BannerRow tone="warn" label="Войти в Instagram" text="Сессия Instagram не найдена. Откройте браузер и войдите — приложение само найдёт сессию." onClick={s.login} />
+        <BannerRow tone="warn" label={t("Войти в Instagram")} text={t("Сессия Instagram не найдена. Откройте браузер и войдите — приложение само найдёт сессию.")} onClick={s.login} />
       )}
-      {s.session === "waiting_login" && <BannerRow tone="warn" text="Ожидаю вход в Instagram в отдельном окне браузера…" />}
+      {s.session === "waiting_login" && <BannerRow tone="warn" text={t("Ожидаю вход в Instagram в отдельном окне браузера…")} />}
       {s.session === "error" && s.runtime?.chromiumInstalled && (
-        <BannerRow tone="err" label="Проверить снова" text={`Не удалось проверить сессию Instagram: ${s.sessionSummary}`} busy={!!s.busy} onClick={() => void s.checkSession()} plain />
+        <BannerRow tone="err" label={t("Проверить снова")} text={t("Не удалось проверить сессию Instagram: {0}", [s.sessionSummary])} busy={!!s.busy} onClick={() => void s.checkSession()} plain />
       )}
       {s.workerReady === false && <BannerRow tone="err" text={s.workerSummary} />}
       {s.notice && <BannerRow tone={s.notice.tone} text={s.notice.text} onClose={() => s.setNotice(null)} />}

@@ -24,7 +24,7 @@ export function createDemoApi(): Api {
     preventSleep: true, recentLists: [], lastUpdateCheckAt: "", runtimePromptShown: false,
     emptyFolderCleanupDirectory: "", sortingSourceDirectory: "D:\\На перенос", sortingDestinationDirectory: "D:\\WhiteList INF Исходники",
     sortingRules: params.get("rules") === "1" ? "anna = Germany (DE) 🇩🇪 INF\nbob = Australia (AU) 🇦🇺 INF" : "",
-    rememberedBloggers: [], unikOutputDirectory: "", unikOptions: "", notionInfluencerEnabled: params.get("notion") === "1", notionRoutingRulesEnabled: false,
+    rememberedBloggers: [], unikOutputDirectory: "", unikOptions: "", unikPresets: "", notionInfluencerEnabled: params.get("notion") === "1", notionRoutingRulesEnabled: false,
     notionInfluencerLastRefreshAt: "", notionInfluencerCachedProfiles: [], notionRoutingRulesLastRefreshAt: "", notionRoutingRulesCachedRules: "",
   };
   let loggedIn = params.get("session") !== "none";
@@ -33,7 +33,7 @@ export function createDemoApi(): Api {
   let bootstrapListeners: Array<(l: string) => void> = [];
   let cancelled = false;
   const log = (l: string) => logListeners.forEach((cb) => cb(l));
-  const info: AppInfo = { version: "0.6.92", appSupport: "C:\\Users\\you\\AppData\\Local\\SaveMe", defaultDownloads: settings.saveDirectory, runtimeEmbedded: true, autoUpdate: true, nativeGlass: params.get("glass") === "native" };
+  const info: AppInfo = { version: "0.6.93", appSupport: "C:\\Users\\you\\AppData\\Local\\SaveMe", defaultDownloads: settings.saveDirectory, runtimeEmbedded: true, autoUpdate: true, nativeGlass: params.get("glass") === "native" };
 
   const record = (blogger: string, rules: string, file: string, from: string): SortedFileRecord => {
     const rule = rules.split("\n").map((l) => l.split("=").map((x) => x.trim())).find(([u]) => u?.toLowerCase() === blogger.toLowerCase());
@@ -94,6 +94,8 @@ export function createDemoApi(): Api {
     info: async () => info,
     appReady: async () => {},
     setWindowTheme: async () => {},
+    notify: async () => false,
+    setTrayStatus: async () => {},
     getSettings: async () => structuredClone(settings),
     saveSettings: async (s) => { settings = structuredClone(s); },
     loadQueue: async () => (params.get("queue") === "restore"

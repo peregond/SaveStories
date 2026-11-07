@@ -16,11 +16,13 @@ final class UnikalizatorModel: ObservableObject {
 
     private static let optionsKey = "SaveStories.unikalizator.options"
     private static let outputDirectoryKey = "SaveStories.unikalizator.outputDirectory"
+    private static let presetsKey = "SaveStories.unikalizator.presets"
 
     @Published private(set) var catalog: UnikCatalog?
     @Published private(set) var ffmpeg: FFmpegPhase = .unknown
     @Published private(set) var installPercent = 0
     @Published private(set) var installMessage = ""
+    @Published private(set) var presets: [UnikPreset] = []
     @Published private(set) var files: [UnikFile] = []
     @Published private(set) var jobs: [UnikJob] = []
     @Published private(set) var summary = ""
@@ -44,6 +46,7 @@ final class UnikalizatorModel: ObservableObject {
     private let worker: WorkerClient
     private let isPreview: Bool
     private var sleepActivity: NSObjectProtocol?
+    private var previewSamplesLoaded = false
 
     init(worker: WorkerClient = WorkerClient(), isPreview: Bool = false) {
         self.worker = worker
@@ -53,6 +56,7 @@ final class UnikalizatorModel: ObservableObject {
         if let path = UserDefaults.standard.string(forKey: Self.outputDirectoryKey), !path.isEmpty {
             outputDirectory = URL(fileURLWithPath: path, isDirectory: true)
         }
+        presets = UnikalizatorLogic.decodePresets(UserDefaults.standard.data(forKey: Self.presetsKey))
         if let data = UserDefaults.standard.data(forKey: Self.optionsKey),
            let saved = try? JSONDecoder().decode(UnikOptions.self, from: data)
         {
@@ -74,6 +78,30 @@ final class UnikalizatorModel: ObservableObject {
         return total / jobs.count
     }
 
+    /// Только для снимков экрана в режиме предпросмотра: вымышленные файлы и ход обработки.
+    func loadPreviewSamples() {
+        guard isPreview else { return }
+        previewSamplesLoaded = true
+        ffmpeg = .ready(version: "7.1")
+        files = [
+            UnikFile(path: "/Users/preview/Movies/story-01.mp4", info: "1080×1920 · 0:12"),
+            UnikFile(path: "/Users/preview/Movies/story-02.mp4", info: "720×1280 · 0:08"),
+            UnikFile(path: "/Users/preview/Pictures/banner.png", info: "1500×1500"),
+        ]
+        options.variations.count = 2
+        options.ageMark = UnikOptions.AgeMark(enabled: true, geoId: "de-germany", position: "bottom")
+        jobs = [
+            UnikJob(index: 1, label: "story-01 · v1", percent: 100, status: .done, outputPath: "/Users/preview/Downloads/SaveMe/Уникализатор/DE_meta_9x16_v1.mp4"),
+            UnikJob(index: 2, label: "story-01 · v2", percent: 100, status: .done, outputPath: "/Users/preview/Downloads/SaveMe/Уникализатор/DE_meta_9x16_v2.mp4"),
+            UnikJob(index: 3, label: "story-02 · v1", percent: 62, status: .running),
+            UnikJob(index: 4, label: "story-02 · v2", status: .queued),
+            UnikJob(index: 5, label: "banner · v1", status: .queued),
+            UnikJob(index: 6, label: "banner · v2", status: .queued),
+        ]
+        summary = "Готово 2 из 6"
+        presets = [UnikPreset(name: "Reels DE 18+", options: options), UnikPreset(name: "Квадрат без плашки", options: UnikOptions())]
+    }
+
     // MARK: FFmpeg
 
     func refresh() async {
@@ -85,7 +113,7 @@ final class UnikalizatorModel: ObservableObject {
         if let json = response.data["catalog"], let data = json.data(using: .utf8) {
             catalog = try? JSONDecoder().decode(UnikCatalog.self, from: data)
         }
-        guard !isInstalling else { return }
+        guard !isInstalling, !previewSamplesLoaded else { return }
         ffmpeg = response.data["ffmpegInstalled"] == "true" ? .ready(version: response.data["ffmpegVersion"] ?? "") : .missing
     }
 
@@ -151,6 +179,24 @@ final class UnikalizatorModel: ObservableObject {
 
     func removeFile(_ file: UnikFile) { files.removeAll { $0.path == file.path } }
     func clearFiles() { files.removeAll() }
+
+    // MARK: Свои пресеты
+
+    func savePreset(named name: String) { setPresets(UnikalizatorLogic.upsertingPreset(presets, name: name, options: options)) }
+    func deletePreset(named name: String) { setPresets(UnikalizatorLogic.removingPreset(presets, name: name)) }
+
+    func applyPreset(named name: String) {
+        if let preset = presets.first(where: { $0.name.compare(name, options: .caseInsensitive) == .orderedSame }) {
+            options = preset.options
+        }
+    }
+
+    private func setPresets(_ list: [UnikPreset]) {
+        guard list != presets else { return }
+        presets = list
+        guard !isPreview, let data = try? JSONEncoder().encode(list) else { return }
+        UserDefaults.standard.set(data, forKey: Self.presetsKey)
+    }
 
     private func inspect(_ paths: [String]) async {
         var request = WorkerRequest(command: "unik_inspect", url: nil, urls: nil, outputDirectory: nil, headless: nil, mediaFilter: nil)

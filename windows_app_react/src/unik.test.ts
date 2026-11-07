@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyUnikLine, defaultOptions, describeInspection, isMedia, loadOptions, optionProblems, parseUnikLine, plannedOutputs, previewName, sizeToken, toWorkerOptions } from "./unik";
+import { MAX_PRESETS, applyUnikLine, defaultOptions, describeInspection, isMedia, loadOptions, loadPresets, optionProblems, parseUnikLine, plannedOutputs, previewName, removePreset, sizeToken, toWorkerOptions, upsertPreset } from "./unik";
 
 describe("настройки", () => {
   it("читаются поверх значений по умолчанию, лишнее и испорченное отбрасывается", () => {
@@ -82,5 +82,57 @@ describe("строки прогресса воркера", () => {
   it("описание проверенного файла", () => {
     expect(describeInspection({ ok: true, filePath: "a", kind: "video", width: 720, height: 1280, durationSeconds: 75, hasAudio: false })).toBe("720×1280 · 1:15 · без звука");
     expect(describeInspection({ ok: false, filePath: "a", message: "битый" })).toBe("битый");
+  });
+});
+
+describe("свои пресеты", () => {
+  const base = defaultOptions("2026-01-01");
+
+  it("сохраняет, заменяет одноимённый без учёта регистра и убирает лишние пробелы", () => {
+    let list = upsertPreset([], "  Reels   DE  ", { ...base, fps: 60 });
+    expect(list.map((p) => p.name)).toEqual(["Reels DE"]);
+    list = upsertPreset(list, "reels de", { ...base, fps: 25 });
+    expect(list).toHaveLength(1);
+    expect(list[0].name).toBe("reels de");
+    expect(list[0].options.fps).toBe(25);
+    expect(upsertPreset(list, "   ", base)).toBe(list);
+  });
+
+  it("копирует настройки: дальнейшие правки не меняют сохранённое", () => {
+    const options = defaultOptions("2026-01-01");
+    const list = upsertPreset([], "A", options);
+    options.fps = 24;
+    expect(list[0].options.fps).toBe(30);
+  });
+
+  it("удаляет по имени и ограничивает число наборов", () => {
+    let list = upsertPreset(upsertPreset([], "A", base), "B", base);
+    expect(removePreset(list, "a").map((p) => p.name)).toEqual(["B"]);
+    list = [];
+    for (let i = 0; i < MAX_PRESETS + 5; i += 1) list = upsertPreset(list, `P${i}`, base);
+    expect(list).toHaveLength(MAX_PRESETS);
+  });
+
+  it("читает сохранённый JSON и отбрасывает мусор, включая «как есть» для FPS", () => {
+    const saved = JSON.stringify([
+      { name: "Good", options: { fps: null, bitrate: "4M" } },
+      { name: "good", options: {} },
+      { name: "", options: {} },
+      { options: {} },
+      "строка",
+    ]);
+    const list = loadPresets(saved, "2026-01-01");
+    expect(list.map((p) => p.name)).toEqual(["Good"]);
+    expect(list[0].options.fps).toBeNull();
+    expect(list[0].options.bitrate).toBe("4M");
+    expect(loadPresets("не json")).toEqual([]);
+    expect(loadPresets("{}")).toEqual([]);
+    expect(loadPresets("")).toEqual([]);
+  });
+
+  it("круг «сохранить → записать в настройки → прочитать» возвращает те же настройки", () => {
+    const options = { ...base, ageMark: { enabled: true, geoId: "de-germany", position: "top" as const }, variations: { count: 3, styleIds: ["soft", "bright", "calm"], mode: "all-variations" as const } };
+    const json = JSON.stringify(upsertPreset([], "DE 18+", options));
+    expect(loadPresets(json, "2026-01-01")[0].options).toEqual(options);
   });
 });

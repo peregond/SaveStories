@@ -6,6 +6,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 
+import { t } from "./i18n";
 export type Theme = "system" | "light" | "dark";
 export type DownloadMode = "background" | "visible";
 export type MediaFilter = "all" | "video_only";
@@ -36,6 +37,8 @@ export interface Settings {
   unikOutputDirectory: string;
   /** Настройки «Уникализатора» (JSON): разбирает сам раздел. */
   unikOptions: string;
+  /** Свои пресеты «Уникализатора» (JSON-список). */
+  unikPresets: string;
 }
 
 export interface SortedFileRecord {
@@ -103,6 +106,10 @@ export interface Api {
   /** Сообщает, что интерфейс отрисован: окно создаётся скрытым и показывается тут (без белой вспышки). */
   appReady(): Promise<void>;
   setWindowTheme(theme: "light" | "dark" | "system"): Promise<void>;
+  /** Системное уведомление; показывается, только если окно свёрнуто или не в фокусе. Возвращает, показано ли. */
+  notify(title: string, body: string): Promise<boolean>;
+  /** Подсказка у значка в трее. */
+  setTrayStatus(text: string): Promise<void>;
   getSettings(): Promise<Settings>;
   saveSettings(settings: Settings): Promise<void>;
   loadQueue(): Promise<StoredEntry[]>;
@@ -156,13 +163,15 @@ export async function copyToClipboard(text: string): Promise<void> {
   area.select();
   const ok = document.execCommand("copy");
   area.remove();
-  if (!ok) throw new Error("Не удалось скопировать в буфер обмена.");
+  if (!ok) throw new Error(t("Не удалось скопировать в буфер обмена."));
 }
 
 const tauriApi: Api = {
   info: () => invoke("app_info"),
   appReady: () => invoke("app_ready"),
   setWindowTheme: (theme) => invoke("window_set_theme", { theme }),
+  notify: (title, body) => invoke("notify", { title, body }),
+  setTrayStatus: (text) => invoke("set_tray_status", { text }),
   getSettings: () => invoke("settings_get"),
   saveSettings: (settings) => invoke("settings_save", { settings }),
   loadQueue: () => invoke("queue_load"),
@@ -172,11 +181,11 @@ const tauriApi: Api = {
   login: (request) => invoke("worker_login", { request }),
   onLog: (cb) => listen<string>("worker-log", (e) => cb(e.payload)),
   pickDirectory: async (current, title) => {
-    const picked = await open({ directory: true, multiple: false, defaultPath: current || undefined, title: title ?? "Выбор папки" });
+    const picked = await open({ directory: true, multiple: false, defaultPath: current || undefined, title: title ?? t("Выбор папки") });
     return typeof picked === "string" ? picked : null;
   },
   pickFiles: async (title, extensions, multiple) => {
-    const picked = await open({ directory: false, multiple, title, filters: [{ name: "Файлы", extensions }] });
+    const picked = await open({ directory: false, multiple, title, filters: [{ name: t("Файлы"), extensions }] });
     return Array.isArray(picked) ? picked : typeof picked === "string" ? [picked] : [];
   },
   onFilesDropped: (cb) => getCurrentWebview().onDragDropEvent((e) => { if (e.payload.type === "drop") cb(e.payload.paths); }),

@@ -291,3 +291,7 @@ input[type="range"] { width: 100%; accent-color: var(--go); margin: 6px 0 2px; }
 .dropzone svg { flex: none; width: 26px; height: 26px; color: var(--accent); }
 .problems { margin: 8px 0 0; padding-left: 18px; color: var(--warn); font-size: 12.5px; }
 .stack.sticky { position: sticky; top: 0; }
+
+/* Свои пресеты Уникализатора: выбор/поле имени и кнопки в одну строку */
+.row-actions { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.row-actions > .ctl { flex: 1 1 auto; min-width: 0; }

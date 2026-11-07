@@ -3,6 +3,7 @@
 import type { StoredEntry } from "./api";
 import type { Entry } from "./store";
 
+import { t } from "./i18n";
 export interface Restored {
   entries: Entry[];
   /** Профили, которые были «в работе» или остановлены, когда приложение закрылось: после запуска снова ждут выгрузки. */
@@ -16,10 +17,10 @@ export function restoreEntries(stored: StoredEntry[]): Restored {
   const entries = stored.map((s): Entry => {
     if (s.status === "running" || s.status === "stopped") {
       interrupted += 1;
-      return { url: s.url, status: "pending", message: "Прервано: приложение было закрыто. Ждёт выгрузки." };
+      return { url: s.url, status: "pending", message: t("Прервано: приложение было закрыто. Ждёт выгрузки.") };
     }
     const status = s.status === "completed" || s.status === "failed" || s.status === "pending" ? s.status : "pending";
-    return { url: s.url, status, message: s.message || (status === "pending" ? "Ожидает запуска." : "") };
+    return { url: s.url, status, message: s.message || (status === "pending" ? t("Ожидает запуска.") : "") };
   });
   const toRun = entries.filter((e) => e.status === "pending" || e.status === "failed").length;
   return { entries, interrupted, toRun };
@@ -27,7 +28,7 @@ export function restoreEntries(stored: StoredEntry[]): Restored {
 
 export function restoreNotice(r: Restored): string | null {
   if (r.toRun === 0) return null;
-  const word = r.entries.length === 1 ? "профиль" : "профилей";
-  const tail = r.interrupted > 0 ? ` Прерванных выгрузкой: ${r.interrupted}.` : "";
-  return `Восстановлена очередь: ${r.entries.length} ${word}, к выгрузке ${r.toRun}.${tail} Нажмите «Скачать», чтобы продолжить.`;
+  const word = r.entries.length === 1 ? t("профиль") : t("профилей");
+  const tail = r.interrupted > 0 ? t(" Прерванных выгрузкой: {0}.", [r.interrupted]) : "";
+  return t("Восстановлена очередь: {0} {1}, к выгрузке {2}.{3} Нажмите «Скачать», чтобы продолжить.", [r.entries.length, word, r.toRun, tail]);
 }

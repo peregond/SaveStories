@@ -37,6 +37,8 @@ pub struct Settings {
     pub unik_output_directory: String,
     /// Настройки раздела целиком (JSON): интерфейс сам хранит и разбирает их.
     pub unik_options: String,
+    /// Свои пресеты раздела (JSON-список).
+    pub unik_presets: String,
 }
 
 impl Default for Settings {
@@ -64,6 +66,7 @@ impl Default for Settings {
             notion_routing_rules_cached_rules: String::new(),
             unik_output_directory: String::new(),
             unik_options: String::new(),
+            unik_presets: String::new(),
         }
     }
 }
