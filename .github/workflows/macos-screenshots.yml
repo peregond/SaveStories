@@ -47,8 +47,17 @@ jobs:
           ./.build/debug/SaveMe --design-preview --preview-samples --preview-size=980x1500 \
             --preview-section=unikalizator --preview-appearance=light \
             --preview-screenshot="$PWD/shots/unikalizator-narrow-light.png"
+          # английский интерфейс
+          for section in main unikalizator settings; do
+            args=""
+            size="1500x1100"
+            if [ "$section" = "unikalizator" ]; then args="--preview-samples"; size="1500x2300"; fi
+            ./.build/debug/SaveMe --design-preview $args --preview-language=en --preview-size=$size \
+              --preview-section=$section --preview-appearance=light \
+              --preview-screenshot="$PWD/shots/en-$section-light.png"
+          done
           ls -l shots
-          test "$(ls shots/*.png | wc -l)" -ge 11
+          test "$(ls shots/*.png | wc -l)" -ge 14
 
       - name: Build the .app bundle and smoke-test it
         run: |

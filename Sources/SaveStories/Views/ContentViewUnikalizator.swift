@@ -42,9 +42,9 @@ extension ContentView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     detailHero(
-                        eyebrow: "Уникализатор",
-                        title: "Обработка видео и картинок",
-                        subtitle: "Готовые форматы, вариации со стилями, плашка 18+, заставка и слой поверх. Всё считается на этом компьютере."
+                        eyebrow: L("Уникализатор"),
+                        title: L("Обработка видео и картинок"),
+                        subtitle: L("Готовые форматы, вариации со стилями, плашка 18+, заставка и слой поверх. Всё считается на этом компьютере.")
                     )
                     unikFFmpegBanner
                     if compact {
@@ -77,26 +77,26 @@ extension ContentView {
     private var unikFFmpegBanner: some View {
         switch unik.ffmpeg {
         case .missing:
-            card("FFmpeg не установлен") {
+            card(L("FFmpeg не установлен")) {
                 VStack(alignment: .leading, spacing: 10) {
-                    unikHint("Для обработки нужен FFmpeg. Он скачивается один раз и хранится в папке приложения.")
-                    button("Установить FFmpeg", systemImage: "arrow.down.circle", prominent: true, allowWhileBusy: true) {
+                    unikHint(L("Для обработки нужен FFmpeg. Он скачивается один раз и хранится в папке приложения."))
+                    button(L("Установить FFmpeg"), systemImage: "arrow.down.circle", prominent: true, allowWhileBusy: true) {
                         Task { await model.unikalizator.installFFmpeg() }
                     }
                 }
             }
         case .installing:
-            card("Устанавливаю FFmpeg…") {
+            card(L("Устанавливаю FFmpeg…")) {
                 VStack(alignment: .leading, spacing: 8) {
                     ProgressView(value: Double(unik.installPercent), total: 100)
                     unikHint(unik.installMessage)
                 }
             }
         case .failed(let message):
-            card("FFmpeg не готов") {
+            card(L("FFmpeg не готов")) {
                 VStack(alignment: .leading, spacing: 10) {
                     unikHint(message)
-                    button("Повторить", systemImage: "arrow.clockwise", allowWhileBusy: true) {
+                    button(L("Повторить"), systemImage: "arrow.clockwise", allowWhileBusy: true) {
                         Task { await model.unikalizator.installFFmpeg() }
                     }
                 }
@@ -109,12 +109,12 @@ extension ContentView {
     // MARK: Запуск и ход обработки
 
     private var unikRunCard: some View {
-        card("Запуск") {
+        card(L("Запуск")) {
             VStack(alignment: .leading, spacing: 12) {
                 if unik.files.isEmpty {
-                    unikHint("Добавьте файлы, чтобы начать.")
+                    unikHint(L("Добавьте файлы, чтобы начать."))
                 } else {
-                    Text("Файлов: \(unik.files.count) · будет создано: \(unik.plannedOutputs)")
+                    Text(L("Файлов: {0} · будет создано: {1}", unik.files.count, unik.plannedOutputs))
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(primaryText)
                 }
@@ -127,7 +127,7 @@ extension ContentView {
                 }
                 HStack(spacing: 10) {
                     button(
-                        "Создать" + (unik.plannedOutputs > 0 ? " · \(unik.plannedOutputs)" : ""),
+                        L("Создать") + (unik.plannedOutputs > 0 ? " · \(unik.plannedOutputs)" : ""),
                         systemImage: "wand.and.stars",
                         prominent: true,
                         allowWhileBusy: true
@@ -137,17 +137,17 @@ extension ContentView {
                     .disabled(!unik.isFFmpegReady || !unik.problems.isEmpty || unik.isRunning || unik.isInstalling)
 
                     if unik.isRunning {
-                        button("Стоп", systemImage: "stop.fill", tint: .red, allowWhileBusy: true) {
+                        button(L("Стоп"), systemImage: "stop.fill", tint: .red, allowWhileBusy: true) {
                             model.unikalizator.stop()
                         }
                     }
                 }
-                unikLabel("Папка для результатов")
-                unikPath(unik.outputDirectory.path, placeholder: "Папка не выбрана")
+                unikLabel(L("Папка для результатов"))
+                unikPath(unik.outputDirectory.path, placeholder: L("Папка не выбрана"))
                 HStack(spacing: 10) {
-                    button("Выбрать…", systemImage: "folder", allowWhileBusy: true) { model.unikalizator.chooseOutputDirectory() }
+                    button(L("Выбрать…"), systemImage: "folder", allowWhileBusy: true) { model.unikalizator.chooseOutputDirectory() }
                         .disabled(unik.isRunning)
-                    button("Показать", systemImage: "arrow.up.forward.app", allowWhileBusy: true) { model.unikalizator.revealOutput() }
+                    button(L("Показать"), systemImage: "arrow.up.forward.app", allowWhileBusy: true) { model.unikalizator.revealOutput() }
                 }
                 if case .ready(let version) = unik.ffmpeg, !version.isEmpty {
                     unikHint("FFmpeg \(version)")
@@ -160,16 +160,16 @@ extension ContentView {
     }
 
     private var unikProgressCard: some View {
-        card("Ход обработки") {
+        card(L("Ход обработки")) {
             VStack(alignment: .leading, spacing: 10) {
                 if unik.jobs.isEmpty {
-                    unikHint(unik.summary.isEmpty ? "Результаты появятся здесь." : unik.summary)
+                    unikHint(unik.summary.isEmpty ? L("Результаты появятся здесь.") : unik.summary)
                 } else {
                     ProgressView(value: Double(unik.overallPercent), total: 100)
-                    unikHint("Готово \(unik.doneCount) из \(unik.jobs.count)")
+                    unikHint(L("Готово {0} из {1}", unik.doneCount, unik.jobs.count))
                     ForEach(unik.jobs) { job in
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(job.outputPath.isEmpty ? (job.label.isEmpty ? "Файл \(job.index + 1)" : job.label) : URL(fileURLWithPath: job.outputPath).lastPathComponent)
+                            Text(job.outputPath.isEmpty ? (job.label.isEmpty ? L("Файл {0}", job.index + 1) : job.label) : URL(fileURLWithPath: job.outputPath).lastPathComponent)
                                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                                 .foregroundStyle(primaryText)
                                 .lineLimit(1)
@@ -189,10 +189,10 @@ extension ContentView {
 
     private func unikJobStatus(_ job: UnikJob) -> String {
         switch job.status {
-        case .queued: "В очереди"
-        case .running: "Обработка… \(job.percent)%"
-        case .done: "Готово"
-        case .error: job.message.isEmpty ? "Ошибка" : job.message
+        case .queued: L("В очереди")
+        case .running: L("Обработка… {0}%", job.percent)
+        case .done: L("Готово")
+        case .error: job.message.isEmpty ? L("Ошибка") : job.message
         }
     }
 
@@ -210,23 +210,23 @@ extension ContentView {
     }
 
     private var unikPresetsCard: some View {
-        card("Мои пресеты") {
+        card(L("Мои пресеты")) {
             UnikPresetsEditor(unik: unik, secondaryText: secondaryText)
         }
     }
 
     private var unikFilesCard: some View {
-        card("Файлы") {
+        card(L("Файлы")) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
-                    button("Добавить файлы…", systemImage: "plus", prominent: true, allowWhileBusy: true) { model.unikalizator.chooseFiles() }
+                    button(L("Добавить файлы…"), systemImage: "plus", prominent: true, allowWhileBusy: true) { model.unikalizator.chooseFiles() }
                         .disabled(unik.isRunning)
                     if !unik.files.isEmpty {
-                        button("Очистить", systemImage: "trash", allowWhileBusy: true) { model.unikalizator.clearFiles() }
+                        button(L("Очистить"), systemImage: "trash", allowWhileBusy: true) { model.unikalizator.clearFiles() }
                             .disabled(unik.isRunning)
                     }
                 }
-                unikHint("Или перетащите видео и картинки в это окно: \(UnikalizatorLogic.mediaExtensions.joined(separator: ", ")).")
+                unikHint(L("Или перетащите видео и картинки в это окно: {0}.", UnikalizatorLogic.mediaExtensions.joined(separator: ", ")))
                 ForEach(unik.files) { file in
                     HStack(spacing: 10) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -235,7 +235,7 @@ extension ContentView {
                                 .foregroundStyle(primaryText)
                                 .lineLimit(1)
                                 .truncationMode(.middle)
-                            Text(file.info.isEmpty ? (file.isImage ? "картинка" : "видео") : file.info)
+                            Text(file.info.isEmpty ? (file.isImage ? L("картинка") : L("видео")) : file.info)
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(secondaryText)
                         }
@@ -248,7 +248,7 @@ extension ContentView {
                         .buttonStyle(.plain)
                         .foregroundStyle(secondaryText)
                         .disabled(unik.isRunning)
-                        .help("Убрать \(file.name)")
+                        .help(L("Убрать {0}", file.name))
                     }
                 }
             }
@@ -272,37 +272,37 @@ extension ContentView {
     }
 
     private var unikFormatCard: some View {
-        card("Формат и экспорт") {
+        card(L("Формат и экспорт")) {
             VStack(alignment: .leading, spacing: 12) {
-                unikLabel("Готовый формат")
-                Picker("Готовый формат", selection: unikFormatPresetBinding) {
+                unikLabel(L("Готовый формат"))
+                Picker(L("Готовый формат"), selection: unikFormatPresetBinding) {
                     ForEach(unik.catalog?.formatPresets ?? []) { preset in
                         Text(preset.name).tag(preset.id)
                     }
-                    Text("Свой размер").tag("custom")
+                    Text(L("Свой размер")).tag("custom")
                 }
                 .labelsHidden()
                 if unik.options.formatPresetId == "custom" {
                     HStack(spacing: 10) {
-                        TextField("Ширина", value: unikOption(\.resize.width), format: .number.grouping(.never))
+                        TextField(L("Ширина"), value: unikOption(\.resize.width), format: .number.grouping(.never))
                             .textFieldStyle(.roundedBorder)
-                        TextField("Высота", value: unikOption(\.resize.height), format: .number.grouping(.never))
+                        TextField(L("Высота"), value: unikOption(\.resize.height), format: .number.grouping(.never))
                             .textFieldStyle(.roundedBorder)
                     }
                 }
-                unikLabel("Вписывание в кадр")
-                Picker("Вписывание", selection: unikOption(\.resize.fit)) {
-                    Text("Заполнить (обрезка)").tag("cover")
-                    Text("Целиком (с полями)").tag("contain")
+                unikLabel(L("Вписывание в кадр"))
+                Picker(L("Вписывание"), selection: unikOption(\.resize.fit)) {
+                    Text(L("Заполнить (обрезка)")).tag("cover")
+                    Text(L("Целиком (с полями)")).tag("contain")
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 if unik.options.resize.fit == "contain" {
-                    unikLabel("Фон по краям")
-                    Picker("Фон", selection: unikOption(\.resize.backgroundStyle)) {
-                        Text("Чёрные поля").tag("bars")
-                        Text("Размытие").tag("blur")
-                        Text("Цвет").tag("solid")
+                    unikLabel(L("Фон по краям"))
+                    Picker(L("Фон"), selection: unikOption(\.resize.backgroundStyle)) {
+                        Text(L("Чёрные поля")).tag("bars")
+                        Text(L("Размытие")).tag("blur")
+                        Text(L("Цвет")).tag("solid")
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
@@ -311,33 +311,33 @@ extension ContentView {
                             .textFieldStyle(.roundedBorder)
                     }
                 }
-                unikLabel("Частота кадров")
+                unikLabel(L("Частота кадров"))
                 Picker("FPS", selection: unikOption(\.fps)) {
-                    Text("Как есть").tag(0)
+                    Text(L("Как есть")).tag(0)
                     ForEach(unik.catalog?.fpsOptions ?? [25, 30, 50, 60], id: \.self) { fps in
                         Text("\(fps)").tag(fps)
                     }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                unikLabel("Качество видео")
-                Picker("Качество", selection: unikOption(\.bitrate)) {
+                unikLabel(L("Качество видео"))
+                Picker(L("Качество"), selection: unikOption(\.bitrate)) {
                     ForEach(unik.catalog?.bitrateOptions ?? []) { option in
                         Text(option.label).tag(option.value)
                     }
                 }
                 .labelsHidden()
-                Toggle("Выровнять громкость", isOn: unikOption(\.audio.normalize))
-                unikLabel("Метаданные")
-                Picker("Метаданные", selection: unikOption(\.metadata.mode)) {
-                    Text("Удалить").tag("strip")
-                    Text("Дата экспорта").tag("export-date")
-                    Text("Своя дата").tag("custom-date")
+                Toggle(L("Выровнять громкость"), isOn: unikOption(\.audio.normalize))
+                unikLabel(L("Метаданные"))
+                Picker(L("Метаданные"), selection: unikOption(\.metadata.mode)) {
+                    Text(L("Удалить")).tag("strip")
+                    Text(L("Дата экспорта")).tag("export-date")
+                    Text(L("Своя дата")).tag("custom-date")
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 if unik.options.metadata.mode == "custom-date" {
-                    TextField("ГГГГ-ММ-ДД", text: unikOption(\.metadata.customDate))
+                    TextField(L("ГГГГ-ММ-ДД"), text: unikOption(\.metadata.customDate))
                         .textFieldStyle(.roundedBorder)
                 }
             }
@@ -346,10 +346,10 @@ extension ContentView {
     }
 
     private var unikVariationsCard: some View {
-        card("Вариации и стиль") {
+        card(L("Вариации и стиль")) {
             VStack(alignment: .leading, spacing: 12) {
-                unikLabel("Сколько вариаций из каждого файла")
-                Picker("Вариации", selection: Binding(
+                unikLabel(L("Сколько вариаций из каждого файла"))
+                Picker(L("Вариации"), selection: Binding(
                     get: { model.unikalizator.options.variations.count },
                     set: { model.unikalizator.setVariationCount($0) }
                 )) {
@@ -360,16 +360,16 @@ extension ContentView {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 if unik.files.count > 1, unik.options.variations.count > 1 {
-                    unikLabel("Как применить стили к нескольким файлам")
-                    Picker("Режим", selection: unikOption(\.variations.mode)) {
-                        Text("Все вариации для каждого файла").tag("all-variations")
-                        Text("По одному стилю на файл").tag("preset-per-file")
+                    unikLabel(L("Как применить стили к нескольким файлам"))
+                    Picker(L("Режим"), selection: unikOption(\.variations.mode)) {
+                        Text(L("Все вариации для каждого файла")).tag("all-variations")
+                        Text(L("По одному стилю на файл")).tag("preset-per-file")
                     }
                     .labelsHidden()
                 }
                 ForEach(0 ..< unik.options.variations.styleIds.count, id: \.self) { slot in
-                    unikLabel(unik.options.variations.count > 1 ? "Стиль вариации \(slot + 1)" : "Стиль")
-                    Picker("Стиль", selection: Binding(
+                    unikLabel(unik.options.variations.count > 1 ? L("Стиль вариации {0}", slot + 1) : L("Стиль"))
+                    Picker(L("Стиль"), selection: Binding(
                         get: { model.unikalizator.options.variations.styleIds[safe: slot] ?? "clean" },
                         set: { model.unikalizator.setStyle(slot: slot, id: $0) }
                     )) {
@@ -380,12 +380,12 @@ extension ContentView {
                     .labelsHidden()
                 }
                 if unik.options.variations.count == 1 {
-                    Toggle("Настроить вручную", isOn: unikOption(\.manual.enabled))
+                    Toggle(L("Настроить вручную"), isOn: unikOption(\.manual.enabled))
                     if unik.options.manual.enabled {
-                        unikSlider("Оттенок", value: unikOption(\.manual.hueShift), range: -180 ... 180, step: 1, format: "%.0f°")
-                        unikSlider("Насыщенность", value: unikOption(\.manual.saturation), range: 0 ... 3, step: 0.05, format: "%.2f")
-                        unikSlider("Резкость", value: unikOption(\.manual.sharpness), range: 0 ... 2, step: 0.05, format: "%.2f")
-                        unikSlider("Длительность, мс", value: unikOption(\.manual.speedOffsetMs), range: -2000 ... 3000, step: 50, format: "%+.0f")
+                        unikSlider(L("Оттенок"), value: unikOption(\.manual.hueShift), range: -180 ... 180, step: 1, format: "%.0f°")
+                        unikSlider(L("Насыщенность"), value: unikOption(\.manual.saturation), range: 0 ... 3, step: 0.05, format: "%.2f")
+                        unikSlider(L("Резкость"), value: unikOption(\.manual.sharpness), range: 0 ... 2, step: 0.05, format: "%.2f")
+                        unikSlider(L("Длительность, мс"), value: unikOption(\.manual.speedOffsetMs), range: -2000 ... 3000, step: 50, format: "%+.0f")
                     }
                 }
             }
@@ -401,23 +401,23 @@ extension ContentView {
     }
 
     private var unikAgeMarkCard: some View {
-        card("Плашка 18+") {
+        card(L("Плашка 18+")) {
             VStack(alignment: .leading, spacing: 12) {
-                Toggle("Добавить плашку 18+", isOn: unikOption(\.ageMark.enabled))
-                unikHint("Готовые шаблоны по странам подбираются под соотношение сторон.")
+                Toggle(L("Добавить плашку 18+"), isOn: unikOption(\.ageMark.enabled))
+                unikHint(L("Готовые шаблоны по странам подбираются под соотношение сторон."))
                 if unik.options.ageMark.enabled {
-                    unikLabel("Страна")
-                    Picker("Страна", selection: unikOption(\.ageMark.geoId)) {
-                        Text("Выберите страну…").tag("")
+                    unikLabel(L("Страна"))
+                    Picker(L("Страна"), selection: unikOption(\.ageMark.geoId)) {
+                        Text(L("Выберите страну…")).tag("")
                         ForEach(unik.catalog?.ageMarkGeos ?? []) { geo in
                             Text(geo.name).tag(geo.id)
                         }
                     }
                     .labelsHidden()
-                    unikLabel("Расположение")
-                    Picker("Расположение", selection: unikOption(\.ageMark.position)) {
-                        Text("Сверху").tag("top")
-                        Text("Снизу").tag("bottom")
+                    unikLabel(L("Расположение"))
+                    Picker(L("Расположение"), selection: unikOption(\.ageMark.position)) {
+                        Text(L("Сверху")).tag("top")
+                        Text(L("Снизу")).tag("bottom")
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
@@ -428,58 +428,58 @@ extension ContentView {
     }
 
     private var unikExtrasCard: some View {
-        card("Дополнительно") {
+        card(L("Дополнительно")) {
             VStack(alignment: .leading, spacing: 12) {
-                Toggle("Заставка в начале", isOn: unikOption(\.intro.enabled))
+                Toggle(L("Заставка в начале"), isOn: unikOption(\.intro.enabled))
                 if unik.options.intro.enabled {
-                    Toggle("Случайная из набора", isOn: unikOption(\.intro.random))
+                    Toggle(L("Случайная из набора"), isOn: unikOption(\.intro.random))
                     if unik.options.intro.random {
-                        unikPath(unik.options.intro.library.isEmpty ? "" : "Набор: \(unik.options.intro.library.count) файл(ов)", placeholder: "Набор картинок не выбран")
-                        button("Выбрать набор…", systemImage: "photo.on.rectangle", allowWhileBusy: true) {
-                            let picked = model.unikalizator.chooseFiles(title: "Картинки для заставок", extensions: UnikalizatorLogic.imageExtensions, multiple: true)
+                        unikPath(unik.options.intro.library.isEmpty ? "" : L("Набор: {0} файл(ов)", unik.options.intro.library.count), placeholder: L("Набор картинок не выбран"))
+                        button(L("Выбрать набор…"), systemImage: "photo.on.rectangle", allowWhileBusy: true) {
+                            let picked = model.unikalizator.chooseFiles(title: L("Картинки для заставок"), extensions: UnikalizatorLogic.imageExtensions, multiple: true)
                             if !picked.isEmpty { model.unikalizator.options.intro.library = picked }
                         }
                     } else {
-                        unikPath(unik.options.intro.imagePath, placeholder: "Картинка не выбрана")
-                        button("Выбрать картинку…", systemImage: "photo", allowWhileBusy: true) {
-                            if let path = model.unikalizator.chooseFiles(title: "Картинка для заставки", extensions: UnikalizatorLogic.imageExtensions, multiple: false).first {
+                        unikPath(unik.options.intro.imagePath, placeholder: L("Картинка не выбрана"))
+                        button(L("Выбрать картинку…"), systemImage: "photo", allowWhileBusy: true) {
+                            if let path = model.unikalizator.chooseFiles(title: L("Картинка для заставки"), extensions: UnikalizatorLogic.imageExtensions, multiple: false).first {
                                 model.unikalizator.options.intro.imagePath = path
                             }
                         }
                     }
-                    unikSlider("Длительность заставки, мс", value: unikOption(\.intro.durationMs), range: 100 ... 3000, step: 50, format: "%.0f")
+                    unikSlider(L("Длительность заставки, мс"), value: unikOption(\.intro.durationMs), range: 100 ... 3000, step: 50, format: "%.0f")
                 }
                 Divider()
-                Toggle("Видео-слой поверх", isOn: unikOption(\.overlay.enabled))
+                Toggle(L("Видео-слой поверх"), isOn: unikOption(\.overlay.enabled))
                 if unik.options.overlay.enabled {
-                    Toggle("Случайный из набора", isOn: unikOption(\.overlay.random))
+                    Toggle(L("Случайный из набора"), isOn: unikOption(\.overlay.random))
                     if unik.options.overlay.random {
-                        unikPath(unik.options.overlay.library.isEmpty ? "" : "Набор: \(unik.options.overlay.library.count) файл(ов)", placeholder: "Набор видео не выбран")
-                        button("Выбрать набор…", systemImage: "film.stack", allowWhileBusy: true) {
-                            let picked = model.unikalizator.chooseFiles(title: "Видео для слоя поверх", extensions: UnikalizatorLogic.videoExtensions, multiple: true)
+                        unikPath(unik.options.overlay.library.isEmpty ? "" : L("Набор: {0} файл(ов)", unik.options.overlay.library.count), placeholder: L("Набор видео не выбран"))
+                        button(L("Выбрать набор…"), systemImage: "film.stack", allowWhileBusy: true) {
+                            let picked = model.unikalizator.chooseFiles(title: L("Видео для слоя поверх"), extensions: UnikalizatorLogic.videoExtensions, multiple: true)
                             if !picked.isEmpty { model.unikalizator.options.overlay.library = picked }
                         }
                     } else {
-                        unikPath(unik.options.overlay.videoPath, placeholder: "Видео не выбрано")
-                        button("Выбрать видео…", systemImage: "film", allowWhileBusy: true) {
-                            if let path = model.unikalizator.chooseFiles(title: "Видео для слоя поверх", extensions: UnikalizatorLogic.videoExtensions, multiple: false).first {
+                        unikPath(unik.options.overlay.videoPath, placeholder: L("Видео не выбрано"))
+                        button(L("Выбрать видео…"), systemImage: "film", allowWhileBusy: true) {
+                            if let path = model.unikalizator.chooseFiles(title: L("Видео для слоя поверх"), extensions: UnikalizatorLogic.videoExtensions, multiple: false).first {
                                 model.unikalizator.options.overlay.videoPath = path
                             }
                         }
                     }
-                    unikSlider("Прозрачность слоя", value: unikOption(\.overlay.opacity), range: 0.05 ... 1, step: 0.05, format: "%.2f")
+                    unikSlider(L("Прозрачность слоя"), value: unikOption(\.overlay.opacity), range: 0.05 ... 1, step: 0.05, format: "%.2f")
                 }
                 Divider()
-                unikLabel("Заменить звук")
-                unikPath(unik.options.audio.replacePath, placeholder: "Оставить звук из видео")
+                unikLabel(L("Заменить звук"))
+                unikPath(unik.options.audio.replacePath, placeholder: L("Оставить звук из видео"))
                 HStack(spacing: 10) {
-                    button("Выбрать звук…", systemImage: "music.note", allowWhileBusy: true) {
-                        if let path = model.unikalizator.chooseFiles(title: "Новая звуковая дорожка", extensions: UnikalizatorLogic.audioExtensions, multiple: false).first {
+                    button(L("Выбрать звук…"), systemImage: "music.note", allowWhileBusy: true) {
+                        if let path = model.unikalizator.chooseFiles(title: L("Новая звуковая дорожка"), extensions: UnikalizatorLogic.audioExtensions, multiple: false).first {
                             model.unikalizator.options.audio.replacePath = path
                         }
                     }
                     if !unik.options.audio.replacePath.isEmpty {
-                        button("Сбросить", systemImage: "xmark", allowWhileBusy: true) { model.unikalizator.options.audio.replacePath = "" }
+                        button(L("Сбросить"), systemImage: "xmark", allowWhileBusy: true) { model.unikalizator.options.audio.replacePath = "" }
                     }
                 }
             }
@@ -488,30 +488,30 @@ extension ContentView {
     }
 
     private var unikNamingCard: some View {
-        card("Название файла") {
+        card(L("Название файла")) {
             VStack(alignment: .leading, spacing: 12) {
-                Picker("Схема имени", selection: unikOption(\.naming.mode)) {
-                    Text("ГЕО + формат + версия").tag("structured")
-                    Text("Исходное + случайный хвост").tag("source-random")
+                Picker(L("Схема имени"), selection: unikOption(\.naming.mode)) {
+                    Text(L("ГЕО + формат + версия")).tag("structured")
+                    Text(L("Исходное + случайный хвост")).tag("source-random")
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 if unik.options.naming.mode == "structured" {
                     HStack(spacing: 10) {
-                        TextField("ГЕО (AU)", text: unikOption(\.naming.geo))
+                        TextField(L("ГЕО (AU)"), text: unikOption(\.naming.geo))
                             .textFieldStyle(.roundedBorder)
-                        TextField("Тип (instagram)", text: unikOption(\.naming.presetToken))
+                        TextField(L("Тип (instagram)"), text: unikOption(\.naming.presetToken))
                             .textFieldStyle(.roundedBorder)
-                        TextField("Версия (v1)", text: unikOption(\.naming.versionToken))
+                        TextField(L("Версия (v1)"), text: unikOption(\.naming.versionToken))
                             .textFieldStyle(.roundedBorder)
                     }
                 } else {
-                    TextField("Хвост (пусто — случайный)", text: unikOption(\.naming.randomTail))
+                    TextField(L("Хвост (пусто — случайный)"), text: unikOption(\.naming.randomTail))
                         .textFieldStyle(.roundedBorder)
                 }
                 let first = unik.files.first?.path ?? ""
                 let outputs = unik.plannedOutputs
-                Text("Пример: " + UnikalizatorLogic.previewName(options: unik.options, firstFile: first, outputs: outputs)
+                Text(L("Пример: ") + UnikalizatorLogic.previewName(options: unik.options, firstFile: first, outputs: outputs)
                     + (outputs > 1 ? " … " + UnikalizatorLogic.previewName(options: unik.options, firstFile: first, outputs: outputs, index: outputs - 1) : ""))
                     .font(.system(size: 12.5, weight: .semibold, design: .rounded))
                     .foregroundStyle(primaryText)
@@ -544,33 +544,33 @@ private struct UnikPresetsEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if unik.presets.isEmpty {
-                Text("Настройте раздел и сохраните набор под своим именем, например «Reels DE 18+».")
+                Text(L("Настройте раздел и сохраните набор под своим именем, например «Reels DE 18+»."))
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 HStack(spacing: 8) {
-                    Picker("Сохранённые наборы", selection: $chosen) {
-                        Text("Выберите набор…").tag("")
+                    Picker(L("Сохранённые наборы"), selection: $chosen) {
+                        Text(L("Выберите набор…")).tag("")
                         ForEach(unik.presets) { preset in Text(preset.name).tag(preset.name) }
                     }
                     .labelsHidden()
                     .onChange(of: chosen) { _, value in if !value.isEmpty { name = value } }
-                    Button("Применить") { unik.applyPreset(named: chosen) }
+                    Button(L("Применить")) { unik.applyPreset(named: chosen) }
                         .disabled(chosen.isEmpty || unik.isRunning)
                     Button(role: .destructive) {
                         unik.deletePreset(named: chosen)
                         chosen = ""
                     } label: { Image(systemName: "trash") }
-                        .help("Удалить набор")
+                        .help(L("Удалить набор"))
                         .disabled(chosen.isEmpty || unik.isRunning)
                 }
             }
             HStack(spacing: 8) {
-                TextField("Название набора", text: $name)
+                TextField(L("Название набора"), text: $name)
                     .textFieldStyle(.roundedBorder)
                     .disabled(unik.isRunning)
-                Button(nameExists ? "Заменить" : "Сохранить") {
+                Button(nameExists ? L("Заменить") : L("Сохранить")) {
                     unik.savePreset(named: name)
                     chosen = trimmedName
                 }

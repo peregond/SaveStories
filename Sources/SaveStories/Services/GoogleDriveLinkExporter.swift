@@ -53,11 +53,11 @@ struct GoogleDriveLinkExporter {
         var errorDescription: String? {
             switch self {
             case .scriptNotFound:
-                "Не удалось найти встроенный AppleScript для Google Drive automation."
+                L("Не удалось найти встроенный AppleScript для Google Drive automation.")
             case .launchFailed(let message):
                 message
             case .timedOut:
-                "Google Drive не ответил за 35 секунд. Проверьте Finder и повторите попытку."
+                L("Google Drive не ответил за 35 секунд. Проверьте Finder и повторите попытку.")
             }
         }
     }
@@ -107,7 +107,7 @@ struct GoogleDriveLinkExporter {
             stdoutCollector.start()
             stderrCollector.start()
         } catch {
-            throw ExporterError.launchFailed("Не удалось запустить osascript: \(error.localizedDescription)")
+            throw ExporterError.launchFailed(L("Не удалось запустить osascript: {0}", error.localizedDescription))
         }
 
         let didFinish = termination.wait(timeout: .now() + Self.appleScriptTimeout) == .success
@@ -132,11 +132,11 @@ struct GoogleDriveLinkExporter {
 
         guard process.terminationStatus == 0 else {
             let message = stderrText.isEmpty ? stdoutText : stderrText
-            throw ExporterError.launchFailed(message.isEmpty ? "AppleScript завершился с ошибкой." : message)
+            throw ExporterError.launchFailed(message.isEmpty ? L("AppleScript завершился с ошибкой.") : message)
         }
 
         guard !stdoutText.isEmpty else {
-            throw ExporterError.launchFailed("Google Drive automation не вернула ссылку.")
+            throw ExporterError.launchFailed(L("Google Drive automation не вернула ссылку."))
         }
 
         return stdoutText
@@ -161,14 +161,14 @@ struct GoogleDriveLinkExporter {
     private func listExtendedAttributes(atPath path: NSString) throws -> [String] {
         let size = listxattr(path.fileSystemRepresentation, nil, 0, 0)
         guard size >= 0 else {
-            throw ExporterError.launchFailed("Не удалось прочитать xattr у файла \(path.lastPathComponent).")
+            throw ExporterError.launchFailed(L("Не удалось прочитать xattr у файла {0}.", path.lastPathComponent))
         }
         guard size > 0 else { return [] }
 
         var buffer = [CChar](repeating: 0, count: size)
         let result = listxattr(path.fileSystemRepresentation, &buffer, buffer.count, 0)
         guard result >= 0 else {
-            throw ExporterError.launchFailed("Не удалось прочитать список xattr у файла \(path.lastPathComponent).")
+            throw ExporterError.launchFailed(L("Не удалось прочитать список xattr у файла {0}.", path.lastPathComponent))
         }
 
         return buffer
@@ -184,7 +184,7 @@ struct GoogleDriveLinkExporter {
         var buffer = [UInt8](repeating: 0, count: size)
         let result = getxattr(path.fileSystemRepresentation, name, &buffer, buffer.count, 0, 0)
         guard result >= 0 else {
-            throw ExporterError.launchFailed("Не удалось прочитать xattr \(name) у файла \(path.lastPathComponent).")
+            throw ExporterError.launchFailed(L("Не удалось прочитать xattr {0} у файла {1}.", name, path.lastPathComponent))
         }
 
         return String(data: Data(buffer), encoding: .utf8)

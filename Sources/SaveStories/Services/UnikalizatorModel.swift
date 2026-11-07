@@ -91,15 +91,15 @@ final class UnikalizatorModel: ObservableObject {
         options.variations.count = 2
         options.ageMark = UnikOptions.AgeMark(enabled: true, geoId: "de-germany", position: "bottom")
         jobs = [
-            UnikJob(index: 1, label: "story-01 · v1", percent: 100, status: .done, outputPath: "/Users/preview/Downloads/SaveMe/Уникализатор/DE_meta_9x16_v1.mp4"),
-            UnikJob(index: 2, label: "story-01 · v2", percent: 100, status: .done, outputPath: "/Users/preview/Downloads/SaveMe/Уникализатор/DE_meta_9x16_v2.mp4"),
+            UnikJob(index: 1, label: "story-01 · v1", percent: 100, status: .done, outputPath: L("/Users/preview/Downloads/SaveMe/Уникализатор/DE_meta_9x16_v1.mp4")),
+            UnikJob(index: 2, label: "story-01 · v2", percent: 100, status: .done, outputPath: L("/Users/preview/Downloads/SaveMe/Уникализатор/DE_meta_9x16_v2.mp4")),
             UnikJob(index: 3, label: "story-02 · v1", percent: 62, status: .running),
             UnikJob(index: 4, label: "story-02 · v2", status: .queued),
             UnikJob(index: 5, label: "banner · v1", status: .queued),
             UnikJob(index: 6, label: "banner · v2", status: .queued),
         ]
-        summary = "Готово 2 из 6"
-        presets = [UnikPreset(name: "Reels DE 18+", options: options), UnikPreset(name: "Квадрат без плашки", options: UnikOptions())]
+        summary = L("Готово 2 из 6")
+        presets = [UnikPreset(name: "Reels DE 18+", options: options), UnikPreset(name: L("Квадрат без плашки"), options: UnikOptions())]
     }
 
     // MARK: FFmpeg
@@ -107,7 +107,7 @@ final class UnikalizatorModel: ObservableObject {
     func refresh() async {
         let response = await worker.run(WorkerRequest(command: "unik_status", url: nil, urls: nil, outputDirectory: nil, headless: nil, mediaFilter: nil))
         guard response.ok else {
-            ffmpeg = .failed(response.message)
+            ffmpeg = .failed(tr(response.message))
             return
         }
         if let json = response.data["catalog"], let data = json.data(using: .utf8) {
@@ -120,7 +120,7 @@ final class UnikalizatorModel: ObservableObject {
     func installFFmpeg() async {
         ffmpeg = .installing
         installPercent = 0
-        installMessage = "Готовлюсь к установке…"
+        installMessage = L("Готовлюсь к установке…")
         let response = await worker.run(
             WorkerRequest(command: "unik_install_ffmpeg", url: nil, urls: nil, outputDirectory: nil, headless: nil, mediaFilter: nil),
             onProgress: { [weak self] line in
@@ -129,9 +129,9 @@ final class UnikalizatorModel: ObservableObject {
         )
         if response.ok {
             ffmpeg = .ready(version: response.data["ffmpegVersion"] ?? "")
-            notice = response.message
+            notice = tr(response.message)
         } else {
-            ffmpeg = .failed(response.message)
+            ffmpeg = .failed(tr(response.message))
         }
     }
 
@@ -165,7 +165,7 @@ final class UnikalizatorModel: ObservableObject {
         let paths = urls.map(\.path)
         let media = paths.filter(UnikalizatorLogic.isMedia)
         let rejected = paths.count - media.count
-        if rejected > 0 { notice = "Пропущено файлов неподдерживаемого типа: \(rejected)." }
+        if rejected > 0 { notice = L("Пропущено файлов неподдерживаемого типа: {0}.", rejected) }
         var fresh: [String] = []
         for path in media where !files.contains(where: { $0.path.caseInsensitiveCompare(path) == .orderedSame }) && !fresh.contains(path) {
             fresh.append(path)
@@ -213,7 +213,7 @@ final class UnikalizatorModel: ObservableObject {
 
     func chooseFiles() {
         let panel = NSOpenPanel()
-        panel.title = "Исходные видео и картинки"
+        panel.title = L("Исходные видео и картинки")
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.allowedContentTypes = UnikalizatorLogic.mediaExtensions.compactMap { UTType(filenameExtension: $0) }
@@ -232,7 +232,7 @@ final class UnikalizatorModel: ObservableObject {
 
     func chooseOutputDirectory() {
         let panel = NSOpenPanel()
-        panel.title = "Папка для результатов"
+        panel.title = L("Папка для результатов")
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
@@ -252,8 +252,8 @@ final class UnikalizatorModel: ObservableObject {
         isRunning = true
         notice = nil
         jobs = []
-        summary = "Запускаю обработку…"
-        sleepActivity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated], reason: "Обработка видео в «Уникализаторе»")
+        summary = L("Запускаю обработку…")
+        sleepActivity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated], reason: L("Обработка видео в «Уникализаторе»"))
         defer {
             isRunning = false
             if let activity = sleepActivity { ProcessInfo.processInfo.endActivity(activity) }
@@ -271,15 +271,15 @@ final class UnikalizatorModel: ObservableObject {
             for result in results where result.index >= 0 && result.index < jobs.count {
                 jobs[result.index].status = result.status == "completed" ? .done : .error
                 jobs[result.index].outputPath = result.outputPath
-                jobs[result.index].message = String(result.message.split(separator: "\n").first ?? "")
+                jobs[result.index].message = String(tr(result.message).split(separator: "\n").first ?? "")
                 if result.status == "completed" { jobs[result.index].percent = 100 }
             }
         }
-        summary = response.message
+        summary = tr(response.message)
         if response.status == "cancelled" {
-            notice = "Обработка остановлена."
+            notice = L("Обработка остановлена.")
         } else if !response.ok {
-            notice = response.message
+            notice = tr(response.message)
         }
     }
 

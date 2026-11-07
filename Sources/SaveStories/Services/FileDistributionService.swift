@@ -51,9 +51,9 @@ enum FileDistributionService {
         var errorDescription: String? {
             switch self {
             case .sourceUnreadable:
-                "Не удалось прочитать содержимое папки источника."
+                L("Не удалось прочитать содержимое папки источника.")
             case .unsafeDestination(let folder):
-                "Правило сортировки содержит небезопасный путь: \(folder)."
+                L("Правило сортировки содержит небезопасный путь: {0}.", folder)
             }
         }
     }

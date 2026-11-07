@@ -4,15 +4,15 @@ import Foundation
 extension AppModel {
     func chooseSortingSourceDirectory() {
         guard !isBusy else {
-            appendLog("Выбор папки источника пропущен: дождись завершения текущей операции.")
+            appendLog(L("Выбор папки источника пропущен: дождись завершения текущей операции."))
             return
         }
 
         presentDirectoryChooser(initialDirectory: sortingSourceDirectory ?? saveDirectory, canCreateDirectories: false) { url in
             self.sortingSourceDirectory = url
             UserDefaults.standard.set(url.path, forKey: Self.sortingSourceDirectoryKey)
-            self.postProcessingSummary = "Источник сортировки выбран: \(url.lastPathComponent)."
-            self.appendLog("Папка источника сортировки изменена на \(url.path).")
+            self.postProcessingSummary = L("Источник сортировки выбран: {0}.", url.lastPathComponent)
+            self.appendLog(L("Папка источника сортировки изменена на {0}.", url.path))
         }
     }
 
@@ -23,16 +23,16 @@ extension AppModel {
 
     func chooseEmptyFolderCleanupDirectory() {
         guard !isBusy else {
-            appendLog("Выбор папки для очистки пропущен: дождись завершения текущей операции.")
+            appendLog(L("Выбор папки для очистки пропущен: дождись завершения текущей операции."))
             return
         }
 
         presentDirectoryChooser(initialDirectory: emptyFolderCleanupDirectory ?? sortingSourceDirectory ?? saveDirectory, canCreateDirectories: false) { url in
             self.emptyFolderCleanupDirectory = url
             UserDefaults.standard.set(url.path, forKey: Self.emptyFolderCleanupDirectoryKey)
-            self.emptyFolderCleanupSummary = "Папка для очистки выбрана: \(url.lastPathComponent)."
-            self.postProcessingSummary = "Папка для очистки выбрана: \(url.lastPathComponent)."
-            self.appendLog("Папка для очистки пустых подпапок изменена на \(url.path).")
+            self.emptyFolderCleanupSummary = L("Папка для очистки выбрана: {0}.", url.lastPathComponent)
+            self.postProcessingSummary = L("Папка для очистки выбрана: {0}.", url.lastPathComponent)
+            self.appendLog(L("Папка для очистки пустых подпапок изменена на {0}.", url.path))
         }
     }
 
@@ -44,50 +44,50 @@ extension AppModel {
     func removeEmptyFoldersInCleanupDirectory() async {
         guard !isBusy else { return }
         guard let emptyFolderCleanupDirectory else {
-            emptyFolderCleanupSummary = "Сначала выбери папку, внутри которой нужно удалить пустые подпапки."
-            postProcessingSummary = "Сначала выбери папку, внутри которой нужно удалить пустые подпапки."
-            appendLog("Очистка пустых папок пропущена: папка не выбрана.")
+            emptyFolderCleanupSummary = L("Сначала выбери папку, внутри которой нужно удалить пустые подпапки.")
+            postProcessingSummary = L("Сначала выбери папку, внутри которой нужно удалить пустые подпапки.")
+            appendLog(L("Очистка пустых папок пропущена: папка не выбрана."))
             return
         }
 
-        await perform("Очистка пустых папок") {
-            self.currentStepLabel = "Проверяю подпапки в фоне."
+        await perform(L("Очистка пустых папок")) {
+            self.currentStepLabel = L("Проверяю подпапки в фоне.")
             let candidateFolders = await Task.detached(priority: .utility) {
                 EmptyFolderCleanupService.findDeletableEmptyFolders(in: emptyFolderCleanupDirectory)
             }.value
             guard !candidateFolders.isEmpty else {
-                self.emptyFolderCleanupSummary = "Пустых папок в выбранной папке не найдено."
+                self.emptyFolderCleanupSummary = L("Пустых папок в выбранной папке не найдено.")
                 self.postProcessingSummary = self.emptyFolderCleanupSummary
-                self.statusTitle = "Готово"
+                self.statusTitle = L("Готово")
                 self.statusDetail = self.emptyFolderCleanupSummary
                 self.lastResult = self.emptyFolderCleanupSummary
-                self.currentStepLabel = "Проверка пустых папок завершена."
-                self.appendLog("Очистка пустых папок: в \(emptyFolderCleanupDirectory.path) ничего не найдено.")
+                self.currentStepLabel = L("Проверка пустых папок завершена.")
+                self.appendLog(L("Очистка пустых папок: в {0} ничего не найдено.", emptyFolderCleanupDirectory.path))
                 return
             }
 
-            self.currentStepLabel = "Удаляю только действительно пустые папки."
+            self.currentStepLabel = L("Удаляю только действительно пустые папки.")
             let cleanup = await Task.detached(priority: .utility) {
                 EmptyFolderCleanupService.deleteEmptyFolders(candidateFolders)
             }.value
             for folder in cleanup.failedFolders {
-                self.appendLog("Не удалось удалить пустую папку \(folder.path).")
+                self.appendLog(L("Не удалось удалить пустую папку {0}.", folder.path))
             }
 
             let removedNames = cleanup.removedFolderNames
             let failedCount = cleanup.failedFolders.count
             let message = failedCount == 0
-                ? "Удалено пустых папок: \(removedNames.count)."
-                : "Удалено пустых папок: \(removedNames.count). Ошибок: \(failedCount)."
+                ? L("Удалено пустых папок: {0}.", removedNames.count)
+                : L("Удалено пустых папок: {0}. Ошибок: {1}.", removedNames.count, failedCount)
             self.emptyFolderCleanupSummary = removedNames.isEmpty && failedCount == 0
-                ? "Пустых папок в выбранной папке не найдено."
+                ? L("Пустых папок в выбранной папке не найдено.")
                 : message
             self.postProcessingSummary = message
-            self.statusTitle = failedCount == 0 ? "Готово" : "Завершено с ошибками"
+            self.statusTitle = failedCount == 0 ? L("Готово") : L("Завершено с ошибками")
             self.statusDetail = message
             self.lastResult = message
-            self.currentStepLabel = "Очистка пустых папок завершена."
-            self.appendLog("\(message) Папка: \(emptyFolderCleanupDirectory.path).")
+            self.currentStepLabel = L("Очистка пустых папок завершена.")
+            self.appendLog(L("{0} Папка: {1}.", message, emptyFolderCleanupDirectory.path))
         }
     }
 
@@ -106,14 +106,14 @@ extension AppModel {
     func exportGoogleDriveLinks() async {
         let records = currentPostProcessingRecords()
         guard !records.isEmpty else {
-            googleDriveLinkSummary = "Нет файлов для получения ссылок Google Drive."
-            appendLog("Сборщик ссылок Google Drive пропущен: список файлов пуст.")
+            googleDriveLinkSummary = L("Нет файлов для получения ссылок Google Drive.")
+            appendLog(L("Сборщик ссылок Google Drive пропущен: список файлов пуст."))
             return
         }
 
-        await perform("Сбор ссылок Google Drive") {
-            self.currentStepLabel = "Собираю Google Drive ссылки для подготовленных файлов."
-            self.googleDriveLinkSummary = "Пробую собрать ссылки Google Drive для \(records.count) файлов."
+        await perform(L("Сбор ссылок Google Drive")) {
+            self.currentStepLabel = L("Собираю Google Drive ссылки для подготовленных файлов.")
+            self.googleDriveLinkSummary = L("Пробую собрать ссылки Google Drive для {0} файлов.", records.count)
 
             let exporter = GoogleDriveLinkExporter()
             let outcomes = await exporter.exportLinks(
@@ -136,15 +136,15 @@ extension AppModel {
             }
 
             if failureCount == 0 {
-                self.googleDriveLinkSummary = "Google Drive ссылки собраны: \(successCount). Результат скопирован в буфер."
+                self.googleDriveLinkSummary = L("Google Drive ссылки собраны: {0}. Результат скопирован в буфер.", successCount)
             } else {
-                self.googleDriveLinkSummary = "Ссылки собраны: \(successCount). Ошибок: \(failureCount). Сводка скопирована в буфер."
+                self.googleDriveLinkSummary = L("Ссылки собраны: {0}. Ошибок: {1}. Сводка скопирована в буфер.", successCount, failureCount)
             }
 
-            self.statusTitle = failureCount == 0 ? "Готово" : "Завершено с ошибками"
+            self.statusTitle = failureCount == 0 ? L("Готово") : L("Завершено с ошибками")
             self.statusDetail = self.googleDriveLinkSummary
             self.lastResult = self.googleDriveLinkSummary
-            self.currentStepLabel = failureCount == 0 ? "Google Drive ссылки собраны." : "Часть ссылок не удалось получить автоматически."
+            self.currentStepLabel = failureCount == 0 ? L("Google Drive ссылки собраны.") : L("Часть ссылок не удалось получить автоматически.")
             self.appendLog(self.googleDriveLinkSummary)
 
             for failed in outcomes.filter({ $0.errorMessage != nil }) {
@@ -155,15 +155,15 @@ extension AppModel {
 
     func chooseDistributionRootDirectory() {
         guard !isBusy else {
-            appendLog("Выбор папки раскладки пропущен: дождись завершения текущей операции.")
+            appendLog(L("Выбор папки раскладки пропущен: дождись завершения текущей операции."))
             return
         }
 
         presentDirectoryChooser(initialDirectory: distributionRootDirectory ?? saveDirectory, canCreateDirectories: true) { url in
             self.distributionRootDirectory = url
             UserDefaults.standard.set(url.path, forKey: Self.distributionRootDirectoryKey)
-            self.postProcessingSummary = "Папка раскладки выбрана: \(url.lastPathComponent)."
-            self.appendLog("Папка раскладки изменена на \(url.path).")
+            self.postProcessingSummary = L("Папка раскладки выбрана: {0}.", url.lastPathComponent)
+            self.appendLog(L("Папка раскладки изменена на {0}.", url.path))
         }
     }
 
@@ -178,13 +178,13 @@ extension AppModel {
             guard await refreshNotionRoutingRules() else { return }
         }
         guard let sortingSourceDirectory else {
-            postProcessingSummary = "Сначала выбери папку-источник, например Перенос."
-            appendLog("Сортировка остановлена: не выбрана папка Перенос.")
+            postProcessingSummary = L("Сначала выбери папку-источник, например Перенос.")
+            appendLog(L("Сортировка остановлена: не выбрана папка Перенос."))
             return
         }
         guard let distributionRootDirectory else {
-            postProcessingSummary = "Сначала выбери базовую папку назначения."
-            appendLog("Сортировка остановлена: не выбрана папка назначения.")
+            postProcessingSummary = L("Сначала выбери базовую папку назначения.")
+            appendLog(L("Сортировка остановлена: не выбрана папка назначения."))
             return
         }
 
@@ -192,34 +192,34 @@ extension AppModel {
         let destination = distributionRootDirectory.standardizedFileURL.resolvingSymlinksInPath()
         let sourcePrefix = source.path.hasSuffix("/") ? source.path : source.path + "/"
         guard destination.path != source.path, !destination.path.hasPrefix(sourcePrefix) else {
-            postProcessingSummary = "Папка назначения не должна совпадать с источником или находиться внутри него."
-            statusTitle = "Ошибка"
+            postProcessingSummary = L("Папка назначения не должна совпадать с источником или находиться внутри него.")
+            statusTitle = L("Ошибка")
             statusDetail = postProcessingSummary
             lastResult = postProcessingSummary
-            appendLog("Сортировка остановлена: источник и назначение пересекаются.")
+            appendLog(L("Сортировка остановлена: источник и назначение пересекаются."))
             return
         }
 
         let mapping = parsedFolderRoutingRules()
 
-        await perform("Сортировка файлов") {
-            self.currentStepLabel = "Читаю папку «На перенос» в фоне."
+        await perform(L("Сортировка файлов")) {
+            self.currentStepLabel = L("Читаю папку «На перенос» в фоне.")
             do {
                 let scan = try await Task.detached(priority: .userInitiated) {
                     try FileDistributionService.scanInputs(in: sortingSourceDirectory, mapping: mapping)
                 }.value
 
                 guard !scan.inputs.isEmpty else {
-                    self.postProcessingSummary = "В выбранной папке нет файлов для сортировки."
-                    self.statusTitle = "Готово"
+                    self.postProcessingSummary = L("В выбранной папке нет файлов для сортировки.")
+                    self.statusTitle = L("Готово")
                     self.statusDetail = self.postProcessingSummary
                     self.lastResult = self.postProcessingSummary
-                    self.currentStepLabel = "Файлов для переноса не найдено."
-                    self.appendLog("Сортировка: в папке \(sortingSourceDirectory.lastPathComponent) нет файлов для переноса.")
+                    self.currentStepLabel = L("Файлов для переноса не найдено.")
+                    self.appendLog(L("Сортировка: в папке {0} нет файлов для переноса.", sortingSourceDirectory.lastPathComponent))
                     return
                 }
 
-                self.currentStepLabel = "Переношу файлы по правилам."
+                self.currentStepLabel = L("Переношу файлы по правилам.")
                 let result = await Task.detached(priority: .userInitiated) {
                     FileDistributionService.distribute(inputs: scan.inputs, destinationRoot: distributionRootDirectory)
                 }.value
@@ -230,11 +230,11 @@ extension AppModel {
                 )
             } catch {
                 self.postProcessingSummary = error.localizedDescription
-                self.statusTitle = "Ошибка"
+                self.statusTitle = L("Ошибка")
                 self.statusDetail = self.postProcessingSummary
                 self.lastResult = self.postProcessingSummary
-                self.currentStepLabel = "Сортировка завершилась ошибкой."
-                self.appendLog("Сортировка: \(error.localizedDescription)")
+                self.currentStepLabel = L("Сортировка завершилась ошибкой.")
+                self.appendLog(L("Сортировка: {0}", error.localizedDescription))
             }
         }
     }
@@ -242,13 +242,13 @@ extension AppModel {
     func distributeLatestDownloadedFiles() async {
         guard !isBusy else { return }
         guard !latestSessionDownloadedItems.isEmpty else {
-            postProcessingSummary = "Нет файлов из последней выгрузки для раскладки."
-            appendLog("Постобработка пропущена: нет файлов последней выгрузки.")
+            postProcessingSummary = L("Нет файлов из последней выгрузки для раскладки.")
+            appendLog(L("Постобработка пропущена: нет файлов последней выгрузки."))
             return
         }
         guard let distributionRootDirectory else {
-            postProcessingSummary = "Сначала выбери папку, внутри которой лежат конечные подпапки."
-            appendLog("Постобработка остановлена: не выбрана папка раскладки.")
+            postProcessingSummary = L("Сначала выбери папку, внутри которой лежат конечные подпапки.")
+            appendLog(L("Постобработка остановлена: не выбрана папка раскладки."))
             return
         }
 
@@ -263,8 +263,8 @@ extension AppModel {
             )
         }
 
-        await perform("Сортировка последней выгрузки") {
-            self.currentStepLabel = "Переношу файлы последней выгрузки в фоне."
+        await perform(L("Сортировка последней выгрузки")) {
+            self.currentStepLabel = L("Переношу файлы последней выгрузки в фоне.")
             let result = await Task.detached(priority: .userInitiated) {
                 FileDistributionService.distribute(inputs: inputs, destinationRoot: distributionRootDirectory)
             }.value
@@ -279,15 +279,15 @@ extension AppModel {
     func copyPostProcessedReport() {
         let report = buildPostProcessedReport()
         guard !report.isEmpty else {
-            postProcessingSummary = "Нет списка для копирования."
-            appendLog("Список для постобработки пуст.")
+            postProcessingSummary = L("Нет списка для копирования.")
+            appendLog(L("Список для постобработки пуст."))
             return
         }
 
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(report, forType: .string)
-        postProcessingSummary = "Список папок и файлов скопирован в буфер."
-        appendLog("Список разложенных файлов скопирован в буфер обмена.")
+        postProcessingSummary = L("Список папок и файлов скопирован в буфер.")
+        appendLog(L("Список разложенных файлов скопирован в буфер обмена."))
     }
 
     func undoLastDistribution() async {
@@ -295,8 +295,8 @@ extension AppModel {
 
         let undoItems = postProcessedItems.filter { $0.originalPath != $0.currentPath }
         guard !undoItems.isEmpty else {
-            postProcessingSummary = "Нет переноса для отмены."
-            appendLog("Отмена переноса пропущена: нет последнего переноса.")
+            postProcessingSummary = L("Нет переноса для отмены.")
+            appendLog(L("Отмена переноса пропущена: нет последнего переноса."))
             return
         }
 
@@ -308,8 +308,8 @@ extension AppModel {
             )
         }
 
-        await perform("Отмена переноса") {
-            self.currentStepLabel = "Возвращаю файлы в исходные папки в фоне."
+        await perform(L("Отмена переноса")) {
+            self.currentStepLabel = L("Возвращаю файлы в исходные папки в фоне.")
             let result = await Task.detached(priority: .userInitiated) {
                 FileDistributionService.undo(inputs)
             }.value
@@ -322,21 +322,21 @@ extension AppModel {
                 return item.with(localPath: restoredPath)
             }
             self.synchronizeDownloadedItems(with: self.latestSessionDownloadedItems)
-            self.googleDriveLinkSummary = "Перенос отменён. После новой сортировки Drive-ссылки нужно собрать заново."
+            self.googleDriveLinkSummary = L("Перенос отменён. После новой сортировки Drive-ссылки нужно собрать заново.")
 
             let failedItems = undoItems.filter { result.failedIDs.contains($0.id) }
             if result.failedFileNames.isEmpty {
                 self.postProcessedItems = []
-                self.postProcessingSummary = "Отменён перенос файлов: \(result.restoredRecords.count)."
+                self.postProcessingSummary = L("Отменён перенос файлов: {0}.", result.restoredRecords.count)
             } else {
                 self.postProcessedItems = failedItems
-                self.postProcessingSummary = "Отменён перенос файлов: \(result.restoredRecords.count). Ошибок: \(result.failedFileNames.count)."
-                self.appendLog("Не удалось вернуть файлов: \(result.failedFileNames.joined(separator: ", ")).")
+                self.postProcessingSummary = L("Отменён перенос файлов: {0}. Ошибок: {1}.", result.restoredRecords.count, result.failedFileNames.count)
+                self.appendLog(L("Не удалось вернуть файлов: {0}.", result.failedFileNames.joined(separator: ", ")))
             }
-            self.statusTitle = result.failedFileNames.isEmpty ? "Готово" : "Завершено с ошибками"
+            self.statusTitle = result.failedFileNames.isEmpty ? L("Готово") : L("Завершено с ошибками")
             self.statusDetail = self.postProcessingSummary
             self.lastResult = self.postProcessingSummary
-            self.currentStepLabel = "Отмена переноса завершена."
+            self.currentStepLabel = L("Отмена переноса завершена.")
             self.appendLog(self.postProcessingSummary)
         }
     }
@@ -413,7 +413,7 @@ extension AppModel {
                         return link
                     }
                     let filename = URL(fileURLWithPath: outcome.record.filePath).lastPathComponent
-                    return "# не удалось получить ссылку: \(filename)"
+                    return L("# не удалось получить ссылку: {0}", filename)
                 }
                 .joined(separator: "\n")
 
@@ -450,7 +450,7 @@ extension AppModel {
                             return link
                         }
                         let filename = URL(fileURLWithPath: outcome.record.filePath).lastPathComponent
-                        return "# не удалось получить ссылку: \(filename)"
+                        return L("# не удалось получить ссылку: {0}", filename)
                     }
                     .joined(separator: "\n")
                 return "\(blogger)\n\(links)"
@@ -471,7 +471,7 @@ extension AppModel {
             .split(separator: "/", omittingEmptySubsequences: true)
             .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-        return components.first ?? "Без страны"
+        return components.first ?? L("Без страны")
     }
 
     private func rememberBloggers(from mapping: [String: String]) {
@@ -551,34 +551,34 @@ extension AppModel {
         if !force, wasNotionSourceRefreshedToday(key: Self.notionRoutingRulesLastRefreshAtKey) {
             let cachedRules = UserDefaults.standard.string(forKey: Self.notionRoutingRulesCachedRulesKey) ?? folderRoutingRules
             guard !cachedRules.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                notionRoutingRulesSourceSummary = "Notion уже обновлялся сегодня, но сохранённые правила пустые."
+                notionRoutingRulesSourceSummary = L("Notion уже обновлялся сегодня, но сохранённые правила пустые.")
                 postProcessingSummary = notionRoutingRulesSourceSummary
-                appendLog("Повторная загрузка правил Notion пропущена: сегодня уже обновляли, сохранённые правила пустые.")
+                appendLog(L("Повторная загрузка правил Notion пропущена: сегодня уже обновляли, сохранённые правила пустые."))
                 return false
             }
 
             folderRoutingRules = cachedRules
             persistFolderRoutingRules()
             let count = cachedRules.split(whereSeparator: \.isNewline).count
-            notionRoutingRulesSourceSummary = "Notion уже обновлялся сегодня: использую сохранённые правила (\(count))."
+            notionRoutingRulesSourceSummary = L("Notion уже обновлялся сегодня: использую сохранённые правила ({0}).", count)
             postProcessingSummary = notionRoutingRulesSourceSummary
-            currentStepLabel = "Использую сохранённые правила Notion."
-            appendLog("Повторная загрузка правил Notion пропущена: применены сохранённые правила, строк: \(count).")
+            currentStepLabel = L("Использую сохранённые правила Notion.")
+            appendLog(L("Повторная загрузка правил Notion пропущена: применены сохранённые правила, строк: {0}.", count))
             return true
         }
 
         isRefreshingNotionRoutingRules = true
-        notionRoutingRulesSourceSummary = "Загружаю правила сортировки из Notion..."
-        postProcessingSummary = "Загружаю правила сортировки из Notion..."
-        currentStepLabel = "Получаю правила сортировки из Notion."
+        notionRoutingRulesSourceSummary = L("Загружаю правила сортировки из Notion...")
+        postProcessingSummary = L("Загружаю правила сортировки из Notion...")
+        currentStepLabel = L("Получаю правила сортировки из Notion.")
         defer { isRefreshingNotionRoutingRules = false }
 
         do {
             let rules = try await NotionRoutingRulesSource().fetchRules()
             guard !rules.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                notionRoutingRulesSourceSummary = "В Notion не найдено правил сортировки."
+                notionRoutingRulesSourceSummary = L("В Notion не найдено правил сортировки.")
                 postProcessingSummary = notionRoutingRulesSourceSummary
-                appendLog("В Notion не найдено правил сортировки.")
+                appendLog(L("В Notion не найдено правил сортировки."))
                 return false
             }
 
@@ -587,18 +587,18 @@ extension AppModel {
             UserDefaults.standard.set(rules, forKey: Self.notionRoutingRulesCachedRulesKey)
             markNotionSourceRefreshed(key: Self.notionRoutingRulesLastRefreshAtKey)
             let count = rules.split(whereSeparator: \.isNewline).count
-            notionRoutingRulesSourceSummary = "Notion обновлён: \(count) правил."
+            notionRoutingRulesSourceSummary = L("Notion обновлён: {0} правил.", count)
             postProcessingSummary = notionRoutingRulesSourceSummary
-            currentStepLabel = "Правила Notion загружены."
-            appendLog("Правила сортировки заменены Notion-списком: \(count).")
+            currentStepLabel = L("Правила Notion загружены.")
+            appendLog(L("Правила сортировки заменены Notion-списком: {0}.", count))
             return true
         } catch {
-            notionRoutingRulesSourceSummary = "Не удалось обновить правила Notion: \(error.localizedDescription)"
+            notionRoutingRulesSourceSummary = L("Не удалось обновить правила Notion: {0}", error.localizedDescription)
             postProcessingSummary = notionRoutingRulesSourceSummary
-            statusTitle = "Ошибка Notion"
+            statusTitle = L("Ошибка Notion")
             statusDetail = notionRoutingRulesSourceSummary
-            currentStepLabel = "Правила Notion не загружены."
-            appendLog("Не удалось загрузить правила Notion: \(error.localizedDescription)")
+            currentStepLabel = L("Правила Notion не загружены.")
+            appendLog(L("Не удалось загрузить правила Notion: {0}", error.localizedDescription))
             return false
         }
     }
@@ -655,7 +655,7 @@ extension AppModel {
                 return $0.targetFolderName.localizedCaseInsensitiveCompare($1.targetFolderName) == .orderedAscending
             }
             rememberBloggers(from: postProcessedItems)
-            googleDriveLinkSummary = "После новой сортировки Drive-ссылки нужно собрать заново."
+            googleDriveLinkSummary = L("После новой сортировки Drive-ссылки нужно собрать заново.")
         }
 
         if shouldSynchronizeLatestSession {
@@ -671,24 +671,24 @@ extension AppModel {
 
         let failureCount = result.failedFileNames.count + unreadableFolderNames.count
         if result.movedCount > 0 {
-            postProcessingSummary = "Разложено файлов: \(result.movedCount). Подпапок затронуто: \(Set(records.map(\.targetFolderName)).count)."
+            postProcessingSummary = L("Разложено файлов: {0}. Подпапок затронуто: {1}.", result.movedCount, Set(records.map(\.targetFolderName)).count)
         } else if !records.isEmpty && failureCount == 0 {
-            postProcessingSummary = "Файлы уже лежат в нужных папках."
+            postProcessingSummary = L("Файлы уже лежат в нужных папках.")
         } else {
-            postProcessingSummary = "Не удалось разложить файлы: \(failureCount)."
+            postProcessingSummary = L("Не удалось разложить файлы: {0}.", failureCount)
         }
 
         if !result.failedFileNames.isEmpty {
-            appendLog("Не удалось обработать файлов: \(result.failedFileNames.joined(separator: ", ")).")
+            appendLog(L("Не удалось обработать файлов: {0}.", result.failedFileNames.joined(separator: ", ")))
         }
         if !unreadableFolderNames.isEmpty {
-            appendLog("Не удалось прочитать папки: \(unreadableFolderNames.joined(separator: ", ")).")
+            appendLog(L("Не удалось прочитать папки: {0}.", unreadableFolderNames.joined(separator: ", ")))
         }
 
-        statusTitle = failureCount == 0 ? "Готово" : "Завершено с ошибками"
+        statusTitle = failureCount == 0 ? L("Готово") : L("Завершено с ошибками")
         statusDetail = postProcessingSummary
         lastResult = postProcessingSummary
-        currentStepLabel = failureCount == 0 ? "Сортировка завершена." : "Сортировка завершена с ошибками."
+        currentStepLabel = failureCount == 0 ? L("Сортировка завершена.") : L("Сортировка завершена с ошибками.")
         appendLog(postProcessingSummary)
     }
 }

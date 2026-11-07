@@ -143,18 +143,18 @@ struct ContentView: View {
     var selectedDownloadModeDescription: String {
         switch model.downloadMode {
         case .background:
-            return "Браузер скрыт, работает незаметно"
+            return L("Браузер скрыт, работает незаметно")
         case .visible:
-            return "Открывается окно Chromium, можно наблюдать"
+            return L("Открывается окно Chromium, можно наблюдать")
         }
     }
 
     var selectedMediaSelectionDescription: String {
         switch model.mediaSelectionMode {
         case .all:
-            return "Скачиваются все сторис"
+            return L("Скачиваются все сторис")
         case .videoOnly:
-            return "Фото пропускаются"
+            return L("Фото пропускаются")
         }
     }
 
@@ -162,7 +162,7 @@ struct ContentView: View {
         if model.isBusy {
             return Color.blue.opacity(0.82)
         }
-        if model.statusTitle.lowercased().contains("ошиб") || !model.workerReady {
+        if model.statusTitle.mentionsAny("ошиб", "error", "fail") || !model.workerReady {
             return Color.red.opacity(0.82)
         }
         if !model.sessionReady {
@@ -254,15 +254,15 @@ struct ContentView: View {
         .onChange(of: reduceMotion) { _, enabled in
             if enabled { showingConfetti = false }
         }
-        .alert("Нужен вход в Instagram", isPresented: $model.showLoginPrompt) {
-            Button("Не сейчас", role: .cancel) {
+        .alert(L("Нужен вход в Instagram"), isPresented: $model.showLoginPrompt) {
+            Button(L("Не сейчас"), role: .cancel) {
                 model.dismissLoginPrompt()
             }
-            Button("Открыть браузер") {
+            Button(L("Открыть браузер")) {
                 Task { await model.login() }
             }
         } message: {
-            Text("Для первой выгрузки stories войди в Instagram через браузер приложения. Окно останется открытым, пока вход не будет завершён.")
+            Text(L("Для первой выгрузки stories войди в Instagram через браузер приложения. Окно останется открытым, пока вход не будет завершён."))
         }
         .alert(item: $model.emptyFolderCleanupReport) { report in
             Alert(
@@ -302,11 +302,11 @@ struct ContentView: View {
                     )
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Первый запуск")
+                    Text(L("Первый запуск"))
                         .font(.system(size: 24, weight: .semibold, design: .rounded))
                         .foregroundStyle(primaryText)
 
-                    Text("Для скачивания нужен встроенный браузер. Установите его один раз — SaveMe подготовит всё автоматически.")
+                    Text(L("Для скачивания нужен встроенный браузер. Установите его один раз — SaveMe подготовит всё автоматически."))
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -320,7 +320,7 @@ struct ContentView: View {
             }
 
             statusInlineNote(
-                title: model.runtimeSetupStage == .failed ? "Ошибка установки" : "Состояние",
+                title: model.runtimeSetupStage == .failed ? L("Ошибка установки") : L("Состояние"),
                 message: model.runtimeSetupErrorMessage ?? model.runtimeSetupMessage
             )
 
@@ -336,7 +336,7 @@ struct ContentView: View {
                     model.dismissRuntimeOnboarding()
                     Task { await model.login() }
                 } label: {
-                    Label("Войти в Instagram", systemImage: "person.crop.circle.badge.checkmark")
+                    Label(L("Войти в Instagram"), systemImage: "person.crop.circle.badge.checkmark")
                         .frame(maxWidth: .infinity)
                 }
                 .saveMeGlassButton(prominent: true)
@@ -345,7 +345,7 @@ struct ContentView: View {
                 Button {
                     model.dismissRuntimeOnboarding()
                 } label: {
-                    Text("Позже")
+                    Text(L("Позже"))
                         .frame(maxWidth: .infinity)
                 }
                 .saveMeGlassButton()
@@ -361,7 +361,7 @@ struct ContentView: View {
                         } else {
                             Image(systemName: "arrow.down.circle")
                         }
-                        Text(model.runtimeSetupStage == .failed ? "Повторить установку" : "Установить движок")
+                        Text(model.runtimeSetupStage == .failed ? L("Повторить установку") : L("Установить движок"))
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -372,7 +372,7 @@ struct ContentView: View {
                 Button {
                     model.dismissRuntimeOnboarding()
                 } label: {
-                    Text("Не сейчас")
+                    Text(L("Не сейчас"))
                         .frame(maxWidth: .infinity)
                 }
                 .saveMeGlassButton()
@@ -512,11 +512,11 @@ struct ContentView: View {
 
     var emptyFolderCleanupPrompt: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Удалить пустые папки?")
+            Text(L("Удалить пустые папки?"))
                 .font(.system(size: 20, weight: .semibold, design: .rounded))
                 .foregroundStyle(primaryText)
 
-            Text("После выгрузки stories найдены пустые папки профилей. Удалить их и оставить только папки с сохранёнными файлами?")
+            Text(L("После выгрузки stories найдены пустые папки профилей. Удалить их и оставить только папки с сохранёнными файлами?"))
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
@@ -541,7 +541,7 @@ struct ContentView: View {
                 }
                 .frame(maxHeight: 180)
             } label: {
-                Text(showingPendingEmptyFolders ? "Скрыть список папок" : "Показать список папок")
+                Text(showingPendingEmptyFolders ? L("Скрыть список папок") : L("Показать список папок"))
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(primaryText)
             }
@@ -551,7 +551,7 @@ struct ContentView: View {
                 Button {
                     model.dismissEmptyFolderCleanupPrompt()
                 } label: {
-                    Text("Не удалять")
+                    Text(L("Не удалять"))
                         .frame(maxWidth: .infinity)
                 }
                 .saveMeGlassButton()
@@ -560,7 +560,7 @@ struct ContentView: View {
                 Button {
                     Task { await model.removePendingEmptyStoryFolders() }
                 } label: {
-                    Text("Удалить")
+                    Text(L("Удалить"))
                         .frame(maxWidth: .infinity)
                 }
                 .saveMeGlassButton(prominent: true)
@@ -573,7 +573,7 @@ struct ContentView: View {
 
 
     func homeTwoComposerCard(compact: Bool) -> some View {
-        card("Новая загрузка") {
+        card(L("Новая загрузка")) {
             VStack(alignment: .leading, spacing: 16) {
                 storiesInputEditor
 
@@ -581,21 +581,21 @@ struct ContentView: View {
                     Button {
                         model.addBatchProfiles()
                     } label: {
-                        Label("В очередь", systemImage: "plus")
+                        Label(L("В очередь"), systemImage: "plus")
                     }
                     .saveMeGlassButton()
                     .disabled(batchProfileInputCount == 0 || model.isBusy)
-                    .help("Добавить введённые профили в очередь")
+                    .help(L("Добавить введённые профили в очередь"))
 
                     Spacer(minLength: 0)
 
                     Menu {
-                        Button("Запомнить очередь", systemImage: "bookmark") { model.rememberCurrentBatchList() }
+                        Button(L("Запомнить очередь"), systemImage: "bookmark") { model.rememberCurrentBatchList() }
                             .disabled(model.batchQueue.isEmpty || model.isBusy)
-                        Button("Очистить поле", systemImage: "xmark") { model.batchInput = "" }
+                        Button(L("Очистить поле"), systemImage: "xmark") { model.batchInput = "" }
                             .disabled(model.batchInput.isEmpty || model.isBusy)
                     } label: {
-                        Label("Ещё", systemImage: "ellipsis")
+                        Label(L("Ещё"), systemImage: "ellipsis")
                     }
                     .fixedSize()
                 }
@@ -613,8 +613,8 @@ struct ContentView: View {
                 if model.notionInfluencerSourceEnabled {
                     Label(
                         batchProfileInputCount > 0
-                            ? "Скачаем введённые профили и текущую очередь. Notion не заменит список."
-                            : "Перед запуском очередь заменится актуальным списком из Notion.",
+                            ? L("Скачаем введённые профили и текущую очередь. Notion не заменит список.")
+                            : L("Перед запуском очередь заменится актуальным списком из Notion."),
                         systemImage: "info.circle"
                     )
                     .font(.caption)
@@ -628,7 +628,7 @@ struct ContentView: View {
                     Image(systemName: "folder")
                         .foregroundStyle(queueActionTint)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Папка сохранения")
+                        Text(L("Папка сохранения"))
                             .font(.caption)
                             .foregroundStyle(secondaryText)
                         Text(model.saveDirectory.lastPathComponent)
@@ -638,7 +638,7 @@ struct ContentView: View {
                             .help(model.saveDirectory.path)
                     }
                     Spacer(minLength: 8)
-                    Button("Изменить…") { model.chooseSaveDirectory() }
+                    Button(L("Изменить…")) { model.chooseSaveDirectory() }
                         .disabled(model.isBusy)
                 }
 
@@ -650,7 +650,7 @@ struct ContentView: View {
                     .padding(.top, 10)
                 } label: {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Параметры загрузки").font(.callout.weight(.medium))
+                        Text(L("Параметры загрузки")).font(.callout.weight(.medium))
                         Text("\(model.mediaSelectionMode.title) · \(model.downloadMode.title)")
                             .font(.caption).foregroundStyle(secondaryText)
                     }
@@ -662,16 +662,16 @@ struct ContentView: View {
     }
 
     func homeTwoQueueCard(compact: Bool) -> some View {
-        card("Очередь") {
+        card(L("Очередь")) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 10) {
-                    queueSummaryBadge(text: "Ждёт \(queuedPendingCount)", tint: Color.orange.opacity(isDark ? 0.16 : 0.10))
-                    queueSummaryBadge(text: "Готово \(queuedCompletedCount)", tint: Color.green.opacity(isDark ? 0.16 : 0.10))
-                    queueSummaryBadge(text: "Ошибок \(queuedFailedCount)", tint: Color.red.opacity(isDark ? 0.15 : 0.09))
+                    queueSummaryBadge(text: L("Ждёт {0}", queuedPendingCount), tint: Color.orange.opacity(isDark ? 0.16 : 0.10))
+                    queueSummaryBadge(text: L("Готово {0}", queuedCompletedCount), tint: Color.green.opacity(isDark ? 0.16 : 0.10))
+                    queueSummaryBadge(text: L("Ошибок {0}", queuedFailedCount), tint: Color.red.opacity(isDark ? 0.15 : 0.09))
                 }
 
                 if model.batchQueue.isEmpty {
-                    Text("Добавьте профили в поле загрузки или выберите сохранённый набор.")
+                    Text(L("Добавьте профили в поле загрузки или выберите сохранённый набор."))
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(secondaryText)
                         .padding(16)
@@ -698,19 +698,19 @@ struct ContentView: View {
 
                 if compact {
                     VStack(alignment: .leading, spacing: 10) {
-                        ghostButton("Очистить очередь", systemImage: "trash", tint: Color.red.opacity(0.78)) {
+                        ghostButton(L("Очистить очередь"), systemImage: "trash", tint: Color.red.opacity(0.78)) {
                             model.clearBatchQueue()
                         }
                         .disabled(model.batchQueue.isEmpty || model.isBusy)
                         .opacity(model.batchQueue.isEmpty || model.isBusy ? 0.68 : 1)
 
-                        Text("После запуска список сохранится в «Недавних наборах».")
+                        Text(L("После запуска список сохранится в «Недавних наборах»."))
                             .font(.system(size: 12, weight: .medium, design: .rounded))
                             .foregroundStyle(quaternaryText)
                     }
                 } else {
                     HStack(spacing: 10) {
-                        ghostButton("Очистить очередь", systemImage: "trash", tint: Color.red.opacity(0.78)) {
+                        ghostButton(L("Очистить очередь"), systemImage: "trash", tint: Color.red.opacity(0.78)) {
                             model.clearBatchQueue()
                         }
                         .disabled(model.batchQueue.isEmpty || model.isBusy)
@@ -718,7 +718,7 @@ struct ContentView: View {
 
                         Spacer(minLength: 0)
 
-                        Text("После запуска список сохранится в «Недавних наборах».")
+                        Text(L("После запуска список сохранится в «Недавних наборах»."))
                             .font(.system(size: 12, weight: .medium, design: .rounded))
                             .foregroundStyle(quaternaryText)
                     }
@@ -728,10 +728,10 @@ struct ContentView: View {
     }
 
     func recentListsCard(compact: Bool) -> some View {
-        card("Недавние наборы") {
+        card(L("Недавние наборы")) {
             VStack(alignment: .leading, spacing: 12) {
                 if model.recentBatchLists.isEmpty {
-                    Text("Здесь появятся сохранённые и недавно запущенные наборы профилей.")
+                    Text(L("Здесь появятся сохранённые и недавно запущенные наборы профилей."))
                         .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -754,7 +754,7 @@ struct ContentView: View {
                                 showingAllRecentLists.toggle()
                             }
                         } label: {
-                            Text(showingAllRecentLists ? "Свернуть ↑" : "Показать ещё ↓")
+                            Text(showingAllRecentLists ? L("Свернуть ↑") : L("Показать ещё ↓"))
                                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                                 .foregroundStyle(primaryText)
                                 .frame(maxWidth: .infinity)
@@ -804,8 +804,8 @@ struct ContentView: View {
                         .background(Circle().fill(Color.white.opacity(isDark ? 0.06 : 0.42)))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Удалить набор \(list.title)")
-                .help("Удалить набор")
+                .accessibilityLabel(L("Удалить набор {0}", list.title))
+                .help(L("Удалить набор"))
                 .disabled(model.isBusy)
             }
 
@@ -817,22 +817,22 @@ struct ContentView: View {
 
             if compact {
                 VStack(spacing: 8) {
-                    recentActionButton("Добавить в очередь", systemImage: "plus") {
+                    recentActionButton(L("Добавить в очередь"), systemImage: "plus") {
                         model.applyRecentBatchList(list)
                     }
 
-                    recentActionButton("Заменить очередь", systemImage: "arrow.triangle.swap") {
+                    recentActionButton(L("Заменить очередь"), systemImage: "arrow.triangle.swap") {
                         model.replaceQueueWithRecentBatchList(list)
                     }
                     .disabled(model.isBusy)
                 }
             } else {
                 HStack(spacing: 8) {
-                    recentActionButton("Добавить в очередь", systemImage: "plus") {
+                    recentActionButton(L("Добавить в очередь"), systemImage: "plus") {
                         model.applyRecentBatchList(list)
                     }
 
-                    recentActionButton("Заменить очередь", systemImage: "arrow.triangle.swap") {
+                    recentActionButton(L("Заменить очередь"), systemImage: "arrow.triangle.swap") {
                         model.replaceQueueWithRecentBatchList(list)
                     }
                     .disabled(model.isBusy)
@@ -881,7 +881,7 @@ struct ContentView: View {
 
     func destinationInlineCard(compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Папка для сохранения")
+            Text(L("Папка для сохранения"))
                 .font(.caption)
                 .tracking(1.2)
                 .textCase(.uppercase)
@@ -901,21 +901,21 @@ struct ContentView: View {
 
             if compact {
                 VStack(spacing: 8) {
-                    ghostButton("Выбрать папку", systemImage: "folder.badge.plus") {
+                    ghostButton(L("Выбрать папку"), systemImage: "folder.badge.plus") {
                         model.chooseSaveDirectory()
                     }
 
-                    ghostButton("Показать в Finder", systemImage: "folder") {
+                    ghostButton(L("Показать в Finder"), systemImage: "folder") {
                         model.openSaveDirectory()
                     }
                 }
             } else {
                 HStack(spacing: 8) {
-                    ghostButton("Выбрать папку", systemImage: "folder.badge.plus") {
+                    ghostButton(L("Выбрать папку"), systemImage: "folder.badge.plus") {
                         model.chooseSaveDirectory()
                     }
 
-                    ghostButton("Показать в Finder", systemImage: "folder") {
+                    ghostButton(L("Показать в Finder"), systemImage: "folder") {
                         model.openSaveDirectory()
                     }
                 }
@@ -930,7 +930,7 @@ struct ContentView: View {
 
     var batchProgressStripe: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Скачиваю \(model.batchCurrentIndex) из \(model.batchTotalCount) — осталось \(model.batchRemainingCount)")
+            Text(L("Скачиваю {0} из {1} — осталось {2}", model.batchCurrentIndex, model.batchTotalCount, model.batchRemainingCount))
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(primaryText)
 
@@ -987,13 +987,13 @@ struct ContentView: View {
 
     var statusCards: some View {
         HStack(spacing: 12) {
-            statusCard(title: "Воркер", presentation: workerStatusPresentation)
-            statusCard(title: "Сессия", presentation: sessionStatusPresentation)
+            statusCard(title: L("Воркер"), presentation: workerStatusPresentation)
+            statusCard(title: L("Сессия"), presentation: sessionStatusPresentation)
         }
     }
 
     var progressCard: some View {
-        card("Статус загрузки") {
+        card(L("Статус загрузки")) {
             VStack(alignment: .leading, spacing: 12) {
                 if model.isBusy {
                     liveStatusBadge
@@ -1024,16 +1024,16 @@ struct ContentView: View {
                     .opacity(model.isBusy ? 1 : 0.82)
 
                 HStack(spacing: 12) {
-                    statPill(title: "Найдено", value: model.foundStoriesCount, accent: Color.orange.opacity(0.78))
-                    statPill(title: "Сохранено", value: model.savedStoriesCount, accent: Color.green.opacity(0.78))
+                    statPill(title: L("Найдено"), value: model.foundStoriesCount, accent: Color.orange.opacity(0.78))
+                    statPill(title: L("Сохранено"), value: model.savedStoriesCount, accent: Color.green.opacity(0.78))
                 }
 
                 HStack(spacing: 12) {
-                    statPill(title: "Файлов загружено", value: model.liveDownloadedFileCount, accent: Color.blue.opacity(0.78))
-                    statPill(title: "Папок создано", value: model.liveCreatedFolderCount, accent: Color.mint.opacity(0.78))
+                    statPill(title: L("Файлов загружено"), value: model.liveDownloadedFileCount, accent: Color.blue.opacity(0.78))
+                    statPill(title: L("Папок создано"), value: model.liveCreatedFolderCount, accent: Color.mint.opacity(0.78))
                 }
 
-                Text("Счётчики считаются по содержимому выбранной папки сохранения.")
+                Text(L("Счётчики считаются по содержимому выбранной папки сохранения."))
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(quaternaryText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1042,7 +1042,7 @@ struct ContentView: View {
     }
 
     var profileCard: some View {
-        card("Ссылка на профиль") {
+        card(L("Ссылка на профиль")) {
             VStack(alignment: .leading, spacing: 12) {
                 TextField("https://www.instagram.com/username/", text: $model.profileURL)
                     .textFieldStyle(.plain)
@@ -1052,7 +1052,7 @@ struct ContentView: View {
 
                 downloadModePicker()
 
-                button("Скачать активные stories", systemImage: "photo.stack.fill", prominent: true) {
+                button(L("Скачать активные stories"), systemImage: "photo.stack.fill", prominent: true) {
                     Task { await model.downloadProfileStories() }
                 }
             }
@@ -1062,7 +1062,7 @@ struct ContentView: View {
     var activityHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
-                Text("Состояние")
+                Text(L("Состояние"))
                     .font(.system(size: 24, weight: .semibold, design: .rounded))
                     .foregroundStyle(primaryText)
 
@@ -1094,7 +1094,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 12) {
             homeStatusBadge
             HStack(spacing: 8) {
-                topStatusChip(title: "Движок", isReady: model.workerReady)
+                topStatusChip(title: L("Движок"), isReady: model.workerReady)
                 topStatusChip(title: "Instagram", isReady: model.sessionReady)
                 Spacer(minLength: 0)
                 Button {
@@ -1103,8 +1103,8 @@ struct ContentView: View {
                     Image(systemName: "person.crop.circle")
                 }
                 .saveMeGlassButton()
-                .accessibilityLabel(model.sessionReady ? "Обновить вход в Instagram" : "Войти в Instagram")
-                .help(model.sessionReady ? "Обновить вход в Instagram" : "Войти в Instagram")
+                .accessibilityLabel(model.sessionReady ? L("Обновить вход в Instagram") : L("Войти в Instagram"))
+                .help(model.sessionReady ? L("Обновить вход в Instagram") : L("Войти в Instagram"))
                 .disabled(model.isBusy)
             }
         }
@@ -1122,7 +1122,7 @@ struct ContentView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
-        .accessibilityValue(isReady ? "Готово" : "Требуется настройка")
+        .accessibilityValue(isReady ? L("Готово") : L("Требуется настройка"))
         .padding(.horizontal, 9)
         .padding(.vertical, 6)
         .background(
@@ -1132,22 +1132,22 @@ struct ContentView: View {
     }
 
     var homeStatusBadge: some View {
-        let isError = model.statusTitle.lowercased().contains("ошиб")
-        let isDone = model.statusTitle.lowercased().contains("готов")
+        let isError = model.statusTitle.mentionsAny("ошиб", "error", "fail")
+        let isDone = model.statusTitle.mentionsAny("готов", "ready", "done")
         let title: String
         let tint: Color
 
         if model.isBusy {
-            title = isStoriesDownloadInProgress ? "Идёт загрузка" : "Подготовка"
+            title = isStoriesDownloadInProgress ? L("Идёт загрузка") : L("Подготовка")
             tint = Color.blue.opacity(0.82)
         } else if isError {
-            title = "Ошибка"
+            title = L("Ошибка")
             tint = Color.red.opacity(0.82)
         } else if isDone {
-            title = "Готово"
+            title = L("Готово")
             tint = Color.green.opacity(0.82)
         } else {
-            title = "Ожидание"
+            title = L("Ожидание")
             tint = Color.gray.opacity(0.78)
         }
 
@@ -1174,10 +1174,10 @@ struct ContentView: View {
     }
 
     var downloadsCard: some View {
-        card("Последние загрузки", padding: 0) {
+        card(L("Последние загрузки"), padding: 0) {
             Group {
                 if model.downloadedItems.isEmpty {
-                    Text("Пока нет сохранённых файлов.")
+                    Text(L("Пока нет сохранённых файлов."))
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(secondaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1224,35 +1224,35 @@ struct ContentView: View {
     }
 
     var postProcessingCard: some View {
-        card("Сортировка") {
+        card(L("Сортировка")) {
             VStack(alignment: .leading, spacing: 16) {
                 sortingOverviewCard
 
                 sortingStepCard(
                     number: "0",
-                    title: "Удалить пустые папки",
-                    detail: "Работает отдельно от сортировки и не трогает папку «На перенос».",
+                    title: L("Удалить пустые папки"),
+                    detail: L("Работает отдельно от сортировки и не трогает папку «На перенос»."),
                     isActive: true,
                     isDone: model.emptyFolderCleanupDirectory != nil
                 ) {
                     horizontalMonospaceField(
-                        model.emptyFolderCleanupDirectory?.path ?? "Папка ещё не выбрана.",
+                        model.emptyFolderCleanupDirectory?.path ?? L("Папка ещё не выбрана."),
                         fontSize: 12
                     )
                     .frame(height: 52)
 
                     HStack(spacing: 10) {
-                        button("Выбрать папку", systemImage: "folder.badge.gearshape", prominent: true) {
+                        button(L("Выбрать папку"), systemImage: "folder.badge.gearshape", prominent: true) {
                             model.chooseEmptyFolderCleanupDirectory()
                         }
 
-                        button("Открыть", systemImage: "folder") {
+                        button(L("Открыть"), systemImage: "folder") {
                             model.openEmptyFolderCleanupDirectory()
                         }
                         .disabled(model.emptyFolderCleanupDirectory == nil)
                     }
 
-                    button("Удалить пустые папки", systemImage: "trash", prominent: false) {
+                    button(L("Удалить пустые папки"), systemImage: "trash", prominent: false) {
                         Task { await model.removeEmptyFoldersInCleanupDirectory() }
                     }
                     .disabled(model.emptyFolderCleanupDirectory == nil)
@@ -1265,23 +1265,23 @@ struct ContentView: View {
 
                 sortingStepCard(
                     number: "1",
-                    title: "Укажи, где находится папка «На перенос»",
-                    detail: "Отсюда приложение возьмёт файлы для раскладки.",
+                    title: L("Укажи, где находится папка «На перенос»"),
+                    detail: L("Отсюда приложение возьмёт файлы для раскладки."),
                     isActive: true,
                     isDone: sortingHasSource
                 ) {
                     horizontalMonospaceField(
-                        model.sortingSourceDirectory?.path ?? "Папка ещё не выбрана.",
+                        model.sortingSourceDirectory?.path ?? L("Папка ещё не выбрана."),
                         fontSize: 12
                     )
                     .frame(height: 52)
 
                     HStack(spacing: 10) {
-                        button("Выбрать папку", systemImage: "tray.full", prominent: true) {
+                        button(L("Выбрать папку"), systemImage: "tray.full", prominent: true) {
                             model.chooseSortingSourceDirectory()
                         }
 
-                        button("Открыть", systemImage: "folder") {
+                        button(L("Открыть"), systemImage: "folder") {
                             model.openSortingSourceDirectory()
                         }
                         .disabled(!sortingHasSource)
@@ -1290,23 +1290,23 @@ struct ContentView: View {
 
                 sortingStepCard(
                     number: "2",
-                    title: "Выбери папку WhiteList INF Исходники",
-                    detail: "Сюда файлы будут разложены по подпапкам.",
+                    title: L("Выбери папку WhiteList INF Исходники"),
+                    detail: L("Сюда файлы будут разложены по подпапкам."),
                     isActive: sortingHasSource,
                     isDone: sortingHasDestination
                 ) {
                     horizontalMonospaceField(
-                        model.distributionRootDirectory?.path ?? "Папка ещё не выбрана.",
+                        model.distributionRootDirectory?.path ?? L("Папка ещё не выбрана."),
                         fontSize: 12
                     )
                     .frame(height: 52)
 
                     HStack(spacing: 10) {
-                        button("Выбрать папку", systemImage: "folder.badge.plus", prominent: sortingHasSource) {
+                        button(L("Выбрать папку"), systemImage: "folder.badge.plus", prominent: sortingHasSource) {
                             model.chooseDistributionRootDirectory()
                         }
 
-                        button("Открыть", systemImage: "folder") {
+                        button(L("Открыть"), systemImage: "folder") {
                             model.openDistributionRootDirectory()
                         }
                         .disabled(!sortingHasDestination)
@@ -1315,8 +1315,8 @@ struct ContentView: View {
 
                 sortingStepCard(
                     number: "3",
-                    title: "Добавь правила при необходимости",
-                    detail: "Укажи страну или полный путь для конкретного блогера.",
+                    title: L("Добавь правила при необходимости"),
+                    detail: L("Укажи страну или полный путь для конкретного блогера."),
                     isActive: sortingHasSource && sortingHasDestination,
                     isDone: sortingRuleCount > 0
                 ) {
@@ -1326,17 +1326,17 @@ struct ContentView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             textEditorCard(
                                 text: $model.folderRoutingRules,
-                                placeholder: "nick = Germany (DE)\nnick2 = Australia (AU)/Папка блогера"
+                                placeholder: L("nick = Germany (DE)\nnick2 = Australia (AU)/Папка блогера")
                             )
                             .frame(height: 124)
                             .clipShape(RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous))
 
-                            Text("Если указать только страну, приложение само добавит внутрь папку блогера: `nick = Germany (DE)` → `Germany (DE)/nick`.")
+                            Text(L("Если указать только страну, приложение само добавит внутрь папку блогера: `nick = Germany (DE)` → `Germany (DE)/nick`."))
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(quaternaryText)
                                 .fixedSize(horizontal: false, vertical: true)
 
-                            Text("Запомнено блогеров: \(model.rememberedBloggers.count). Список обновляется после правил и каждого переноса.")
+                            Text(L("Запомнено блогеров: {0}. Список обновляется после правил и каждого переноса.", model.rememberedBloggers.count))
                                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                                 .foregroundStyle(secondaryText)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -1355,7 +1355,7 @@ struct ContentView: View {
                         .padding(.top, 8)
                     } label: {
                         HStack {
-                            Text(sortingRuleCount == 0 ? "Открыть правила" : "Правил: \(sortingRuleCount)")
+                            Text(sortingRuleCount == 0 ? L("Открыть правила") : L("Правил: {0}", sortingRuleCount))
                                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                                 .foregroundStyle(primaryText)
                             Spacer(minLength: 0)
@@ -1366,19 +1366,19 @@ struct ContentView: View {
 
                 sortingStepCard(
                     number: "4",
-                    title: "Разложи файлы",
-                    detail: "Нажми основную кнопку. Дополнительный вариант спрятан ниже.",
+                    title: L("Разложи файлы"),
+                    detail: L("Нажми основную кнопку. Дополнительный вариант спрятан ниже."),
                     isActive: sortingHasSource && sortingHasDestination,
                     isDone: sortingHasResults
                 ) {
                     HStack(spacing: 12) {
                         statPill(
-                            title: "Последняя выгрузка",
+                            title: L("Последняя выгрузка"),
                             value: model.latestSessionDownloadedItems.count,
                             accent: Color.orange.opacity(0.78)
                         )
                         statPill(
-                            title: "Готово",
+                            title: L("Готово"),
                             value: model.postProcessedItems.count,
                             accent: Color.blue.opacity(0.78)
                         )
@@ -1389,24 +1389,24 @@ struct ContentView: View {
                         .foregroundStyle(secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    button("Разложить из папки Перенос", systemImage: "arrow.right.doc.on.clipboard", prominent: true) {
+                    button(L("Разложить из папки Перенос"), systemImage: "arrow.right.doc.on.clipboard", prominent: true) {
                         Task { await model.distributeFilesFromSortingSource() }
                     }
                     .disabled(!(sortingHasSource && sortingHasDestination) || model.isRefreshingNotionRoutingRules)
 
-                    button("Отмена переноса", systemImage: "arrow.uturn.backward", prominent: false) {
+                    button(L("Отмена переноса"), systemImage: "arrow.uturn.backward", prominent: false) {
                         Task { await model.undoLastDistribution() }
                     }
                     .disabled(!sortingCanUndo)
 
                     DisclosureGroup(isExpanded: $sortingAdvancedExpanded) {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("Используй это, если нужно разложить файлы из последней загрузки приложения, без папки Перенос.")
+                            Text(L("Используй это, если нужно разложить файлы из последней загрузки приложения, без папки Перенос."))
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(quaternaryText)
                                 .fixedSize(horizontal: false, vertical: true)
 
-                            button("Из последней загрузки", systemImage: "square.stack.3d.down.forward") {
+                            button(L("Из последней загрузки"), systemImage: "square.stack.3d.down.forward") {
                                 Task { await model.distributeLatestDownloadedFiles() }
                             }
                             .disabled(!sortingHasDestination)
@@ -1414,7 +1414,7 @@ struct ContentView: View {
                         .padding(.top, 8)
                     } label: {
                         HStack {
-                            Text("Дополнительно")
+                            Text(L("Дополнительно"))
                                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                                 .foregroundStyle(primaryText)
                             Spacer(minLength: 0)
@@ -1425,8 +1425,8 @@ struct ContentView: View {
 
                 sortingStepCard(
                     number: "5",
-                    title: "Скопируй готовый результат",
-                    detail: "Drive-ссылки копируются дайджестом: страна, блогер, ссылки.",
+                    title: L("Скопируй готовый результат"),
+                    detail: L("Drive-ссылки копируются дайджестом: страна, блогер, ссылки."),
                     isActive: sortingHasResults,
                     isDone: false
                 ) {
@@ -1436,23 +1436,23 @@ struct ContentView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     HStack(spacing: 10) {
-                        button("Скопировать список", systemImage: "doc.on.doc", prominent: sortingHasResults) {
+                        button(L("Скопировать список"), systemImage: "doc.on.doc", prominent: sortingHasResults) {
                             model.copyPostProcessedReport()
                         }
                         .disabled(!sortingHasResults)
 
-                        button("Скопировать ссылки", systemImage: "link.badge.plus") {
+                        button(L("Скопировать ссылки"), systemImage: "link.badge.plus") {
                             Task { await model.exportGoogleDriveLinks() }
                         }
                         .disabled(!sortingHasResults)
                     }
 
-                    Text("Если у файла не найдутся данные Google Drive, приложение попробует получить ссылку через Finder.")
+                    Text(L("Если у файла не найдутся данные Google Drive, приложение попробует получить ссылку через Finder."))
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(quaternaryText)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    button("Открыть доступы", systemImage: "gearshape") {
+                    button(L("Открыть доступы"), systemImage: "gearshape") {
                         model.openSystemSettings()
                     }
                 }
@@ -1462,15 +1462,15 @@ struct ContentView: View {
 
     var sortingOverviewCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Пройди шаги сверху вниз: выбери две папки, при необходимости добавь правила и потом скопируй результат.")
+            Text(L("Пройди шаги сверху вниз: выбери две папки, при необходимости добавь правила и потом скопируй результат."))
                 .font(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundStyle(secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 10) {
-                sortingOverviewPill(title: "Источник", state: sortingHasSource ? "Выбран" : "Не выбран", tint: sortingHasSource ? Color.green.opacity(0.75) : Color.orange.opacity(0.75))
-                sortingOverviewPill(title: "Назначение", state: sortingHasDestination ? "Выбрано" : "Не выбрано", tint: sortingHasDestination ? Color.green.opacity(0.75) : Color.orange.opacity(0.75))
-                sortingOverviewPill(title: "Результат", state: sortingHasResults ? "Готов" : "Пусто", tint: sortingHasResults ? Color.blue.opacity(0.72) : Color.gray.opacity(0.45))
+                sortingOverviewPill(title: L("Источник"), state: sortingHasSource ? L("Выбран") : L("Не выбран"), tint: sortingHasSource ? Color.green.opacity(0.75) : Color.orange.opacity(0.75))
+                sortingOverviewPill(title: L("Назначение"), state: sortingHasDestination ? L("Выбрано") : L("Не выбрано"), tint: sortingHasDestination ? Color.green.opacity(0.75) : Color.orange.opacity(0.75))
+                sortingOverviewPill(title: L("Результат"), state: sortingHasResults ? L("Готов") : L("Пусто"), tint: sortingHasResults ? Color.blue.opacity(0.72) : Color.gray.opacity(0.45))
             }
         }
         .padding(14)
@@ -1523,7 +1523,7 @@ struct ContentView: View {
                             .font(.system(size: 15, weight: .semibold, design: .rounded))
                             .foregroundStyle(primaryText)
                         if isDone {
-                            Text("Готово")
+                            Text(L("Готово"))
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
@@ -1559,7 +1559,7 @@ struct ContentView: View {
     func logsCard(maxHeight: CGFloat? = nil) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                Text("Логи")
+                Text(L("Логи"))
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .textCase(.uppercase)
                     .foregroundStyle(quaternaryText)
@@ -1569,7 +1569,7 @@ struct ContentView: View {
                 Button {
                     model.copyLogs()
                 } label: {
-                    Label("Скопировать логи", systemImage: "doc.on.doc")
+                    Label(L("Скопировать логи"), systemImage: "doc.on.doc")
                 }
                 .saveMeGlassButton()
                 .controlSize(.small)
@@ -1601,7 +1601,7 @@ struct ContentView: View {
     }
 
     func homeLogsCard(maxHeight: CGFloat? = nil) -> some View {
-        card("Логи", padding: 0) {
+        card(L("Логи"), padding: 0) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
                     Spacer(minLength: 0)
@@ -1613,7 +1613,7 @@ struct ContentView: View {
                             showingLogsCopiedFeedback = false
                         }
                     } label: {
-                        Label(showingLogsCopiedFeedback ? "Скопировано ✓" : "Скопировать", systemImage: showingLogsCopiedFeedback ? "checkmark" : "doc.on.doc")
+                        Label(showingLogsCopiedFeedback ? L("Скопировано ✓") : L("Скопировать"), systemImage: showingLogsCopiedFeedback ? "checkmark" : "doc.on.doc")
                     }
                     .saveMeGlassButton()
                     .controlSize(.small)
@@ -1653,10 +1653,10 @@ struct ContentView: View {
     }
 
     func homeDiagnosticsCard(maxHeight: CGFloat? = nil) -> some View {
-        card("Диагностика", padding: 0) {
+        card(L("Диагностика"), padding: 0) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: model.statusTitle.lowercased().contains("ошиб") ? "exclamationmark.triangle.fill" : "stethoscope")
+                    Image(systemName: model.statusTitle.mentionsAny("ошиб", "error", "fail") ? "exclamationmark.triangle.fill" : "stethoscope")
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .foregroundStyle(globalStatusTint)
                         .frame(width: 28, height: 28)
@@ -1671,7 +1671,7 @@ struct ContentView: View {
                             .foregroundStyle(primaryText)
                             .fixedSize(horizontal: false, vertical: true)
 
-                        Text(model.logs.first.map(cleanedLogLine) ?? "Технические сообщения появятся после первой операции.")
+                        Text(model.logs.first.map(cleanedLogLine) ?? L("Технические сообщения появятся после первой операции."))
                             .font(.system(size: 12, weight: .medium, design: .rounded))
                             .foregroundStyle(tertiaryText)
                             .lineLimit(2)
@@ -1684,7 +1684,7 @@ struct ContentView: View {
                             showingHomeDiagnostics.toggle()
                         }
                     } label: {
-                        Label(showingHomeDiagnostics ? "Скрыть" : "Открыть", systemImage: showingHomeDiagnostics ? "chevron.up" : "chevron.down")
+                        Label(showingHomeDiagnostics ? L("Скрыть") : L("Открыть"), systemImage: showingHomeDiagnostics ? "chevron.up" : "chevron.down")
                     }
                     .saveMeGlassButton()
                     .controlSize(.small)
@@ -1698,7 +1698,7 @@ struct ContentView: View {
                         .padding(.horizontal, 18)
 
                     HStack(spacing: 12) {
-                        Text("Последние события")
+                        Text(L("Последние события"))
                             .font(.system(size: 12, weight: .bold, design: .rounded))
                             .textCase(.uppercase)
                             .foregroundStyle(quaternaryText)
@@ -1712,7 +1712,7 @@ struct ContentView: View {
                                 showingLogsCopiedFeedback = false
                             }
                         } label: {
-                            Label(showingLogsCopiedFeedback ? "Скопировано" : "Скопировать", systemImage: showingLogsCopiedFeedback ? "checkmark" : "doc.on.doc")
+                            Label(showingLogsCopiedFeedback ? L("Скопировано") : L("Скопировать"), systemImage: showingLogsCopiedFeedback ? "checkmark" : "doc.on.doc")
                         }
                         .saveMeGlassButton()
                         .controlSize(.small)
@@ -1721,7 +1721,7 @@ struct ContentView: View {
                     .padding(.horizontal, 18)
 
                     if model.logs.isEmpty {
-                        Text("Лог пока пуст.")
+                        Text(L("Лог пока пуст."))
                             .font(.system(size: 12, weight: .medium, design: .rounded))
                             .foregroundStyle(secondaryText)
                             .padding(.horizontal, 18)
@@ -1762,16 +1762,16 @@ struct ContentView: View {
     }
 
     var runtimeCard: some View {
-        settingsCard("Техническая информация") {
+        settingsCard(L("Техническая информация")) {
             VStack(alignment: .leading, spacing: 12) {
                 Text(runtimeSummaryHeadline)
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
 
-                DisclosureGroup("Показать детали", isExpanded: $showingRuntimeDetails) {
+                DisclosureGroup(L("Показать детали"), isExpanded: $showingRuntimeDetails) {
                     horizontalMonospaceField(
-                        model.runtimeSummary.isEmpty ? "Информация о среде появится после проверки воркера." : model.runtimeSummary,
+                        model.runtimeSummary.isEmpty ? L("Информация о среде появится после проверки воркера.") : model.runtimeSummary,
                         fontSize: 12
                     )
                     .padding(.top, 8)
@@ -1780,18 +1780,24 @@ struct ContentView: View {
                 .font(.system(size: 13, weight: .medium, design: .rounded))
                 .tint(prominentButtonTint)
 
-                button("Открыть папку среды", systemImage: "internaldrive") {
+                button(L("Открыть папку среды"), systemImage: "internaldrive") {
                     model.openRuntimeDirectory()
                 }
             }
         }
     }
 
+    var languageCard: some View {
+        settingsCard("Language / Язык") {
+            LanguageSetting(secondaryText: secondaryText)
+        }
+    }
+
     var updatesCard: some View {
-        settingsCard("Обновления") {
+        settingsCard(L("Обновления")) {
             VStack(alignment: .leading, spacing: 12) {
                 statusInlineNote(
-                    title: "Автообновление",
+                    title: L("Автообновление"),
                     message: model.updateSummary
                 )
 
@@ -1802,11 +1808,11 @@ struct ContentView: View {
                     )
                 ) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Проверять и скачивать автоматически")
+                        Text(L("Проверять и скачивать автоматически"))
                             .font(.system(size: 14, weight: .semibold, design: .rounded))
                             .foregroundStyle(primaryText)
 
-                        Text("При запуске SaveMe проверит обновление и подготовит его к установке.")
+                        Text(L("При запуске SaveMe проверит обновление и подготовит его к установке."))
                             .font(.system(size: 12, weight: .medium, design: .rounded))
                             .foregroundStyle(tertiaryText)
                             .fixedSize(horizontal: false, vertical: true)
@@ -1827,7 +1833,7 @@ struct ContentView: View {
                                 Image(systemName: "arrow.triangle.2.circlepath")
                             }
 
-                            Text("Проверить обновления")
+                            Text(L("Проверить обновления"))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.82)
                         }
@@ -1837,7 +1843,7 @@ struct ContentView: View {
                     .tint(secondaryButtonTint)
                     .disabled(model.isCheckingForUpdates)
                 } else {
-                    Text("Обновления пока недоступны в этой сборке")
+                    Text(L("Обновления пока недоступны в этой сборке"))
                         .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(quaternaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1847,7 +1853,7 @@ struct ContentView: View {
     }
 
     var powerCard: some View {
-        settingsCard("Во время выгрузки") {
+        settingsCard(L("Во время выгрузки")) {
             VStack(alignment: .leading, spacing: 12) {
                 Toggle(isOn: $model.preventSleepDuringDownloads) {
                     HStack(alignment: .center, spacing: 10) {
@@ -1855,7 +1861,7 @@ struct ContentView: View {
                             .font(.system(size: 14, weight: .semibold, design: .rounded))
                             .foregroundStyle(model.preventSleepDuringDownloads ? prominentButtonTint : secondaryText)
 
-                        Text("Не давать Mac засыпать и гасить экран")
+                        Text(L("Не давать Mac засыпать и гасить экран"))
                             .font(.system(size: 14, weight: .semibold, design: .rounded))
                             .foregroundStyle(primaryText)
                     }
@@ -1864,8 +1870,8 @@ struct ContentView: View {
 
                 if !model.preventSleepDuringDownloads {
                     statusInlineNote(
-                        title: "Внимание",
-                        message: "Если Mac уснёт или заблокирует экран во время длинной выгрузки, скачивание stories или Reels может прерваться."
+                        title: L("Внимание"),
+                        message: L("Если Mac уснёт или заблокирует экран во время длинной выгрузки, скачивание stories или Reels может прерваться.")
                     )
                     .transition(.opacity)
                 }
@@ -1874,16 +1880,16 @@ struct ContentView: View {
     }
 
     var sessionCard: some View {
-        settingsCard("Подключение к Instagram") {
+        settingsCard(L("Подключение к Instagram")) {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Если среда ещё не подготовлена, установи компоненты прямо отсюда. После этого можно открыть браузер для входа и проверить сессию.")
+                Text(L("Если среда ещё не подготовлена, установи компоненты прямо отсюда. После этого можно открыть браузер для входа и проверить сессию."))
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
 
                 statusInlineNote(
-                    title: "Авторизация",
-                    message: "Браузер для входа держится открытым, пока Instagram не выдаст активную сессию или пока не истечёт таймаут."
+                    title: L("Авторизация"),
+                    message: L("Браузер для входа держится открытым, пока Instagram не выдаст активную сессию или пока не истечёт таймаут.")
                 )
 
                 if model.hasEmbeddedRuntime {
@@ -1892,7 +1898,7 @@ struct ContentView: View {
                             .font(.system(size: 16, weight: .semibold, design: .rounded))
                             .foregroundStyle(Color.green.opacity(0.86))
 
-                        Text("Всё встроено — дополнительная установка не нужна")
+                        Text(L("Всё встроено — дополнительная установка не нужна"))
                             .font(.system(size: 14, weight: .semibold, design: .rounded))
                             .foregroundStyle(primaryText)
                     }
@@ -1908,20 +1914,20 @@ struct ContentView: View {
 
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                     if !model.hasEmbeddedRuntime {
-                        button("Установить компоненты", systemImage: "arrow.down.circle") {
+                        button(L("Установить компоненты"), systemImage: "arrow.down.circle") {
                             Task { await model.bootstrapEnvironment() }
                         }
 
-                        button("Проверить готовность", systemImage: "bolt.horizontal.circle") {
+                        button(L("Проверить готовность"), systemImage: "bolt.horizontal.circle") {
                             Task { await model.refreshEnvironment() }
                         }
                     }
 
-                    button("Войти в Instagram", systemImage: "person.crop.circle.badge.checkmark", prominent: true) {
+                    button(L("Войти в Instagram"), systemImage: "person.crop.circle.badge.checkmark", prominent: true) {
                         Task { await model.login() }
                     }
 
-                    button("Проверить сессию", systemImage: "checkmark.shield") {
+                    button(L("Проверить сессию"), systemImage: "checkmark.shield") {
                         Task { await model.checkSession() }
                     }
                 }
@@ -1932,13 +1938,13 @@ struct ContentView: View {
     func downloadModePicker(showTitle: Bool = true) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             if showTitle {
-                Text("Режим выгрузки")
+                Text(L("Режим выгрузки"))
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .textCase(.uppercase)
                     .foregroundStyle(tertiaryText)
             }
 
-            Picker("Режим выгрузки", selection: $model.downloadMode) {
+            Picker(L("Режим выгрузки"), selection: $model.downloadMode) {
                 ForEach(AppModel.DownloadMode.allCases) { mode in
                     Text(mode.title).tag(mode)
                 }
@@ -1954,13 +1960,13 @@ struct ContentView: View {
 
     var storiesDownloadModePicker: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Режим браузера")
+            Text(L("Режим браузера"))
                 .font(.caption)
                 .tracking(1.2)
                 .textCase(.uppercase)
                 .foregroundStyle(tertiaryText)
 
-            Picker("Режим браузера", selection: $model.downloadMode) {
+            Picker(L("Режим браузера"), selection: $model.downloadMode) {
                 ForEach(AppModel.DownloadMode.allCases) { mode in
                     Text(mode.title).tag(mode)
                 }
@@ -1978,13 +1984,13 @@ struct ContentView: View {
 
     var storiesMediaSelectionPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Что сохранять")
+            Text(L("Что сохранять"))
                 .font(.caption)
                 .tracking(1.2)
                 .textCase(.uppercase)
                 .foregroundStyle(tertiaryText)
 
-            Picker("Что сохранять", selection: $model.mediaSelectionMode) {
+            Picker(L("Что сохранять"), selection: $model.mediaSelectionMode) {
                 ForEach(AppModel.MediaSelectionMode.allCases) { mode in
                     Text(mode.title).tag(mode)
                 }
@@ -2003,13 +2009,13 @@ struct ContentView: View {
     func mediaSelectionPicker(showTitle: Bool = true) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             if showTitle {
-                Text("Что сохранять")
+                Text(L("Что сохранять"))
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .textCase(.uppercase)
                     .foregroundStyle(tertiaryText)
             }
 
-            Picker("Что сохранять", selection: $model.mediaSelectionMode) {
+            Picker(L("Что сохранять"), selection: $model.mediaSelectionMode) {
                 ForEach(AppModel.MediaSelectionMode.allCases) { mode in
                     Text(mode.title).tag(mode)
                 }
@@ -2024,11 +2030,11 @@ struct ContentView: View {
     }
 
     var reelsComposerCard: some View {
-        reelsCard("Ссылки на Reels") {
+        reelsCard(L("Ссылки на Reels")) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 10) {
-                    queueSummaryPill(title: "Вставлено", value: "\(reelsLinkCount)", tint: Color.white.opacity(isDark ? 0.08 : 0.54))
-                    queueSummaryPill(title: "Сессия", value: model.sessionReady ? "Готова" : "Войти", tint: (model.sessionReady ? Color.green : Color.orange).opacity(isDark ? 0.13 : 0.10))
+                    queueSummaryPill(title: L("Вставлено"), value: "\(reelsLinkCount)", tint: Color.white.opacity(isDark ? 0.08 : 0.54))
+                    queueSummaryPill(title: L("Сессия"), value: model.sessionReady ? L("Готова") : L("Войти"), tint: (model.sessionReady ? Color.green : Color.orange).opacity(isDark ? 0.13 : 0.10))
                 }
 
                 reelsInputEditor
@@ -2041,10 +2047,10 @@ struct ContentView: View {
                             if isReelsDownloadInProgress {
                                 ProgressView()
                                     .controlSize(.small)
-                                Text("Загружаю...")
+                                Text(L("Загружаю..."))
                             } else {
                                 Image(systemName: "arrow.down.circle.fill")
-                                Text("Скачать")
+                                Text(L("Скачать"))
                             }
                         }
                         .frame(maxWidth: .infinity)
@@ -2057,7 +2063,7 @@ struct ContentView: View {
                     Button {
                         model.reelsInput = ""
                     } label: {
-                        Label("Очистить", systemImage: "xmark")
+                        Label(L("Очистить"), systemImage: "xmark")
                             .frame(maxWidth: .infinity)
                     }
                     .saveMeGlassButton()
@@ -2066,7 +2072,7 @@ struct ContentView: View {
                     .opacity(model.isBusy || model.reelsInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.72 : 1)
                 }
 
-                Text("Reels скачиваются отдельным потоком и не зависят от сценария сторис.")
+                Text(L("Reels скачиваются отдельным потоком и не зависят от сценария сторис."))
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(quaternaryText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -2078,15 +2084,15 @@ struct ContentView: View {
     var reelsHero: some View {
         detailHero(
             eyebrow: "Reels",
-            title: "Скачать Reels по ссылке",
-            subtitle: "Вставь одну или несколько ссылок на публикации Instagram. Сохраним видео в выбранную папку и покажем последние файлы справа."
+            title: L("Скачать Reels по ссылке"),
+            subtitle: L("Вставь одну или несколько ссылок на публикации Instagram. Сохраним видео в выбранную папку и покажем последние файлы справа.")
         )
     }
 
     var reelsInputEditor: some View {
         ZStack(alignment: .topLeading) {
             TextEditor(text: $model.reelsInput)
-                .accessibilityLabel("Ссылки на Reels")
+                .accessibilityLabel(L("Ссылки на Reels"))
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
                 .scrollContentBackground(.hidden)
                 .foregroundStyle(primaryText)
@@ -2096,7 +2102,7 @@ struct ContentView: View {
                 .frame(minHeight: 160)
 
             if model.reelsInput.isEmpty {
-                Text("Например:\nhttps://www.instagram.com/reel/DMabc123/\nhttps://www.instagram.com/reel/DMxyz456/")
+                Text(L("Например:\nhttps://www.instagram.com/reel/DMabc123/\nhttps://www.instagram.com/reel/DMxyz456/"))
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
                     .foregroundStyle(tertiaryText)
                     .padding(.horizontal, 16)
@@ -2147,7 +2153,7 @@ struct ContentView: View {
     }
 
     var reelsDestinationCard: some View {
-        reelsCard("Куда сохранять") {
+        reelsCard(L("Куда сохранять")) {
             VStack(alignment: .leading, spacing: 12) {
                 Text(model.saveDirectory.path)
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
@@ -2164,7 +2170,7 @@ struct ContentView: View {
                     Button {
                         model.chooseSaveDirectory()
                     } label: {
-                        Label("Выбрать папку", systemImage: "folder.badge.plus")
+                        Label(L("Выбрать папку"), systemImage: "folder.badge.plus")
                             .frame(maxWidth: .infinity)
                     }
                     .saveMeGlassButton()
@@ -2173,7 +2179,7 @@ struct ContentView: View {
                     Button {
                         model.openSaveDirectory()
                     } label: {
-                        Label("Показать в Finder", systemImage: "folder")
+                        Label(L("Показать в Finder"), systemImage: "folder")
                             .frame(maxWidth: .infinity)
                     }
                     .saveMeGlassButton()
@@ -2196,7 +2202,7 @@ struct ContentView: View {
     var reelsActivityHeader: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 12) {
-                Text("Активность")
+                Text(L("Активность"))
                     .font(.system(size: 24, weight: .semibold, design: .rounded))
                     .foregroundStyle(primaryText)
 
@@ -2233,7 +2239,7 @@ struct ContentView: View {
             Image(systemName: ready ? "person.crop.circle.badge.checkmark" : "person.crop.circle.badge.exclamationmark")
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
 
-            Text(ready ? "Сессия активна" : "Нет сессии")
+            Text(ready ? L("Сессия активна") : L("Нет сессии"))
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
         }
         .foregroundStyle(ready ? Color.green.opacity(0.88) : Color.red.opacity(0.82))
@@ -2246,7 +2252,7 @@ struct ContentView: View {
     }
 
     var reelsDownloadsCard: some View {
-        reelsCard("Последние загрузки", padding: 0) {
+        reelsCard(L("Последние загрузки"), padding: 0) {
             Group {
                 if model.downloadedItems.isEmpty {
                     VStack(spacing: 10) {
@@ -2254,7 +2260,7 @@ struct ContentView: View {
                             .font(.system(size: 24, weight: .regular, design: .rounded))
                             .foregroundStyle(tertiaryText)
 
-                        Text("Пока ничего нет")
+                        Text(L("Пока ничего нет"))
                             .font(.system(size: 14, weight: .medium, design: .rounded))
                             .foregroundStyle(secondaryText)
                     }
@@ -2303,7 +2309,7 @@ struct ContentView: View {
                 }
                 .saveMeGlassButton()
                 .tint(secondaryButtonTint)
-                .help("Показать в Finder")
+                .help(L("Показать в Finder"))
             }
 
             HStack(spacing: 8) {
@@ -2323,7 +2329,7 @@ struct ContentView: View {
     }
 
     func reelsLogsCard(maxHeight: CGFloat? = nil) -> some View {
-        reelsCard("Логи", padding: 0) {
+        reelsCard(L("Логи"), padding: 0) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
                     Spacer(minLength: 0)
@@ -2335,7 +2341,7 @@ struct ContentView: View {
                             showingLogsCopiedFeedback = false
                         }
                     } label: {
-                        Label(showingLogsCopiedFeedback ? "Скопировано ✓" : "Скопировать логи", systemImage: showingLogsCopiedFeedback ? "checkmark" : "doc.on.doc")
+                        Label(showingLogsCopiedFeedback ? L("Скопировано ✓") : L("Скопировать логи"), systemImage: showingLogsCopiedFeedback ? "checkmark" : "doc.on.doc")
                     }
                     .saveMeGlassButton()
                     .controlSize(.small)
@@ -2389,7 +2395,7 @@ struct ContentView: View {
         guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
               let fileSize = attributes[.size] as? NSNumber
         else {
-            return "Размер неизвестен"
+            return L("Размер неизвестен")
         }
 
         return ByteCountFormatter.string(fromByteCount: fileSize.int64Value, countStyle: .file)
@@ -2434,10 +2440,10 @@ struct ContentView: View {
                     .foregroundStyle(primaryText)
                     .padding(10)
                     .frame(height: storiesInputExpanded ? 300 : 116)
-                    .accessibilityLabel("Профили Instagram")
-                    .accessibilityHint("По одной ссылке или имени пользователя на строку")
+                    .accessibilityLabel(L("Профили Instagram"))
+                    .accessibilityHint(L("По одной ссылке или имени пользователя на строку"))
                 if model.batchInput.isEmpty {
-                    Text("Ссылка на профиль или @username\nПо одному на строку")
+                    Text(L("Ссылка на профиль или @username\nПо одному на строку"))
                         .font(.system(size: 13, design: .monospaced))
                         .foregroundStyle(secondaryText)
                         .padding(.horizontal, 16).padding(.vertical, 18)
@@ -2447,12 +2453,12 @@ struct ContentView: View {
             }
             Divider()
             HStack {
-                Text("Профилей: \(batchProfileInputCount)")
+                Text(L("Профилей: {0}", batchProfileInputCount))
                     .font(.caption).monospacedDigit()
                     .foregroundStyle(secondaryText)
                 Spacer()
                 if shouldShowStoriesInputExpandButton {
-                    Button(storiesInputExpanded ? "Свернуть" : "Раскрыть") {
+                    Button(storiesInputExpanded ? L("Свернуть") : L("Раскрыть")) {
                         storiesInputExpanded.toggle()
                     }
                     .buttonStyle(.plain)
@@ -2464,8 +2470,8 @@ struct ContentView: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(secondaryText)
-                    .accessibilityLabel("Очистить поле профилей")
-                    .help("Очистить поле профилей")
+                    .accessibilityLabel(L("Очистить поле профилей"))
+                    .help(L("Очистить поле профилей"))
                     .disabled(model.isBusy)
                 }
             }
@@ -2484,11 +2490,11 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 10) {
             Toggle(isOn: $model.notionInfluencerSourceEnabled) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Обновлять очередь из Notion")
+                    Text(L("Обновлять очередь из Notion"))
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(primaryText)
 
-                    Text("Перед запуском Stories приложение обновит список не чаще раза в день и заменит очередь.")
+                    Text(L("Перед запуском Stories приложение обновит список не чаще раза в день и заменит очередь."))
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(tertiaryText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -2515,7 +2521,7 @@ struct ContentView: View {
                 Button {
                     Task { await model.refreshNotionInfluencerQueue(replaceQueue: true, force: true) }
                 } label: {
-                    Text("Обновить")
+                    Text(L("Обновить"))
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                 }
                 .saveMeGlassButton()
@@ -2535,11 +2541,11 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 10) {
             Toggle(isOn: $model.notionRoutingRulesSourceEnabled) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Обновлять правила из Notion")
+                    Text(L("Обновлять правила из Notion"))
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(primaryText)
 
-                    Text("Перед сортировкой приложение обновит правила не чаще раза в день и заменит список ниже.")
+                    Text(L("Перед сортировкой приложение обновит правила не чаще раза в день и заменит список ниже."))
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(tertiaryText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -2566,7 +2572,7 @@ struct ContentView: View {
                 Button {
                     Task { await model.refreshNotionRoutingRules(force: true) }
                 } label: {
-                    Text("Обновить")
+                    Text(L("Обновить"))
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                 }
                 .saveMeGlassButton()
@@ -2584,7 +2590,7 @@ struct ContentView: View {
 
     var storiesDownloadButton: some View {
         storiesActionButton(
-            isStoriesDownloadInProgress ? "Загружаем…" : (model.notionInfluencerSourceEnabled && batchProfileInputCount == 0 ? "Скачать из Notion" : "Скачать Stories"),
+            isStoriesDownloadInProgress ? L("Загружаем…") : (model.notionInfluencerSourceEnabled && batchProfileInputCount == 0 ? L("Скачать из Notion") : L("Скачать Stories")),
             systemImage: "arrow.down",
             kind: .primary,
             isEnabled: (!model.batchQueue.isEmpty || batchProfileInputCount > 0 || model.notionInfluencerSourceEnabled) && !model.isBusy && !model.isRefreshingNotionInfluencers,
@@ -2593,12 +2599,12 @@ struct ContentView: View {
             Task { await model.downloadStoriesFromInput() }
         }
         .keyboardShortcut(.return, modifiers: .command)
-        .help("Начать загрузку Stories (⌘↩)")
+        .help(L("Начать загрузку Stories (⌘↩)"))
     }
 
     var storiesStopButton: some View {
         storiesActionButton(
-            "Остановить",
+            L("Остановить"),
             systemImage: "stop",
             kind: .destructive,
             isEnabled: model.batchIsRunning
@@ -2609,7 +2615,7 @@ struct ContentView: View {
 
     var storiesClearQueueButton: some View {
         storiesActionButton(
-            "Очистить",
+            L("Очистить"),
             systemImage: "trash",
             kind: .destructive,
             isEnabled: !model.batchQueue.isEmpty && !model.isBusy
@@ -2742,16 +2748,16 @@ struct ContentView: View {
         if model.workerReady {
             return SettingsStatusPresentation(
                 symbol: "bolt.fill",
-                status: "Готов",
+                status: L("Готов"),
                 accent: Color.green.opacity(0.86),
                 backgroundTint: Color.green.opacity(isDark ? 0.16 : 0.10)
             )
         }
 
-        let isError = summary.contains("ошиб") || summary.contains("не удалось") || summary.contains("process") || summary.contains("error")
+        let isError = summary.mentionsAny("ошиб", "не удалось", "process", "error", "could not", "failed")
         return SettingsStatusPresentation(
             symbol: "bolt.fill",
-            status: "Ошибка",
+            status: L("Ошибка"),
             accent: isError ? Color.red.opacity(0.82) : Color.gray.opacity(0.78),
             backgroundTint: isError ? Color.red.opacity(isDark ? 0.14 : 0.08) : Color.gray.opacity(isDark ? 0.12 : 0.07)
         )
@@ -2762,16 +2768,16 @@ struct ContentView: View {
         if model.sessionReady {
             return SettingsStatusPresentation(
                 symbol: "person.crop.circle.badge.checkmark",
-                status: "Готов",
+                status: L("Готов"),
                 accent: Color.green.opacity(0.86),
                 backgroundTint: Color.green.opacity(isDark ? 0.16 : 0.10)
             )
         }
 
-        let isError = summary.contains("ошиб") || summary.contains("timeout") || summary.contains("error")
+        let isError = summary.mentionsAny("ошиб", "timeout", "error", "failed")
         return SettingsStatusPresentation(
             symbol: "person.crop.circle.badge.checkmark",
-            status: isError ? "Ошибка" : "Нет сессии",
+            status: isError ? L("Ошибка") : L("Нет сессии"),
             accent: isError ? Color.red.opacity(0.82) : Color.gray.opacity(0.78),
             backgroundTint: isError ? Color.red.opacity(isDark ? 0.14 : 0.08) : Color.gray.opacity(isDark ? 0.12 : 0.07)
         )
@@ -2779,7 +2785,7 @@ struct ContentView: View {
 
     var runtimeSummaryHeadline: String {
         guard !model.runtimeSummary.isEmpty else {
-            return "Данные о runtime появятся после проверки воркера."
+            return L("Данные о runtime появятся после проверки воркера.")
         }
 
         var fields: [String: String] = [:]
@@ -2846,12 +2852,12 @@ struct ContentView: View {
             liveIndicatorDot(size: 12)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Выгрузка выполняется")
+                Text(L("Выгрузка выполняется"))
                     .font(.system(size: 12, weight: .bold, design: .rounded))
                     .textCase(.uppercase)
                     .foregroundStyle(primaryText)
 
-                Text("Приложение работает, просто дождись завершения текущего шага.")
+                Text(L("Приложение работает, просто дождись завершения текущего шага."))
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -2887,7 +2893,7 @@ struct ContentView: View {
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Текущий шаг")
+                Text(L("Текущий шаг"))
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .textCase(.uppercase)
                     .foregroundStyle(quaternaryText)
@@ -2924,7 +2930,7 @@ struct ContentView: View {
     }
 
     func animatedBusyStepLabel(at date: Date) -> String {
-        let base = model.currentStepLabel.isEmpty ? "Идёт подготовка выгрузки" : model.currentStepLabel
+        let base = model.currentStepLabel.isEmpty ? L("Идёт подготовка выгрузки") : model.currentStepLabel
         let phase = Int(date.timeIntervalSinceReferenceDate / 0.6) % 4
         return base + String(repeating: ".", count: phase)
     }
@@ -3164,7 +3170,7 @@ struct ContentView: View {
                             statusBadge(for: item.status)
 
                             if item.status == .running, !model.batchCurrentURL.isEmpty {
-                                Text("текущий профиль")
+                                Text(L("текущий профиль"))
                                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                                     .foregroundStyle(tertiaryText)
                             }
@@ -3416,5 +3422,25 @@ private struct ConfettiOverlayView: View {
             }
         }
         .ignoresSafeArea()
+    }
+}
+
+/// Переключатель языка интерфейса (русский / English). Применяется после перезапуска приложения.
+private struct LanguageSetting: View {
+    @AppStorage(Localizer.languageKey) private var language = "ru"
+    let secondaryText: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker("Language / Язык", selection: $language) {
+                Text(verbatim: "Русский").tag("ru")
+                Text(verbatim: "English").tag("en")
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            Text(L("Язык изменится после перезапуска приложения."))
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundStyle(secondaryText)
+        }
     }
 }

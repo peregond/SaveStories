@@ -47,7 +47,7 @@ struct WorkerBootstrapper {
         var errorDescription: String? {
             switch self {
             case .bootstrapScriptNotFound:
-                "Не удалось найти встроенный скрипт подготовки среды."
+                L("Не удалось найти встроенный скрипт подготовки среды.")
             case .processFailed(let message):
                 message
             }
@@ -58,7 +58,7 @@ struct WorkerBootstrapper {
         try AppPaths.ensureDirectories()
 
         if AppPaths.hasEmbeddedRuntime {
-            return "Встроенный движок уже находится внутри приложения. Дополнительная установка не нужна."
+            return L("Встроенный движок уже находится внутри приложения. Дополнительная установка не нужна.")
         }
 
         let process = Process()
@@ -98,11 +98,11 @@ struct WorkerBootstrapper {
                 }
 
                 if process.terminationStatus == 0 {
-                    continuation.resume(returning: outputText.isEmpty ? "Среда подготовлена." : outputText)
+                    continuation.resume(returning: outputText.isEmpty ? L("Среда подготовлена.") : outputText)
                     return
                 }
 
-                continuation.resume(throwing: BootstrapError.processFailed(outputText.isEmpty ? "Не удалось подготовить среду." : outputText))
+                continuation.resume(throwing: BootstrapError.processFailed(outputText.isEmpty ? L("Не удалось подготовить среду.") : outputText))
             }
 
             do {
@@ -113,7 +113,7 @@ struct WorkerBootstrapper {
                 guard buffer.markResumedIfNeeded() else {
                     return
                 }
-                continuation.resume(throwing: BootstrapError.processFailed("Не удалось запустить подготовку среды: \(error.localizedDescription)"))
+                continuation.resume(throwing: BootstrapError.processFailed(L("Не удалось запустить подготовку среды: {0}", error.localizedDescription)))
             }
         }
     }

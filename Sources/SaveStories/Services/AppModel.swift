@@ -47,7 +47,7 @@ final class AppModel: ObservableObject {
         }
 
         var subtitle: String {
-            "\(urls.count) профилей"
+            L("{0} профилей", urls.count)
         }
     }
 
@@ -62,15 +62,15 @@ final class AppModel: ObservableObject {
             var title: String {
                 switch self {
                 case .pending:
-                    "В очереди"
+                    L("В очереди")
                 case .running:
-                    "Скачивается"
+                    L("Скачивается")
                 case .completed:
-                    "Готово"
+                    L("Готово")
                 case .failed:
-                    "Ошибка"
+                    L("Ошибка")
                 case .stopped:
-                    "Остановлено"
+                    L("Остановлено")
                 }
             }
         }
@@ -80,7 +80,7 @@ final class AppModel: ObservableObject {
         var status: Status
         var message: String
 
-        init(id: UUID = UUID(), url: String, status: Status = .pending, message: String = "Ожидает запуска.") {
+        init(id: UUID = UUID(), url: String, status: Status = .pending, message: String = L("Ожидает запуска.")) {
             self.id = id
             self.url = url
             self.status = status
@@ -94,19 +94,19 @@ final class AppModel: ObservableObject {
         let folderNames: [String]
 
         var title: String {
-            removedCount > 0 ? "Пустые папки удалены" : "Удалять нечего"
+            removedCount > 0 ? L("Пустые папки удалены") : L("Удалять нечего")
         }
 
         var message: String {
             guard removedCount > 0 else {
-                return "После проверки пустых папок для удаления не осталось."
+                return L("После проверки пустых папок для удаления не осталось.")
             }
 
             let preview = folderNames.prefix(5).joined(separator: "\n")
             if folderNames.count > 5 {
-                return "Удалено пустых папок: \(removedCount).\n\n\(preview)\nи ещё \(folderNames.count - 5)."
+                return L("Удалено пустых папок: {0}.\n\n{1}\nи ещё {2}.", removedCount, preview, folderNames.count - 5)
             }
-            return "Удалено пустых папок: \(removedCount).\n\n\(preview)"
+            return L("Удалено пустых папок: {0}.\n\n{1}", removedCount, preview)
         }
     }
 
@@ -142,18 +142,18 @@ final class AppModel: ObservableObject {
         var title: String {
             switch self {
             case .background:
-                "В фоне"
+                L("В фоне")
             case .visible:
-                "Видимо"
+                L("Видимо")
             }
         }
 
         var detail: String {
             switch self {
             case .background:
-                "Браузер не показывается во время выгрузки."
+                L("Браузер не показывается во время выгрузки.")
             case .visible:
-                "Открывает окно Chromium во время выгрузки."
+                L("Открывает окно Chromium во время выгрузки.")
             }
         }
 
@@ -176,18 +176,18 @@ final class AppModel: ObservableObject {
         var title: String {
             switch self {
             case .all:
-                "Фото и видео"
+                L("Фото и видео")
             case .videoOnly:
-                "Только видео"
+                L("Только видео")
             }
         }
 
         var detail: String {
             switch self {
             case .all:
-                "Сохраняет все найденные stories: и фото, и видео."
+                L("Сохраняет все найденные stories: и фото, и видео.")
             case .videoOnly:
-                "Сохраняет только видео-stories. Фото будут пропущены."
+                L("Сохраняет только видео-stories. Фото будут пропущены.")
             }
         }
     }
@@ -207,9 +207,9 @@ final class AppModel: ObservableObject {
         var title: String {
             switch self {
             case .welcome:
-                "Подготовка"
+                L("Подготовка")
             case .folders:
-                "Папки приложения"
+                L("Папки приложения")
             case .node:
                 "Node 24 LTS"
             case .worker:
@@ -219,30 +219,30 @@ final class AppModel: ObservableObject {
             case .browser:
                 "Chromium"
             case .ready:
-                "Готово"
+                L("Готово")
             case .failed:
-                "Нужно повторить"
+                L("Нужно повторить")
             }
         }
 
         var detail: String {
             switch self {
             case .welcome:
-                "Сейчас приложение докачает компоненты для работы."
+                L("Сейчас приложение докачает компоненты для работы.")
             case .folders:
-                "Готовим локальное хранилище."
+                L("Готовим локальное хранилище.")
             case .node:
-                "Проверяем или скачиваем Node."
+                L("Проверяем или скачиваем Node.")
             case .worker:
-                "Копируем рабочий модуль."
+                L("Копируем рабочий модуль.")
             case .packages:
-                "Ставим зависимости."
+                L("Ставим зависимости.")
             case .browser:
-                "Скачиваем браузер для выгрузки."
+                L("Скачиваем браузер для выгрузки.")
             case .ready:
-                "Движок установлен."
+                L("Движок установлен.")
             case .failed:
-                "Установка не завершилась."
+                L("Установка не завершилась.")
             }
         }
     }
@@ -270,24 +270,24 @@ final class AppModel: ObservableObject {
             guard !isDesignPreview else { return }
             UserDefaults.standard.set(notionInfluencerSourceEnabled, forKey: Self.notionInfluencerSourceEnabledKey)
             if notionInfluencerSourceEnabled {
-                notionInfluencerSourceSummary = "Перед запуском очередь обновится из Notion не чаще одного раза в день."
+                notionInfluencerSourceSummary = L("Перед запуском очередь обновится из Notion не чаще одного раза в день.")
             } else {
-                notionInfluencerSourceSummary = "Автосписок Notion выключен."
+                notionInfluencerSourceSummary = L("Автосписок Notion выключен.")
             }
         }
     }
-    @Published var notionInfluencerSourceSummary = "Перед запуском очередь обновится из Notion не чаще одного раза в день."
+    @Published var notionInfluencerSourceSummary = L("Перед запуском очередь обновится из Notion не чаще одного раза в день.")
     @Published var isRefreshingNotionInfluencers = false
     @Published var notionRoutingRulesSourceEnabled = false {
         didSet {
             guard !isDesignPreview else { return }
             UserDefaults.standard.set(notionRoutingRulesSourceEnabled, forKey: Self.notionRoutingRulesSourceEnabledKey)
             notionRoutingRulesSourceSummary = notionRoutingRulesSourceEnabled
-                ? "Перед сортировкой правила обновятся из Notion не чаще одного раза в день."
-                : "Автоправила Notion выключены."
+                ? L("Перед сортировкой правила обновятся из Notion не чаще одного раза в день.")
+                : L("Автоправила Notion выключены.")
         }
     }
-    @Published var notionRoutingRulesSourceSummary = "Автоправила Notion выключены."
+    @Published var notionRoutingRulesSourceSummary = L("Автоправила Notion выключены.")
     @Published var isRefreshingNotionRoutingRules = false
     @Published var saveDirectory: URL = AppPaths.defaultDownloads
     @Published var distributionRootDirectory: URL?
@@ -299,16 +299,16 @@ final class AppModel: ObservableObject {
             UserDefaults.standard.set(folderRoutingRules, forKey: Self.folderRoutingRulesKey)
         }
     }
-    @Published var workerSummary: String = "Воркер ещё не проверялся."
-    @Published var sessionSummary: String = "Состояние сессии неизвестно."
-    @Published var lastResult: String = "Действий пока не было."
-    @Published var statusTitle: String = "Ожидание"
-    @Published var statusDetail: String = "Приложение готово к работе."
-    @Published var currentStepLabel: String = "Ожидание команды."
+    @Published var workerSummary: String = L("Воркер ещё не проверялся.")
+    @Published var sessionSummary: String = L("Состояние сессии неизвестно.")
+    @Published var lastResult: String = L("Действий пока не было.")
+    @Published var statusTitle: String = L("Ожидание")
+    @Published var statusDetail: String = L("Приложение готово к работе.")
+    @Published var currentStepLabel: String = L("Ожидание команды.")
     @Published var foundStoriesCount: Int = 0
     @Published var savedStoriesCount: Int = 0
     @Published var runtimeSummary: String = ""
-    @Published var updateSummary: String = "Автообновление ещё не настроено для этой сборки."
+    @Published var updateSummary: String = L("Автообновление ещё не настроено для этой сборки.")
     @Published var canCheckForUpdates = false
     @Published var automaticUpdatesEnabled = true
     @Published var isCheckingForUpdates = false
@@ -322,7 +322,7 @@ final class AppModel: ObservableObject {
     @Published var showRuntimeOnboarding = false
     @Published var runtimeSetupStage: RuntimeSetupStage = .welcome
     @Published var runtimeSetupFailedStage: RuntimeSetupStage?
-    @Published var runtimeSetupMessage = "Подготовим движок, без которого приложение не сможет скачивать stories."
+    @Published var runtimeSetupMessage = L("Подготовим движок, без которого приложение не сможет скачивать stories.")
     @Published var runtimeSetupErrorMessage: String?
     @Published var showEmptyFolderCleanupPrompt = false
     @Published var emptyFolderCleanupReport: EmptyFolderCleanupReport?
@@ -338,9 +338,9 @@ final class AppModel: ObservableObject {
     @Published var liveCreatedFolderCount = 0
     @Published var latestSessionDownloadedItems: [WorkerItem] = []
     @Published var postProcessedItems: [PostProcessedItem] = []
-    @Published var postProcessingSummary: String = "Постобработка ещё не запускалась."
-    @Published var emptyFolderCleanupSummary: String = "Очистка пустых папок ещё не запускалась."
-    @Published var googleDriveLinkSummary: String = "Ссылки Google Drive ещё не собирались."
+    @Published var postProcessingSummary: String = L("Постобработка ещё не запускалась.")
+    @Published var emptyFolderCleanupSummary: String = L("Очистка пустых папок ещё не запускалась.")
+    @Published var googleDriveLinkSummary: String = L("Ссылки Google Drive ещё не собирались.")
     @Published var rememberedBloggers: [RememberedBlogger] = []
 
     let worker = WorkerClient()
@@ -377,10 +377,10 @@ final class AppModel: ObservableObject {
             saveDirectory = URL(fileURLWithPath: "/Users/preview/Downloads/SaveMe", isDirectory: true)
             workerReady = true
             sessionReady = true
-            workerSummary = "Движок готов к работе."
-            sessionSummary = "Демонстрационная сессия."
-            statusDetail = "Добавьте профили, чтобы начать загрузку."
-            updateSummary = "Предпросмотр дизайна — обновления отключены."
+            workerSummary = L("Движок готов к работе.")
+            sessionSummary = L("Демонстрационная сессия.")
+            statusDetail = L("Добавьте профили, чтобы начать загрузку.")
+            updateSummary = L("Предпросмотр дизайна — обновления отключены.")
             notionInfluencerSourceEnabled = false
             return
         }
@@ -411,12 +411,12 @@ final class AppModel: ObservableObject {
         }
         notionInfluencerSourceEnabled = UserDefaults.standard.bool(forKey: Self.notionInfluencerSourceEnabledKey)
         notionInfluencerSourceSummary = notionInfluencerSourceEnabled
-            ? "Перед запуском очередь обновится из Notion не чаще одного раза в день."
-            : "Автосписок Notion выключен."
+            ? L("Перед запуском очередь обновится из Notion не чаще одного раза в день.")
+            : L("Автосписок Notion выключен.")
         notionRoutingRulesSourceEnabled = UserDefaults.standard.bool(forKey: Self.notionRoutingRulesSourceEnabledKey)
         notionRoutingRulesSourceSummary = notionRoutingRulesSourceEnabled
-            ? "Перед сортировкой правила обновятся из Notion не чаще одного раза в день."
-            : "Автоправила Notion выключены."
+            ? L("Перед сортировкой правила обновятся из Notion не чаще одного раза в день.")
+            : L("Автоправила Notion выключены.")
         loadRecentBatchLists()
     }
 

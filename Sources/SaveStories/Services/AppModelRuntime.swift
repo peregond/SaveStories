@@ -48,7 +48,7 @@ extension AppModel {
             if saveDirectory == selectedSaveDirectory, prepared.saveDirectory != selectedSaveDirectory {
                 saveDirectory = prepared.saveDirectory
                 UserDefaults.standard.set(prepared.saveDirectory.path, forKey: Self.saveDirectoryKey)
-                appendLog("Сохранённая папка недоступна. Используется \(prepared.saveDirectory.path).")
+                appendLog(L("Сохранённая папка недоступна. Используется {0}.", prepared.saveDirectory.path))
             }
             if distributionRootDirectory == selectedDistributionRoot,
                prepared.distributionRootDirectory != selectedDistributionRoot {
@@ -66,11 +66,11 @@ extension AppModel {
                 UserDefaults.standard.removeObject(forKey: Self.emptyFolderCleanupDirectoryKey)
             }
             if prepared.didRefreshWorkerSources {
-                appendLog("Обновлены встроенные файлы воркера.")
+                appendLog(L("Обновлены встроенные файлы воркера."))
             }
-            appendLog("Подготовлены папки приложения в \(AppPaths.applicationSupport.path).")
+            appendLog(L("Подготовлены папки приложения в {0}.", AppPaths.applicationSupport.path))
         } catch {
-            appendLog("Не удалось подготовить папки: \(error.localizedDescription)")
+            appendLog(L("Не удалось подготовить папки: {0}", error.localizedDescription))
         }
 
         Task { [weak self] in
@@ -87,8 +87,8 @@ extension AppModel {
             guard !Task.isCancelled else { return }
         }
 
-        await perform("Фоновая проверка готовности") {
-            self.currentStepLabel = "Проверяю среду воркера в фоне."
+        await perform(L("Фоновая проверка готовности")) {
+            self.currentStepLabel = L("Проверяю среду воркера в фоне.")
             let response = await self.environmentResponse()
             self.applyEnvironment(response)
             self.append(response)
@@ -97,7 +97,7 @@ extension AppModel {
                 self.runtimeSetupStage = .welcome
                 self.runtimeSetupFailedStage = nil
                 self.runtimeSetupErrorMessage = nil
-                self.runtimeSetupMessage = "Нужно один раз докачать движок: Node, Playwright и Chromium."
+                self.runtimeSetupMessage = L("Нужно один раз докачать движок: Node, Playwright и Chromium.")
                 self.showRuntimeOnboarding = true
             }
             if self.workerReady {
@@ -109,7 +109,7 @@ extension AppModel {
 
     func chooseSaveDirectory() {
         guard !isBusy else {
-            appendLog("Выбор папки пропущен: дождись завершения текущей операции.")
+            appendLog(L("Выбор папки пропущен: дождись завершения текущей операции."))
             return
         }
 
@@ -117,7 +117,7 @@ extension AppModel {
             self.saveDirectory = url
             UserDefaults.standard.set(url.path, forKey: Self.saveDirectoryKey)
             Task { await self.resetLiveDownloadTrackingBaseline() }
-            self.appendLog("Папка сохранения изменена на \(url.path).")
+            self.appendLog(L("Папка сохранения изменена на {0}.", url.path))
         }
     }
 
@@ -131,7 +131,7 @@ extension AppModel {
         panel.canCreateDirectories = canCreateDirectories
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
-        panel.prompt = "Выбрать"
+        panel.prompt = L("Выбрать")
         panel.directoryURL = existingDirectoryURL(from: initialDirectory)
 
         NSApp.activate(ignoringOtherApps: true)
@@ -171,8 +171,8 @@ extension AppModel {
     }
 
     func refreshEnvironment() async {
-        await perform("Проверка среды воркера") {
-            self.currentStepLabel = "Проверяю состояние среды воркера."
+        await perform(L("Проверка среды воркера")) {
+            self.currentStepLabel = L("Проверяю состояние среды воркера.")
             let response = await self.environmentResponse()
             self.applyEnvironment(response)
             self.append(response)
@@ -180,12 +180,12 @@ extension AppModel {
     }
 
     func bootstrapEnvironment() async {
-        await perform("Подготовка среды воркера") {
+        await perform(L("Подготовка среды воркера")) {
             do {
                 self.runtimeSetupStage = .folders
                 self.runtimeSetupFailedStage = nil
                 self.runtimeSetupErrorMessage = nil
-                self.runtimeSetupMessage = "Готовлю папки приложения."
+                self.runtimeSetupMessage = L("Готовлю папки приложения.")
                 self.showRuntimeOnboarding = true
 
                 let output = try await self.bootstrapper.run { line in
@@ -204,16 +204,16 @@ extension AppModel {
                 if self.workerReady {
                     self.runtimeSetupStage = .ready
                     self.runtimeSetupFailedStage = nil
-                    self.runtimeSetupMessage = "Движок установлен. Можно входить в Instagram и начинать выгрузку."
+                    self.runtimeSetupMessage = L("Движок установлен. Можно входить в Instagram и начинать выгрузку.")
                     UserDefaults.standard.set(true, forKey: Self.runtimeOnboardingDismissedKey)
                 }
             } catch {
                 self.runtimeSetupFailedStage = self.runtimeSetupStage
                 self.runtimeSetupStage = .failed
                 self.runtimeSetupErrorMessage = self.runtimeSetupFailureSummary(from: error.localizedDescription)
-                self.runtimeSetupMessage = "Установка остановилась. Проверь интернет и попробуй ещё раз."
+                self.runtimeSetupMessage = L("Установка остановилась. Проверь интернет и попробуй ещё раз.")
                 self.workerReady = false
-                self.statusTitle = "Ошибка"
+                self.statusTitle = L("Ошибка")
                 self.statusDetail = error.localizedDescription
                 self.lastResult = error.localizedDescription
                 self.appendLog(error.localizedDescription)
@@ -223,18 +223,18 @@ extension AppModel {
 
     func login() async {
         showLoginPrompt = false
-        await perform("Открытие видимого браузера для входа в Instagram") {
-            self.currentStepLabel = "Открываю браузер для входа в Instagram."
+        await perform(L("Открытие видимого браузера для входа в Instagram")) {
+            self.currentStepLabel = L("Открываю браузер для входа в Instagram.")
             let response = await self.worker.run(
                 WorkerRequest(command: "login", url: nil, urls: nil, outputDirectory: self.saveDirectory.path, headless: false, mediaFilter: nil)
             )
             if response.ok {
                 self.sessionReady = response.data["loggedIn"] == "true"
-                self.sessionSummary = response.message
+                self.sessionSummary = tr(response.message)
                 self.showLoginPrompt = !self.sessionReady
             } else {
                 self.sessionReady = false
-                self.sessionSummary = response.message
+                self.sessionSummary = tr(response.message)
                 self.showLoginPrompt = true
             }
             self.append(response)
@@ -242,18 +242,18 @@ extension AppModel {
     }
 
     func checkSession() async {
-        await perform("Проверка сохранённой сессии Instagram") {
-            self.currentStepLabel = "Проверяю сохранённую Instagram-сессию."
+        await perform(L("Проверка сохранённой сессии Instagram")) {
+            self.currentStepLabel = L("Проверяю сохранённую Instagram-сессию.")
             let response = await self.worker.run(
                 WorkerRequest(command: "check_session", url: nil, urls: nil, outputDirectory: nil, headless: true, mediaFilter: nil)
             )
             if response.ok {
                 self.sessionReady = response.data["loggedIn"] == "true"
-                self.sessionSummary = response.message
+                self.sessionSummary = tr(response.message)
                 self.showLoginPrompt = !self.sessionReady
             } else {
                 self.sessionReady = false
-                self.sessionSummary = response.message
+                self.sessionSummary = tr(response.message)
                 self.showLoginPrompt = false
             }
             self.append(response)
@@ -268,14 +268,14 @@ extension AppModel {
         let trimmed = profileURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalized = normalizedProfileLink(trimmed)
         guard !normalized.isEmpty else {
-            statusTitle = "Ошибка"
-            statusDetail = "Укажи корректную ссылку на профиль Instagram или имя пользователя."
+            statusTitle = L("Ошибка")
+            statusDetail = L("Укажи корректную ссылку на профиль Instagram или имя пользователя.")
             lastResult = statusDetail
-            appendLog("Ссылка на профиль пустая или некорректная.")
+            appendLog(L("Ссылка на профиль пустая или некорректная."))
             return
         }
 
-        await perform("Скачивание активных stories из профиля") {
+        await perform(L("Скачивание активных stories из профиля")) {
             let response = await self.runProfileDownload(for: normalized)
             self.append(response)
         }
@@ -284,12 +284,12 @@ extension AppModel {
     func downloadReels() async {
         let urls = parsedReelLinks(from: reelsInput)
         guard !urls.isEmpty else {
-            appendLog("Не найдено ни одной ссылки на Reels.")
+            appendLog(L("Не найдено ни одной ссылки на Reels."))
             return
         }
 
-        await perform("Скачивание Reels") {
-            self.currentStepLabel = "Открываю ссылку на Reels и подготавливаю выгрузку."
+        await perform(L("Скачивание Reels")) {
+            self.currentStepLabel = L("Открываю ссылку на Reels и подготавливаю выгрузку.")
             let response = await self.worker.run(
                 WorkerRequest(
                     command: "download_reels_urls",
@@ -311,16 +311,16 @@ extension AppModel {
         guard !isDesignPreview, !isBusy else { return }
         isBusy = true
         statusTitle = message
-        statusDetail = "Выполняется..."
-        currentStepLabel = "Запускаю задачу."
+        statusDetail = L("Выполняется...")
+        currentStepLabel = L("Запускаю задачу.")
         let normalizedMessage = message.lowercased()
-        let isDownloadOperation = normalizedMessage.contains("скачив") || normalizedMessage.contains("выгруз")
+        let isDownloadOperation = normalizedMessage.mentionsAny("скачив", "выгруз", "download")
         if isDownloadOperation {
             foundStoriesCount = 0
             savedStoriesCount = 0
             latestSessionDownloadedItems = []
             postProcessedItems = []
-            postProcessingSummary = "Идёт новая выгрузка. После неё можно будет разложить файлы."
+            postProcessingSummary = L("Идёт новая выгрузка. После неё можно будет разложить файлы.")
             isDownloadActivityInProgress = true
             refreshSleepPreventionForCurrentState()
             await beginLiveDownloadTracking()
@@ -334,10 +334,10 @@ extension AppModel {
                 refreshSleepPreventionForCurrentState()
             }
             Task { await self.refreshLiveDownloadTracking() }
-            if statusTitle == "Готово" {
-                currentStepLabel = "Операция завершена."
-            } else if statusTitle == "Ошибка" {
-                currentStepLabel = "Операция завершилась ошибкой."
+            if statusTitle == L("Готово") {
+                currentStepLabel = L("Операция завершена.")
+            } else if statusTitle == L("Ошибка") {
+                currentStepLabel = L("Операция завершилась ошибкой.")
             }
             if !batchIsRunning {
                 batchCurrentURL = ""
@@ -376,16 +376,16 @@ extension AppModel {
         }
 
         if response.status == "cancelled" {
-            statusTitle = "Остановлено"
+            statusTitle = L("Остановлено")
         } else {
-            statusTitle = response.ok ? "Готово" : "Ошибка"
+            statusTitle = response.ok ? L("Готово") : L("Ошибка")
         }
-        statusDetail = response.message
-        lastResult = response.message
+        statusDetail = tr(response.message)
+        lastResult = tr(response.message)
         if response.status == "cancelled" {
-            currentStepLabel = "Операция остановлена."
+            currentStepLabel = L("Операция остановлена.")
         } else {
-            currentStepLabel = response.ok ? "Обработка завершена." : "Обработка завершилась ошибкой."
+            currentStepLabel = response.ok ? L("Обработка завершена.") : L("Обработка завершилась ошибкой.")
         }
         if response.ok && savedStoriesCount > 0 && response.status == "download_complete" {
             triggerCelebration()
@@ -460,26 +460,26 @@ extension AppModel {
         )
         if response.ok {
             sessionReady = response.data["loggedIn"] == "true"
-            sessionSummary = response.message
+            sessionSummary = tr(response.message)
             showLoginPrompt = !sessionReady
         } else {
             sessionReady = false
-            sessionSummary = response.message
+            sessionSummary = tr(response.message)
             showLoginPrompt = true
         }
         append(response)
 
         if !sessionReady {
-            statusTitle = "Нужен вход"
-            statusDetail = "Для работы приложения сначала войди в Instagram через встроенный браузер."
+            statusTitle = L("Нужен вход")
+            statusDetail = L("Для работы приложения сначала войди в Instagram через встроенный браузер.")
             lastResult = statusDetail
-            currentStepLabel = "Ожидаю вход в Instagram."
+            currentStepLabel = L("Ожидаю вход в Instagram.")
         }
     }
 
     private func applyEnvironment(_ response: WorkerResponse) {
         workerReady = response.ok
-        workerSummary = response.message
+        workerSummary = tr(response.message)
         runtimeSummary = buildRuntimeSummary(from: response)
     }
 
@@ -488,19 +488,19 @@ extension AppModel {
 
         if lowered.contains("application support") || lowered.contains("папк") {
             runtimeSetupStage = .folders
-            runtimeSetupMessage = "Готовлю локальную папку для движка."
+            runtimeSetupMessage = L("Готовлю локальную папку для движка.")
         } else if lowered.contains("node") {
             runtimeSetupStage = .node
-            runtimeSetupMessage = lowered.contains("скач") ? "Скачиваю Node 24 LTS." : "Проверяю Node 24 LTS."
+            runtimeSetupMessage = lowered.contains("скач") ? L("Скачиваю Node 24 LTS.") : L("Проверяю Node 24 LTS.")
         } else if lowered.contains("worker") {
             runtimeSetupStage = .worker
-            runtimeSetupMessage = "Копирую worker в локальную папку приложения."
+            runtimeSetupMessage = L("Копирую worker в локальную папку приложения.")
         } else if lowered.contains("npm") || lowered.contains("playwright") {
             runtimeSetupStage = .packages
-            runtimeSetupMessage = "Устанавливаю Playwright и npm-зависимости."
+            runtimeSetupMessage = L("Устанавливаю Playwright и npm-зависимости.")
         } else if lowered.contains("chromium") || lowered.contains("browser") {
             runtimeSetupStage = .browser
-            runtimeSetupMessage = "Скачиваю Chromium для автоматической выгрузки."
+            runtimeSetupMessage = L("Скачиваю Chromium для автоматической выгрузки.")
         }
     }
 
@@ -521,7 +521,7 @@ extension AppModel {
             }
 
         let selected = cleanedLines.suffix(4).joined(separator: "\n")
-        return selected.isEmpty ? "Не удалось подготовить среду. Проверь интернет и попробуй ещё раз." : selected
+        return selected.isEmpty ? L("Не удалось подготовить среду. Проверь интернет и попробуй ещё раз.") : selected
     }
 
     private func buildRuntimeSummary(from response: WorkerResponse) -> String {
@@ -570,7 +570,7 @@ extension AppModel {
             batchCurrentIndex = min(activeAndCompleted, max(batchTotalCount, 1))
             batchRemainingCount = max(batchTotalCount - activeAndCompleted, 0)
             batchCurrentURL = normalized
-            currentStepLabel = "Открываю профиль \(username)."
+            currentStepLabel = L("Открываю профиль {0}.", username)
         } else if isBatchCompletion {
             let value = log.components(separatedBy: "=").dropFirst().joined(separator: "=")
             let url = value.components(separatedBy: " :: ").first ?? value
@@ -581,24 +581,24 @@ extension AppModel {
             batchCurrentIndex = min(activeAndCompleted, max(batchTotalCount, 1))
             batchRemainingCount = max(batchTotalCount - activeAndCompleted, 0)
             currentStepLabel = lowered.contains("_error=")
-                ? "Профиль \(username) завершился ошибкой, продолжаю очередь."
-                : "Профиль \(username) обработан, переключаюсь дальше."
+                ? L("Профиль {0} завершился ошибкой, продолжаю очередь.", username)
+                : L("Профиль {0} обработан, переключаюсь дальше.", username)
         } else if lowered.contains("batch_concurrency=") {
-            currentStepLabel = "Распределяю очередь по активным слотам."
+            currentStepLabel = L("Распределяю очередь по активным слотам.")
         } else if lowered.contains("opened=") || lowered.contains("checked=") {
-            currentStepLabel = "Открываю страницу Instagram."
+            currentStepLabel = L("Открываю страницу Instagram.")
         } else if lowered.contains("opened_active_story") || lowered.contains("story_viewer") {
-            currentStepLabel = "Открываю stories viewer."
+            currentStepLabel = L("Открываю stories viewer.")
         } else if lowered.contains("storage_state_saved=") {
-            currentStepLabel = "Сохраняю браузерную сессию."
+            currentStepLabel = L("Сохраняю браузерную сессию.")
         } else if lowered.contains("saved=") {
-            currentStepLabel = "Сохраняю файл на диск."
+            currentStepLabel = L("Сохраняю файл на диск.")
         } else if lowered.contains("manifest=") {
-            currentStepLabel = "Записываю метаданные загрузки."
+            currentStepLabel = L("Записываю метаданные загрузки.")
         } else if lowered.contains("background_window") {
-            currentStepLabel = "Подготавливаю фоновый режим браузера."
+            currentStepLabel = L("Подготавливаю фоновый режим браузера.")
         } else if lowered.contains("playwright=") || lowered.contains("worker_runtime=") {
-            currentStepLabel = "Проверяю runtime и зависимости."
+            currentStepLabel = L("Проверяю runtime и зависимости.")
         }
 
         if lowered.contains("saved=") || lowered.contains("profile_download_directory=") {

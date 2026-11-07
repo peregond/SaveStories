@@ -115,7 +115,7 @@ final class WorkerClient {
             case .processLaunchFailed(let message):
                 message
             case .invalidWorkerResponse(let byteCount):
-                "Worker вернул некорректный JSON (\(byteCount) байт). Попробуйте повторить операцию или подготовить среду заново."
+                L("Worker вернул некорректный JSON ({0} байт). Попробуйте повторить операцию или подготовить среду заново.", byteCount)
             }
         }
     }
@@ -138,10 +138,10 @@ final class WorkerClient {
 
     func run(_ request: WorkerRequest, onProgress: (@Sendable (String) -> Void)? = nil) async -> WorkerResponse {
         guard currentProcess == nil else {
-            return .processFailure(message: "Worker уже выполняет другую операцию. Дождитесь её завершения.")
+            return .processFailure(message: L("Worker уже выполняет другую операцию. Дождитесь её завершения."))
         }
         guard !Task.isCancelled else {
-            return .cancelled(message: "Операция отменена.")
+            return .cancelled(message: L("Операция отменена."))
         }
         defer {
             currentProcess = nil
@@ -151,12 +151,12 @@ final class WorkerClient {
         do {
             let response = try await execute(request, onProgress: onProgress)
             if userInitiatedStop || Task.isCancelled {
-                return .cancelled(message: "Загрузка остановлена пользователем.")
+                return .cancelled(message: L("Загрузка остановлена пользователем."))
             }
             return response
         } catch {
             if userInitiatedStop || Task.isCancelled {
-                return .cancelled(message: "Загрузка остановлена пользователем.")
+                return .cancelled(message: L("Загрузка остановлена пользователем."))
             }
             return .processFailure(message: error.localizedDescription)
         }
@@ -318,7 +318,7 @@ final class WorkerClient {
             return LaunchConfiguration(executable: nodeExecutable, arguments: [nodeScript.path], runtime: "node")
         }
 
-        throw WorkerClientError.processLaunchFailed("Node runtime не найден. Подготовьте среду воркера в настройках приложения.")
+        throw WorkerClientError.processLaunchFailed(L("Node runtime не найден. Подготовьте среду воркера в настройках приложения."))
     }
 
     private func nodeWorkerScriptURL() -> URL? {

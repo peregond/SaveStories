@@ -17,24 +17,24 @@ extension ContentView {
             case .reels:
                 "Reels"
             case .unikalizator:
-                "Уникализатор"
+                L("Уникализатор")
             case .sorting:
-                "Сортировка"
+                L("Сортировка")
             case .settings:
-                "Настройки"
+                L("Настройки")
             }
         }
 
         var subtitle: String? {
             switch self {
             case .main:
-                "Stories из профилей"
+                L("Stories из профилей")
             case .reels:
-                "Видео по ссылкам"
+                L("Видео по ссылкам")
             case .unikalizator:
-                "Форматы, вариации, плашка 18+"
+                L("Форматы, вариации, плашка 18+")
             case .sorting:
-                "Перенос, папки и ссылки"
+                L("Перенос, папки и ссылки")
             case .settings:
                 nil
             }
