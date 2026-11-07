@@ -24,7 +24,7 @@ export function createDemoApi(): Api {
     preventSleep: true, recentLists: [], lastUpdateCheckAt: "", runtimePromptShown: false,
     emptyFolderCleanupDirectory: "", sortingSourceDirectory: "D:\\На перенос", sortingDestinationDirectory: "D:\\WhiteList INF Исходники",
     sortingRules: params.get("rules") === "1" ? "anna = Germany (DE) 🇩🇪 INF\nbob = Australia (AU) 🇦🇺 INF" : "",
-    rememberedBloggers: [], unikOutputDirectory: "", unikOptions: "", notionInfluencerEnabled: params.get("notion") === "1", notionRoutingRulesEnabled: false,
+    rememberedBloggers: [], unikOutputDirectory: "", unikOptions: "", unikPresets: "", notionInfluencerEnabled: params.get("notion") === "1", notionRoutingRulesEnabled: false,
     notionInfluencerLastRefreshAt: "", notionInfluencerCachedProfiles: [], notionRoutingRulesLastRefreshAt: "", notionRoutingRulesCachedRules: "",
   };
   let loggedIn = params.get("session") !== "none";

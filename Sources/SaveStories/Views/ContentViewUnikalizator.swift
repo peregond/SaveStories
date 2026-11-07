@@ -201,11 +201,18 @@ extension ContentView {
     @ViewBuilder
     private var unikSettingsColumn: some View {
         unikFilesCard
+        unikPresetsCard
         unikFormatCard
         unikVariationsCard
         unikAgeMarkCard
         unikExtrasCard
         unikNamingCard
+    }
+
+    private var unikPresetsCard: some View {
+        card("Мои пресеты") {
+            UnikPresetsEditor(unik: unik, secondaryText: secondaryText)
+        }
     }
 
     private var unikFilesCard: some View {
@@ -518,5 +525,57 @@ extension ContentView {
 private extension Array {
     subscript(safe index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil
+    }
+}
+
+
+/// Сохранить текущие настройки под именем, применить или удалить сохранённый набор.
+private struct UnikPresetsEditor: View {
+    @ObservedObject var unik: UnikalizatorModel
+    let secondaryText: Color
+    @State private var chosen = ""
+    @State private var name = ""
+
+    private var trimmedName: String { UnikalizatorLogic.cleanPresetName(name) }
+    private var nameExists: Bool {
+        unik.presets.contains { $0.name.compare(trimmedName, options: .caseInsensitive) == .orderedSame }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if unik.presets.isEmpty {
+                Text("Настройте раздел и сохраните набор под своим именем, например «Reels DE 18+».")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                HStack(spacing: 8) {
+                    Picker("Сохранённые наборы", selection: $chosen) {
+                        Text("Выберите набор…").tag("")
+                        ForEach(unik.presets) { preset in Text(preset.name).tag(preset.name) }
+                    }
+                    .labelsHidden()
+                    .onChange(of: chosen) { _, value in if !value.isEmpty { name = value } }
+                    Button("Применить") { unik.applyPreset(named: chosen) }
+                        .disabled(chosen.isEmpty || unik.isRunning)
+                    Button(role: .destructive) {
+                        unik.deletePreset(named: chosen)
+                        chosen = ""
+                    } label: { Image(systemName: "trash") }
+                        .help("Удалить набор")
+                        .disabled(chosen.isEmpty || unik.isRunning)
+                }
+            }
+            HStack(spacing: 8) {
+                TextField("Название набора", text: $name)
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(unik.isRunning)
+                Button(nameExists ? "Заменить" : "Сохранить") {
+                    unik.savePreset(named: name)
+                    chosen = trimmedName
+                }
+                .disabled(trimmedName.isEmpty || unik.isRunning)
+            }
+        }
     }
 }

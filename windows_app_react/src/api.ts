@@ -36,6 +36,8 @@ export interface Settings {
   unikOutputDirectory: string;
   /** Настройки «Уникализатора» (JSON): разбирает сам раздел. */
   unikOptions: string;
+  /** Свои пресеты «Уникализатора» (JSON-список). */
+  unikPresets: string;
 }
 
 export interface SortedFileRecord {

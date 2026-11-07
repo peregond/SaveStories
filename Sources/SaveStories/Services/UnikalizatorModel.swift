@@ -16,11 +16,13 @@ final class UnikalizatorModel: ObservableObject {
 
     private static let optionsKey = "SaveStories.unikalizator.options"
     private static let outputDirectoryKey = "SaveStories.unikalizator.outputDirectory"
+    private static let presetsKey = "SaveStories.unikalizator.presets"
 
     @Published private(set) var catalog: UnikCatalog?
     @Published private(set) var ffmpeg: FFmpegPhase = .unknown
     @Published private(set) var installPercent = 0
     @Published private(set) var installMessage = ""
+    @Published private(set) var presets: [UnikPreset] = []
     @Published private(set) var files: [UnikFile] = []
     @Published private(set) var jobs: [UnikJob] = []
     @Published private(set) var summary = ""
@@ -54,6 +56,7 @@ final class UnikalizatorModel: ObservableObject {
         if let path = UserDefaults.standard.string(forKey: Self.outputDirectoryKey), !path.isEmpty {
             outputDirectory = URL(fileURLWithPath: path, isDirectory: true)
         }
+        presets = UnikalizatorLogic.decodePresets(UserDefaults.standard.data(forKey: Self.presetsKey))
         if let data = UserDefaults.standard.data(forKey: Self.optionsKey),
            let saved = try? JSONDecoder().decode(UnikOptions.self, from: data)
         {
@@ -96,6 +99,7 @@ final class UnikalizatorModel: ObservableObject {
             UnikJob(index: 6, label: "banner · v2", status: .queued),
         ]
         summary = "Готово 2 из 6"
+        presets = [UnikPreset(name: "Reels DE 18+", options: options), UnikPreset(name: "Квадрат без плашки", options: UnikOptions())]
     }
 
     // MARK: FFmpeg
@@ -175,6 +179,24 @@ final class UnikalizatorModel: ObservableObject {
 
     func removeFile(_ file: UnikFile) { files.removeAll { $0.path == file.path } }
     func clearFiles() { files.removeAll() }
+
+    // MARK: Свои пресеты
+
+    func savePreset(named name: String) { setPresets(UnikalizatorLogic.upsertingPreset(presets, name: name, options: options)) }
+    func deletePreset(named name: String) { setPresets(UnikalizatorLogic.removingPreset(presets, name: name)) }
+
+    func applyPreset(named name: String) {
+        if let preset = presets.first(where: { $0.name.compare(name, options: .caseInsensitive) == .orderedSame }) {
+            options = preset.options
+        }
+    }
+
+    private func setPresets(_ list: [UnikPreset]) {
+        guard list != presets else { return }
+        presets = list
+        guard !isPreview, let data = try? JSONEncoder().encode(list) else { return }
+        UserDefaults.standard.set(data, forKey: Self.presetsKey)
+    }
 
     private func inspect(_ paths: [String]) async {
         var request = WorkerRequest(command: "unik_inspect", url: nil, urls: nil, outputDirectory: nil, headless: nil, mediaFilter: nil)

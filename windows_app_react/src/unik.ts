@@ -136,6 +136,43 @@ export function toWorkerOptions(o: UnikOptions) {
   return { ...o, fps: o.fps ?? 0 };
 }
 
+// ---------------------------------------------------------------- свои пресеты
+
+/** Набор настроек под своим именем («Reels DE 18+»). Хранится списком в настройках приложения. */
+export interface SavedPreset { name: string; options: UnikOptions }
+
+export const MAX_PRESETS = 50;
+export const cleanPresetName = (name: string) => name.replace(/\s+/g, " ").trim().slice(0, 60);
+const sameName = (a: string, b: string) => a.toLocaleLowerCase("ru") === b.toLocaleLowerCase("ru");
+
+/** Список из сохранённого JSON: испорченные записи и повторы имён отбрасываются, настройки чистятся как обычно. */
+export function loadPresets(json: string, today = todayIso()): SavedPreset[] {
+  let raw: unknown;
+  try { raw = JSON.parse(json || "[]"); } catch { return []; }
+  if (!Array.isArray(raw)) return [];
+  const list: SavedPreset[] = [];
+  for (const entry of raw) {
+    if (!isObject(entry) || typeof entry.name !== "string") continue;
+    const name = cleanPresetName(entry.name);
+    if (!name || list.some((p) => sameName(p.name, name))) continue;
+    list.push({ name, options: loadOptions(JSON.stringify(entry.options ?? {}), today) });
+    if (list.length >= MAX_PRESETS) break;
+  }
+  return list;
+}
+
+/** Добавляет пресет или заменяет одноимённый (без учёта регистра). Пустое имя — без изменений. */
+export function upsertPreset(list: SavedPreset[], name: string, options: UnikOptions): SavedPreset[] {
+  const clean = cleanPresetName(name);
+  if (!clean) return list;
+  const entry = { name: clean, options: structuredClone(options) };
+  const at = list.findIndex((p) => sameName(p.name, clean));
+  if (at >= 0) return list.map((p, i) => (i === at ? entry : p));
+  return list.length >= MAX_PRESETS ? list : [...list, entry];
+}
+
+export const removePreset = (list: SavedPreset[], name: string) => list.filter((p) => !sameName(p.name, name));
+
 // ---------------------------------------------------------------- строки прогресса
 
 export type UnikLine =
@@ -205,6 +242,11 @@ export function useUnik(ctx: UnikContext) {
   const [ffmpeg, setFfmpeg] = useState<FfmpegState>({ phase: "unknown", version: "", percent: 0, message: "" });
   const [files, setFiles] = useState<UnikFile[]>([]);
   const [options, setOptionsState] = useState<UnikOptions>(() => defaultOptions());
+  const [presets, setPresets] = useState<SavedPreset[]>([]);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+  const presetsRef = useRef(presets);
+  presetsRef.current = presets;
   const [jobs, setJobs] = useState<UnikJob[]>([]);
   const [summary, setSummary] = useState("");
   const [lastOutputDirectory, setLastOutputDirectory] = useState("");
@@ -213,10 +255,25 @@ export function useUnik(ctx: UnikContext) {
   const jobsRef = useRef<UnikJob[]>([]);
 
   // Настройки читаются один раз, когда приложение загрузило сохранённое состояние.
-  const loadSaved = useCallback((json: string) => {
+  const loadSaved = useCallback((json: string, presetsJson = "") => {
     if (loadedOptions.current) return;
     loadedOptions.current = true;
     setOptionsState(loadOptions(json));
+    setPresets(loadPresets(presetsJson));
+  }, []);
+
+  const changePresets = useCallback((update: (list: SavedPreset[]) => SavedPreset[]) => {
+    setPresets((current) => {
+      const next = update(current);
+      if (next !== current) ctxRef.current.updateSettings({ unikPresets: JSON.stringify(next) });
+      return next;
+    });
+  }, []);
+  const savePreset = useCallback((name: string) => changePresets((list) => upsertPreset(list, name, optionsRef.current)), [changePresets]);
+  const deletePreset = useCallback((name: string) => changePresets((list) => removePreset(list, name)), [changePresets]);
+  const applySavedPreset = useCallback((name: string) => {
+    const found = presetsRef.current.find((p) => sameName(p.name, name));
+    if (found) setOptions(() => structuredClone(found.options));
   }, []);
 
   const setOptions = useCallback((update: (o: UnikOptions) => UnikOptions) => {
@@ -347,7 +404,7 @@ export function useUnik(ctx: UnikContext) {
   useEffect(() => () => window.clearTimeout(saveTimer.current), []);
 
   return {
-    catalog, ffmpeg, files, options, jobs, summary, loadSaved, setOptions, refresh, installFfmpeg, addFiles, pickSources, removeFile, clearFiles,
+    catalog, ffmpeg, files, options, jobs, summary, presets, savePreset, deletePreset, applySavedPreset, loadSaved, setOptions, refresh, installFfmpeg, addFiles, pickSources, removeFile, clearFiles,
     effectiveOutput, pickOutput, openOutput, pickOne, pickLibrary, run, handleLine,
   };
 }

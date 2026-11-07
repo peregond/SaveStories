@@ -164,7 +164,58 @@ enum UnikLine: Equatable, Sendable {
     case ffmpegMessage(String)
 }
 
+/// Набор настроек под своим именем («Reels DE 18+»).
+struct UnikPreset: Codable, Hashable, Sendable, Identifiable {
+    var name: String
+    var options: UnikOptions
+    var id: String { name.lowercased() }
+}
+
 enum UnikalizatorLogic {
+    static let maxPresets = 50
+
+    static func cleanPresetName(_ name: String) -> String {
+        String(name.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ").prefix(60))
+    }
+
+    private static func sameName(_ a: String, _ b: String) -> Bool {
+        a.compare(b, options: .caseInsensitive) == .orderedSame
+    }
+
+    /// Добавляет набор или заменяет одноимённый (без учёта регистра). Пустое имя — без изменений.
+    static func upsertingPreset(_ list: [UnikPreset], name: String, options: UnikOptions) -> [UnikPreset] {
+        let clean = cleanPresetName(name)
+        guard !clean.isEmpty else { return list }
+        let entry = UnikPreset(name: clean, options: options)
+        if let index = list.firstIndex(where: { sameName($0.name, clean) }) {
+            var copy = list
+            copy[index] = entry
+            return copy
+        }
+        return list.count >= maxPresets ? list : list + [entry]
+    }
+
+    static func removingPreset(_ list: [UnikPreset], name: String) -> [UnikPreset] {
+        list.filter { !sameName($0.name, name) }
+    }
+
+    /// Список из сохранённых данных: испорченные записи и повторы имён отбрасываются.
+    static func decodePresets(_ data: Data?) -> [UnikPreset] {
+        struct Lossy: Decodable {
+            let value: UnikPreset?
+            init(from decoder: Decoder) throws { value = try? UnikPreset(from: decoder) }
+        }
+        guard let data, let raw = try? JSONDecoder().decode([Lossy].self, from: data) else { return [] }
+        var list: [UnikPreset] = []
+        for case let preset? in raw.map(\.value) {
+            let name = cleanPresetName(preset.name)
+            guard !name.isEmpty, !list.contains(where: { sameName($0.name, name) }) else { continue }
+            list.append(UnikPreset(name: name, options: preset.options))
+            if list.count >= maxPresets { break }
+        }
+        return list
+    }
+
     static let videoExtensions = ["mp4", "mov", "m4v", "webm", "mkv", "avi"]
     static let imageExtensions = ["png", "jpg", "jpeg", "webp"]
     static let audioExtensions = ["mp3", "m4a", "aac", "wav", "ogg", "flac"]

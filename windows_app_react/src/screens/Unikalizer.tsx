@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Banner, Card, Empty, Pill, PathRow, Segmented, Switch } from "../components/ui";
 import { IconDownload, IconEmpty, IconFolder, IconStop, IconTrash } from "../icons";
 import type { Store } from "../store";
@@ -16,6 +16,33 @@ const Row = ({ title, hint, children }: { title: string; hint?: string; children
 
 /** Число из поля: пустое или неверное — оставляем прежнее значение. */
 const num = (value: string, fallback: number) => (value.trim() !== "" && Number.isFinite(Number(value)) ? Number(value) : fallback);
+
+/** Сохранить текущие настройки под именем, применить или удалить сохранённый набор. */
+function PresetBar({ u, disabled }: { u: Store["unik"]; disabled: boolean }) {
+  const [name, setName] = useState("");
+  const [chosen, setChosen] = useState("");
+  const exists = u.presets.some((p) => p.name.toLocaleLowerCase("ru") === name.trim().toLocaleLowerCase("ru"));
+  return (
+    <>
+      <Field label="Сохранённые наборы" hint={u.presets.length ? undefined : "Настройте раздел и сохраните набор под своим именем, например «Reels DE 18+»."}>
+        <div className="row-actions">
+          <select className="ctl" value={chosen} disabled={disabled || !u.presets.length} onChange={(e) => { setChosen(e.target.value); setName(e.target.value); }}>
+            <option value="">{u.presets.length ? "Выберите набор…" : "Пока нет наборов"}</option>
+            {u.presets.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
+          </select>
+          <button className="btn sm" disabled={disabled || !chosen} onClick={() => u.applySavedPreset(chosen)}>Применить</button>
+          <button className="btn sm ghost" aria-label="Удалить набор" disabled={disabled || !chosen} onClick={() => { u.deletePreset(chosen); setChosen(""); }}><IconTrash size={16} /></button>
+        </div>
+      </Field>
+      <Field label="Сохранить текущие настройки как">
+        <div className="row-actions">
+          <input className="ctl" value={name} maxLength={60} placeholder="Название набора" disabled={disabled} onChange={(e) => setName(e.target.value)} />
+          <button className="btn sm" disabled={disabled || !name.trim()} onClick={() => { u.savePreset(name); setChosen(name.trim()); }}>{exists ? "Заменить" : "Сохранить"}</button>
+        </div>
+      </Field>
+    </>
+  );
+}
 
 export function Unikalizer({ s }: { s: Store }) {
   const u = s.unik;
@@ -83,6 +110,10 @@ export function Unikalizer({ s }: { s: Store }) {
                 ))}
               </div>
             )}
+          </Card>
+
+          <Card title="Мои пресеты">
+            <PresetBar u={u} disabled={locked} />
           </Card>
 
           <Card title="Формат и экспорт">

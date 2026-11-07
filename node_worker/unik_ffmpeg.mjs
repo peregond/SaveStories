@@ -117,8 +117,10 @@ export function macDownloads(arch = process.arch) {
 
 /** Конкретный адрес архива после перехода по «latest». */
 export async function resolveMacDownload(item, fetchImpl = fetch) {
-  const response = await fetchImpl(item.url, { method: "HEAD", redirect: "follow", headers: { "User-Agent": "SaveMe-FFmpeg" } });
-  if (!response.ok) throw new Error(`Не удалось найти актуальную сборку ${item.tool}: HTTP ${response.status}.`);
+  // Обычный GET с переходом по адресам: HEAD сервер на части путей не принимает. Сам архив тут не читаем — поток закрывается сразу.
+  const response = await fetchImpl(item.url, { redirect: "follow", headers: { "User-Agent": "SaveMe-FFmpeg" } });
+  try { await response.body?.cancel?.(); } catch { /* поток уже закрыт */ }
+  if (!response.ok) throw new Error(`Не удалось найти актуальную сборку ${item.tool}: HTTP ${response.status} (${item.url}).`);
   const url = response.url || item.url;
   return { ...item, url, shaUrl: `${url}.sha256` };
 }

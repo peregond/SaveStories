@@ -23,7 +23,7 @@ const emptyTotals: Totals = { found: 0, saved: 0, processed: 0, files: 0 };
 export const defaultSettings: Settings = {
   theme: "system", automaticThemeByTime: true, downloadMode: "background", mediaFilter: "video_only", saveDirectory: "",
   preventSleep: true, recentLists: [], lastUpdateCheckAt: "", runtimePromptShown: false,
-  emptyFolderCleanupDirectory: "", sortingSourceDirectory: "", sortingDestinationDirectory: "", sortingRules: "", rememberedBloggers: [], unikOutputDirectory: "", unikOptions: "",
+  emptyFolderCleanupDirectory: "", sortingSourceDirectory: "", sortingDestinationDirectory: "", sortingRules: "", rememberedBloggers: [], unikOutputDirectory: "", unikOptions: "", unikPresets: "",
   notionInfluencerEnabled: false, notionRoutingRulesEnabled: false, notionInfluencerLastRefreshAt: "", notionInfluencerCachedProfiles: [],
   notionRoutingRulesLastRefreshAt: "", notionRoutingRulesCachedRules: "",
 };
@@ -243,7 +243,7 @@ export function useStore(api: Api) {
       const [i, s] = await Promise.all([api.info(), api.getSettings()]);
       if (!alive) return;
       setInfo(i); setSettingsState(s); settingsRef.current = s; setLoaded(true);
-      unikRef.current?.loadSaved(s.unikOptions);
+      unikRef.current?.loadSaved(s.unikOptions, s.unikPresets);
       try {
         const restored = restoreEntries(await api.loadQueue());
         if (restored.entries.length) {
