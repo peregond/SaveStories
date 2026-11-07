@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 import type { Api, Settings } from "./api";
 
+import { t } from "./i18n";
 export const VIDEO_EXT = ["mp4", "mov", "m4v", "webm", "mkv", "avi"];
 export const IMAGE_EXT = ["png", "jpg", "jpeg", "webp"];
 export const MEDIA_EXT = [...VIDEO_EXT, ...IMAGE_EXT];
@@ -118,16 +119,16 @@ export function previewName(o: UnikOptions, firstFile: string, outputs: number, 
 /** Проверка до запуска: понятные причины, почему кнопка «Создать» недоступна. */
 export function optionProblems(o: UnikOptions, fileCount: number): string[] {
   const problems: string[] = [];
-  if (!fileCount) problems.push("Добавьте хотя бы один файл.");
+  if (!fileCount) problems.push(t("Добавьте хотя бы один файл."));
   const { width, height } = o.resize;
-  if (!(width >= 2 && height >= 2) || width > 8192 || height > 8192) problems.push("Размер кадра — от 2 до 8192 пикселей.");
-  else if (width % 2 || height % 2) problems.push("Ширина и высота должны быть чётными.");
-  if (o.ageMark.enabled && !o.ageMark.geoId) problems.push("Выберите страну для плашки 18+.");
-  if (o.intro.enabled && !o.intro.random && !o.intro.imagePath) problems.push("Выберите картинку для заставки.");
-  if (o.intro.enabled && o.intro.random && !o.intro.library.length) problems.push("В наборе заставок нет файлов.");
-  if (o.overlay.enabled && !o.overlay.random && !o.overlay.videoPath) problems.push("Выберите видео для слоя поверх.");
-  if (o.overlay.enabled && o.overlay.random && !o.overlay.library.length) problems.push("В наборе видео-слоёв нет файлов.");
-  if (o.metadata.mode === "custom-date" && !/^\d{4}-\d{2}-\d{2}$/.test(o.metadata.customDate)) problems.push("Укажите дату в метаданных.");
+  if (!(width >= 2 && height >= 2) || width > 8192 || height > 8192) problems.push(t("Размер кадра — от 2 до 8192 пикселей."));
+  else if (width % 2 || height % 2) problems.push(t("Ширина и высота должны быть чётными."));
+  if (o.ageMark.enabled && !o.ageMark.geoId) problems.push(t("Выберите страну для плашки 18+."));
+  if (o.intro.enabled && !o.intro.random && !o.intro.imagePath) problems.push(t("Выберите картинку для заставки."));
+  if (o.intro.enabled && o.intro.random && !o.intro.library.length) problems.push(t("В наборе заставок нет файлов."));
+  if (o.overlay.enabled && !o.overlay.random && !o.overlay.videoPath) problems.push(t("Выберите видео для слоя поверх."));
+  if (o.overlay.enabled && o.overlay.random && !o.overlay.library.length) problems.push(t("В наборе видео-слоёв нет файлов."));
+  if (o.metadata.mode === "custom-date" && !/^\d{4}-\d{2}-\d{2}$/.test(o.metadata.customDate)) problems.push(t("Укажите дату в метаданных."));
   return problems;
 }
 
@@ -230,8 +231,8 @@ const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const formatDuration = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
 export function describeInspection(i: Inspection): string {
-  if (!i.ok) return i.message ?? "Файл не удалось прочитать.";
-  const parts = [i.width && i.height ? `${i.width}×${i.height}` : "", i.kind === "video" && i.durationSeconds ? formatDuration(i.durationSeconds) : "", i.kind === "video" ? (i.hasAudio ? "со звуком" : "без звука") : "картинка"];
+  if (!i.ok) return i.message ?? t("Файл не удалось прочитать.");
+  const parts = [i.width && i.height ? `${i.width}×${i.height}` : "", i.kind === "video" && i.durationSeconds ? formatDuration(i.durationSeconds) : "", i.kind === "video" ? (i.hasAudio ? t("со звуком") : t("без звука")) : t("картинка")];
   return parts.filter(Boolean).join(" · ");
 }
 
@@ -297,7 +298,7 @@ export function useUnik(ctx: UnikContext) {
   }, []);
 
   const installFfmpeg = useCallback(async () => {
-    setFfmpeg({ phase: "installing", version: "", percent: 0, message: "Готовлюсь к установке…" });
+    setFfmpeg({ phase: "installing", version: "", percent: 0, message: t("Готовлюсь к установке…") });
     try {
       const r = await ctxRef.current.api.run({ command: "unik_install_ffmpeg" }, 30 * 60);
       if (!r.ok) throw new Error(r.message);
@@ -323,7 +324,7 @@ export function useUnik(ctx: UnikContext) {
   const addFiles = useCallback((paths: string[]) => {
     const media = paths.filter(isMedia);
     const rejected = paths.length - media.length;
-    if (rejected > 0) ctxRef.current.setNotice({ tone: "warn", text: `Пропущено файлов неподдерживаемого типа: ${rejected}.` });
+    if (rejected > 0) ctxRef.current.setNotice({ tone: "warn", text: t("Пропущено файлов неподдерживаемого типа: {0}.", [rejected]) });
     if (!media.length) return;
     let added: string[] = [];
     setFiles((current) => {
@@ -338,7 +339,7 @@ export function useUnik(ctx: UnikContext) {
   ffmpegPhaseRef.current = ffmpeg.phase;
 
   const pickSources = useCallback(async () => {
-    const picked = await ctxRef.current.api.pickFiles("Исходные видео и картинки", MEDIA_EXT, true);
+    const picked = await ctxRef.current.api.pickFiles(t("Исходные видео и картинки"), MEDIA_EXT, true);
     addFiles(picked);
   }, [addFiles]);
 
@@ -364,9 +365,9 @@ export function useUnik(ctx: UnikContext) {
     const c = ctxRef.current;
     if (c.busy) return;
     const output = effectiveOutput();
-    if (!output) { c.setNotice({ tone: "warn", text: "Выберите папку для результата." }); return; }
+    if (!output) { c.setNotice({ tone: "warn", text: t("Выберите папку для результата.") }); return; }
     c.setBusy("unik"); c.setNotice(null);
-    jobsRef.current = []; setJobs([]); setSummary("Запускаю обработку…");
+    jobsRef.current = []; setJobs([]); setSummary(t("Запускаю обработку…"));
     setLastOutputDirectory(output);
     try {
       const r = await c.api.run({ command: "unik_process", sources: files.map((f) => f.path), outputDirectory: output, options: toWorkerOptions(options) }, 6 * 3600);
@@ -377,7 +378,7 @@ export function useUnik(ctx: UnikContext) {
         jobsRef.current = next; setJobs(next);
       }
       setSummary(r.message);
-      if (r.status === "cancelled") c.setNotice({ tone: "warn", text: "Обработка остановлена." });
+      if (r.status === "cancelled") c.setNotice({ tone: "warn", text: t("Обработка остановлена.") });
       else if (!r.ok) c.setNotice({ tone: "err", text: r.message });
       else c.setNotice({ tone: r.data?.failed && r.data.failed !== "0" ? "warn" : "ok", text: r.message });
     } catch (e) {
@@ -389,7 +390,7 @@ export function useUnik(ctx: UnikContext) {
   }, [files, options, effectiveOutput]);
 
   const pickOutput = useCallback(async () => {
-    const dir = await ctxRef.current.api.pickDirectory(effectiveOutput(), "Папка для результатов");
+    const dir = await ctxRef.current.api.pickDirectory(effectiveOutput(), t("Папка для результатов"));
     if (dir) ctxRef.current.updateSettings({ unikOutputDirectory: dir });
   }, [effectiveOutput]);
 

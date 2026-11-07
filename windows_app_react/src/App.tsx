@@ -7,6 +7,7 @@ import { themeForHour } from "./parse";
 import { Stories } from "./screens/Stories";
 import { useStore, type Store } from "./store";
 
+import { t } from "./i18n";
 // Остальные экраны грузятся при первом открытии: меньше JS при старте и в памяти.
 const Reels = lazy(() => import("./screens/Reels").then((m) => ({ default: m.Reels })));
 const Unikalizer = lazy(() => import("./screens/Unikalizer").then((m) => ({ default: m.Unikalizer })));
@@ -15,10 +16,10 @@ const Settings = lazy(() => import("./screens/Settings").then((m) => ({ default:
 
 type Page = "stories" | "reels" | "unik" | "sorting" | "settings";
 const NAV: { id: Page; title: string; sub: string; Icon: ComponentType<{ size?: number }> }[] = [
-  { id: "stories", title: "Stories", sub: "Выгрузка из профилей", Icon: IconStories },
-  { id: "reels", title: "Reels", sub: "Видео по ссылкам", Icon: IconReels },
-  { id: "unik", title: "Уникализатор", sub: "Обработка видео и картинок: форматы, вариации, плашка 18+", Icon: IconUnik },
-  { id: "sorting", title: "Сортировка", sub: "Разложить файлы по странам и блогерам", Icon: IconSort },
+  { id: "stories", title: "Stories", sub: t("Выгрузка из профилей"), Icon: IconStories },
+  { id: "reels", title: "Reels", sub: t("Видео по ссылкам"), Icon: IconReels },
+  { id: "unik", title: t("Уникализатор"), sub: t("Обработка видео и картинок: форматы, вариации, плашка 18+"), Icon: IconUnik },
+  { id: "sorting", title: t("Сортировка"), sub: t("Разложить файлы по странам и блогерам"), Icon: IconSort },
 ];
 
 const SHORTCUT_PAGES: Page[] = ["stories", "reels", "unik", "sorting", "settings"];
@@ -94,10 +95,10 @@ function Shell({ api }: { api: Api }) {
     return () => document.removeEventListener("visibilitychange", sync);
   }, []);
 
-  const current = page === "settings" ? { title: "Настройки", sub: "Вход, модули, обновления и данные" } : NAV.find((n) => n.id === page)!;
+  const current = page === "settings" ? { title: t("Настройки"), sub: t("Вход, модули, обновления и данные") } : NAV.find((n) => n.id === page)!;
   return (
     <div className="app">
-      <nav className="sidebar" aria-label="Разделы">
+      <nav className="sidebar" aria-label={t("Разделы")}>
         <div className="brand">
           <Logo />
           <div className="brand-name">SaveMe</div>
@@ -107,8 +108,8 @@ function Shell({ api }: { api: Api }) {
         ))}
         <div className="nav-spacer" />
         <UpdateButton s={s} />
-        <button className="nav-item" title="Настройки (Ctrl+5)" aria-current={page === "settings" ? "page" : undefined} onClick={() => setPage("settings")}><IconSettings /><span>Настройки</span></button>
-        <div className="sidebar-foot"><span>Версия {s.info?.version ?? ""}</span></div>
+        <button className="nav-item" title={t("Настройки (Ctrl+5)")} aria-current={page === "settings" ? "page" : undefined} onClick={() => setPage("settings")}><IconSettings /><span>{t("Настройки")}</span></button>
+        <div className="sidebar-foot"><span>{t("Версия")} {s.info?.version ?? ""}</span></div>
       </nav>
       <main className="main">
         <header className="page-head">
@@ -125,7 +126,7 @@ function Shell({ api }: { api: Api }) {
         </div>
       </main>
       {s.cleanupOffer && (
-        <Dialog title={s.cleanupOffer.title} primary="Удалить" secondary="Не удалять" onPrimary={s.confirmCleanup} onSecondary={s.dismissCleanup}>
+        <Dialog title={s.cleanupOffer.title} primary={t("Удалить")} secondary={t("Не удалять")} onPrimary={s.confirmCleanup} onSecondary={s.dismissCleanup}>
           {`${s.cleanupOffer.intro}\n\n${previewNames(s.cleanupOffer.folders)}`}
         </Dialog>
       )}
@@ -135,13 +136,13 @@ function Shell({ api }: { api: Api }) {
 
 function previewNames(folders: string[]): string {
   const names = folders.map((f) => f.split(/[\\/]/).filter(Boolean).pop() ?? f).slice(0, 12);
-  return folders.length > 12 ? `${names.join("\n")}\nи ещё ${folders.length - 12}` : names.join("\n");
+  return folders.length > 12 ? t("{0}\nи ещё {1}", [names.join("\n"), folders.length - 12]) : names.join("\n");
 }
 
 function UpdateButton({ s }: { s: Store }) {
   const { phase, release } = s.update;
-  if (phase === "ready") return <button className="btn update-btn" disabled={s.running} title={s.running ? "Идёт выгрузка" : "Приложение перезапустится"} onClick={s.installUpdate}>Установить {release?.version}</button>;
-  if (phase === "available" && release) return <button className="btn update-btn" disabled={!s.info?.autoUpdate || !!s.busy} onClick={s.prepareUpdate}>Обновить до {release.version}</button>;
-  if (phase === "downloading") return <div className="sidebar-foot">Загрузка обновления {s.update.percent}%</div>;
+  if (phase === "ready") return <button className="btn update-btn" disabled={s.running} title={s.running ? t("Идёт выгрузка") : t("Приложение перезапустится")} onClick={s.installUpdate}>{t("Установить")} {release?.version}</button>;
+  if (phase === "available" && release) return <button className="btn update-btn" disabled={!s.info?.autoUpdate || !!s.busy} onClick={s.prepareUpdate}>{t("Обновить до")} {release.version}</button>;
+  if (phase === "downloading") return <div className="sidebar-foot">{t("Загрузка обновления")} {s.update.percent}%</div>;
   return null;
 }

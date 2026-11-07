@@ -4,6 +4,7 @@ import { useCallback, useRef, useState, type Dispatch, type MutableRefObject, ty
 import type { Api, Settings, SortedFileRecord, SortingOutcome, WorkerItem } from "./api";
 import { isToday } from "./parse";
 
+import { t } from "./i18n";
 export interface SortingContext {
   api: Api;
   settingsRef: MutableRefObject<Settings>;
@@ -32,11 +33,11 @@ export function useSorting(ctx: SortingContext) {
   const [records, setRecords] = useState<SortedFileRecord[]>([]);
   const [undoRecords, setUndoRecords] = useState<SortedFileRecord[]>([]);
   const [digest, setDigest] = useState("");
-  const [digestTitle, setDigestTitle] = useState("ДАЙДЖЕСТ");
+  const [digestTitle, setDigestTitle] = useState(t("ДАЙДЖЕСТ"));
   const [linksDigest, setLinksDigest] = useState("");
-  const [status, setStatus] = useState("Готово к сортировке.");
-  const [driveStatus, setDriveStatus] = useState("Ссылки Google Drive ещё не собирались.");
-  const [cleanupStatus, setCleanupStatus] = useState("Очистка пустых папок ещё не запускалась.");
+  const [status, setStatus] = useState(t("Готово к сортировке."));
+  const [driveStatus, setDriveStatus] = useState(t("Ссылки Google Drive ещё не собирались."));
+  const [cleanupStatus, setCleanupStatus] = useState(t("Очистка пустых папок ещё не запускалась."));
   const [rulesSummary, setRulesSummary] = useState("");
   const [busy, setBusy] = useState<null | "sort" | "drive" | "notion">(null);
   const ctxRef = useRef(ctx);
@@ -64,32 +65,32 @@ export function useSorting(ctx: SortingContext) {
     const s = settingsRef.current;
     if (!force && isToday(s.notionRoutingRulesLastRefreshAt)) {
       if (!s.notionRoutingRulesCachedRules.trim()) {
-        const t = "Notion уже обновлялся сегодня, но сохранённые правила пустые.";
-        setRulesSummary(t); say(t);
+        const message = t("Notion уже обновлялся сегодня, но сохранённые правила пустые.");
+        setRulesSummary(message); say(message);
         return false;
       }
       const count = await setRules(s.notionRoutingRulesCachedRules);
-      const t = `Notion уже обновлялся сегодня: использую сохранённые правила (${count}).`;
-      setRulesSummary(t); say(t);
+      const message = t("Notion уже обновлялся сегодня: использую сохранённые правила ({0}).", [count]);
+      setRulesSummary(message); say(message);
       return true;
     }
     refreshing.current = true;
     setBusy("notion");
-    setRulesSummary("Загружаю правила из Notion…"); say("Загружаю правила сортировки из Notion…");
+    setRulesSummary(t("Загружаю правила из Notion…")); say(t("Загружаю правила сортировки из Notion…"));
     try {
       const rules = await api.fetchNotionRules();
       if (!rules.trim()) {
-        setRulesSummary("В Notion не найдено правил."); say("В Notion не найдено правил.");
+        setRulesSummary(t("В Notion не найдено правил.")); say(t("В Notion не найдено правил."));
         return false;
       }
       const count = await setRules(rules);
       updateSettings({ notionRoutingRulesLastRefreshAt: new Date().toISOString(), notionRoutingRulesCachedRules: rules });
-      const t = `Notion обновлён: ${count} правил.`;
-      setRulesSummary(t); say(t);
+      const message = t("Notion обновлён: {0} правил.", [count]);
+      setRulesSummary(message); say(message);
       return true;
     } catch (e) {
-      const t = `Не удалось обновить Notion: ${errorText(e)}`;
-      setRulesSummary(t); say(t); pushLog(`[notion_rules] ${errorText(e)}`);
+      const message = t("Не удалось обновить Notion: {0}", [errorText(e)]);
+      setRulesSummary(message); say(message); pushLog(`[notion_rules] ${errorText(e)}`);
       return false;
     } finally {
       refreshing.current = false;
@@ -101,26 +102,26 @@ export function useSorting(ctx: SortingContext) {
   const pick = useCallback(async (kind: "source" | "destination" | "cleanup") => {
     const { api, settingsRef, updateSettings } = ctxRef.current;
     const s = settingsRef.current;
-    const titles = { source: "Папка «На перенос»", destination: "WhiteList INF Исходники", cleanup: "Папка для очистки пустых подпапок" };
+    const titles = { source: t("Папка «На перенос»"), destination: t("WhiteList INF Исходники"), cleanup: t("Папка для очистки пустых подпапок") };
     const keys = { source: "sortingSourceDirectory", destination: "sortingDestinationDirectory", cleanup: "emptyFolderCleanupDirectory" } as const;
     try {
       const dir = await api.pickDirectory(s[keys[kind]], titles[kind]);
       if (!dir) return;
       updateSettings({ [keys[kind]]: dir });
-      if (kind === "cleanup") { setCleanupStatus("Папка для очистки выбрана."); say("Папка для очистки выбрана."); }
+      if (kind === "cleanup") { setCleanupStatus(t("Папка для очистки выбрана.")); say(t("Папка для очистки выбрана.")); }
     } catch (e) {
-      say(`Не удалось открыть выбор папки: ${errorText(e)}`);
+      say(t("Не удалось открыть выбор папки: {0}", [errorText(e)]));
     }
   }, [say]);
 
   const open = useCallback(async (path: string) => {
-    try { await ctxRef.current.api.openPath(path); } catch (e) { say(`Не удалось открыть папку: ${errorText(e)}`); }
+    try { await ctxRef.current.api.openPath(path); } catch (e) { say(t("Не удалось открыть папку: {0}", [errorText(e)])); }
   }, [say]);
 
   const cleanEmptyFolders = useCallback(async () => {
     const root = ctxRef.current.settingsRef.current.emptyFolderCleanupDirectory;
-    if (!root.trim()) { setCleanupStatus("Сначала выбери папку для очистки."); say("Сначала выбери папку для очистки."); return; }
-    await ctxRef.current.requestCleanup(root, "Приложение удалит только пустые папки из списка ниже. Папка «На перенос» и её содержимое не трогаются.");
+    if (!root.trim()) { setCleanupStatus(t("Сначала выбери папку для очистки.")); say(t("Сначала выбери папку для очистки.")); return; }
+    await ctxRef.current.requestCleanup(root, t("Приложение удалит только пустые папки из списка ниже. Папка «На перенос» и её содержимое не трогаются."));
   }, [say]);
 
   // ---- Раскладка
@@ -129,19 +130,19 @@ export function useSorting(ctx: SortingContext) {
     setRecords(o.records);
     if (fromLatest) setLatestItems((items) => updateItemPaths(items, o.records));
     setUndoRecords(o.records.filter((r) => !pathsEqual(r.originalPath, r.currentPath)));
-    setDigest(o.report); setLinksDigest(""); setDigestTitle("ЛОКАЛЬНЫЙ СПИСОК");
-    setDriveStatus(o.report.trim() ? "Локальный список готов. Для Google Drive нажми «Скопировать ссылки»." : "Ссылки Google Drive ещё не собирались.");
-    say(o.failedItems.length ? `${o.summary} Ошибок: ${o.failedItems.length}.` : o.summary);
+    setDigest(o.report); setLinksDigest(""); setDigestTitle(t("ЛОКАЛЬНЫЙ СПИСОК"));
+    setDriveStatus(o.report.trim() ? t("Локальный список готов. Для Google Drive нажми «Скопировать ссылки».") : t("Ссылки Google Drive ещё не собирались."));
+    say(o.failedItems.length ? t("{0} Ошибок: {1}.", [o.summary, o.failedItems.length]) : o.summary);
     updateSettings({ rememberedBloggers: o.remembered });
   }, [say]);
 
   const run = useCallback(async (mode: "source" | "latest") => {
     const { api, settingsRef } = ctxRef.current;
     const s = settingsRef.current;
-    if (mode === "source" && (!s.sortingSourceDirectory.trim() || !s.sortingDestinationDirectory.trim())) { say("Сначала выбери папку Перенос и папку назначения."); return; }
+    if (mode === "source" && (!s.sortingSourceDirectory.trim() || !s.sortingDestinationDirectory.trim())) { say(t("Сначала выбери папку Перенос и папку назначения.")); return; }
     if (mode === "latest") {
-      if (!s.sortingDestinationDirectory.trim()) { say("Сначала выбери папку назначения."); return; }
-      if (ctxRef.current.latestItems.length === 0) { say("Нет файлов из последней выгрузки для раскладки."); return; }
+      if (!s.sortingDestinationDirectory.trim()) { say(t("Сначала выбери папку назначения.")); return; }
+      if (ctxRef.current.latestItems.length === 0) { say(t("Нет файлов из последней выгрузки для раскладки.")); return; }
     }
     setBusy("sort");
     try {
@@ -161,50 +162,50 @@ export function useSorting(ctx: SortingContext) {
 
   const undo = useCallback(async () => {
     const { api, setLatestItems } = ctxRef.current;
-    if (!undoRecords.length) { say("Нет переноса для отмены."); return; }
+    if (!undoRecords.length) { say(t("Нет переноса для отмены.")); return; }
     try {
       const r = await api.undoSorting(undoRecords);
       setLatestItems((items) => updateItemPaths(items, r.restoredRecords));
       if (!r.failedItems.length) {
-        setUndoRecords([]); setRecords([]); setDigest(""); setLinksDigest(""); setDigestTitle("ДАЙДЖЕСТ");
+        setUndoRecords([]); setRecords([]); setDigest(""); setLinksDigest(""); setDigestTitle(t("ДАЙДЖЕСТ"));
       } else {
         const restored = new Set(r.restoredRecords.map((x) => x.id));
         setUndoRecords((cur) => cur.filter((x) => !restored.has(x.id)));
       }
-      setDriveStatus("Перенос отменён. После новой сортировки Drive-ссылки нужно собрать заново.");
-      say(r.failedItems.length ? `${r.summary} Ошибок: ${r.failedItems.length}.` : r.summary);
+      setDriveStatus(t("Перенос отменён. После новой сортировки Drive-ссылки нужно собрать заново."));
+      say(r.failedItems.length ? t("{0} Ошибок: {1}.", [r.summary, r.failedItems.length]) : r.summary);
     } catch (e) {
-      say(`Не удалось отменить перенос: ${errorText(e)}`);
+      say(t("Не удалось отменить перенос: {0}", [errorText(e)]));
     }
   }, [say, undoRecords]);
 
   const copyDigest = useCallback(async () => {
     if (!digest.trim()) return;
     await ctxRef.current.api.copyText(digest);
-    setDriveStatus("Список папок и файлов скопирован в буфер обмена.");
-    say("Список папок и файлов скопирован в буфер обмена.");
+    setDriveStatus(t("Список папок и файлов скопирован в буфер обмена."));
+    say(t("Список папок и файлов скопирован в буфер обмена."));
   }, [digest, say]);
 
   const copyLinks = useCallback(async () => {
-    if (!records.length) { setDriveStatus("Нет результата сортировки для сбора ссылок."); say("Нет результата сортировки для сбора ссылок."); return; }
+    if (!records.length) { setDriveStatus(t("Нет результата сортировки для сбора ссылок.")); say(t("Нет результата сортировки для сбора ссылок.")); return; }
     setBusy("drive");
-    const collecting = `Собираю Google Drive ссылки для ${records.length} файлов…`;
+    const collecting = t("Собираю Google Drive ссылки для {0} файлов…", [records.length]);
     setDriveStatus(collecting); say(collecting);
     try {
       const r = await ctxRef.current.api.exportDriveLinks(records);
       if (!r.digest.trim()) {
-        setDriveStatus("Не удалось собрать Drive-ссылки: дайджест пуст."); say("Не удалось собрать Drive-ссылки: дайджест пуст.");
+        setDriveStatus(t("Не удалось собрать Drive-ссылки: дайджест пуст.")); say(t("Не удалось собрать Drive-ссылки: дайджест пуст."));
         return;
       }
       await ctxRef.current.api.copyText(r.digest);
-      setLinksDigest(r.digest); setDigestTitle("GOOGLE DRIVE ДАЙДЖЕСТ");
-      const t = r.failureCount === 0
-        ? `Google Drive ссылки собраны: ${r.successCount}. Результат скопирован в буфер.`
-        : `Ссылки собраны: ${r.successCount}. Ошибок: ${r.failureCount}. Сводка скопирована в буфер.`;
-      setDriveStatus(t); say(t);
+      setLinksDigest(r.digest); setDigestTitle(t("GOOGLE DRIVE ДАЙДЖЕСТ"));
+      const message = r.failureCount === 0
+        ? t("Google Drive ссылки собраны: {0}. Результат скопирован в буфер.", [r.successCount])
+        : t("Ссылки собраны: {0}. Ошибок: {1}. Сводка скопирована в буфер.", [r.successCount, r.failureCount]);
+      setDriveStatus(message); say(message);
     } catch (e) {
-      const t = `Не удалось собрать Drive-ссылки: ${errorText(e)}`;
-      setDriveStatus(t); say(t);
+      const message = t("Не удалось собрать Drive-ссылки: {0}", [errorText(e)]);
+      setDriveStatus(message); say(message);
     } finally {
       setBusy((b) => (b === "drive" ? null : b));
     }

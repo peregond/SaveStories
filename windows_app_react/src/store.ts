@@ -6,6 +6,7 @@ import { isToday, parseProfiles, parseReelLines, profileCounts, profileFromProgr
 import { useSorting } from "./sorting";
 import { useUnik } from "./unik";
 
+import { t } from "./i18n";
 export type Session = "unknown" | "checking" | "ready" | "login_required" | "waiting_login" | "error";
 export type EntryStatus = "pending" | "running" | "completed" | "failed" | "stopped";
 export interface Entry { url: string; status: EntryStatus; message: string }
@@ -36,7 +37,7 @@ export function useStore(api: Api) {
   const [settings, setSettingsState] = useState<Settings>(defaultSettings);
   const [loaded, setLoaded] = useState(false);
   const [workerReady, setWorkerReady] = useState<boolean | null>(null);
-  const [workerSummary, setWorkerSummary] = useState("Проверяю среду…");
+  const [workerSummary, setWorkerSummary] = useState(t("Проверяю среду…"));
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [bootstrapping, setBootstrapping] = useState(false);
   const [preflight, setPreflight] = useState<Preflight | null>(null);
@@ -47,7 +48,7 @@ export function useStore(api: Api) {
   const [live, setLive] = useState({ files: 0, folders: 0 });
   const [busy, setBusy] = useState<null | "batch" | "reels" | "probe" | "unik">(null);
   const [stopping, setStopping] = useState(false);
-  const [step, setStep] = useState("Ожидание команды.");
+  const [step, setStep] = useState(t("Ожидание команды."));
   const [notice, setNotice] = useState<Notice | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const [latestItems, setLatestItems] = useState<WorkerItem[]>([]);
@@ -138,14 +139,14 @@ export function useStore(api: Api) {
     const detail = progressDetail(line);
     commit(entriesRef.current.map((e) => {
       if (profileName(e.url).toLowerCase() !== who || e.status === "completed") return e;
-      if (kind === "start") return { ...e, status: "running" as const, message: "Скачивается…" };
-      if (kind === "done") return { ...e, status: "completed" as const, message: "Профиль обработан." };
-      return { ...e, status: "failed" as const, message: detail || "Не удалось обработать профиль." };
+      if (kind === "start") return { ...e, status: "running" as const, message: t("Скачивается…") };
+      if (kind === "done") return { ...e, status: "completed" as const, message: t("Профиль обработан.") };
+      return { ...e, status: "failed" as const, message: detail || t("Не удалось обработать профиль.") };
     }));
     const processed = entriesRef.current.filter((e) => e.status === "completed" || e.status === "failed").length;
-    if (kind === "start") setStep(`Сейчас обрабатывается: ${profileFromProgress(line)}`);
-    else if (kind === "done") setStep(`Готов профиль: ${profileFromProgress(line)}`);
-    else setStep(detail ? `Не удалось обработать ${profileFromProgress(line)}: ${detail}` : `Не удалось обработать: ${profileFromProgress(line)}`);
+    if (kind === "start") setStep(t("Сейчас обрабатывается: {0}", [profileFromProgress(line)]));
+    else if (kind === "done") setStep(t("Готов профиль: {0}", [profileFromProgress(line)]));
+    else setStep(detail ? t("Не удалось обработать {0}: {1}", [profileFromProgress(line), detail]) : t("Не удалось обработать: {0}", [profileFromProgress(line)]));
     setTotals((t) => ({ ...t, processed }));
     void refreshLive();
   }, [commit, pushLog, refreshLive]);
@@ -192,7 +193,7 @@ export function useStore(api: Api) {
   const installChromium = useCallback(async () => {
     if (bootstrapping) return;
     setBootstrapping(true);
-    setNotice({ tone: "warn", text: "Скачиваю Chromium. Это занимает несколько минут." });
+    setNotice({ tone: "warn", text: t("Скачиваю Chromium. Это занимает несколько минут.") });
     try {
       const msg = await api.installChromium();
       pushLog(msg);
@@ -213,20 +214,20 @@ export function useStore(api: Api) {
   const exportDiagnostics = useCallback(async () => {
     try {
       const path = await api.exportDiagnostics();
-      setNotice({ tone: "ok", text: `Диагностика сохранена: ${path}` });
+      setNotice({ tone: "ok", text: t("Диагностика сохранена: {0}", [path]) });
     } catch (e) {
       setNotice({ tone: "err", text: errorText(e) });
     }
   }, [api]);
 
   const checkUpdates = useCallback(async (opts: { silent?: boolean } = {}) => {
-    setUpdate((u) => (u.phase === "downloading" || u.phase === "ready" ? u : { phase: "checking", percent: 0, message: "Проверяю обновления…" }));
+    setUpdate((u) => (u.phase === "downloading" || u.phase === "ready" ? u : { phase: "checking", percent: 0, message: t("Проверяю обновления…") }));
     try {
       const r = await api.checkUpdate();
       updateSettings({ lastUpdateCheckAt: new Date().toISOString() });
-      if (r.status === "update_available") setUpdate({ phase: "available", release: r.release, percent: 0, message: `Доступна версия ${r.release.version}.` });
-      else if (r.status === "disabled") setUpdate({ phase: "disabled", percent: 0, message: "Проверка обновлений отключена." });
-      else setUpdate({ phase: "up_to_date", percent: 0, message: "Установлена последняя версия." });
+      if (r.status === "update_available") setUpdate({ phase: "available", release: r.release, percent: 0, message: t("Доступна версия {0}.", [r.release.version]) });
+      else if (r.status === "disabled") setUpdate({ phase: "disabled", percent: 0, message: t("Проверка обновлений отключена.") });
+      else setUpdate({ phase: "up_to_date", percent: 0, message: t("Установлена последняя версия.") });
     } catch (e) {
       setUpdate(opts.silent ? { phase: "idle", percent: 0, message: "" } : { phase: "error", percent: 0, message: errorText(e) });
     }
@@ -274,8 +275,8 @@ export function useStore(api: Api) {
     const id = window.setInterval(async () => {
       if (busyRef.current || document.hidden) return;
       if (await checkSession({ silent: true })) {
-        pushLog("Сессия Instagram найдена. Окно входа можно закрыть.");
-        setNotice({ tone: "ok", text: "Вход выполнен: сессия Instagram сохранена." });
+        pushLog(t("Сессия Instagram найдена. Окно входа можно закрыть."));
+        setNotice({ tone: "ok", text: t("Вход выполнен: сессия Instagram сохранена.") });
       }
     }, 3000);
     return () => window.clearInterval(id);
@@ -293,10 +294,10 @@ export function useStore(api: Api) {
     try {
       await api.login({ command: "login", headless: false, outputDirectory: settingsRef.current.saveDirectory });
       setSession("waiting_login");
-      setNotice({ tone: "warn", text: "Войдите в Instagram в открывшемся окне браузера. Приложение само найдёт сессию." });
-      pushLog("Открыл отдельное окно браузера для входа в Instagram.");
+      setNotice({ tone: "warn", text: t("Войдите в Instagram в открывшемся окне браузера. Приложение само найдёт сессию.") });
+      pushLog(t("Открыл отдельное окно браузера для входа в Instagram."));
     } catch (e) {
-      setNotice({ tone: "err", text: `Не удалось открыть браузер для входа: ${errorText(e)}` });
+      setNotice({ tone: "err", text: t("Не удалось открыть браузер для входа: {0}", [errorText(e)]) });
     }
   }, [api, pushLog]);
 
@@ -307,7 +308,7 @@ export function useStore(api: Api) {
     for (const url of profiles) {
       if (known.has(url.toLowerCase())) continue;
       known.add(url.toLowerCase());
-      fresh.push({ url, status: "pending", message: "Ожидает запуска." });
+      fresh.push({ url, status: "pending", message: t("Ожидает запуска.") });
     }
     commit(replace ? fresh : [...entriesRef.current, ...fresh]);
     return fresh.length;
@@ -318,33 +319,33 @@ export function useStore(api: Api) {
     if (busyRef.current === "batch" || notionBusy) return false;
     if (!opts.force && isToday(s.notionInfluencerLastRefreshAt)) {
       if (!s.notionInfluencerCachedProfiles.length) {
-        setNotionSummary("Notion уже обновлялся сегодня, но сохранённый список пуст.");
-        pushLog("Повторная загрузка Notion пропущена: сегодня уже обновляли, сохранённый список пуст.");
+        setNotionSummary(t("Notion уже обновлялся сегодня, но сохранённый список пуст."));
+        pushLog(t("Повторная загрузка Notion пропущена: сегодня уже обновляли, сохранённый список пуст."));
         return false;
       }
       const n = applyProfiles(s.notionInfluencerCachedProfiles, opts.replace);
-      setNotionSummary(`Notion уже обновлялся сегодня: использую сохранённый список (${s.notionInfluencerCachedProfiles.length} профилей).`);
-      pushLog(`Повторная загрузка Notion пропущена: применён сохранённый список, профилей: ${n}.`);
+      setNotionSummary(t("Notion уже обновлялся сегодня: использую сохранённый список ({0} профилей).", [s.notionInfluencerCachedProfiles.length]));
+      pushLog(t("Повторная загрузка Notion пропущена: применён сохранённый список, профилей: {0}.", [n]));
       return true;
     }
     setNotionBusy(true);
-    setNotionSummary("Загружаю свежий список из Notion…");
-    pushLog("Загружаю свежий список инфлюенсеров из Notion.");
+    setNotionSummary(t("Загружаю свежий список из Notion…"));
+    pushLog(t("Загружаю свежий список инфлюенсеров из Notion."));
     try {
       const profiles = await api.fetchNotionProfiles();
       if (!profiles.length) {
-        setNotionSummary("В Notion не найдено профилей.");
-        setNotice({ tone: "err", text: "В Notion-списке не найдено профилей." });
+        setNotionSummary(t("В Notion не найдено профилей."));
+        setNotice({ tone: "err", text: t("В Notion-списке не найдено профилей.") });
         return false;
       }
       const n = applyProfiles(profiles, opts.replace);
-      pushLog(opts.replace ? `Очередь заменена свежим Notion-списком: ${profiles.length} профилей.` : `Из Notion-списка добавлено новых профилей: ${n}.`);
+      pushLog(opts.replace ? t("Очередь заменена свежим Notion-списком: {0} профилей.", [profiles.length]) : t("Из Notion-списка добавлено новых профилей: {0}.", [n]));
       updateSettings({ notionInfluencerLastRefreshAt: new Date().toISOString(), notionInfluencerCachedProfiles: profiles });
-      setNotionSummary(`Notion обновлён в ${stamp().slice(0, 5)}: ${profiles.length} профилей.`);
+      setNotionSummary(t("Notion обновлён в {0}: {1} профилей.", [stamp().slice(0, 5), profiles.length]));
       return true;
     } catch (e) {
-      setNotionSummary(`Не удалось обновить Notion: ${errorText(e)}`);
-      setNotice({ tone: "err", text: `Не удалось обновить Notion: ${errorText(e)}` });
+      setNotionSummary(t("Не удалось обновить Notion: {0}", [errorText(e)]));
+      setNotice({ tone: "err", text: t("Не удалось обновить Notion: {0}", [errorText(e)]) });
       return false;
     } finally {
       setNotionBusy(false);
@@ -359,22 +360,22 @@ export function useStore(api: Api) {
     for (const url of links) {
       if (known.has(url.toLowerCase())) continue;
       known.add(url.toLowerCase());
-      fresh.push({ url, status: "pending", message: "Ожидает запуска." });
+      fresh.push({ url, status: "pending", message: t("Ожидает запуска.") });
     }
     if (fresh.length) commit([...entriesRef.current, ...fresh]);
     return fresh.length;
   }, [commit]);
 
   const requestCleanup = useCallback(async (root: string, intro: string, quietIfNone = false): Promise<void> => {
-    if (!root.trim()) { setNotice({ tone: "warn", text: "Сначала выбери папку для очистки." }); return; }
+    if (!root.trim()) { setNotice({ tone: "warn", text: t("Сначала выбери папку для очистки.") }); return; }
     const folders = await api.findEmptyFolders(root);
     if (!folders.length) {
-      if (quietIfNone) pushLog("Пустых папок после выгрузки stories не найдено.");
-      else setNotice({ tone: "ok", text: "Пустых папок в выбранной папке не найдено." });
+      if (quietIfNone) pushLog(t("Пустых папок после выгрузки stories не найдено."));
+      else setNotice({ tone: "ok", text: t("Пустых папок в выбранной папке не найдено.") });
       return;
     }
-    pushLog(`Найдены пустые папки: ${folders.length}.`);
-    setCleanupOffer({ folders, title: "Удалить пустые папки?", intro });
+    pushLog(t("Найдены пустые папки: {0}.", [folders.length]));
+    setCleanupOffer({ folders, title: t("Удалить пустые папки?"), intro });
   }, [api, pushLog]);
 
   const confirmCleanup = useCallback(async () => {
@@ -383,24 +384,24 @@ export function useStore(api: Api) {
     if (!offer) return;
     try {
       const r = await api.deleteEmptyFolders(offer.folders);
-      const text = r.failed.length ? `Удалено пустых папок: ${r.removed.length}. Ошибок: ${r.failed.length}.` : `Удалено пустых папок: ${r.removed.length}.`;
+      const text = r.failed.length ? t("Удалено пустых папок: {0}. Ошибок: {1}.", [r.removed.length, r.failed.length]) : t("Удалено пустых папок: {0}.", [r.removed.length]);
       pushLog(text);
       setNotice({ tone: r.failed.length ? "warn" : "ok", text });
     } catch (e) {
       setNotice({ tone: "err", text: errorText(e) });
     }
   }, [api, cleanupOffer, pushLog]);
-  const dismissCleanup = useCallback(() => { setCleanupOffer(null); pushLog("Удаление пустых папок пропущено."); }, [pushLog]);
+  const dismissCleanup = useCallback(() => { setCleanupOffer(null); pushLog(t("Удаление пустых папок пропущено.")); }, [pushLog]);
 
   const applyBatch = useCallback((urls: string[], r: WorkerResponse) => {
     const byUrl = new Map((r.batchResults ?? []).map((x) => [x.url.toLowerCase(), x]));
     commit(entriesRef.current.map((e) => {
       if (!urls.includes(e.url)) return e;
-      if (r.status === "cancelled") return { ...e, status: e.status === "completed" ? e.status : ("stopped" as const), message: e.status === "completed" ? e.message : "Остановлено пользователем." };
+      if (r.status === "cancelled") return { ...e, status: e.status === "completed" ? e.status : ("stopped" as const), message: e.status === "completed" ? e.message : t("Остановлено пользователем.") };
       const res = byUrl.get(e.url.toLowerCase());
       if (!res) {
         return r.batchResults?.length
-          ? { ...e, status: "failed" as const, message: "Для профиля нет результата пакетной выгрузки." }
+          ? { ...e, status: "failed" as const, message: t("Для профиля нет результата пакетной выгрузки.") }
           : { ...e, status: r.ok ? ("completed" as const) : ("failed" as const), message: r.message };
       }
       return { ...e, status: res.status === "completed" ? ("completed" as const) : ("failed" as const), message: res.message || r.message };
@@ -414,7 +415,7 @@ export function useStore(api: Api) {
     }
     if (extraText) addProfiles(extraText);
     const urls = entriesRef.current.filter((e) => e.status === "pending" || e.status === "failed").map((e) => e.url);
-    if (!urls.length) { setNotice({ tone: "warn", text: "Добавь хотя бы один профиль." }); return; }
+    if (!urls.length) { setNotice({ tone: "warn", text: t("Добавь хотя бы один профиль.") }); return; }
 
     const s = settingsRef.current;
     setStopping(false); setBusy("batch"); setNotice(null);
@@ -422,8 +423,8 @@ export function useStore(api: Api) {
     liveCounts.current = { found: 0, saved: 0 };
     try { baseline.current = await api.snapshot(s.saveDirectory); } catch { baseline.current = { files: 0, folders: 0 }; }
     setLive({ files: 0, folders: 0 });
-    commit(entriesRef.current.map((e) => (urls.includes(e.url) ? { ...e, status: "pending" as const, message: "Ожидает обработки в общем окне браузера." } : e)));
-    setStep(`Выгрузка профилей: ${urls.length}. Очередь выполняется в одном окне браузера.`);
+    commit(entriesRef.current.map((e) => (urls.includes(e.url) ? { ...e, status: "pending" as const, message: t("Ожидает обработки в общем окне браузера.") } : e)));
+    setStep(t("Выгрузка профилей: {0}. Очередь выполняется в одном окне браузера.", [urls.length]));
     const timeout = workerTimeoutSecs("download_profile_batch", urls.length, headless);
     pushLog(`batch_timeout_minutes=${Math.round(timeout / 60)}`);
     try {
@@ -435,23 +436,23 @@ export function useStore(api: Api) {
       setTotals({ found, saved, processed: Number(r.data?.processedCount ?? urls.length), files: (r.items ?? []).length });
       for (const l of r.logs ?? []) pushLog(l);
       pushLog(`[${r.status}] ${r.message}`);
-      if (r.status === "cancelled") { setStep("Остановлено."); setNotice({ tone: "warn", text: "Выгрузка остановлена." }); }
-      else if (!r.ok && !r.batchResults?.length) { setStep("Ошибка."); setNotice({ tone: "err", text: r.message }); }
+      if (r.status === "cancelled") { setStep(t("Остановлено.")); setNotice({ tone: "warn", text: t("Выгрузка остановлена.") }); }
+      else if (!r.ok && !r.batchResults?.length) { setStep(t("Ошибка.")); setNotice({ tone: "err", text: r.message }); }
       else {
         const failed = (r.batchResults ?? []).filter((x) => x.status !== "completed").length;
-        setStep("Очередь обработана.");
+        setStep(t("Очередь обработана."));
         setNotice(failed
-          ? { tone: "warn", text: `Завершено с ошибками: ${failed} из ${urls.length}. Сохранено файлов: ${saved}.` }
-          : { tone: "ok", text: `Готово. Сохранено файлов: ${saved}.` });
+          ? { tone: "warn", text: t("Завершено с ошибками: {0} из {1}. Сохранено файлов: {2}.", [failed, urls.length, saved]) }
+          : { tone: "ok", text: t("Готово. Сохранено файлов: {0}.", [saved]) });
       }
       if (!r.ok && /session|login|вход|сесс/i.test(`${r.status} ${r.message}`)) setSession("login_required");
       await refreshLive(true);
       if (r.status !== "cancelled") {
-        await requestCleanup(s.saveDirectory, "После выгрузки stories найдены пустые папки. Папка «На перенос» и её содержимое не трогаются.", true).catch(() => {});
+        await requestCleanup(s.saveDirectory, t("После выгрузки stories найдены пустые папки. Папка «На перенос» и её содержимое не трогаются."), true).catch(() => {});
       }
     } catch (e) {
       commit(entriesRef.current.map((x) => (urls.includes(x.url) && x.status !== "completed" ? { ...x, status: "failed" as const, message: errorText(e) } : x)));
-      setNotice({ tone: "err", text: errorText(e) }); setStep("Ошибка.");
+      setNotice({ tone: "err", text: errorText(e) }); setStep(t("Ошибка."));
     } finally {
       setBusy(null); setStopping(false);
     }
@@ -459,23 +460,23 @@ export function useStore(api: Api) {
 
   const stop = useCallback(async () => {
     if (!busyRef.current || busyRef.current === "probe") return;
-    setStopping(true); setStep("Останавливаю выгрузку…");
-    pushLog("Запрошена остановка текущей задачи.");
+    setStopping(true); setStep(t("Останавливаю выгрузку…"));
+    pushLog(t("Запрошена остановка текущей задачи."));
     await api.cancel();
   }, [api, pushLog]);
 
   const clearQueue = useCallback(() => {
     if (busyRef.current) return;
-    commit([]); setTotals(emptyTotals); setLive({ files: 0, folders: 0 }); setStep("Ожидание команды."); setNotice(null);
-    pushLog("Очередь очищена.");
+    commit([]); setTotals(emptyTotals); setLive({ files: 0, folders: 0 }); setStep(t("Ожидание команды.")); setNotice(null);
+    pushLog(t("Очередь очищена."));
   }, [commit, pushLog]);
 
   const retryFailed = useCallback(() => {
     if (busyRef.current) return;
     const failed = entriesRef.current.filter((e) => e.status === "failed");
     if (!failed.length) return;
-    commit(failed.map((e) => ({ ...e, status: "pending" as const, message: "Ожидает запуска." })));
-    pushLog(`Сформирована очередь из неудачных профилей: ${failed.length}`);
+    commit(failed.map((e) => ({ ...e, status: "pending" as const, message: t("Ожидает запуска.") })));
+    pushLog(t("Сформирована очередь из неудачных профилей: {0}", [failed.length]));
   }, [commit, pushLog]);
 
   const removeEntry = useCallback((url: string) => { if (!busyRef.current) commit(entriesRef.current.filter((e) => e.url !== url)); }, [commit]);
@@ -493,9 +494,9 @@ export function useStore(api: Api) {
   const downloadReels = useCallback(async (text: string): Promise<boolean> => {
     if (busyRef.current) return false;
     const queue = [...new Set([...reels.queue, ...parseReelLines(text)])];
-    if (!queue.length) { setNotice({ tone: "warn", text: "Добавь хотя бы одну ссылку Reels." }); return false; }
+    if (!queue.length) { setNotice({ tone: "warn", text: t("Добавь хотя бы одну ссылку Reels.") }); return false; }
     setBusy("reels"); setStopping(false); setNotice(null);
-    setReels((r) => ({ ...r, queue, summary: "Запускаю выгрузку Reels…" }));
+    setReels((r) => ({ ...r, queue, summary: t("Запускаю выгрузку Reels…") }));
     try {
       const r = await api.run({ command: "download_reels_urls", urls: queue, outputDirectory: settingsRef.current.saveDirectory, headless }, workerTimeoutSecs("download_reels_urls", queue.length, headless));
       const failed = (r.logs ?? []).filter((l) => l.startsWith("reel_failed=")).map((l) => l.slice("reel_failed=".length).split(" :: ")[0].trim()).filter(Boolean);
@@ -506,9 +507,9 @@ export function useStore(api: Api) {
       setReels((cur) => ({
         queue: r.status === "cancelled" ? cur.queue : [], failed,
         downloads: [...(r.items ?? []).map((i) => i.localPath.split(/[\\/]/).pop() || i.localPath), ...cur.downloads],
-        summary: r.status === "cancelled" ? "Остановлено." : `Ссылок: ${queue.length}  ·  Обработано: ${processed}  ·  Сохранено: ${saved}  ·  Ошибок: ${r.data?.failedCount ?? failed.length}  ·  Файлов: ${(r.items ?? []).length}`,
+        summary: r.status === "cancelled" ? t("Остановлено.") : t("Ссылок: {0}  ·  Обработано: {1}  ·  Сохранено: {2}  ·  Ошибок: {3}  ·  Файлов: {4}", [queue.length, processed, saved, r.data?.failedCount ?? failed.length, (r.items ?? []).length]),
       }));
-      setNotice({ tone: r.ok ? "ok" : r.status === "cancelled" ? "warn" : "err", text: r.status === "cancelled" ? "Выгрузка Reels остановлена." : r.message });
+      setNotice({ tone: r.ok ? "ok" : r.status === "cancelled" ? "warn" : "err", text: r.status === "cancelled" ? t("Выгрузка Reels остановлена.") : r.message });
       return r.ok;
     } catch (e) {
       setNotice({ tone: "err", text: errorText(e) });
@@ -539,10 +540,10 @@ export function useStore(api: Api) {
   const prepareUpdate = useCallback(async () => {
     const release = update.release;
     if (!release) return;
-    setUpdate({ phase: "downloading", release, percent: 0, message: `Скачивание обновления ${release.version}: 0%` });
+    setUpdate({ phase: "downloading", release, percent: 0, message: t("Скачивание обновления {0}: 0%", [release.version]) });
     try {
       await api.prepareUpdate(release);
-      setUpdate({ phase: "ready", release, percent: 100, message: `Обновление ${release.version} подготовлено.` });
+      setUpdate({ phase: "ready", release, percent: 100, message: t("Обновление {0} подготовлено.", [release.version]) });
     } catch (e) {
       setUpdate({ phase: "error", release, percent: 0, message: errorText(e) });
     }
@@ -552,8 +553,8 @@ export function useStore(api: Api) {
   }, [api]);
 
   const pickDirectory = useCallback(async () => {
-    const dir = await api.pickDirectory(settingsRef.current.saveDirectory, "Папка сохранения");
-    if (dir) { updateSettings({ saveDirectory: dir }); pushLog(`Папка сохранения обновлена: ${dir}`); }
+    const dir = await api.pickDirectory(settingsRef.current.saveDirectory, t("Папка сохранения"));
+    if (dir) { updateSettings({ saveDirectory: dir }); pushLog(t("Папка сохранения обновлена: {0}", [dir])); }
   }, [api, pushLog, updateSettings]);
   const openSaveDirectory = useCallback(() => {
     api.openPath(settingsRef.current.saveDirectory).catch((e) => setNotice({ tone: "err", text: errorText(e) }));
