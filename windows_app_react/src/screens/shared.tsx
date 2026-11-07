@@ -4,7 +4,7 @@ import { IconTrash } from "../icons";
 import { profileName } from "../parse";
 import type { EntryStatus, Store } from "../store";
 
-import { t } from "../i18n";
+import { t, tr } from "../i18n";
 type Tone = "" | "ok" | "run" | "err" | "warn";
 
 export function statusPill(s: Store): { tone: Tone; label: string } {
@@ -43,7 +43,7 @@ const QueueRow = memo(function QueueRow({ url, status, message, disabled, onRemo
 export function QueueList({ s }: { s: Store }) {
   return (
     <div className="list">
-      {s.entries.map((e) => <QueueRow key={e.url} url={e.url} status={e.status} message={e.message} disabled={!!s.busy} onRemove={s.removeEntry} />)}
+      {s.entries.map((e) => <QueueRow key={e.url} url={e.url} status={e.status} message={tr(e.message)} disabled={!!s.busy} onRemove={s.removeEntry} />)}
     </div>
   );
 }
@@ -62,8 +62,8 @@ export function EnvironmentBanners({ s }: { s: Store }) {
       {s.session === "error" && s.runtime?.chromiumInstalled && (
         <BannerRow tone="err" label={t("Проверить снова")} text={t("Не удалось проверить сессию Instagram: {0}", [s.sessionSummary])} busy={!!s.busy} onClick={() => void s.checkSession()} plain />
       )}
-      {s.workerReady === false && <BannerRow tone="err" text={s.workerSummary} />}
-      {s.notice && <BannerRow tone={s.notice.tone} text={s.notice.text} onClose={() => s.setNotice(null)} />}
+      {s.workerReady === false && <BannerRow tone="err" text={tr(s.workerSummary)} />}
+      {s.notice && <BannerRow tone={s.notice.tone} text={tr(s.notice.text)} onClose={() => s.setNotice(null)} />}
     </>
   );
 }

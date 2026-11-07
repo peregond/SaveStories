@@ -438,6 +438,20 @@ fn set_tray_status(app: AppHandle, text: String) {
     }
 }
 
+/// Пункты меню у значка в трее: нужны, чтобы интерфейс мог сменить подписи при другом языке.
+struct TrayLabels {
+    show: MenuItem<tauri::Wry>,
+    quit: MenuItem<tauri::Wry>,
+}
+
+#[tauri::command]
+fn set_tray_labels(app: AppHandle, show: String, quit: String) {
+    if let Some(labels) = app.try_state::<TrayLabels>() {
+        let _ = labels.show.set_text(show);
+        let _ = labels.quit.set_text(quit);
+    }
+}
+
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
@@ -468,6 +482,7 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
         builder = builder.icon(icon.clone());
     }
     builder.build(app)?;
+    app.manage(TrayLabels { show, quit });
     Ok(())
 }
 
@@ -547,6 +562,7 @@ pub fn run() {
             window_set_theme,
             notify,
             set_tray_status,
+            set_tray_labels,
             settings_get,
             settings_save,
             queue_load,

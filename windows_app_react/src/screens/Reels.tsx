@@ -5,7 +5,7 @@ import { parseReelLines } from "../parse";
 import type { Store } from "../store";
 import { EnvironmentBanners } from "./shared";
 
-import { t } from "../i18n";
+import { t, tr } from "../i18n";
 export function Reels({ s }: { s: Store }) {
   const [text, setText] = useState("");
   const lines = parseReelLines(text);
@@ -33,7 +33,7 @@ export function Reels({ s }: { s: Store }) {
               <button className="btn sm ghost" disabled={!s.reels.failed.length || !!s.busy} onClick={s.retryFailedReels}>{t("Повторить ошибочные (")}{s.reels.failed.length})</button>
               <button className="btn sm ghost" disabled={!s.reels.queue.length || !!s.busy} onClick={s.clearReelsQueue}>{t("Очистить очередь")}</button>
             </div>
-            {s.reels.summary && <p className="statusline">{s.reels.summary}</p>}
+            {s.reels.summary && <p className="statusline">{tr(s.reels.summary)}</p>}
           </Card>
           {s.reels.queue.length > 0 && (
             <Card title={t("Очередь · {0}", [s.reels.queue.length])}>

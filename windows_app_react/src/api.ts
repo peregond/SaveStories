@@ -110,6 +110,8 @@ export interface Api {
   notify(title: string, body: string): Promise<boolean>;
   /** Подсказка у значка в трее. */
   setTrayStatus(text: string): Promise<void>;
+  /** Подписи пунктов меню у значка в трее (язык интерфейса). */
+  setTrayLabels(show: string, quit: string): Promise<void>;
   getSettings(): Promise<Settings>;
   saveSettings(settings: Settings): Promise<void>;
   loadQueue(): Promise<StoredEntry[]>;
@@ -172,6 +174,7 @@ const tauriApi: Api = {
   setWindowTheme: (theme) => invoke("window_set_theme", { theme }),
   notify: (title, body) => invoke("notify", { title, body }),
   setTrayStatus: (text) => invoke("set_tray_status", { text }),
+  setTrayLabels: (show, quit) => invoke("set_tray_labels", { show, quit }),
   getSettings: () => invoke("settings_get"),
   saveSettings: (settings) => invoke("settings_save", { settings }),
   loadQueue: () => invoke("queue_load"),

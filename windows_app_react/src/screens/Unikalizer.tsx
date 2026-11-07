@@ -6,7 +6,7 @@ import {
   AUDIO_EXT, IMAGE_EXT, VIDEO_EXT, baseName, optionProblems, plannedOutputs, previewName, type BackgroundStyle, type FitMode, type MetadataMode, type UnikOptions,
 } from "../unik";
 
-import { t } from "../i18n";
+import { t, tr } from "../i18n";
 const Field = ({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) => (
   <label className="field"><span className="field-label">{label}</span>{children}{hint && <span className="hint">{hint}</span>}</label>
 );
@@ -85,11 +85,11 @@ export function Unikalizer({ s }: { s: Store }) {
         </Banner>
       )}
       {u.ffmpeg.phase === "error" && (
-        <Banner tone="err" action={<button className="btn sm" onClick={() => void u.installFfmpeg()}>{t("Повторить")}</button>}>{u.ffmpeg.message || t("Не удалось подготовить FFmpeg.")}</Banner>
+        <Banner tone="err" action={<button className="btn sm" onClick={() => void u.installFfmpeg()}>{t("Повторить")}</button>}>{tr(u.ffmpeg.message) || t("Не удалось подготовить FFmpeg.")}</Banner>
       )}
       {u.ffmpeg.phase === "installing" && (
         <Banner tone="warn">
-          {u.ffmpeg.message || t("Устанавливаю FFmpeg…")}
+          {tr(u.ffmpeg.message) || t("Устанавливаю FFmpeg…")}
           <div className="progress" role="progressbar" aria-valuenow={u.ffmpeg.percent}><div style={{ width: `${u.ffmpeg.percent}%` }} /></div>
         </Banner>
       )}
@@ -267,7 +267,7 @@ export function Unikalizer({ s }: { s: Store }) {
           </Card>
 
           <Card title={t("Ход обработки")} aside={u.jobs.length ? <span className="hint">{doneCount} {t("из")} {u.jobs.length}</span> : null}>
-            {u.jobs.length === 0 ? <Empty icon={<IconEmpty size={32} />} text={u.summary || t("Результаты появятся здесь")} /> : (
+            {u.jobs.length === 0 ? <Empty icon={<IconEmpty size={32} />} text={tr(u.summary) || t("Результаты появятся здесь")} /> : (
               <>
                 <div className="progress" role="progressbar" aria-valuenow={overall}><div style={{ width: `${overall}%` }} /></div>
                 <div className="list" style={{ marginTop: 12 }}>
@@ -275,13 +275,13 @@ export function Unikalizer({ s }: { s: Store }) {
                     <div className="item" key={j.index}>
                       <div className="grow">
                         <div className="name" title={j.outputPath || j.label}>{j.outputPath ? baseName(j.outputPath) : j.label || t("Файл {0}", [j.index + 1])}</div>
-                        <div className="hint">{j.status === "error" ? j.message || t("Ошибка") : j.status === "running" ? t("Обработка… {0}%", [j.percent]) : j.status === "done" ? t("из {0}", [j.label.split(" → ")[0] || t("исходника")]) : t("В очереди")}</div>
+                        <div className="hint">{j.status === "error" ? tr(j.message) || t("Ошибка") : j.status === "running" ? t("Обработка… {0}%", [j.percent]) : j.status === "done" ? t("из {0}", [j.label.split(" → ")[0] || t("исходника")]) : t("В очереди")}</div>
                       </div>
                       <Pill tone={j.status === "done" ? "ok" : j.status === "error" ? "err" : j.status === "running" ? "run" : ""}>{j.status === "done" ? t("Готово") : j.status === "error" ? t("Ошибка") : j.status === "running" ? `${j.percent}%` : t("Ждёт")}</Pill>
                     </div>
                   ))}
                 </div>
-                {u.summary && <p className="statusline">{u.summary}</p>}
+                {u.summary && <p className="statusline">{tr(u.summary)}</p>}
                 {!busy && doneCount > 0 && <div className="row" style={{ marginTop: 10 }}><button className="btn sm" onClick={u.openOutput}><IconFolder size={16} /> {t("Открыть папку")}</button></div>}
               </>
             )}
