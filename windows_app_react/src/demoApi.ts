@@ -94,6 +94,8 @@ export function createDemoApi(): Api {
     info: async () => info,
     appReady: async () => {},
     setWindowTheme: async () => {},
+    notify: async () => false,
+    setTrayStatus: async () => {},
     getSettings: async () => structuredClone(settings),
     saveSettings: async (s) => { settings = structuredClone(s); },
     loadQueue: async () => (params.get("queue") === "restore"

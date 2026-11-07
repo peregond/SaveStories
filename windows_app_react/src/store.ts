@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { finishNotification, trayStatus, type RunKind } from "./notify";
 import type { Api, AppInfo, Preflight, ReleaseInfo, RuntimeStatus, Settings, WorkerItem, WorkerResponse } from "./api";
 import { restoreEntries, restoreNotice } from "./queue";
 import { isToday, parseProfiles, parseReelLines, profileCounts, profileFromProgress, profileName, progressDetail, workerTimeoutSecs } from "./parse";
@@ -576,6 +577,25 @@ export function useStore(api: Api) {
   const pending = entries.filter((e) => e.status === "pending" || e.status === "failed").length;
   const failedCount = entries.filter((e) => e.status === "failed").length;
   const retryOnly = pending > 0 && entries.filter((e) => e.status === "pending").length === 0;
+
+  // Подсказка у значка в трее и уведомление в конце работы (только если окно не на виду — это проверяет приложение).
+  useEffect(() => { void api.setTrayStatus(trayStatus(busy, finished, entries.length)).catch(() => {}); }, [api, busy, finished, entries.length]);
+  const runRef = useRef<{ kind: RunKind | null; stopped: boolean }>({ kind: null, stopped: false });
+  const noticeRef = useRef(notice);
+  noticeRef.current = notice;
+  useEffect(() => {
+    const run = runRef.current;
+    if (busy === "batch" || busy === "reels" || busy === "unik") {
+      run.kind = busy;
+      run.stopped = run.stopped || stopping;
+      return;
+    }
+    if (busy === null && run.kind) {
+      const message = finishNotification(run.kind, noticeRef.current, run.stopped);
+      run.kind = null; run.stopped = false;
+      if (message) void api.notify(message.title, message.body).catch(() => {});
+    }
+  }, [api, busy, stopping]);
 
   return {
     api, info, settings, loaded, updateSettings, workerReady, workerSummary, runtime, bootstrapping, preflight, session, sessionSummary,

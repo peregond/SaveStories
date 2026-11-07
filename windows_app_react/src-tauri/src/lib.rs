@@ -20,7 +20,10 @@ use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::Value;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, State, Theme, WebviewWindow, WebviewWindowBuilder};
+use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_window_state::StateFlags;
 
 use paths::AppPaths;
@@ -410,6 +413,64 @@ fn release_from_value(v: &Value) -> Result<updater::ReleaseInfo, String> {
     })
 }
 
+/// Окно на виду и в фокусе: тогда уведомление не нужно, результат и так перед глазами.
+fn window_in_front(app: &AppHandle) -> bool {
+    app.get_webview_window("main")
+        .map(|w| w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false) && w.is_focused().unwrap_or(false))
+        .unwrap_or(false)
+}
+
+/// Системное уведомление о конце выгрузки или обработки. Показывается только когда окно свёрнуто или не в фокусе.
+#[tauri::command]
+fn notify(app: AppHandle, title: String, body: String) -> Result<bool, String> {
+    if window_in_front(&app) {
+        return Ok(false);
+    }
+    app.notification().builder().title(title).body(body).show().map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+/// Подсказка у значка в трее: что происходит сейчас («Выгрузка: 58 из 122»).
+#[tauri::command]
+fn set_tray_status(app: AppHandle, text: String) {
+    if let Some(tray) = app.tray_by_id("main") {
+        let _ = tray.set_tooltip(Some(text));
+    }
+}
+
+fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
+fn build_tray(app: &tauri::App) -> tauri::Result<()> {
+    let show = MenuItem::with_id(app, "show", "Открыть SaveMe", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Выйти", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show, &quit])?;
+    let mut builder = TrayIconBuilder::with_id("main")
+        .tooltip("SaveMe")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "show" => show_main_window(app),
+            "quit" => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                show_main_window(tray.app_handle());
+            }
+        });
+    if let Some(icon) = app.default_window_icon() {
+        builder = builder.icon(icon.clone());
+    }
+    builder.build(app)?;
+    Ok(())
+}
+
 pub fn run() {
     let paths = AppPaths::new();
     crash::install_hook(paths.logs_directory(), updater::CURRENT_VERSION);
@@ -421,6 +482,7 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         // Размер и положение окна запоминаются. Видимость не восстанавливаем: окно показывает app_ready после отрисовки.
         .plugin(
             tauri_plugin_window_state::Builder::default()
@@ -453,6 +515,10 @@ pub fn run() {
                 });
             }
             app.manage(NativeGlass(glass));
+            // Значок в трее не обязателен для работы: если система его не дала, просто идём дальше.
+            if let Err(error) = build_tray(app) {
+                eprintln!("tray: {error}");
+            }
             if let Some(window) = app.get_webview_window("main") {
                 let saver = std::sync::Arc::new(memory::MemorySaver::default());
                 let target = window.clone();
@@ -479,6 +545,8 @@ pub fn run() {
             app_info,
             app_ready,
             window_set_theme,
+            notify,
+            set_tray_status,
             settings_get,
             settings_save,
             queue_load,

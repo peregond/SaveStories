@@ -110,7 +110,17 @@ const MAC_BASE = "https://ffmpeg.martin-riedl.de/redirect/latest/macos";
 
 export function macDownloads(arch = process.arch) {
   const folder = arch === "arm64" ? "arm64" : "amd64";
-  return ["ffmpeg", "ffprobe"].map((tool) => ({ tool, url: `${MAC_BASE}/${folder}/release/${tool}.zip`, shaUrl: `${MAC_BASE}/${folder}/release/${tool}.zip.sha256` }));
+  // «redirect/latest» отдаёт 307 на конкретную версию (…/download/macos/arm64/<время>_<версия>/ffmpeg.zip);
+  // файл контрольной суммы лежит только рядом с конкретной версией, поэтому адрес суммы берётся после перехода.
+  return ["ffmpeg", "ffprobe"].map((tool) => ({ tool, url: `${MAC_BASE}/${folder}/release/${tool}.zip` }));
+}
+
+/** Конкретный адрес архива после перехода по «latest». */
+export async function resolveMacDownload(item, fetchImpl = fetch) {
+  const response = await fetchImpl(item.url, { method: "HEAD", redirect: "follow", headers: { "User-Agent": "SaveMe-FFmpeg" } });
+  if (!response.ok) throw new Error(`Не удалось найти актуальную сборку ${item.tool}: HTTP ${response.status}.`);
+  const url = response.url || item.url;
+  return { ...item, url, shaUrl: `${url}.sha256` };
 }
 
 /** SHA-256 из текста вида «<hash>  имя» или просто «<hash>». */
@@ -129,8 +139,9 @@ async function installOnMac({ home, work, onProgress, onMessage, fetchImpl, arch
   const bin = path.join(home, "bin");
   await fs.mkdir(bin, { recursive: true });
   const downloads = macDownloads(arch);
-  for (const [index, item] of downloads.entries()) {
-    onMessage?.(`Скачиваю ${item.tool}…`);
+  for (const [index, entry] of downloads.entries()) {
+    onMessage?.(`Скачиваю ${entry.tool}…`);
+    const item = await resolveMacDownload(entry, fetchImpl);
     const shaResponse = await fetchImpl(item.shaUrl, { headers: { "User-Agent": "SaveMe-FFmpeg" } });
     if (!shaResponse.ok) throw new Error(`Не удалось получить контрольную сумму ${item.tool}: HTTP ${shaResponse.status}.`);
     const expected = parseSha256(await shaResponse.text());

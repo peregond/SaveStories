@@ -103,6 +103,10 @@ export interface Api {
   /** Сообщает, что интерфейс отрисован: окно создаётся скрытым и показывается тут (без белой вспышки). */
   appReady(): Promise<void>;
   setWindowTheme(theme: "light" | "dark" | "system"): Promise<void>;
+  /** Системное уведомление; показывается, только если окно свёрнуто или не в фокусе. Возвращает, показано ли. */
+  notify(title: string, body: string): Promise<boolean>;
+  /** Подсказка у значка в трее. */
+  setTrayStatus(text: string): Promise<void>;
   getSettings(): Promise<Settings>;
   saveSettings(settings: Settings): Promise<void>;
   loadQueue(): Promise<StoredEntry[]>;
@@ -163,6 +167,8 @@ const tauriApi: Api = {
   info: () => invoke("app_info"),
   appReady: () => invoke("app_ready"),
   setWindowTheme: (theme) => invoke("window_set_theme", { theme }),
+  notify: (title, body) => invoke("notify", { title, body }),
+  setTrayStatus: (text) => invoke("set_tray_status", { text }),
   getSettings: () => invoke("settings_get"),
   saveSettings: (settings) => invoke("settings_save", { settings }),
   loadQueue: () => invoke("queue_load"),

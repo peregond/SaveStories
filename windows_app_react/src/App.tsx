@@ -21,6 +21,16 @@ const NAV: { id: Page; title: string; sub: string; Icon: ComponentType<{ size?: 
   { id: "sorting", title: "Сортировка", sub: "Разложить файлы по странам и блогерам", Icon: IconSort },
 ];
 
+const SHORTCUT_PAGES: Page[] = ["stories", "reels", "unik", "sorting", "settings"];
+
+/** Что делает сочетание Ctrl+клавиша: раздел, папка сохранения или ничего. */
+export function shortcutTarget(key: string, shift: boolean): Page | "folder" | null {
+  if (shift) return key.toLowerCase() === "o" ? "folder" : null;
+  if (key === ",") return "settings";
+  const index = Number(key) - 1;
+  return Number.isInteger(index) && index >= 0 && index < SHORTCUT_PAGES.length ? SHORTCUT_PAGES[index] : null;
+}
+
 export default function App() {
   const [api, setApi] = useState<Api | null>(null);
   useEffect(() => { void createApi().then(setApi); }, []);
@@ -53,6 +63,21 @@ function Shell({ api }: { api: Api }) {
   const [page, setPage] = useState<Page>(() => (new URLSearchParams(location.search).get("page") as Page) || "stories");
   useTheme(api, s.settings.theme, s.settings.automaticThemeByTime, s.loaded);
 
+  // Горячие клавиши: Ctrl+1…5 — разделы, Ctrl+, — настройки, Ctrl+Shift+O — папка сохранения.
+  const openFolder = s.openSaveDirectory;
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!event.ctrlKey || event.altKey) return;
+      const target = shortcutTarget(event.key, event.shiftKey);
+      if (!target) return;
+      event.preventDefault();
+      if (target === "folder") openFolder();
+      else setPage(target);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openFolder]);
+
   // Материал окна и показ окна: после загрузки настроек, один раз, после первой отрисовки.
   useEffect(() => {
     if (!s.loaded || !s.info) return;
@@ -78,11 +103,11 @@ function Shell({ api }: { api: Api }) {
           <div className="brand-name">SaveMe</div>
         </div>
         {NAV.map(({ id, title, Icon }) => (
-          <button key={id} className="nav-item" aria-current={page === id ? "page" : undefined} onClick={() => setPage(id)}><Icon /><span>{title}</span></button>
+          <button key={id} className="nav-item" title={`${title} (Ctrl+${NAV.findIndex((n) => n.id === id) + 1})`} aria-current={page === id ? "page" : undefined} onClick={() => setPage(id)}><Icon /><span>{title}</span></button>
         ))}
         <div className="nav-spacer" />
         <UpdateButton s={s} />
-        <button className="nav-item" aria-current={page === "settings" ? "page" : undefined} onClick={() => setPage("settings")}><IconSettings /><span>Настройки</span></button>
+        <button className="nav-item" title="Настройки (Ctrl+5)" aria-current={page === "settings" ? "page" : undefined} onClick={() => setPage("settings")}><IconSettings /><span>Настройки</span></button>
         <div className="sidebar-foot"><span>Версия {s.info?.version ?? ""}</span></div>
       </nav>
       <main className="main">

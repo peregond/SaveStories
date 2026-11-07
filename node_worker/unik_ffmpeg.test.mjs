@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { inspectMedia, installFfmpeg, locateFfmpeg, macDownloads, parseSha256, pickWindowsAsset } from "./unik_ffmpeg.mjs";
+import { inspectMedia, installFfmpeg, locateFfmpeg, macDownloads, parseSha256, pickWindowsAsset, resolveMacDownload } from "./unik_ffmpeg.mjs";
 
 const BRIDGE = path.join(path.dirname(fileURLToPath(import.meta.url)), "bridge.mjs");
 const located = locateFfmpeg({ supportDirectory: path.join(os.tmpdir(), "no-such-support") });
@@ -152,12 +152,37 @@ test("адреса и контрольные суммы для macOS", () => {
   const arm = macDownloads("arm64");
   assert.deepEqual(arm.map((d) => d.tool), ["ffmpeg", "ffprobe"]);
   assert.match(arm[0].url, /macos\/arm64\/release\/ffmpeg\.zip$/);
-  assert.match(arm[1].shaUrl, /macos\/arm64\/release\/ffprobe\.zip\.sha256$/);
+  assert.match(arm[1].url, /macos\/arm64\/release\/ffprobe\.zip$/);
   assert.match(macDownloads("x64")[0].url, /macos\/amd64\//);
   const hash = "ab".repeat(32);
   assert.equal(parseSha256(`${hash.toUpperCase()}  ffmpeg.zip\n`), hash);
   assert.equal(parseSha256(hash), hash);
   assert.throws(() => parseSha256("нет суммы"), /контрольную сумму/);
+});
+
+test("macOS: сумма берётся рядом с конкретной версией после перехода по latest", async () => {
+  const resolved = "https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2/ffmpeg.zip";
+  const seen = [];
+  const fake = async (url, init = {}) => {
+    seen.push(`${init.method ?? "GET"} ${url}`);
+    if (url.includes("/redirect/latest/")) return { ok: true, status: 200, url: resolved };
+    if (url === `${resolved}.sha256`) return { ok: true, status: 200, text: async () => `${"1".repeat(64)}  ffmpeg.zip\n` };
+    if (url === resolved) { const bytes = Buffer.from("не архив"); return { ok: true, status: 200, headers: { get: () => String(bytes.length) }, body: (async function* () { yield bytes; })() }; }
+    return { ok: false, status: 404 };
+  };
+  const [ffmpeg] = macDownloads("arm64");
+  const item = await resolveMacDownload(ffmpeg, fake);
+  assert.equal(item.url, resolved);
+  assert.equal(item.shaUrl, `${resolved}.sha256`);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "unik-mac-"));
+  try {
+    await assert.rejects(installFfmpeg({ supportDirectory: dir, platform: "darwin", arch: "arm64", fetchImpl: fake }), /SHA-256 архива ffmpeg не совпал/);
+    assert.ok(seen.includes(`GET ${resolved}.sha256`), "сумма запрошена у конкретной версии");
+    assert.ok(!seen.some((entry) => entry.includes("/redirect/latest/") && entry.endsWith(".sha256")), "у latest суммы нет (404)");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  await assert.rejects(resolveMacDownload(ffmpeg, async () => ({ ok: false, status: 503 })), /актуальную сборку ffmpeg: HTTP 503/);
 });
 
 test("установка отказывается от других систем и от архива с неверной суммой", async () => {
