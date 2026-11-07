@@ -245,6 +245,9 @@ struct ContentView: View {
             if model.isDesignPreview, let raw = PreviewCapture.section, let section = AppSection(rawValue: raw) {
                 selectedSection = section
             }
+            if model.isDesignPreview, PreviewCapture.wantsSamples {
+                model.unikalizator.loadPreviewSamples()
+            }
         }
         .focusedSceneValue(\.appSection, Binding(get: { selectedSection }, set: { selectedSection = $0 }))
         .transaction { if reduceMotion { $0.animation = nil; $0.disablesAnimations = true } }

@@ -1,6 +1,7 @@
-name: macOS UI screenshots
+name: macOS UI screenshots and Unikalizator check
 
-# Снимки экранов macOS-клиента в режиме предпросмотра дизайна (без Instagram и без настроек пользователя).
+# Запускается вручную или записью в MACOS_SCREENSHOT_REQUEST: снимки экранов macOS-клиента в режиме предпросмотра дизайна,
+# сквозная проверка Уникализатора с настоящей докачкой FFmpeg для macOS и смоук-тест собранного .app.
 on:
   push:
     paths:
@@ -9,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  screenshots:
+  macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
@@ -23,34 +24,52 @@ jobs:
         working-directory: node_worker
         run: npm ci
 
+      - name: Unikalizator end-to-end (real FFmpeg download for macOS)
+        run: node node_worker/unik_e2e.mjs unik-e2e
+
       - name: Build macOS app
         run: swift build
 
       - name: Capture screens
         run: |
           mkdir -p shots
-          sw_vers
-          system_profiler SPDisplaysDataType | head -20 || true
           for appearance in light dark; do
-            for section in main unikalizator sorting settings; do
-              ./.build/debug/SaveMe --design-preview \
+            for section in main reels unikalizator sorting settings; do
+              args=""
+              size="1500x1100"
+              if [ "$section" = "unikalizator" ]; then args="--preview-samples"; size="1500x2300"; fi
+              ./.build/debug/SaveMe --design-preview $args --preview-size=$size \
                 --preview-section=$section --preview-appearance=$appearance \
-                --preview-screenshot="$PWD/shots/$section-$appearance.png" || echo "exit $? for $section/$appearance"
+                --preview-screenshot="$PWD/shots/$section-$appearance.png"
             done
           done
+          # узкое окно: компактная раскладка
+          ./.build/debug/SaveMe --design-preview --preview-samples --preview-size=980x1500 \
+            --preview-section=unikalizator --preview-appearance=light \
+            --preview-screenshot="$PWD/shots/unikalizator-narrow-light.png"
           ls -l shots
+          test "$(ls shots/*.png | wc -l)" -ge 11
 
-      - name: Capture the whole screen as a cross-check
+      - name: Build the .app bundle and smoke-test it
         run: |
-          ./.build/debug/SaveMe --design-preview --preview-section=unikalizator --preview-appearance=dark &
-          APP=$!
-          sleep 8
-          screencapture -x shots/screen-unikalizator-dark.png || echo "screencapture failed"
-          kill $APP || true
-          ls -l shots
+          ./scripts/build_beta_app.sh
+          APP="beta-build/release/SaveMe.app"
+          test -x "$APP/Contents/MacOS/SaveMe"
+          test "$(ls "$APP"/Contents/SharedSupport/node_worker/unik_assets/age-marks/*.png | wc -l)" -eq 54
+          mkdir -p shots-app
+          for section in main reels unikalizator sorting settings; do
+            "$APP/Contents/MacOS/SaveMe" --design-preview --preview-size=1500x1100 \
+              --preview-section=$section --preview-appearance=light \
+              --preview-screenshot="$PWD/shots-app/$section.png"
+          done
+          test "$(ls shots-app/*.png | wc -l)" -eq 5
+          echo '{"command":"unik_status"}' | node "$APP/Contents/SharedSupport/node_worker/bridge.mjs" | head -c 300
 
       - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: macos-screens
-          path: shots
+          path: |
+            shots
+            shots-app
+            unik-e2e/result

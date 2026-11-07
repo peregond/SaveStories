@@ -16,6 +16,13 @@ enum PreviewCapture {
     static var section: String? { argument("preview-section") }
     static var appearance: String? { argument("preview-appearance") }
     static var screenshotPath: String? { argument("preview-screenshot") }
+    static var wantsSamples: Bool { ProcessInfo.processInfo.arguments.contains("--preview-samples") }
+    /// `--preview-size=1500x1100`: размер окна на момент снимка (экран раннера маленький, а картинка рисуется и за его пределами).
+    static var size: CGSize? {
+        guard let raw = argument("preview-size") else { return nil }
+        let parts = raw.split(separator: "x").compactMap { Double($0) }
+        return parts.count == 2 ? CGSize(width: parts[0], height: parts[1]) : nil
+    }
 
     @MainActor
     static func captureAndQuit(to path: String) async {
@@ -26,6 +33,13 @@ enum PreviewCapture {
         else {
             FileHandle.standardError.write(Data("preview-screenshot: нет видимого окна\n".utf8))
             return
+        }
+        if let size {
+            var frame = window.frame
+            frame.origin.y += frame.height - size.height
+            frame.size = size
+            window.setFrame(frame, display: true)
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
         }
         let target = content.superview ?? content
         guard let rep = target.bitmapImageRepForCachingDisplay(in: target.bounds) else { return }
