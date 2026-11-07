@@ -241,6 +241,11 @@ struct ContentView: View {
                 .interactiveDismissDisabled()
         }
         .tint(queueActionTint)
+        .onAppear {
+            if model.isDesignPreview, let raw = PreviewCapture.section, let section = AppSection(rawValue: raw) {
+                selectedSection = section
+            }
+        }
         .focusedSceneValue(\.appSection, Binding(get: { selectedSection }, set: { selectedSection = $0 }))
         .transaction { if reduceMotion { $0.animation = nil; $0.disablesAnimations = true } }
         .onChange(of: reduceMotion) { _, enabled in

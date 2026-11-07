@@ -9,7 +9,7 @@ struct SaveMeApp: App {
 
     private var previewColorScheme: ColorScheme? {
         guard model.isDesignPreview else { return nil }
-        switch Bundle.main.object(forInfoDictionaryKey: "SaveMePreviewAppearance") as? String {
+        switch PreviewCapture.appearance ?? Bundle.main.object(forInfoDictionaryKey: "SaveMePreviewAppearance") as? String {
         case "dark": return .dark
         case "light": return .light
         default: return nil
@@ -25,6 +25,9 @@ struct SaveMeApp: App {
                 .preferredColorScheme(previewColorScheme)
                 .task {
                     await model.prepare()
+                    if model.isDesignPreview, let path = PreviewCapture.screenshotPath {
+                        await PreviewCapture.captureAndQuit(to: path)
+                    }
                     if model.isDesignPreview,
                        Bundle.main.object(forInfoDictionaryKey: "SaveMePreviewOnboarding") as? Bool == true {
                         model.showRuntimeOnboarding = true

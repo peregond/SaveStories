@@ -1,0 +1,56 @@
+name: macOS UI screenshots
+
+# Снимки экранов macOS-клиента в режиме предпросмотра дизайна (без Instagram и без настроек пользователя).
+on:
+  push:
+    paths:
+      - "MACOS_SCREENSHOT_REQUEST"
+      - ".github/workflows/macos-screenshots.yml"
+  workflow_dispatch:
+
+jobs:
+  screenshots:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node 24 LTS
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Install worker dependencies
+        working-directory: node_worker
+        run: npm ci
+
+      - name: Build macOS app
+        run: swift build
+
+      - name: Capture screens
+        run: |
+          mkdir -p shots
+          sw_vers
+          system_profiler SPDisplaysDataType | head -20 || true
+          for appearance in light dark; do
+            for section in main unikalizator sorting settings; do
+              ./.build/debug/SaveMe --design-preview \
+                --preview-section=$section --preview-appearance=$appearance \
+                --preview-screenshot="$PWD/shots/$section-$appearance.png" || echo "exit $? for $section/$appearance"
+            done
+          done
+          ls -l shots
+
+      - name: Capture the whole screen as a cross-check
+        run: |
+          ./.build/debug/SaveMe --design-preview --preview-section=unikalizator --preview-appearance=dark &
+          APP=$!
+          sleep 8
+          screencapture -x shots/screen-unikalizator-dark.png || echo "screencapture failed"
+          kill $APP || true
+          ls -l shots
+
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: macos-screens
+          path: shots
