@@ -1,5 +1,5 @@
 import { Banner, Card, Pill, Segmented, Switch } from "../components/ui";
-import { getLang, storeLang, t, type Lang } from "../i18n";
+import { getLang, storeLang, t, tr, type Lang } from "../i18n";
 import { IconRefresh } from "../icons";
 import type { Store } from "../store";
 import { LogCard } from "./Stories";
@@ -9,13 +9,13 @@ export function Settings({ s }: { s: Store }) {
   const rt = s.runtime;
   return (
     <>
-      {s.notice && <Banner tone={s.notice.tone} onClose={() => s.setNotice(null)}>{s.notice.text}</Banner>}
+      {s.notice && <Banner tone={s.notice.tone} onClose={() => s.setNotice(null)}>{tr(s.notice.text)}</Banner>}
       <div className="cols">
         <div className="stack">
           <Card title="Instagram" aside={<Pill tone={s.session === "ready" ? "ok" : s.session === "error" ? "err" : s.session === "unknown" || s.session === "checking" ? "" : "warn"}>
             {s.session === "ready" ? t("Вход выполнен") : s.session === "waiting_login" ? t("Жду вход") : s.session === "login_required" ? t("Нужен вход") : s.session === "error" ? t("Ошибка") : t("Проверка…")}
           </Pill>}>
-            <div className="hint" style={{ marginBottom: 12 }}>{s.sessionSummary || t("Состояние сессии неизвестно.")}</div>
+            <div className="hint" style={{ marginBottom: 12 }}>{tr(s.sessionSummary) || t("Состояние сессии неизвестно.")}</div>
             <div className="row">
               <button className="btn primary" disabled={!!s.busy || s.workerReady === false || rt?.chromiumInstalled === false} onClick={s.login}>{s.session === "ready" ? t("Войти заново") : t("Войти в Instagram")}</button>
               <button className="btn" disabled={!!s.busy || rt?.chromiumInstalled === false} onClick={() => s.checkSession()}>{t("Проверить сессию")}</button>
@@ -41,7 +41,7 @@ export function Settings({ s }: { s: Store }) {
             {!s.preflight ? <div className="hint">{t("Проверка ещё не запускалась.")}</div> : (
               <div className="checks">
                 {s.preflight.checks.map((c) => (
-                  <div key={c.name}><span className={`tick ${c.ok ? "ok" : "bad"}`}>{c.ok ? "✓" : "✗"}</span><b>{c.name}</b><span>{c.message}</span></div>
+                  <div key={c.name}><span className={`tick ${c.ok ? "ok" : "bad"}`}>{c.ok ? "✓" : "✗"}</span><b>{tr(c.name)}</b><span>{tr(c.message)}</span></div>
                 ))}
               </div>
             )}
@@ -76,7 +76,7 @@ export function Settings({ s }: { s: Store }) {
           </Card>
           <Card title={t("Обновления")}>
             <div className="setting" style={{ paddingTop: 0 }}>
-              <div><div>SaveMe {s.info?.version ?? ""}</div><div className="hint">{u.message || t("Проверка выполняется автоматически раз в 12 часов.")}</div></div>
+              <div><div>SaveMe {s.info?.version ?? ""}</div><div className="hint">{tr(u.message) || t("Проверка выполняется автоматически раз в 12 часов.")}</div></div>
               <button className="btn sm" disabled={u.phase === "checking" || u.phase === "downloading"} onClick={() => s.checkUpdates()}><IconRefresh size={16} /> {t("Проверить")}</button>
             </div>
             {u.phase === "downloading" && <div className="progress" role="progressbar" aria-valuenow={u.percent}><div style={{ width: `${u.percent}%` }} /></div>}
@@ -99,7 +99,7 @@ export function Settings({ s }: { s: Store }) {
           </Card>
           <Card title={t("Данные")}>
             <dl className="kv">
-              <dt>{t("Воркер")}</dt><dd>{s.workerSummary}</dd>
+              <dt>{t("Воркер")}</dt><dd>{tr(s.workerSummary)}</dd>
               <dt>{t("Папка данных")}</dt><dd>{s.info?.appSupport}</dd>
             </dl>
             <div className="row" style={{ marginTop: 12 }}>

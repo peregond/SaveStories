@@ -14,7 +14,7 @@ struct AppUpdateSnapshot {
 @MainActor
 final class AppUpdater: NSObject {
     private(set) var isAvailable = false
-    private(set) var summary = "Автообновление ещё не настроено для этой сборки."
+    private(set) var summary = L("Автообновление ещё не настроено для этой сборки.")
     private(set) var automaticUpdatesEnabled = true
     private(set) var isChecking = false
     private(set) var readyVersion: String?
@@ -43,7 +43,7 @@ final class AppUpdater: NSObject {
         updaterController?.checkForUpdates(nil)
         #endif
         isChecking = true
-        summary = "Проверяю наличие новой версии."
+        summary = L("Проверяю наличие новой версии.")
         publishState()
         return summary
     }
@@ -55,7 +55,7 @@ final class AppUpdater: NSObject {
 
         start()
         guard automaticUpdatesEnabled else {
-            summary = "Автоматическая проверка обновлений выключена."
+            summary = L("Автоматическая проверка обновлений выключена.")
             publishState()
             return summary
         }
@@ -64,7 +64,7 @@ final class AppUpdater: NSObject {
         updaterController?.updater.checkForUpdatesInBackground()
         #endif
         isChecking = true
-        summary = "Проверяю обновления в фоне."
+        summary = L("Проверяю обновления в фоне.")
         publishState()
         return summary
     }
@@ -79,8 +79,8 @@ final class AppUpdater: NSObject {
         #endif
         automaticUpdatesEnabled = enabled
         summary = enabled
-            ? "Обновления будут проверяться и скачиваться при запуске."
-            : "Автоматическая проверка обновлений выключена."
+            ? L("Обновления будут проверяться и скачиваться при запуске.")
+            : L("Автоматическая проверка обновлений выключена.")
         publishState()
 
         if enabled {
@@ -91,15 +91,15 @@ final class AppUpdater: NSObject {
     func installReadyUpdate() -> String {
         #if canImport(Sparkle)
         guard let immediateInstallHandler else {
-            return "Подготовленное обновление пока недоступно."
+            return L("Подготовленное обновление пока недоступно.")
         }
 
-        summary = "Устанавливаю обновление и перезапускаю SaveMe."
+        summary = L("Устанавливаю обновление и перезапускаю SaveMe.")
         publishState()
         immediateInstallHandler()
         return summary
         #else
-        return "Sparkle не подключён в текущей сборке."
+        return L("Sparkle не подключён в текущей сборке.")
         #endif
     }
 
@@ -124,7 +124,7 @@ final class AppUpdater: NSObject {
         guard let configuration = UpdateConfiguration.load(),
               configuration.macOSFeed != nil
         else {
-            summary = "Не удалось загрузить update-config для приложения."
+            summary = L("Не удалось загрузить update-config для приложения.")
             return
         }
 
@@ -134,15 +134,15 @@ final class AppUpdater: NSObject {
         guard let publicKey, !publicKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               let feedURL, !feedURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
-            summary = "Release-сборка пока не содержит Sparkle feed или публичный ключ обновлений."
+            summary = L("Release-сборка пока не содержит Sparkle feed или публичный ключ обновлений.")
             return
         }
 
         #if canImport(Sparkle)
         isAvailable = true
-        summary = "Автообновление подключено. Источник: \(feedURL)"
+        summary = L("Автообновление подключено. Источник: {0}", feedURL)
         #else
-        summary = "Sparkle не подключён в текущей сборке."
+        summary = L("Sparkle не подключён в текущей сборке.")
         #endif
     }
 
@@ -165,12 +165,12 @@ final class AppUpdater: NSObject {
 extension AppUpdater: SPUUpdaterDelegate {
     func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
         isChecking = true
-        summary = "Найдена версия \(item.displayVersionString). Скачиваю обновление."
+        summary = L("Найдена версия {0}. Скачиваю обновление.", item.displayVersionString)
         publishState()
     }
 
     func updater(_ updater: SPUUpdater, didDownloadUpdate item: SUAppcastItem) {
-        summary = "Версия \(item.displayVersionString) скачана. Проверяю и подготавливаю установку."
+        summary = L("Версия {0} скачана. Проверяю и подготавливаю установку.", item.displayVersionString)
         publishState()
     }
 
@@ -182,20 +182,20 @@ extension AppUpdater: SPUUpdaterDelegate {
         self.immediateInstallHandler = immediateInstallHandler
         readyVersion = item.displayVersionString
         isChecking = false
-        summary = "Версия \(item.displayVersionString) готова к установке."
+        summary = L("Версия {0} готова к установке.", item.displayVersionString)
         publishState()
         return true
     }
 
     func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: Error) {
         isChecking = false
-        summary = "Установлена актуальная версия SaveMe."
+        summary = L("Установлена актуальная версия SaveMe.")
         publishState()
     }
 
     func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
         isChecking = false
-        summary = "Не удалось проверить обновления: \(error.localizedDescription)"
+        summary = L("Не удалось проверить обновления: {0}", error.localizedDescription)
         publishState()
     }
 
@@ -207,9 +207,9 @@ extension AppUpdater: SPUUpdaterDelegate {
         guard readyVersion == nil else { return }
         isChecking = false
         if error == nil,
-           summary == "Проверяю наличие новой версии." || summary == "Проверяю обновления в фоне."
+           summary == L("Проверяю наличие новой версии.") || summary == L("Проверяю обновления в фоне.")
         {
-            summary = "Проверка обновлений завершена."
+            summary = L("Проверка обновлений завершена.")
         }
         publishState()
     }

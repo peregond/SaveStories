@@ -4,7 +4,7 @@ import { IconBroom, IconCopy, IconEmpty, IconSort, IconUndo } from "../icons";
 import type { Store } from "../store";
 import { EnvironmentBanners } from "./shared";
 
-import { t } from "../i18n";
+import { t, tr } from "../i18n";
 export function Sorting({ s }: { s: Store }) {
   const so = s.sorting;
   const cfg = s.settings;
@@ -50,7 +50,7 @@ export function Sorting({ s }: { s: Store }) {
             <div className="setting" style={{ paddingTop: 0 }}>
               <div>
                 <div>{t("Обновлять правила из Notion")}</div>
-                <div className="hint">{so.rulesSummary || (cfg.notionRoutingRulesEnabled ? t("Перед сортировкой правила обновятся из Notion не чаще одного раза в день.") : t("Автоправила Notion выключены."))}</div>
+                <div className="hint">{tr(so.rulesSummary) || (cfg.notionRoutingRulesEnabled ? t("Перед сортировкой правила обновятся из Notion не чаще одного раза в день.") : t("Автоправила Notion выключены."))}</div>
               </div>
               <Switch checked={cfg.notionRoutingRulesEnabled} label={t("Правила из Notion")} disabled={so.busy === "notion"} onChange={(v) => s.updateSettings({ notionRoutingRulesEnabled: v })} />
             </div>
@@ -61,7 +61,7 @@ export function Sorting({ s }: { s: Store }) {
               placeholder={t("nick = Germany (DE)\nnick2 = Australia (AU)/Папка блогера")} />
 
             <StepTitle>{t("4. Перенос")}</StepTitle>
-            <div className="statusline" style={{ marginTop: 0 }}>{so.status}</div>
+            <div className="statusline" style={{ marginTop: 0 }}>{tr(so.status)}</div>
             <div className="row" style={{ marginTop: 10 }}>
               <button className="btn go" style={{ height: 40, fontSize: 14 }} disabled={so.busy !== null} onClick={() => void so.run("source")}><IconSort size={18} /> {sorting ? t("Раскладываю…") : t("Разложить из папки Перенос")}</button>
               <button className="btn" disabled={so.busy !== null} onClick={() => void so.run("latest")}>{t("Из последней загрузки")}</button>
@@ -71,7 +71,7 @@ export function Sorting({ s }: { s: Store }) {
 
             <StepTitle>{t("5. Скопируй готовый результат")}</StepTitle>
             <div className="hint">{t("Drive-ссылки копируются дайджестом: страна, блогер, ссылки.")}</div>
-            <div className="statusline">{so.driveStatus}</div>
+            <div className="statusline">{tr(so.driveStatus)}</div>
             <div className="row" style={{ marginTop: 10 }}>
               <button className="btn" disabled={so.records.length === 0 || so.busy !== null} onClick={() => void so.copyLinks()}><IconCopy size={16} /> {so.busy === "drive" ? t("Собираю ссылки…") : t("Скопировать ссылки")}</button>
               <button className="btn" disabled={!so.digest.trim() || so.busy !== null} onClick={() => void so.copyDigest()}>{t("Скопировать список")}</button>

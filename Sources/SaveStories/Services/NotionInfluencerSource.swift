@@ -237,9 +237,9 @@ enum NotionInfluencerSourceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidPageURL:
-            "Некорректная ссылка на Notion-страницу."
+            L("Некорректная ссылка на Notion-страницу.")
         case let .httpStatus(status):
-            "Notion вернул HTTP \(status)."
+            L("Notion вернул HTTP {0}.", status)
         }
     }
 }

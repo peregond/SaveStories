@@ -581,6 +581,7 @@ export function useStore(api: Api) {
 
   // Подсказка у значка в трее и уведомление в конце работы (только если окно не на виду — это проверяет приложение).
   useEffect(() => { void api.setTrayStatus(trayStatus(busy, finished, entries.length)).catch(() => {}); }, [api, busy, finished, entries.length]);
+  useEffect(() => { void api.setTrayLabels(t("Открыть SaveMe"), t("Выйти")).catch(() => {}); }, [api]);
   const runRef = useRef<{ kind: RunKind | null; stopped: boolean }>({ kind: null, stopped: false });
   const noticeRef = useRef(notice);
   noticeRef.current = notice;

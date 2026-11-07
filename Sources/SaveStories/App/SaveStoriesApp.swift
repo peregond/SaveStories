@@ -41,7 +41,7 @@ struct SaveMeApp: App {
             SidebarCommands()
             AppNavigationCommands()
             CommandGroup(after: .appInfo) {
-                Button("Проверить обновления…") {
+                Button(L("Проверить обновления…")) {
                     Task { await model.checkForUpdates() }
                 }
                 .disabled(!model.canCheckForUpdates)

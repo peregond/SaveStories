@@ -5,7 +5,7 @@ import { parseProfiles, pluralProfiles, profileName } from "../parse";
 import type { Store } from "../store";
 import { EnvironmentBanners, QueueList, statusPill } from "./shared";
 
-import { t } from "../i18n";
+import { t, tr } from "../i18n";
 export function Stories({ s }: { s: Store }) {
   const [text, setText] = useState("");
   const links = parseProfiles(text);
@@ -52,7 +52,7 @@ export function Stories({ s }: { s: Store }) {
             <div className="setting" style={{ paddingTop: 0 }}>
               <div>
                 <div>{t("Автосписок инфлюенсеров")}</div>
-                <div className="hint">{s.notionSummary || (s.settings.notionInfluencerEnabled ? t("Перед запуском очередь обновится из Notion не чаще одного раза в день.") : t("Автосписок Notion выключен."))}</div>
+                <div className="hint">{tr(s.notionSummary) || (s.settings.notionInfluencerEnabled ? t("Перед запуском очередь обновится из Notion не чаще одного раза в день.") : t("Автосписок Notion выключен."))}</div>
               </div>
               <Switch checked={s.settings.notionInfluencerEnabled} disabled={!!s.busy || s.notionBusy} label={t("Автосписок Notion")} onChange={(v) => s.updateSettings({ notionInfluencerEnabled: v })} />
             </div>
@@ -82,7 +82,7 @@ export function Stories({ s }: { s: Store }) {
 
         <div className="stack">
           <Card title={t("Состояние")} aside={<Pill tone={pill.tone}>{pill.label}</Pill>}>
-            <div className="step">{s.step}</div>
+            <div className="step">{tr(s.step)}</div>
             {s.entries.length > 0 && (
               s.busy === "batch"
                 ? <div className="progress indeterminate" role="progressbar" aria-label={t("Выгрузка идёт")}><div /></div>

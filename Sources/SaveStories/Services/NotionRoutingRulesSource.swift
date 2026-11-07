@@ -171,9 +171,9 @@ enum NotionRoutingRulesSourceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidPageURL:
-            "Некорректная ссылка на Notion-страницу с правилами."
+            L("Некорректная ссылка на Notion-страницу с правилами.")
         case let .httpStatus(status):
-            "Notion вернул HTTP \(status)."
+            L("Notion вернул HTTP {0}.", status)
         }
     }
 }

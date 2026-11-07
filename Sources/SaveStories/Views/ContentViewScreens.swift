@@ -84,9 +84,9 @@ extension ContentView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     detailHero(
-                        eyebrow: "Сортировка",
-                        title: "Разложить файлы по папкам",
-                        subtitle: "Сначала выбираешь источник и папку назначения, потом запускаешь перенос и копируешь готовый результат."
+                        eyebrow: L("Сортировка"),
+                        title: L("Разложить файлы по папкам"),
+                        subtitle: L("Сначала выбираешь источник и папку назначения, потом запускаешь перенос и копируешь готовый результат.")
                     )
 
                     if compact {
@@ -118,7 +118,7 @@ extension ContentView {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("Настройки")
+                    Text(L("Настройки"))
                         .font(.system(size: 28, weight: .semibold, design: .rounded))
                         .foregroundStyle(primaryText)
 
@@ -129,6 +129,7 @@ extension ContentView {
                             settingsStatusSection
                             powerCard
                             updatesCard
+                            languageCard
                             sessionCard
                             runtimeCard
                         }
@@ -137,6 +138,7 @@ extension ContentView {
                             VStack(alignment: .leading, spacing: 20) {
                                 powerCard
                                 updatesCard
+                                languageCard
                             }
                             .frame(maxWidth: .infinity, alignment: .top)
 
@@ -158,14 +160,14 @@ extension ContentView {
     }
 
     var settingsOverviewCard: some View {
-        settingsCard("Обзор") {
+        settingsCard(L("Обзор")) {
             VStack(alignment: .leading, spacing: 14) {
                 if model.isBusy {
                     liveStatusBadge
                         .frame(maxWidth: 280, alignment: .leading)
                 }
 
-                Text("По умолчанию приложение не даёт ноутбуку заснуть во время активной выгрузки stories или Reels. При этом проверки среды, логин и проверка обновлений работают отдельно и не мешают обычной работе системы.")
+                Text(L("По умолчанию приложение не даёт ноутбуку заснуть во время активной выгрузки stories или Reels. При этом проверки среды, логин и проверка обновлений работают отдельно и не мешают обычной работе системы."))
                     .font(.system(size: 14, weight: .medium, design: .rounded))
                     .foregroundStyle(secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -174,12 +176,12 @@ extension ContentView {
     }
 
     var settingsStatusSection: some View {
-        settingsCard("Состояние") {
+        settingsCard(L("Состояние")) {
             VStack(alignment: .leading, spacing: 12) {
                 statusCards
 
                 statusInlineNote(
-                    title: "Последний результат",
+                    title: L("Последний результат"),
                     message: model.lastResult
                 )
             }
@@ -192,18 +194,18 @@ extension ContentView {
 
     var homeHeroTitleBlock: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Сохраните момент.")
+            Text(L("Сохраните момент."))
                 .font(.system(size: 28, weight: .semibold, design: .rounded))
                 .foregroundStyle(primaryText)
                 .accessibilityAddTraits(.isHeader)
-            Text("Stories любимых профилей — в вашей папке.")
+            Text(L("Stories любимых профилей — в вашей папке."))
                 .font(.callout)
                 .foregroundStyle(secondaryText)
         }
     }
 
     var homeStatusCard: some View {
-        card("Состояние", minHeight: homeSummaryCardHeight) {
+        card(L("Состояние"), minHeight: homeSummaryCardHeight) {
             VStack(alignment: .leading, spacing: 14) {
                 homeStatusHeader
 
@@ -219,12 +221,12 @@ extension ContentView {
     }
 
     var homeResultCard: some View {
-        card("Результат", minHeight: homeSummaryCardHeight) {
+        card(L("Результат"), minHeight: homeSummaryCardHeight) {
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                homeResultTile(title: "Найдено", value: model.foundStoriesCount, accent: Color.orange.opacity(0.78))
-                homeResultTile(title: "Сохранено", value: model.savedStoriesCount, accent: Color.green.opacity(0.78))
-                homeResultTile(title: "Файлов", value: model.liveDownloadedFileCount, accent: Color.blue.opacity(0.78))
-                homeResultTile(title: "Папок", value: model.liveCreatedFolderCount, accent: Color.mint.opacity(0.78))
+                homeResultTile(title: L("Найдено"), value: model.foundStoriesCount, accent: Color.orange.opacity(0.78))
+                homeResultTile(title: L("Сохранено"), value: model.savedStoriesCount, accent: Color.green.opacity(0.78))
+                homeResultTile(title: L("Файлов"), value: model.liveDownloadedFileCount, accent: Color.blue.opacity(0.78))
+                homeResultTile(title: L("Папок"), value: model.liveCreatedFolderCount, accent: Color.mint.opacity(0.78))
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -233,30 +235,30 @@ extension ContentView {
     var statusRail: some View {
         HStack(spacing: 12) {
             statusRailPill(
-                title: "Состояние",
+                title: L("Состояние"),
                 value: model.statusTitle,
                 detail: model.statusDetail,
                 tint: model.isBusy ? prominentButtonTint : Color.green.opacity(0.75)
             )
 
             statusRailPill(
-                title: "Текущий шаг",
+                title: L("Текущий шаг"),
                 value: model.currentStepLabel,
-                detail: model.batchIsRunning ? "Сейчас \(max(model.batchCurrentIndex, 1)) из \(max(model.batchTotalCount, 1))" : "Готово к следующей выгрузке",
+                detail: model.batchIsRunning ? L("Сейчас {0} из {1}", max(model.batchCurrentIndex, 1), max(model.batchTotalCount, 1)) : L("Готово к следующей выгрузке"),
                 tint: Color.orange.opacity(0.75)
             )
 
             statusRailPill(
-                title: "Результат",
-                value: "\(model.savedStoriesCount) сохранено",
-                detail: "\(model.foundStoriesCount) найдено",
+                title: L("Результат"),
+                value: L("{0} сохранено", model.savedStoriesCount),
+                detail: L("{0} найдено", model.foundStoriesCount),
                 tint: Color.blue.opacity(0.72)
             )
 
             statusRailPill(
-                title: "В выбранной папке",
-                value: "\(model.liveDownloadedFileCount) файлов",
-                detail: "\(model.liveCreatedFolderCount) папок создано",
+                title: L("В выбранной папке"),
+                value: L("{0} файлов", model.liveDownloadedFileCount),
+                detail: L("{0} папок создано", model.liveCreatedFolderCount),
                 tint: Color.mint.opacity(0.72)
             )
         }

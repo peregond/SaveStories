@@ -6,7 +6,7 @@ extension AppModel {
         guard !isBusy else { return }
         let normalized = normalizedBatchLinks(from: batchInput)
         guard !normalized.isEmpty else {
-            appendLog("Для списка не найдено ни одной ссылки на профиль.")
+            appendLog(L("Для списка не найдено ни одной ссылки на профиль."))
             return
         }
 
@@ -19,14 +19,14 @@ extension AppModel {
             .map { BatchProfileItem(url: $0) }
 
         guard !newItems.isEmpty else {
-            appendLog("Все ссылки из вставки уже есть в очереди.")
+            appendLog(L("Все ссылки из вставки уже есть в очереди."))
             batchInput = ""
             return
         }
 
         batchQueue.append(contentsOf: newItems)
         batchInput = ""
-        appendLog("В очередь добавлено профилей: \(newItems.count).")
+        appendLog(L("В очередь добавлено профилей: {0}.", newItems.count))
     }
 
     func removeBatchProfile(id: UUID) {
@@ -38,19 +38,19 @@ extension AppModel {
         guard !isBusy else { return }
         batchQueue.removeAll()
         resetBatchProgress()
-        appendLog("Очередь пакетной выгрузки очищена.")
+        appendLog(L("Очередь пакетной выгрузки очищена."))
     }
 
     func rememberCurrentBatchList() {
         let urls = batchQueue.map(\.url)
         guard !urls.isEmpty else {
-            appendLog("Нечего запоминать: очередь профилей пока пуста.")
+            appendLog(L("Нечего запоминать: очередь профилей пока пуста."))
             return
         }
 
         let title = suggestedRecentListTitle(for: urls)
         storeRecentBatchList(title: title, urls: urls)
-        appendLog("Список профилей сохранён в недавние: \(title).")
+        appendLog(L("Список профилей сохранён в недавние: {0}.", title))
     }
 
     func applyRecentBatchList(_ list: RecentBatchList) {
@@ -63,15 +63,15 @@ extension AppModel {
             .filter { candidate in
                 seen.insert(candidate.lowercased()).inserted
             }
-            .map { BatchProfileItem(url: $0, message: "Добавлено из недавнего списка.") }
+            .map { BatchProfileItem(url: $0, message: L("Добавлено из недавнего списка.")) }
 
         guard !newItems.isEmpty else {
-            appendLog("Все профили из списка «\(list.title)» уже есть в очереди.")
+            appendLog(L("Все профили из списка «{0}» уже есть в очереди.", list.title))
             return
         }
 
         batchQueue.append(contentsOf: newItems)
-        appendLog("Из списка «\(list.title)» добавлено профилей: \(newItems.count).")
+        appendLog(L("Из списка «{0}» добавлено профилей: {1}.", list.title, newItems.count))
     }
 
     func replaceQueueWithRecentBatchList(_ list: RecentBatchList) {
@@ -80,15 +80,15 @@ extension AppModel {
         batchQueue = list.urls
             .map(normalizedProfileLink)
             .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
-            .map { BatchProfileItem(url: $0, message: "Загружено из недавнего списка.") }
+            .map { BatchProfileItem(url: $0, message: L("Загружено из недавнего списка.")) }
         resetBatchProgress()
-        appendLog("Очередь заменена списком «\(list.title)».")
+        appendLog(L("Очередь заменена списком «{0}».", list.title))
     }
 
     func removeRecentBatchList(id: UUID) {
         recentBatchLists.removeAll { $0.id == id }
         persistRecentBatchLists()
-        appendLog("Недавний список удалён.")
+        appendLog(L("Недавний список удалён."))
     }
 
     @discardableResult
@@ -98,51 +98,51 @@ extension AppModel {
         if !force, wasNotionSourceRefreshedToday(key: Self.notionInfluencerLastRefreshAtKey) {
             let cachedProfiles = UserDefaults.standard.stringArray(forKey: Self.notionInfluencerCachedProfilesKey) ?? []
             guard !cachedProfiles.isEmpty else {
-                notionInfluencerSourceSummary = "Notion уже обновлялся сегодня, но сохранённый список пуст."
-                appendLog("Повторная загрузка Notion пропущена: сегодня уже обновляли, сохранённый список пуст.")
+                notionInfluencerSourceSummary = L("Notion уже обновлялся сегодня, но сохранённый список пуст.")
+                appendLog(L("Повторная загрузка Notion пропущена: сегодня уже обновляли, сохранённый список пуст."))
                 return false
             }
 
             let appliedCount = applyNotionInfluencerProfiles(cachedProfiles, replaceQueue: replaceQueue)
-            notionInfluencerSourceSummary = "Notion уже обновлялся сегодня: использую сохранённый список (\(cachedProfiles.count) профилей)."
-            currentStepLabel = "Использую сохранённый Notion-список."
-            appendLog("Повторная загрузка Notion пропущена: применён сохранённый список, профилей: \(appliedCount).")
+            notionInfluencerSourceSummary = L("Notion уже обновлялся сегодня: использую сохранённый список ({0} профилей).", cachedProfiles.count)
+            currentStepLabel = L("Использую сохранённый Notion-список.")
+            appendLog(L("Повторная загрузка Notion пропущена: применён сохранённый список, профилей: {0}.", appliedCount))
             return true
         }
 
         isRefreshingNotionInfluencers = true
-        notionInfluencerSourceSummary = "Загружаю свежий список из Notion..."
-        currentStepLabel = "Получаю список инфлюенсеров из Notion."
+        notionInfluencerSourceSummary = L("Загружаю свежий список из Notion...")
+        currentStepLabel = L("Получаю список инфлюенсеров из Notion.")
         defer { isRefreshingNotionInfluencers = false }
 
         do {
             let profiles = try await NotionInfluencerSource().fetchProfiles()
             guard !profiles.isEmpty else {
-                notionInfluencerSourceSummary = "В Notion не найдено профилей."
-                appendLog("В Notion-списке не найдено профилей.")
+                notionInfluencerSourceSummary = L("В Notion не найдено профилей.")
+                appendLog(L("В Notion-списке не найдено профилей."))
                 return false
             }
 
             let appliedCount = applyNotionInfluencerProfiles(profiles, replaceQueue: replaceQueue)
             if replaceQueue {
-                appendLog("Очередь заменена свежим Notion-списком: \(profiles.count) профилей.")
+                appendLog(L("Очередь заменена свежим Notion-списком: {0} профилей.", profiles.count))
             } else {
-                appendLog("Из Notion-списка добавлено новых профилей: \(appliedCount).")
+                appendLog(L("Из Notion-списка добавлено новых профилей: {0}.", appliedCount))
             }
 
             UserDefaults.standard.set(profiles, forKey: Self.notionInfluencerCachedProfilesKey)
             markNotionSourceRefreshed(key: Self.notionInfluencerLastRefreshAtKey)
             let timestamp = Date().formatted(date: .omitted, time: .shortened)
-            notionInfluencerSourceSummary = "Notion обновлён в \(timestamp): \(profiles.count) профилей."
-            currentStepLabel = "Список Notion загружен."
+            notionInfluencerSourceSummary = L("Notion обновлён в {0}: {1} профилей.", timestamp, profiles.count)
+            currentStepLabel = L("Список Notion загружен.")
             return true
         } catch {
-            notionInfluencerSourceSummary = "Не удалось обновить Notion: \(error.localizedDescription)"
-            statusTitle = "Ошибка Notion"
+            notionInfluencerSourceSummary = L("Не удалось обновить Notion: {0}", error.localizedDescription)
+            statusTitle = L("Ошибка Notion")
             statusDetail = notionInfluencerSourceSummary
             lastResult = notionInfluencerSourceSummary
-            currentStepLabel = "Notion-список не загружен."
-            appendLog("Не удалось загрузить Notion-список: \(error.localizedDescription)")
+            currentStepLabel = L("Notion-список не загружен.")
+            appendLog(L("Не удалось загрузить Notion-список: {0}", error.localizedDescription))
             return false
         }
     }
@@ -153,7 +153,7 @@ extension AppModel {
             batchQueue = profiles
                 .map(normalizedProfileLink)
                 .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
-                .map { BatchProfileItem(url: $0, message: "Загружено из Notion-списка.") }
+                .map { BatchProfileItem(url: $0, message: L("Загружено из Notion-списка.")) }
             resetBatchProgress()
             return batchQueue.count
         }
@@ -163,7 +163,7 @@ extension AppModel {
         let newItems = profiles
             .map(normalizedProfileLink)
             .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
-            .map { BatchProfileItem(url: $0, message: "Добавлено из Notion-списка.") }
+            .map { BatchProfileItem(url: $0, message: L("Добавлено из Notion-списка.")) }
 
         batchQueue.append(contentsOf: newItems)
         return newItems.count
@@ -185,13 +185,13 @@ extension AppModel {
 
         let pendingItems = batchQueue.filter { $0.status == .pending || $0.status == .failed }
         guard !pendingItems.isEmpty else {
-            appendLog("В очереди нет ссылок для пакетной выгрузки.")
+            appendLog(L("В очереди нет ссылок для пакетной выгрузки."))
             return
         }
 
         playActionSound()
 
-        await perform("Пакетная выгрузка активных stories") {
+        await perform(L("Пакетная выгрузка активных stories")) {
             self.storeRecentBatchList(
                 title: self.suggestedRecentListTitle(for: pendingItems.map(\.url)),
                 urls: pendingItems.map(\.url)
@@ -203,15 +203,15 @@ extension AppModel {
             self.batchCurrentIndex = 0
             self.batchTotalCount = pendingItems.count
             self.batchRemainingCount = pendingItems.count
-            self.batchCurrentURL = "Пакетная выгрузка выполняется в одном окне браузера."
-            self.currentStepLabel = "Подготавливаю общую очередь профилей."
+            self.batchCurrentURL = L("Пакетная выгрузка выполняется в одном окне браузера.")
+            self.currentStepLabel = L("Подготавливаю общую очередь профилей.")
 
             for item in pendingItems {
-                self.updateBatchProfile(id: item.id, status: .running, message: "Ожидает обработки в общем окне браузера.")
+                self.updateBatchProfile(id: item.id, status: .running, message: L("Ожидает обработки в общем окне браузера."))
             }
 
-            self.statusTitle = "Пакетная выгрузка"
-            self.statusDetail = "Вся очередь обрабатывается в одном окне браузера."
+            self.statusTitle = L("Пакетная выгрузка")
+            self.statusDetail = L("Вся очередь обрабатывается в одном окне браузера.")
 
             let response = await self.worker.run(
                 WorkerRequest(
@@ -231,13 +231,13 @@ extension AppModel {
 
             if response.status == "cancelled" {
                 for item in pendingItems where self.batchQueue.contains(where: { $0.id == item.id && $0.status == .running }) {
-                    self.updateBatchProfile(id: item.id, status: .stopped, message: "Пакетная выгрузка остановлена пользователем.")
+                    self.updateBatchProfile(id: item.id, status: .stopped, message: L("Пакетная выгрузка остановлена пользователем."))
                 }
                 self.append(response)
-                self.statusTitle = "Остановлено"
-                self.statusDetail = "Пакетная выгрузка остановлена пользователем."
+                self.statusTitle = L("Остановлено")
+                self.statusDetail = L("Пакетная выгрузка остановлена пользователем.")
                 self.lastResult = self.statusDetail
-                self.currentStepLabel = "Пакетная выгрузка остановлена."
+                self.currentStepLabel = L("Пакетная выгрузка остановлена.")
                 self.resetBatchProgress()
                 return
             }
@@ -250,10 +250,10 @@ extension AppModel {
                 self.batchQueue.first(where: { $0.id == item.id })?.status == .failed
             }.count
 
-            self.statusTitle = failedCount == 0 ? "Готово" : "Завершено с ошибками"
-            self.statusDetail = "Обработано \(processedCount) профилей. Сохранено файлов: \(self.savedStoriesCount)."
+            self.statusTitle = failedCount == 0 ? L("Готово") : L("Завершено с ошибками")
+            self.statusDetail = L("Обработано {0} профилей. Сохранено файлов: {1}.", processedCount, self.savedStoriesCount)
             self.lastResult = self.statusDetail
-            self.currentStepLabel = failedCount == 0 ? "Очередь обработана." : "Очередь завершилась с ошибками."
+            self.currentStepLabel = failedCount == 0 ? L("Очередь обработана.") : L("Очередь завершилась с ошибками.")
             if self.savedStoriesCount > 0 {
                 self.triggerCelebration()
             }
@@ -266,16 +266,16 @@ extension AppModel {
         guard batchIsRunning else { return }
         batchStopRequested = true
         worker.stopCurrentProcess()
-        statusTitle = "Остановка"
-        statusDetail = "Останавливаю текущую выгрузку профиля..."
-        appendLog("Запрошена остановка пакетной выгрузки.")
+        statusTitle = L("Остановка")
+        statusDetail = L("Останавливаю текущую выгрузку профиля...")
+        appendLog(L("Запрошена остановка пакетной выгрузки."))
     }
 
     func copyLogs() {
         let orderedLogs = logs.reversed().joined(separator: "\n")
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(orderedLogs, forType: .string)
-        appendLog("Логи скопированы в буфер обмена.")
+        appendLog(L("Логи скопированы в буфер обмена."))
     }
 
     func openSaveDirectory() {
@@ -305,21 +305,21 @@ extension AppModel {
             return
         }
 
-        await perform("Удаление пустых папок") {
+        await perform(L("Удаление пустых папок")) {
             let cleanup = await Task.detached(priority: .utility) {
                 EmptyFolderCleanupService.deleteEmptyFolders(folders)
             }.value
             for folder in cleanup.failedFolders {
-                self.appendLog("Не удалось удалить пустую папку \(folder.lastPathComponent).")
+                self.appendLog(L("Не удалось удалить пустую папку {0}.", folder.lastPathComponent))
             }
 
             let removedNames = cleanup.removedFolderNames
             if !removedNames.isEmpty {
-                self.appendLog("Удалены пустые папки после выгрузки stories: \(removedNames.joined(separator: ", ")).")
+                self.appendLog(L("Удалены пустые папки после выгрузки stories: {0}.", removedNames.joined(separator: ", ")))
             }
             self.emptyFolderCleanupReport = EmptyFolderCleanupReport(removedCount: removedNames.count, folderNames: removedNames)
-            self.statusTitle = cleanup.failedFolders.isEmpty ? "Готово" : "Завершено с ошибками"
-            self.statusDetail = "Удалено пустых папок: \(removedNames.count)."
+            self.statusTitle = cleanup.failedFolders.isEmpty ? L("Готово") : L("Завершено с ошибками")
+            self.statusDetail = L("Удалено пустых папок: {0}.", removedNames.count)
             self.lastResult = self.statusDetail
         }
     }
@@ -393,7 +393,7 @@ extension AppModel {
         }
         pendingEmptyStoryFolders = emptyFolders
         showEmptyFolderCleanupPrompt = true
-        appendLog("Найдены пустые папки после выгрузки stories: \(emptyFolders.count).")
+        appendLog(L("Найдены пустые папки после выгрузки stories: {0}.", emptyFolders.count))
     }
 
     func applyBatchResults(_ response: WorkerResponse, pendingItems: [BatchProfileItem]) {
@@ -414,7 +414,7 @@ extension AppModel {
                 updateBatchProfile(
                     id: item.id,
                     status: response.ok ? .completed : .failed,
-                    message: response.message
+                    message: tr(response.message)
                 )
             }
             return
@@ -429,7 +429,7 @@ extension AppModel {
         for item in pendingItems {
             let normalized = normalizedProfileLink(item.url).lowercased()
             guard let result = resultMap[normalized] else {
-                updateBatchProfile(id: item.id, status: .failed, message: "Для профиля нет результата пакетной выгрузки.")
+                updateBatchProfile(id: item.id, status: .failed, message: L("Для профиля нет результата пакетной выгрузки."))
                 continue
             }
             let status: BatchProfileItem.Status
@@ -441,7 +441,7 @@ extension AppModel {
             default:
                 status = .failed
             }
-            updateBatchProfile(id: item.id, status: status, message: result.message)
+            updateBatchProfile(id: item.id, status: status, message: tr(result.message))
         }
     }
 
@@ -458,7 +458,7 @@ extension AppModel {
 
     func suggestedRecentListTitle(for urls: [String]) -> String {
         let normalized = urls.map(normalizedProfileLink)
-        guard let first = normalized.first else { return "Недавний список" }
+        guard let first = normalized.first else { return L("Недавний список") }
         let username = first
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             .split(separator: "/")

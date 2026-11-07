@@ -273,20 +273,20 @@ enum UnikalizatorLogic {
     /// Проверка до запуска: понятные причины, почему кнопка «Создать» недоступна.
     static func problems(options o: UnikOptions, fileCount: Int) -> [String] {
         var result: [String] = []
-        if fileCount == 0 { result.append("Добавьте хотя бы один файл.") }
+        if fileCount == 0 { result.append(L("Добавьте хотя бы один файл.")) }
         let width = o.resize.width
         let height = o.resize.height
         if width < 2 || height < 2 || width > 8192 || height > 8192 {
-            result.append("Размер кадра — от 2 до 8192 пикселей.")
+            result.append(L("Размер кадра — от 2 до 8192 пикселей."))
         } else if width % 2 != 0 || height % 2 != 0 {
-            result.append("Ширина и высота должны быть чётными.")
+            result.append(L("Ширина и высота должны быть чётными."))
         }
-        if o.ageMark.enabled, o.ageMark.geoId.isEmpty { result.append("Выберите страну для плашки 18+.") }
-        if o.intro.enabled, !o.intro.random, o.intro.imagePath.isEmpty { result.append("Выберите картинку для заставки.") }
-        if o.intro.enabled, o.intro.random, o.intro.library.isEmpty { result.append("В наборе заставок нет файлов.") }
-        if o.overlay.enabled, !o.overlay.random, o.overlay.videoPath.isEmpty { result.append("Выберите видео для слоя поверх.") }
-        if o.overlay.enabled, o.overlay.random, o.overlay.library.isEmpty { result.append("В наборе видео-слоёв нет файлов.") }
-        if o.metadata.mode == "custom-date", !isValidDate(o.metadata.customDate) { result.append("Укажите дату в метаданных.") }
+        if o.ageMark.enabled, o.ageMark.geoId.isEmpty { result.append(L("Выберите страну для плашки 18+.")) }
+        if o.intro.enabled, !o.intro.random, o.intro.imagePath.isEmpty { result.append(L("Выберите картинку для заставки.")) }
+        if o.intro.enabled, o.intro.random, o.intro.library.isEmpty { result.append(L("В наборе заставок нет файлов.")) }
+        if o.overlay.enabled, !o.overlay.random, o.overlay.videoPath.isEmpty { result.append(L("Выберите видео для слоя поверх.")) }
+        if o.overlay.enabled, o.overlay.random, o.overlay.library.isEmpty { result.append(L("В наборе видео-слоёв нет файлов.")) }
+        if o.metadata.mode == "custom-date", !isValidDate(o.metadata.customDate) { result.append(L("Укажите дату в метаданных.")) }
         return result
     }
 
@@ -343,16 +343,16 @@ enum UnikalizatorLogic {
     }
 
     static func describe(_ inspection: UnikInspection) -> String {
-        guard inspection.ok else { return inspection.message ?? "Файл не удалось прочитать." }
+        guard inspection.ok else { return inspection.message ?? L("Файл не удалось прочитать.") }
         var parts: [String] = []
         if let width = inspection.width, let height = inspection.height { parts.append("\(width)×\(height)") }
         if inspection.kind == "video" {
             if let seconds = inspection.durationSeconds, seconds > 0 {
                 parts.append("\(Int(seconds) / 60):" + String(format: "%02d", Int(seconds.rounded()) % 60))
             }
-            parts.append(inspection.hasAudio == true ? "со звуком" : "без звука")
+            parts.append(inspection.hasAudio == true ? L("со звуком") : L("без звука"))
         } else {
-            parts.append("картинка")
+            parts.append(L("картинка"))
         }
         return parts.joined(separator: " · ")
     }
