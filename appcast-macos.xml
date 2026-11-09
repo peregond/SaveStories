@@ -2,23 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.85</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.94</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.85</title>
-      <pubDate>Fri, 23 Oct 2026 13:47:50 GMT</pubDate>
+      <title>SaveMe 0.6.94</title>
+      <pubDate>Mon, 09 Nov 2026 14:07:07 GMT</pubDate>
       <sparkle:version>156</sparkle:version>
-      <sparkle:shortVersionString>0.6.85</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.85</h2>
-<ul><li>Исправлена выгрузка Stories, которая могла сохранять только первый ролик и оставлять пустые папки.</li><li>Просмотрщик Stories открывается напрямую: загрузчик получает полный список и продолжает переходить к следующим видео.</li><li>Восстановлено определение текущей Stories и получение её аудиодорожки, когда числовой ID отсутствует в адресной строке.</li><li>В журнале пакетной выгрузки сразу видны версия движка, результаты каждого профиля и основные причины пропусков.</li></ul>
-<p>Проверено на активных Stories трёх профилей: сохранены 7 из 7, 2 из 2 и 1 из 1 видео. Все 10 MP4 проверены на целостность и наличие аудиодорожки.</p>]]></description>
+      <sparkle:shortVersionString>0.6.94</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.94</h2>
+<ul><li>**Английский интерфейс на macOS:** переключатель «Language / Язык» в настройках, язык применяется после перезапуска приложения.</li><li>**Windows:** в английском режиме переводятся и сообщения внутренних модулей (например, «Session found.»), и меню у значка в трее.</li><li>Часть редких сообщений от внутренних модулей пока остаётся по-русски.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.85/SaveMe-macOS-v0.6.85.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.94/SaveMe-macOS-v0.6.94.dmg"
         sparkle:os="macos"
-        length="190029918"
+        length="8172752"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="or67Nl9qB4HxBHJ5KZdtjji3X3V8/RX1ulNL2jXUC9Whq+TzBNAV9Xsd7a0YHdrq6e5HAi0ee4CbIElZa0JXCw==" />
+        sparkle:edSignature="I8D6FnFgkub1Aw7xjT74ZnEEa9eW6b5zM8it/yL3BdqUe1aXS9mLnwe82I63ds6CfXs9o8DH/BYnCrJ3JWKOBg==" />
     </item>
   </channel>
 </rss>
