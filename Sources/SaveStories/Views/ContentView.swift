@@ -572,6 +572,12 @@ struct ContentView: View {
     }
 
 
+    var downloadOptionsSummary: String {
+        var parts = [model.mediaSelectionMode.title, model.downloadMode.title]
+        if model.notionInfluencerSourceEnabled { parts.append(L("Очередь из Notion")) }
+        return parts.joined(separator: " · ")
+    }
+
     func homeTwoComposerCard(compact: Bool) -> some View {
         card(L("Новая загрузка")) {
             VStack(alignment: .leading, spacing: 16) {
@@ -647,16 +653,15 @@ struct ContentView: View {
                         storiesMediaSelectionPicker
                         storiesDownloadModePicker
                     }
-                    .padding(.top, 10)
+                    notionInfluencerSourceControl
+                        .padding(.top, 2)
                 } label: {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(L("Параметры загрузки")).font(.callout.weight(.medium))
-                        Text("\(model.mediaSelectionMode.title) · \(model.downloadMode.title)")
+                        Text(downloadOptionsSummary)
                             .font(.caption).foregroundStyle(secondaryText)
                     }
                 }
-
-                notionInfluencerSourceControl
             }
         }
     }
@@ -672,14 +677,9 @@ struct ContentView: View {
 
                 if model.batchQueue.isEmpty {
                     Text(L("Добавьте профили в поле загрузки или выберите сохранённый набор."))
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(secondaryText)
-                        .padding(16)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                                .fill(itemFill)
-                        )
                 } else {
                     if model.batchTotalCount > 0 {
                         batchProgressStripe
@@ -735,12 +735,7 @@ struct ContentView: View {
                         .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                                .fill(itemFill)
-                        )
                 } else {
                     VStack(alignment: .leading, spacing: 10) {
                         ForEach(displayedRecentBatchLists) { list in
@@ -2494,10 +2489,6 @@ struct ContentView: View {
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(primaryText)
 
-                    Text(L("Перед запуском Stories приложение обновит список не чаще раза в день и заменит очередь."))
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(tertiaryText)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .toggleStyle(.switch)

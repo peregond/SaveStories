@@ -6,38 +6,45 @@ extension ContentView {
             get: { selectedSection },
             set: { if let section = $0 { selectedSection = section } }
         )) {
-            Section(L("Библиотека")) {
-                ForEach([AppSection.main, .reels, .unikalizator, .sorting]) { section in
-                    Label(section.title, systemImage: section.systemImage)
-                        .padding(.vertical, 5)
-                        .tag(section)
-                }
-            }
-            Section {
-                Label(AppSection.settings.title, systemImage: AppSection.settings.systemImage)
+            ForEach([AppSection.main, .reels, .unikalizator, .sorting]) { section in
+                Label(section.title, systemImage: section.systemImage)
                     .padding(.vertical, 5)
-                    .tag(AppSection.settings)
+                    .tag(section)
             }
         }
         .listStyle(.sidebar)
         .navigationTitle("SaveMe")
-        .safeAreaInset(edge: .bottom) {
-            VStack(alignment: .leading, spacing: 12) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(alignment: .leading, spacing: 10) {
+                Divider().padding(.horizontal, 10)
                 if let version = model.readyUpdateVersion {
                     Button { model.installReadyUpdate() } label: {
                         Label(L("Обновить до {0}", version), systemImage: "arrow.down.circle")
+                            .frame(maxWidth: .infinity)
                     }
                     .saveMeGlassButton(prominent: true)
                     .disabled(model.isBusy)
                 }
-                Label(model.isDesignPreview ? L("Предпросмотр дизайна") : L("На вашем Mac"), systemImage: model.isDesignPreview ? "eye" : "internaldrive")
-                    .font(.caption.weight(.medium))
+                SidebarSettingsButton(
+                    title: AppSection.settings.title,
+                    systemImage: AppSection.settings.systemImage,
+                    isSelected: selectedSection == .settings
+                ) { selectedSection = .settings }
+                if model.isDesignPreview {
+                    Label(L("Предпросмотр дизайна"), systemImage: "eye")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(secondaryText)
+                        .padding(.horizontal, 10)
+                }
                 Text("SaveMe · \(versionLabel)")
                     .font(.caption2).monospacedDigit()
+                    .foregroundStyle(secondaryText)
+                    .padding(.horizontal, 10)
             }
-            .foregroundStyle(secondaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
+            .padding(.bottom, 12)
         }
     }
 
@@ -74,6 +81,41 @@ extension ContentView {
             windowBackground
                 .saveMeExtendedBackground(enabled: !reduceTransparency)
         }
+    }
+}
+
+/// Sidebar-styled row pinned to the bottom-left; mirrors the List selection look.
+private struct SidebarSettingsButton: View {
+    let title: String
+    let systemImage: String
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var isHovering = false
+    @Environment(\.controlActiveState) private var controlActiveState
+
+    private var isInactive: Bool { controlActiveState == .inactive }
+
+    var body: some View {
+        Button(action: action) {
+            Label {
+                Text(title)
+            } icon: {
+                Image(systemName: systemImage)
+                    .foregroundStyle(isSelected && !isInactive ? Color.white : (isInactive ? Color.secondary : Color.accentColor))
+            }
+                .padding(.vertical, 7)
+                .padding(.horizontal, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(isSelected && !isInactive ? Color.white : Color.primary)
+                .background {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(isSelected ? (isInactive ? Color.primary.opacity(0.14) : Color.accentColor) : (isHovering ? Color.primary.opacity(0.08) : Color.clear))
+                }
+                .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

@@ -221,8 +221,8 @@ extension ContentView {
     }
 
     var homeResultCard: some View {
-        card(L("Результат"), minHeight: homeSummaryCardHeight) {
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+        card(L("Результат")) {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
                 homeResultTile(title: L("Найдено"), value: model.foundStoriesCount, accent: Color.orange.opacity(0.78))
                 homeResultTile(title: L("Сохранено"), value: model.savedStoriesCount, accent: Color.green.opacity(0.78))
                 homeResultTile(title: L("Файлов"), value: model.liveDownloadedFileCount, accent: Color.blue.opacity(0.78))
@@ -265,26 +265,27 @@ extension ContentView {
     }
 
     func homeResultTile(title: String, value: Int, accent: Color) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
                 Circle()
                     .fill(accent)
-                    .frame(width: 8, height: 8)
+                    .frame(width: 7, height: 7)
 
                 Text(title)
-                    .font(.caption)
-                    .tracking(1.2)
+                    .font(.caption2.weight(.medium))
+                    .tracking(0.8)
                     .textCase(.uppercase)
-                    .foregroundStyle(tertiaryText)
+                    .foregroundStyle(secondaryText)
             }
 
             Text("\(value)")
-                .font(.system(size: 24, weight: .semibold, design: .rounded))
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .monospacedDigit()
                 .foregroundStyle(primaryText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
                 .fill(pillFill)
