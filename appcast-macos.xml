@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SaveMe Updates</title>
-    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.94</link>
+    <link>https://github.com/peregond/SaveStories/releases/tag/v0.6.95</link>
     <description>Release feed for SaveMe macOS updates.</description>
     <language>ru</language>
     <item>
-      <title>SaveMe 0.6.94</title>
-      <pubDate>Mon, 09 Nov 2026 14:34:35 GMT</pubDate>
-      <sparkle:version>163</sparkle:version>
-      <sparkle:shortVersionString>0.6.94</sparkle:shortVersionString>
-      <description><![CDATA[<h2>SaveMe 0.6.94</h2>
-<ul><li>**Английский интерфейс на macOS:** переключатель «Language / Язык» в настройках, язык применяется после перезапуска приложения.</li><li>**Windows:** в английском режиме переводятся и сообщения внутренних модулей (например, «Session found.»), и меню у значка в трее.</li><li>Часть редких сообщений от внутренних модулей пока остаётся по-русски.</li></ul>]]></description>
+      <title>SaveMe 0.6.95</title>
+      <pubDate>Mon, 09 Nov 2026 15:33:18 GMT</pubDate>
+      <sparkle:version>165</sparkle:version>
+      <sparkle:shortVersionString>0.6.95</sparkle:shortVersionString>
+      <description><![CDATA[<h2>SaveMe 0.6.95</h2>
+<ul><li>**macOS:** «Настройки» перенесены в левый нижний угол боковой панели, строка «На вашем Mac» и заголовок «Библиотека» убраны.</li><li>**macOS:** главный экран Stories стал компактнее: переключатель «Обновлять очередь из Notion» перенесён в «Параметры загрузки», плитки результата меньше, пустые состояния без лишних рамок.</li></ul>]]></description>
       <enclosure
-        url="https://github.com/peregond/SaveStories/releases/download/v0.6.94/SaveMe-macOS-v0.6.94.dmg"
+        url="https://github.com/peregond/SaveStories/releases/download/v0.6.95/SaveMe-macOS-v0.6.95.dmg"
         sparkle:os="macos"
-        length="8172501"
+        length="8189515"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="861alw3za4UGCCUqZa3hiIu5v8b+F9uuPrWWjY8+8WqP+wVvzGgteds0WkXGJpumuFIgRKWqdy4aCBJbMjTuBA==" />
+        sparkle:edSignature="idxj1/EEdFxbFQvBKv2sUyQP05mtAkRRjjapoxmSO/dT/LUdBWGzv+BaMJqaHV28pqvN5ZvtKvprd8kNrsBkBw==" />
     </item>
   </channel>
 </rss>
