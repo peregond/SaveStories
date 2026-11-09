@@ -7,17 +7,17 @@
     <language>ru</language>
     <item>
       <title>SaveMe 0.6.94</title>
-      <pubDate>Mon, 09 Nov 2026 14:07:07 GMT</pubDate>
-      <sparkle:version>156</sparkle:version>
+      <pubDate>Mon, 09 Nov 2026 14:34:35 GMT</pubDate>
+      <sparkle:version>163</sparkle:version>
       <sparkle:shortVersionString>0.6.94</sparkle:shortVersionString>
       <description><![CDATA[<h2>SaveMe 0.6.94</h2>
 <ul><li>**Английский интерфейс на macOS:** переключатель «Language / Язык» в настройках, язык применяется после перезапуска приложения.</li><li>**Windows:** в английском режиме переводятся и сообщения внутренних модулей (например, «Session found.»), и меню у значка в трее.</li><li>Часть редких сообщений от внутренних модулей пока остаётся по-русски.</li></ul>]]></description>
       <enclosure
         url="https://github.com/peregond/SaveStories/releases/download/v0.6.94/SaveMe-macOS-v0.6.94.dmg"
         sparkle:os="macos"
-        length="8172752"
+        length="8172501"
         type="application/x-apple-diskimage"
-        sparkle:edSignature="I8D6FnFgkub1Aw7xjT74ZnEEa9eW6b5zM8it/yL3BdqUe1aXS9mLnwe82I63ds6CfXs9o8DH/BYnCrJ3JWKOBg==" />
+        sparkle:edSignature="861alw3za4UGCCUqZa3hiIu5v8b+F9uuPrWWjY8+8WqP+wVvzGgteds0WkXGJpumuFIgRKWqdy4aCBJbMjTuBA==" />
     </item>
   </channel>
 </rss>
