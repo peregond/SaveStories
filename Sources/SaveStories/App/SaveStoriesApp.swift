@@ -27,6 +27,8 @@ struct SaveMeApp: App {
                     await model.prepare()
                     if model.isDesignPreview, let path = PreviewCapture.screenshotPath {
                         await PreviewCapture.captureAndQuit(to: path)
+                    } else if model.isDesignPreview, let path = PreviewCapture.windowIDFilePath {
+                        await PreviewCapture.publishWindowIDAndWait(to: path)
                     }
                     if model.isDesignPreview,
                        Bundle.main.object(forInfoDictionaryKey: "SaveMePreviewOnboarding") as? Bool == true {

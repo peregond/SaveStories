@@ -30,7 +30,7 @@ extension ContentView {
                     systemImage: AppSection.settings.systemImage,
                     isSelected: selectedSection == .settings
                 ) { selectedSection = .settings }
-                if model.isDesignPreview {
+                if model.isDesignPreview, !PreviewCapture.clean {
                     Label(L("Предпросмотр дизайна"), systemImage: "eye")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(secondaryText)
