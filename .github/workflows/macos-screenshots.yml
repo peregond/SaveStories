@@ -59,6 +59,34 @@ jobs:
           ls -l shots
           test "$(ls shots/*.png | wc -l)" -ge 14
 
+      - name: Capture window screenshots for the repository (screencapture)
+        run: |
+          mkdir -p shots-repo
+          capture() {
+            name="$1"; section="$2"; appearance="$3"; language="$4"; size="$5"; extra="$6"
+            rm -f "$RUNNER_TEMP/winid.txt"
+            ./.build/debug/SaveMe --design-preview $extra --preview-language=$language --preview-size=$size \
+              --preview-section=$section --preview-appearance=$appearance \
+              --preview-window-id-file="$RUNNER_TEMP/winid.txt" &
+            pid=$!
+            for i in $(seq 1 60); do [ -s "$RUNNER_TEMP/winid.txt" ] && break; sleep 1; done
+            sleep 2
+            screencapture -x -o -l "$(cat "$RUNNER_TEMP/winid.txt")" "shots-repo/$name.png" || echo "screencapture failed for $name"
+            kill $pid 2>/dev/null || true
+            wait $pid 2>/dev/null || true
+          }
+          for appearance in light dark; do
+            for section in main reels unikalizator sorting settings; do
+              extra=""
+              if [ "$section" = "unikalizator" ]; then extra="--preview-samples"; fi
+              capture "$section-$appearance" "$section" "$appearance" ru "1500x700" "$extra"
+            done
+          done
+          capture "en-main-light" main light en "1500x700" ""
+          capture "en-unikalizator-light" unikalizator light en "1500x700" "--preview-samples"
+          capture "fit-unikalizator-light" unikalizator light ru "1000x680" "--preview-samples"
+          ls -l shots-repo
+
       - name: Build the .app bundle and smoke-test it
         run: |
           ./scripts/build_beta_app.sh
@@ -81,4 +109,5 @@ jobs:
           path: |
             shots
             shots-app
+            shots-repo
             unik-e2e/result
