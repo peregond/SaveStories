@@ -23,6 +23,10 @@
 - автообновление `macOS` через `Sparkle`
 - автообновление `Windows` через `GitHub Releases`
 
+## Скриншоты
+
+Актуальные снимки Windows- и macOS-версий (светлая и тёмная темы, русский и английский интерфейс) лежат в [docs/screenshots](docs/screenshots/README.md).
+
 ## Архитектура
 
 - `SwiftUI`-приложение для `macOS`
