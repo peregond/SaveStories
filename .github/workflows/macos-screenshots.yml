@@ -65,7 +65,7 @@ jobs:
           capture() {
             name="$1"; section="$2"; appearance="$3"; language="$4"; size="$5"; extra="$6"
             rm -f "$RUNNER_TEMP/winid.txt"
-            ./.build/debug/SaveMe --design-preview $extra --preview-language=$language --preview-size=$size \
+            ./.build/debug/SaveMe --design-preview --preview-clean --preview-version=0.6.95 $extra --preview-language=$language --preview-size=$size \
               --preview-section=$section --preview-appearance=$appearance \
               --preview-window-id-file="$RUNNER_TEMP/winid.txt" &
             pid=$!

@@ -19,6 +19,10 @@ enum PreviewCapture {
     static var appearance: String? { argument("preview-appearance") }
     static var screenshotPath: String? { argument("preview-screenshot") }
     static var windowIDFilePath: String? { argument("preview-window-id-file") }
+    /// `--preview-clean`: для снимков в репозиторий — без служебной подписи «Предпросмотр дизайна».
+    static var clean: Bool { ProcessInfo.processInfo.arguments.contains("--preview-clean") }
+    /// `--preview-version=0.6.95`: версия, которую покажет боковая панель (в обычной сборке без .app её нет).
+    static var versionOverride: String? { argument("preview-version") }
     static var wantsSamples: Bool { ProcessInfo.processInfo.arguments.contains("--preview-samples") }
     /// `--preview-size=1500x1100`: размер окна на момент снимка (экран раннера маленький, а картинка рисуется и за его пределами).
     static var size: CGSize? {
