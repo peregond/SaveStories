@@ -55,6 +55,11 @@ function buildResizeFilter(job) {
 function buildAdjustmentFilter(job) {
   const parts = [];
   const t = job.transforms;
+  // Порядок как в онлайн-сервисе: отражение, яркость и контраст, затем стиль.
+  if (t.horizontalFlip) parts.push("hflip");
+  if ((t.brightness !== undefined && t.brightness !== 0) || (t.contrast !== undefined && t.contrast !== 1)) {
+    parts.push(`eq=brightness=${t.brightness ?? 0}:contrast=${t.contrast ?? 1}`);
+  }
   if (t.hueShift && t.hueShift !== 0) parts.push(`hue=h=${t.hueShift}`);
   if (t.saturation !== undefined && t.saturation !== 1) parts.push(`eq=saturation=${t.saturation}`);
   if (t.sharpness && t.sharpness > 0) parts.push(`unsharp=5:5:${t.sharpness}:5:5:0.0`);
@@ -148,6 +153,10 @@ export function buildExecutionPlan(job, destinationPath, options = {}) {
 
   if (resize && (resizeFilter || useBlurBackground)) {
     steps.push({ kind: "video", description: resize.fit === "contain" && resize.backgroundStyle === "blur" ? `Размер ${resize.width}x${resize.height}, фон — размытая копия.` : `Размер ${resize.width}x${resize.height} (${resize.fit === "cover" ? "с обрезкой" : "с полями"}).` });
+  }
+  if (job.transforms.horizontalFlip) steps.push({ kind: "video", description: "Исходник отражён по горизонтали." });
+  if ((job.transforms.brightness !== undefined && job.transforms.brightness !== 0) || (job.transforms.contrast !== undefined && job.transforms.contrast !== 1)) {
+    steps.push({ kind: "video", description: `Яркость: ${job.transforms.brightness ?? 0}, контраст: ${job.transforms.contrast ?? 1}.` });
   }
   if (!imageJob && job.transforms.hueShift) steps.push({ kind: "video", description: `Сдвиг оттенка: ${job.transforms.hueShift}°.` });
   if (!imageJob && job.transforms.saturation !== undefined && job.transforms.saturation !== 1) steps.push({ kind: "video", description: `Насыщенность: ${job.transforms.saturation}.` });

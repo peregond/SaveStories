@@ -6,29 +6,22 @@ private enum StoriesActionButtonKind {
     case destructive
 }
 
+/// Плитка-кнопка внутри стеклянной панели: тонированная заливка без второго слоя стекла.
 private struct StoriesActionButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.isEnabled) private var isEnabled
     let fill: Color
     let stroke: Color
 
-    @ViewBuilder
     func makeBody(configuration: Configuration) -> some View {
-        if #available(macOS 26, *), !reduceTransparency, contrast != .increased {
-            configuration.label
-                .glassEffect(.regular.tint(isEnabled ? fill : Color.gray.opacity(0.15)).interactive(isEnabled && !reduceMotion),
-                             in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        } else {
-            configuration.label
-                .background(fill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(stroke, lineWidth: 1)
-                }
-                .opacity(configuration.isPressed ? 0.86 : 1)
-        }
+        configuration.label
+            .background(fill, in: Capsule(style: .continuous))
+            .overlay {
+                Capsule(style: .continuous).strokeBorder(stroke, lineWidth: 1)
+            }
+            .contentShape(Capsule(style: .continuous))
+            .opacity(configuration.isPressed ? 0.78 : 1)
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .animation(.snappy(duration: 0.16), value: configuration.isPressed)
     }
 }
 
@@ -55,6 +48,11 @@ struct ContentView: View {
     @State var sortingRulesExpanded = false
     @State var sortingAdvancedExpanded = false
     @State var storiesInputExpanded = false
+    /// Текущий шаг раздела «Уникализатор».
+    @State var unikStep = 0
+    @State var showingClearQueueConfirmation = false
+    @State var showingDeleteEmptyFoldersConfirmation = false
+    @State var unikDropTargeted = false
 
     var isDark: Bool { colorScheme == .dark }
     var reduceMotion: Bool {
@@ -62,11 +60,11 @@ struct ContentView: View {
     }
 
     let sidebarWidth: CGFloat = 220
-    let cardCornerRadius: CGFloat = 20
-    let controlCornerRadius: CGFloat = 12
-    let itemCornerRadius: CGFloat = 12
-    let innerCornerRadius: CGFloat = 10
-    let topContentInset: CGFloat = 12
+    let cardCornerRadius: CGFloat = SaveMeMetrics.cardRadius
+    let controlCornerRadius: CGFloat = SaveMeMetrics.controlRadius
+    let itemCornerRadius: CGFloat = SaveMeMetrics.itemRadius
+    let innerCornerRadius: CGFloat = SaveMeMetrics.innerRadius
+    let topContentInset: CGFloat = 0
     let homeSummaryCardHeight: CGFloat = 170
 
     func contentHorizontalPadding(for width: CGFloat) -> CGFloat {
@@ -77,32 +75,30 @@ struct ContentView: View {
         width < 760
     }
 
-    var glassTint: Color { Color(nsColor: .controlBackgroundColor) }
+    /// Плотные поверхности вместо стекла: «Уменьшение прозрачности» или «Увеличение контраста».
+    var prefersSolidSurfaces: Bool { reduceTransparency || contrast == .increased || SaveMeRendering.forceSolid }
+
+    var brandTint: Color { SaveMePalette.brand(dark: isDark) }
     var primaryText: Color { Color(nsColor: .labelColor) }
     var secondaryText: Color {
-        if contrast == .increased { return primaryText }
-        return isDark ? Color.white.opacity(0.78) : Color.black.opacity(0.68)
+        contrast == .increased ? primaryText : SaveMePalette.secondaryText(dark: isDark)
     }
     var tertiaryText: Color { secondaryText }
     var quaternaryText: Color { secondaryText }
-    var cardFill: Color {
-        if reduceTransparency { return Color(nsColor: .controlBackgroundColor) }
-        return isDark
-            ? Color(red: 0.14, green: 0.17, blue: 0.21).opacity(0.94)
-            : Color.white.opacity(0.84)
+    var cardFill: Color { Color(nsColor: .controlBackgroundColor) }
+    /// «Колодец» для ввода и путей внутри стеклянной панели.
+    var inputFill: Color {
+        prefersSolidSurfaces ? Color(nsColor: .textBackgroundColor) : SaveMePalette.well(dark: isDark)
     }
-    var inputFill: Color { Color(nsColor: .textBackgroundColor) }
-    var pillFill: Color { Color(nsColor: .quaternaryLabelColor).opacity(0.09) }
-    var itemFill: Color { pillFill }
-    var settingsIconColor: Color { secondaryText }
-    var secondaryButtonTint: Color { Color.accentColor }
-    var prominentButtonTint: Color { Color.accentColor }
-    var queueActionTint: Color {
-        isDark ? Color(red: 0.18, green: 0.48, blue: 0.37) : Color(red: 0.16, green: 0.42, blue: 0.32)
+    /// Заливка второстепенных кнопок и меток внутри панели.
+    var controlFill: Color {
+        prefersSolidSurfaces ? Color(nsColor: .quaternaryLabelColor).opacity(0.14) : SaveMePalette.control(dark: isDark)
     }
+    var secondaryButtonTint: Color { brandTint }
+    var prominentButtonTint: Color { SaveMePalette.brandFill(dark: isDark) }
+    var queueActionTint: Color { SaveMePalette.brandFill(dark: isDark) }
     var cardStroke: Color {
-        if contrast == .increased { return Color(nsColor: .separatorColor) }
-        return isDark ? Color.white.opacity(0.16) : Color(red: 0.34, green: 0.43, blue: 0.49).opacity(0.22)
+        contrast == .increased ? Color(nsColor: .separatorColor) : SaveMePalette.hairline(dark: isDark)
     }
 
     var versionLabel: String {
@@ -161,15 +157,15 @@ struct ContentView: View {
 
     var globalStatusTint: Color {
         if model.isBusy {
-            return Color.blue.opacity(0.82)
+            return SaveMePalette.info.opacity(0.82)
         }
         if model.statusTitle.mentionsAny("ошиб", "error", "fail") || !model.workerReady {
-            return Color.red.opacity(0.82)
+            return SaveMePalette.danger.opacity(0.82)
         }
         if !model.sessionReady {
-            return Color.orange.opacity(0.82)
+            return SaveMePalette.warning.opacity(0.82)
         }
-        return Color.green.opacity(0.82)
+        return SaveMePalette.success.opacity(0.82)
     }
 
     var pendingEmptyFolderNames: [String] {
@@ -204,8 +200,6 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            windowBackground
-
             NavigationSplitView(columnVisibility: $columnVisibility) {
                 sidebar
                     .navigationSplitViewColumnWidth(min: 200, ideal: sidebarWidth, max: 280)
@@ -233,18 +227,28 @@ struct ContentView: View {
                 runtimeOnboardingActions.padding(20)
             }
             .fontDesign(.rounded)
-            .frame(width: 540, height: 500)
+            .frame(width: 540, height: 620)
             .interactiveDismissDisabled(model.isBusy)
         }
         .sheet(isPresented: $model.showEmptyFolderCleanupPrompt) {
-            ScrollView { emptyFolderCleanupPrompt }
-                .frame(width: 520, height: 440)
+            emptyFolderCleanupPrompt
+                .fontDesign(.rounded)
+                .frame(width: 520)
+                .fixedSize(horizontal: false, vertical: true)
                 .interactiveDismissDisabled()
         }
         .tint(queueActionTint)
         .onAppear {
             if model.isDesignPreview, let raw = PreviewCapture.section, let section = AppSection(rawValue: raw) {
                 selectedSection = section
+                // Восстановление состояния окна срабатывает позже onAppear и возвращало прошлый раздел.
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 600_000_000)
+                    selectedSection = section
+                }
+            }
+            if model.isDesignPreview, let step = PreviewCapture.unikStep {
+                unikStep = step
             }
             if model.isDesignPreview, PreviewCapture.wantsSamples {
                 model.unikalizator.loadPreviewSamples()
@@ -263,7 +267,7 @@ struct ContentView: View {
                 Task { await model.login() }
             }
         } message: {
-            Text(L("Для первой выгрузки stories войди в Instagram через браузер приложения. Окно останется открытым, пока вход не будет завершён."))
+            Text(L("Для первой выгрузки stories войдите в Instagram через браузер приложения. Окно останется открытым, пока вход не будет завершён."))
         }
         .alert(item: $model.emptyFolderCleanupReport) { report in
             Alert(
@@ -272,12 +276,22 @@ struct ContentView: View {
                 dismissButton: .default(Text("OK"))
             )
         }
+        .onChange(of: model.batchRemainingCount) { _, _ in updateDockBadge() }
+        .onChange(of: model.batchIsRunning) { _, _ in updateDockBadge() }
+        .task {
+            if model.isDesignPreview, PreviewCapture.wantsDemoDownload {
+                await model.runPreviewDemoDownload()
+            }
+        }
         .onChange(of: model.showEmptyFolderCleanupPrompt) { _, isShown in
             if !isShown {
                 showingPendingEmptyFolders = false
             }
         }
         .onChange(of: model.celebrationToken) { _, newValue in
+            if newValue > 0, !model.isDesignPreview {
+                CompletionNotifier.notify(title: L("Загрузка завершена"), body: L("Сохранено файлов: {0}", model.savedStoriesCount))
+            }
             guard newValue > 0, !reduceMotion else { return }
             withAnimation(.easeOut(duration: 0.25)) {
                 showingConfetti = true
@@ -290,11 +304,16 @@ struct ContentView: View {
         }
     }
 
+    /// Сколько профилей осталось — на значке в Dock, пока окно свёрнуто или закрыто другим.
+    func updateDockBadge() {
+        NSApp.dockTile.badgeLabel = model.batchIsRunning && model.batchRemainingCount > 0 ? "\(model.batchRemainingCount)" : nil
+    }
+
     var runtimeOnboardingContent: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .top, spacing: 16) {
                 Image(systemName: runtimeOnboardingIcon)
-                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .font(.saveMe(.display, .semibold))
                     .foregroundStyle(runtimeOnboardingTint)
                     .frame(width: 48, height: 48)
                     .background(
@@ -304,11 +323,11 @@ struct ContentView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text(L("Первый запуск"))
-                        .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        .font(.saveMe(.display, .semibold))
                         .foregroundStyle(primaryText)
 
                     Text(L("Для скачивания нужен встроенный браузер. Установите его один раз — SaveMe подготовит всё автоматически."))
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .font(.saveMe(.body, .medium))
                         .foregroundStyle(secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -341,7 +360,6 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .saveMeGlassButton(prominent: true)
-                .tint(prominentButtonTint)
 
                 Button {
                     model.dismissRuntimeOnboarding()
@@ -350,7 +368,6 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .saveMeGlassButton()
-                .tint(secondaryButtonTint)
             } else {
                 Button {
                     Task { await model.bootstrapEnvironment() }
@@ -367,7 +384,6 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity)
                 }
                 .saveMeGlassButton(prominent: true)
-                .tint(prominentButtonTint)
                 .disabled(model.isBusy && model.runtimeSetupStage != .failed)
 
                 Button {
@@ -377,7 +393,6 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .saveMeGlassButton()
-                .tint(secondaryButtonTint)
                 .disabled(model.isBusy)
             }
         }
@@ -401,9 +416,9 @@ struct ContentView: View {
     var runtimeOnboardingTint: Color {
         switch model.runtimeSetupStage {
         case .ready:
-            Color.green.opacity(0.86)
+            SaveMePalette.success.opacity(0.86)
         case .failed:
-            Color.red.opacity(0.82)
+            SaveMePalette.danger.opacity(0.82)
         default:
             prominentButtonTint
         }
@@ -422,18 +437,18 @@ struct ContentView: View {
                         .controlSize(.small)
                 } else {
                     Image(systemName: status.symbol)
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .font(.saveMe(.body, .bold))
                         .foregroundStyle(status.tint)
                 }
             }
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(stage.title)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .font(.saveMe(.body, .semibold))
                     .foregroundStyle(primaryText)
 
                 Text(stage.detail)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .font(.saveMe(.label, .medium))
                     .foregroundStyle(tertiaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -460,11 +475,11 @@ struct ContentView: View {
             let stageOrder = runtimeOnboardingOrder(stage)
             let failedOrder = runtimeOnboardingOrder(failedStage)
             if stageOrder < failedOrder {
-                return RuntimeOnboardingStatus(symbol: "checkmark", tint: Color.green.opacity(0.86), isCurrent: false, isSpinning: false)
+                return RuntimeOnboardingStatus(symbol: "checkmark", tint: SaveMePalette.success.opacity(0.86), isCurrent: false, isSpinning: false)
             }
             return RuntimeOnboardingStatus(
                 symbol: stageOrder == failedOrder ? "exclamationmark" : "circle",
-                tint: stageOrder == failedOrder ? Color.red.opacity(0.82) : tertiaryText,
+                tint: stageOrder == failedOrder ? SaveMePalette.danger.opacity(0.82) : tertiaryText,
                 isCurrent: stageOrder == failedOrder,
                 isSpinning: false
             )
@@ -473,7 +488,7 @@ struct ContentView: View {
         if model.runtimeSetupStage == .ready {
             return RuntimeOnboardingStatus(
                 symbol: "checkmark",
-                tint: Color.green.opacity(0.86),
+                tint: SaveMePalette.success.opacity(0.86),
                 isCurrent: stage == .ready,
                 isSpinning: false
             )
@@ -482,7 +497,7 @@ struct ContentView: View {
         let currentOrder = runtimeOnboardingOrder(model.runtimeSetupStage)
         let stageOrder = runtimeOnboardingOrder(stage)
         if stageOrder < currentOrder {
-            return RuntimeOnboardingStatus(symbol: "checkmark", tint: Color.green.opacity(0.86), isCurrent: false, isSpinning: false)
+            return RuntimeOnboardingStatus(symbol: "checkmark", tint: SaveMePalette.success.opacity(0.86), isCurrent: false, isSpinning: false)
         }
         if stageOrder == currentOrder && model.runtimeSetupStage != .welcome {
             return RuntimeOnboardingStatus(symbol: "circle", tint: prominentButtonTint, isCurrent: true, isSpinning: model.isBusy)
@@ -514,11 +529,11 @@ struct ContentView: View {
     var emptyFolderCleanupPrompt: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text(L("Удалить пустые папки?"))
-                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .font(.saveMe(.heading, .semibold))
                 .foregroundStyle(primaryText)
 
             Text(L("После выгрузки stories найдены пустые папки профилей. Удалить их и оставить только папки с сохранёнными файлами?"))
-                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .font(.saveMe(.title, .medium))
                 .foregroundStyle(secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -527,15 +542,11 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(pendingEmptyFolderNames, id: \.self) { name in
                             Text(name)
-                                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                .font(.saveMe(.label, .medium, mono: true))
                                 .foregroundStyle(primaryText)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .fill(itemFill)
-                                )
+                                .padding(.vertical, 6)
+                                .overlay(alignment: .bottom) { Divider() }
                         }
                     }
                     .padding(.top, 8)
@@ -543,7 +554,7 @@ struct ContentView: View {
                 .frame(maxHeight: 180)
             } label: {
                 Text(showingPendingEmptyFolders ? L("Скрыть список папок") : L("Показать список папок"))
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .font(.saveMe(.body, .semibold))
                     .foregroundStyle(primaryText)
             }
             .tint(prominentButtonTint)
@@ -556,7 +567,6 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .saveMeGlassButton()
-                .tint(secondaryButtonTint)
 
                 Button {
                     Task { await model.removePendingEmptyStoryFolders() }
@@ -565,7 +575,6 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .saveMeGlassButton(prominent: true)
-                .tint(prominentButtonTint)
             }
         }
         .padding(24)
@@ -576,11 +585,11 @@ struct ContentView: View {
     var downloadOptionsSummary: String {
         var parts = [model.mediaSelectionMode.title, model.downloadMode.title]
         if model.notionInfluencerSourceEnabled { parts.append(L("Очередь из Notion")) }
-        return parts.joined(separator: " · ")
+        return parts.joined(separator: ", ")
     }
 
     func homeTwoComposerCard(compact: Bool) -> some View {
-        card(L("Новая загрузка")) {
+        card(L("Новая загрузка"), symbol: "arrow.down.to.line") {
             VStack(alignment: .leading, spacing: 16) {
                 storiesInputEditor
 
@@ -604,6 +613,8 @@ struct ContentView: View {
                     } label: {
                         Label(L("Ещё"), systemImage: "ellipsis")
                     }
+                    .menuStyle(.button)
+                    .saveMeGlassButton()
                     .fixedSize()
                 }
 
@@ -624,7 +635,7 @@ struct ContentView: View {
                             : L("Перед запуском очередь заменится актуальным списком из Notion."),
                         systemImage: "info.circle"
                     )
-                    .font(.caption)
+                    .font(.saveMe(.micro))
                     .foregroundStyle(secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
                 }
@@ -636,16 +647,17 @@ struct ContentView: View {
                         .foregroundStyle(queueActionTint)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(L("Папка сохранения"))
-                            .font(.caption)
+                            .font(.saveMe(.micro))
                             .foregroundStyle(secondaryText)
                         Text(model.saveDirectory.lastPathComponent)
-                            .font(.callout.weight(.medium))
+                            .font(.saveMe(.body, .medium))
                             .lineLimit(1)
                             .truncationMode(.middle)
                             .help(model.saveDirectory.path)
                     }
                     Spacer(minLength: 8)
                     Button(L("Изменить…")) { model.chooseSaveDirectory() }
+                        .saveMeGlassButton()
                         .disabled(model.isBusy)
                 }
 
@@ -658,9 +670,9 @@ struct ContentView: View {
                         .padding(.top, 2)
                 } label: {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(L("Параметры загрузки")).font(.callout.weight(.medium))
+                        Text(L("Параметры загрузки")).font(.saveMe(.body, .medium))
                         Text(downloadOptionsSummary)
-                            .font(.caption).foregroundStyle(secondaryText)
+                            .font(.saveMe(.micro)).foregroundStyle(secondaryText)
                     }
                 }
             }
@@ -668,72 +680,82 @@ struct ContentView: View {
     }
 
     func homeTwoQueueCard(compact: Bool) -> some View {
-        card(L("Очередь")) {
+        card(L("Очередь"), symbol: "list.bullet") {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 10) {
-                    queueSummaryBadge(text: L("Ждёт {0}", queuedPendingCount), tint: Color.orange.opacity(isDark ? 0.16 : 0.10))
-                    queueSummaryBadge(text: L("Готово {0}", queuedCompletedCount), tint: Color.green.opacity(isDark ? 0.16 : 0.10))
-                    queueSummaryBadge(text: L("Ошибок {0}", queuedFailedCount), tint: Color.red.opacity(isDark ? 0.15 : 0.09))
+                    queueSummaryBadge(text: L("Ждёт {0}", queuedPendingCount), tint: SaveMePalette.warning)
+                    queueSummaryBadge(text: L("Готово {0}", queuedCompletedCount), tint: SaveMePalette.success)
+                    queueSummaryBadge(text: L("Ошибок {0}", queuedFailedCount), tint: SaveMePalette.danger)
+                    Spacer(minLength: 0)
+                    if !model.batchQueue.isEmpty {
+                        Button {
+                            showingClearQueueConfirmation = true
+                        } label: {
+                            Label(L("Очистить очередь"), systemImage: "trash")
+                        }
+                        .saveMeGlassButton()
+                        .controlSize(.small)
+                        .disabled(model.isBusy)
+                        .transition(.opacity)
+                        .confirmationDialog(L("Очистить очередь?"), isPresented: $showingClearQueueConfirmation) {
+                            Button(L("Очистить очередь"), role: .destructive) { model.clearBatchQueue() }
+                            Button(L("Отмена"), role: .cancel) {}
+                        } message: {
+                            Text(L("Из очереди будут убраны все профили: {0}.", model.batchQueue.count))
+                        }
+                    }
                 }
 
                 if model.batchQueue.isEmpty {
                     Text(L("Добавьте профили в поле загрузки или выберите сохранённый набор."))
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .font(.saveMe(.body, .medium))
                         .foregroundStyle(secondaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     if model.batchTotalCount > 0 {
                         batchProgressStripe
-                            .transition(.opacity)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                     }
 
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 10) {
-                            ForEach(model.batchQueue) { item in
-                                batchQueueItem(item)
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 0) {
+                                ForEach(model.batchQueue) { item in
+                                    batchQueueItem(item)
+                                        .id(item.id)
+                                        .transition(.opacity)
+                                }
+                            }
+                            .animation(.smooth(duration: 0.3), value: model.batchQueue)
+                        }
+                        .frame(height: min(CGFloat(model.batchQueue.count) * 54, 340))
+                        .onChange(of: model.batchCurrentIndex) { _, _ in
+                            // Список сам подъезжает к профилю, который скачивается сейчас.
+                            guard let running = model.batchQueue.first(where: { $0.status == .running }) else { return }
+                            withAnimation(.smooth(duration: 0.4)) {
+                                proxy.scrollTo(running.id, anchor: .center)
                             }
                         }
                     }
-                    .frame(minHeight: 220, maxHeight: 340)
                 }
 
-                if compact {
-                    VStack(alignment: .leading, spacing: 10) {
-                        ghostButton(L("Очистить очередь"), systemImage: "trash", tint: Color.red.opacity(0.78)) {
-                            model.clearBatchQueue()
-                        }
-                        .disabled(model.batchQueue.isEmpty || model.isBusy)
-                        .opacity(model.batchQueue.isEmpty || model.isBusy ? 0.68 : 1)
-
-                        Text(L("После запуска список сохранится в «Недавних наборах»."))
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .foregroundStyle(quaternaryText)
-                    }
-                } else {
-                    HStack(spacing: 10) {
-                        ghostButton(L("Очистить очередь"), systemImage: "trash", tint: Color.red.opacity(0.78)) {
-                            model.clearBatchQueue()
-                        }
-                        .disabled(model.batchQueue.isEmpty || model.isBusy)
-                        .opacity(model.batchQueue.isEmpty || model.isBusy ? 0.68 : 1)
-
-                        Spacer(minLength: 0)
-
-                        Text(L("После запуска список сохранится в «Недавних наборах»."))
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .foregroundStyle(quaternaryText)
-                    }
+                if !model.batchQueue.isEmpty {
+                    Text(L("После запуска список сохранится в «Недавних наборах»."))
+                        .font(.saveMe(.label))
+                        .foregroundStyle(secondaryText)
                 }
             }
         }
+        .animation(.smooth(duration: 0.35), value: model.batchTotalCount > 0)
+        .animation(.smooth(duration: 0.3), value: model.batchQueue.isEmpty)
     }
 
     func recentListsCard(compact: Bool) -> some View {
-        card(L("Недавние наборы")) {
+        card(L("Недавние наборы"), symbol: "clock.arrow.circlepath") {
             VStack(alignment: .leading, spacing: 12) {
                 if model.recentBatchLists.isEmpty {
                     Text(L("Здесь появятся сохранённые и недавно запущенные наборы профилей."))
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .font(.saveMe(.body, .medium))
                         .foregroundStyle(secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -750,15 +772,12 @@ struct ContentView: View {
                                 showingAllRecentLists.toggle()
                             }
                         } label: {
-                            Text(showingAllRecentLists ? L("Свернуть ↑") : L("Показать ещё ↓"))
-                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            Text(showingAllRecentLists ? L("Свернуть") : L("Показать ещё"))
+                                .font(.saveMe(.body, .semibold))
                                 .foregroundStyle(primaryText)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 9)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .fill(itemFill)
-                                )
+                                .background(Capsule(style: .continuous).fill(controlFill))
                         }
                         .buttonStyle(.plain)
                     }
@@ -776,16 +795,15 @@ struct ContentView: View {
             HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(list.title)
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .font(.saveMe(.body, .semibold))
                         .foregroundStyle(primaryText)
                         .lineLimit(1)
 
                     HStack(spacing: 6) {
                         Text(list.subtitle)
-                        Text("·")
                         Text(formattedRecentListDate(list.createdAt))
                     }
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .font(.saveMe(.micro, .medium))
                         .foregroundStyle(tertiaryText)
                 }
 
@@ -795,9 +813,9 @@ struct ContentView: View {
                     model.removeRecentBatchList(id: list.id)
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.saveMe(.micro, .bold))
                         .frame(width: 22, height: 22)
-                        .background(Circle().fill(Color.white.opacity(isDark ? 0.06 : 0.42)))
+                        .background(Circle().fill(controlFill))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(L("Удалить набор {0}", list.title))
@@ -806,7 +824,7 @@ struct ContentView: View {
             }
 
             Text(list.urls.prefix(2).joined(separator: "\n"))
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .font(.saveMe(.micro, .medium, mono: true))
                 .foregroundStyle(secondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .lineLimit(2)
@@ -835,256 +853,54 @@ struct ContentView: View {
                 }
             }
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                .fill(Color.white.opacity(isDark ? 0.06 : 0.52))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                .strokeBorder(cardStroke.opacity(0.7), lineWidth: 1)
-        )
+        .padding(.vertical, 10)
+        .overlay(alignment: .bottom) { Divider() }
     }
 
     func recentActionButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                Text(title)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.84)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(primaryText.opacity(model.isBusy ? 0.45 : 0.96))
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.white.opacity(isDark ? 0.08 : 0.72))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(prominentButtonTint.opacity(isDark ? 0.16 : 0.12), lineWidth: 1)
-        )
-        .frame(maxWidth: .infinity, minHeight: 44)
-        .opacity(model.isBusy ? 0.72 : 1)
-        .disabled(model.isBusy)
+        ghostButton(title, systemImage: systemImage, action: action)
     }
 
-    func destinationInlineCard(compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(L("Папка для сохранения"))
-                .font(.caption)
-                .tracking(1.2)
-                .textCase(.uppercase)
-                .foregroundStyle(tertiaryText)
 
-            Text(model.saveDirectory.path)
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .foregroundStyle(primaryText)
-                .lineLimit(1)
-                .truncationMode(.head)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(fieldBackground)
-                .clipShape(RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous))
-                .frame(height: 52)
-
-            if compact {
-                VStack(spacing: 8) {
-                    ghostButton(L("Выбрать папку"), systemImage: "folder.badge.plus") {
-                        model.chooseSaveDirectory()
-                    }
-
-                    ghostButton(L("Показать в Finder"), systemImage: "folder") {
-                        model.openSaveDirectory()
-                    }
-                }
-            } else {
-                HStack(spacing: 8) {
-                    ghostButton(L("Выбрать папку"), systemImage: "folder.badge.plus") {
-                        model.chooseSaveDirectory()
-                    }
-
-                    ghostButton(L("Показать в Finder"), systemImage: "folder") {
-                        model.openSaveDirectory()
-                    }
-                }
-            }
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                .fill(itemFill)
-        )
-    }
-
+    /// Общий ход очереди: полоса плавно дотягивается до нового значения, цифры перекатываются.
     var batchProgressStripe: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L("Скачиваю {0} из {1} — осталось {2}", model.batchCurrentIndex, model.batchTotalCount, model.batchRemainingCount))
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(.saveMe(.body, .semibold))
+                .monospacedDigit()
                 .foregroundStyle(primaryText)
+                .contentTransition(.numericText())
 
-            ProgressView(value: Double(model.batchCurrentIndex), total: Double(max(model.batchTotalCount, 1)))
+            ProgressView(value: Double(min(model.batchCurrentIndex, max(model.batchTotalCount, 1))), total: Double(max(model.batchTotalCount, 1)))
                 .progressViewStyle(.linear)
-                .tint(prominentButtonTint)
+                .tint(brandTint)
 
             if !model.batchCurrentURL.isEmpty {
                 Text(model.batchCurrentURL)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .font(.saveMe(.micro, .medium, mono: true))
                     .foregroundStyle(secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
                     .textSelection(.enabled)
+                    .id(model.batchCurrentURL)
+                    .transition(.opacity)
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
-                .fill(prominentButtonTint.opacity(isDark ? 0.22 : 0.12))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
-                .strokeBorder(prominentButtonTint.opacity(isDark ? 0.35 : 0.18), lineWidth: 1)
-        )
+        .animation(.smooth(duration: 0.45), value: model.batchCurrentIndex)
+        .animation(.smooth(duration: 0.45), value: model.batchTotalCount)
     }
 
-    var activityPanel: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            activityHeader
-            downloadsCard
-            homeLogsCard()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
 
-    func detailHero(eyebrow: String, title: String, subtitle: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(eyebrow)
-                .font(.caption)
-                .tracking(1.3)
-                .textCase(.uppercase)
-                .foregroundStyle(tertiaryText)
-
-            Text(title)
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .foregroundStyle(primaryText)
-
-            Text(subtitle)
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundStyle(secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
 
     var statusCards: some View {
         HStack(spacing: 12) {
-            statusCard(title: L("Воркер"), presentation: workerStatusPresentation)
+            statusCard(title: L("Движок"), presentation: workerStatusPresentation)
             statusCard(title: L("Сессия"), presentation: sessionStatusPresentation)
         }
     }
 
-    var progressCard: some View {
-        card(L("Статус загрузки")) {
-            VStack(alignment: .leading, spacing: 12) {
-                if model.isBusy {
-                    liveStatusBadge
-                }
 
-                HStack(spacing: 12) {
-                    if model.isBusy {
-                        ProgressView()
-                            .controlSize(.regular)
-                    } else {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(Color.green.opacity(0.78))
-                    }
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(model.statusTitle)
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .foregroundStyle(primaryText)
-
-                        Text(model.statusDetail)
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                            .foregroundStyle(secondaryText)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-
-                stepTracker
-                    .opacity(model.isBusy ? 1 : 0.82)
-
-                HStack(spacing: 12) {
-                    statPill(title: L("Найдено"), value: model.foundStoriesCount, accent: Color.orange.opacity(0.78))
-                    statPill(title: L("Сохранено"), value: model.savedStoriesCount, accent: Color.green.opacity(0.78))
-                }
-
-                HStack(spacing: 12) {
-                    statPill(title: L("Файлов загружено"), value: model.liveDownloadedFileCount, accent: Color.blue.opacity(0.78))
-                    statPill(title: L("Папок создано"), value: model.liveCreatedFolderCount, accent: Color.mint.opacity(0.78))
-                }
-
-                Text(L("Счётчики считаются по содержимому выбранной папки сохранения."))
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(quaternaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    var profileCard: some View {
-        card(L("Ссылка на профиль")) {
-            VStack(alignment: .leading, spacing: 12) {
-                TextField("https://www.instagram.com/username/", text: $model.profileURL)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 14, weight: .medium, design: .monospaced))
-                    .padding(12)
-                    .background(fieldBackground)
-
-                downloadModePicker()
-
-                button(L("Скачать активные stories"), systemImage: "photo.stack.fill", prominent: true) {
-                    Task { await model.downloadProfileStories() }
-                }
-            }
-        }
-    }
-
-    var activityHeader: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 10) {
-                Text(L("Состояние"))
-                    .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    .foregroundStyle(primaryText)
-
-                homeStatusBadge
-                    .transition(.opacity)
-            }
-
-            Text(model.lastResult)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-
-            if model.isBusy || !model.currentStepLabel.isEmpty {
-                HStack(spacing: 8) {
-                    if model.isBusy {
-                        liveIndicatorDot(size: 8)
-                    }
-
-                    Text(model.currentStepLabel)
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundStyle(tertiaryText)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
-    }
 
     var homeStatusHeader: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -1109,11 +925,11 @@ struct ContentView: View {
     func topStatusChip(title: String, isReady: Bool) -> some View {
         HStack(spacing: 6) {
             Image(systemName: isReady ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                .foregroundStyle(isReady ? Color.green : Color.orange)
-                .font(.system(size: 10, design: .rounded))
+                .foregroundStyle(isReady ? SaveMePalette.success : SaveMePalette.warning)
+                .font(.saveMe(.micro))
 
             Text(title)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(.saveMe(.micro, .semibold))
                 .foregroundStyle(isReady ? secondaryText : primaryText)
         }
         .accessibilityElement(children: .ignore)
@@ -1123,7 +939,7 @@ struct ContentView: View {
         .padding(.vertical, 6)
         .background(
             Capsule(style: .continuous)
-                .fill((isReady ? Color.green : Color.orange).opacity(isDark ? 0.12 : 0.10))
+                .fill((isReady ? SaveMePalette.success : SaveMePalette.warning).opacity(isDark ? 0.12 : 0.10))
         )
     }
 
@@ -1135,30 +951,27 @@ struct ContentView: View {
 
         if model.isBusy {
             title = isStoriesDownloadInProgress ? L("Идёт загрузка") : L("Подготовка")
-            tint = Color.blue.opacity(0.82)
+            tint = SaveMePalette.info.opacity(0.82)
         } else if isError {
             title = L("Ошибка")
-            tint = Color.red.opacity(0.82)
+            tint = SaveMePalette.danger.opacity(0.82)
         } else if isDone {
             title = L("Готово")
-            tint = Color.green.opacity(0.82)
+            tint = SaveMePalette.success.opacity(0.82)
         } else {
             title = L("Ожидание")
-            tint = Color.gray.opacity(0.78)
+            tint = SaveMePalette.neutral.opacity(0.78)
         }
 
         return HStack(spacing: 8) {
             if model.isBusy {
                 ProgressView()
                     .controlSize(.small)
-            } else {
-                Circle()
-                    .fill(tint)
-                    .frame(width: 8, height: 8)
             }
 
             Text(title)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .font(.saveMe(.label, .semibold))
+                .contentTransition(.opacity)
         }
         .foregroundStyle(tint)
         .padding(.horizontal, 10)
@@ -1167,101 +980,18 @@ struct ContentView: View {
             Capsule(style: .continuous)
                 .fill(tint.opacity(isDark ? 0.14 : 0.10))
         )
+        .animation(.smooth(duration: 0.3), value: title)
     }
 
-    var downloadsCard: some View {
-        card(L("Последние загрузки"), padding: 0) {
-            Group {
-                if model.downloadedItems.isEmpty {
-                    Text(L("Пока нет сохранённых файлов."))
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(secondaryText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(18)
-                } else {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 10) {
-                            ForEach(model.downloadedItems.prefix(20)) { item in
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(item.mediaType.uppercased())
-                                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                                        .foregroundStyle(tertiaryText)
-
-                                    Text(item.localPath)
-                                        .font(.system(size: 13, weight: .medium, design: .monospaced))
-                                        .foregroundStyle(primaryText)
-                                        .textSelection(.enabled)
-
-                                    Text(item.metadataPath)
-                                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                        .foregroundStyle(secondaryText)
-                                        .textSelection(.enabled)
-
-                                    Text(item.sourceURL)
-                                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                                        .foregroundStyle(secondaryText)
-                                        .lineLimit(2)
-                                        .textSelection(.enabled)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(14)
-                                .background(
-                                    RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                                        .fill(itemFill)
-                                )
-                            }
-                        }
-                        .padding(18)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: 260, alignment: .topLeading)
-        }
-    }
 
     var postProcessingCard: some View {
-        card(L("Сортировка")) {
+        card(L("Сортировка"), symbol: "folder.badge.gearshape") {
             VStack(alignment: .leading, spacing: 16) {
                 sortingOverviewCard
 
                 sortingStepCard(
-                    number: "0",
-                    title: L("Удалить пустые папки"),
-                    detail: L("Работает отдельно от сортировки и не трогает папку «На перенос»."),
-                    isActive: true,
-                    isDone: model.emptyFolderCleanupDirectory != nil
-                ) {
-                    horizontalMonospaceField(
-                        model.emptyFolderCleanupDirectory?.path ?? L("Папка ещё не выбрана."),
-                        fontSize: 12
-                    )
-                    .frame(height: 52)
-
-                    HStack(spacing: 10) {
-                        button(L("Выбрать папку"), systemImage: "folder.badge.gearshape", prominent: true) {
-                            model.chooseEmptyFolderCleanupDirectory()
-                        }
-
-                        button(L("Открыть"), systemImage: "folder") {
-                            model.openEmptyFolderCleanupDirectory()
-                        }
-                        .disabled(model.emptyFolderCleanupDirectory == nil)
-                    }
-
-                    button(L("Удалить пустые папки"), systemImage: "trash", prominent: false) {
-                        Task { await model.removeEmptyFoldersInCleanupDirectory() }
-                    }
-                    .disabled(model.emptyFolderCleanupDirectory == nil)
-
-                    Text(model.emptyFolderCleanupSummary)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                sortingStepCard(
                     number: "1",
-                    title: L("Укажи, где находится папка «На перенос»"),
+                    title: L("Укажите, где находится папка «На перенос»"),
                     detail: L("Отсюда приложение возьмёт файлы для раскладки."),
                     isActive: true,
                     isDone: sortingHasSource
@@ -1286,7 +1016,7 @@ struct ContentView: View {
 
                 sortingStepCard(
                     number: "2",
-                    title: L("Выбери папку WhiteList INF Исходники"),
+                    title: L("Выберите папку WhiteList INF Исходники"),
                     detail: L("Сюда файлы будут разложены по подпапкам."),
                     isActive: sortingHasSource,
                     isDone: sortingHasDestination
@@ -1311,8 +1041,8 @@ struct ContentView: View {
 
                 sortingStepCard(
                     number: "3",
-                    title: L("Добавь правила при необходимости"),
-                    detail: L("Укажи страну или полный путь для конкретного блогера."),
+                    title: L("Добавьте правила при необходимости"),
+                    detail: L("Укажите страну или полный путь для конкретного блогера."),
                     isActive: sortingHasSource && sortingHasDestination,
                     isDone: sortingRuleCount > 0
                 ) {
@@ -1328,12 +1058,12 @@ struct ContentView: View {
                             .clipShape(RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous))
 
                             Text(L("Если указать только страну, приложение само добавит внутрь папку блогера: `nick = Germany (DE)` → `Germany (DE)/nick`."))
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .font(.saveMe(.label, .medium))
                                 .foregroundStyle(quaternaryText)
                                 .fixedSize(horizontal: false, vertical: true)
 
                             Text(L("Запомнено блогеров: {0}. Список обновляется после правил и каждого переноса.", model.rememberedBloggers.count))
-                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                .font(.saveMe(.label, .semibold))
                                 .foregroundStyle(secondaryText)
                                 .fixedSize(horizontal: false, vertical: true)
 
@@ -1341,7 +1071,7 @@ struct ContentView: View {
                                 VStack(alignment: .leading, spacing: 6) {
                                     ForEach(model.rememberedBloggers.prefix(6)) { blogger in
                                         Text("\(blogger.countryFolder): \(blogger.username)")
-                                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                                            .font(.saveMe(.label, .medium))
                                             .foregroundStyle(quaternaryText)
                                     }
                                 }
@@ -1352,7 +1082,7 @@ struct ContentView: View {
                     } label: {
                         HStack {
                             Text(sortingRuleCount == 0 ? L("Открыть правила") : L("Правил: {0}", sortingRuleCount))
-                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .font(.saveMe(.body, .semibold))
                                 .foregroundStyle(primaryText)
                             Spacer(minLength: 0)
                         }
@@ -1362,8 +1092,8 @@ struct ContentView: View {
 
                 sortingStepCard(
                     number: "4",
-                    title: L("Разложи файлы"),
-                    detail: L("Нажми основную кнопку. Дополнительный вариант спрятан ниже."),
+                    title: L("Разложите файлы"),
+                    detail: L("Нажмите основную кнопку. Дополнительный вариант — ниже."),
                     isActive: sortingHasSource && sortingHasDestination,
                     isDone: sortingHasResults
                 ) {
@@ -1371,17 +1101,17 @@ struct ContentView: View {
                         statPill(
                             title: L("Последняя выгрузка"),
                             value: model.latestSessionDownloadedItems.count,
-                            accent: Color.orange.opacity(0.78)
+                            accent: SaveMePalette.warning.opacity(0.78)
                         )
                         statPill(
                             title: L("Готово"),
                             value: model.postProcessedItems.count,
-                            accent: Color.blue.opacity(0.78)
+                            accent: SaveMePalette.info.opacity(0.78)
                         )
                     }
 
                     Text(model.postProcessingSummary)
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .font(.saveMe(.body, .medium))
                         .foregroundStyle(secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
 
@@ -1397,8 +1127,8 @@ struct ContentView: View {
 
                     DisclosureGroup(isExpanded: $sortingAdvancedExpanded) {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text(L("Используй это, если нужно разложить файлы из последней загрузки приложения, без папки Перенос."))
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                            Text(L("Используйте это, если нужно разложить файлы из последней загрузки приложения, без папки Перенос."))
+                                .font(.saveMe(.label, .medium))
                                 .foregroundStyle(quaternaryText)
                                 .fixedSize(horizontal: false, vertical: true)
 
@@ -1411,7 +1141,7 @@ struct ContentView: View {
                     } label: {
                         HStack {
                             Text(L("Дополнительно"))
-                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .font(.saveMe(.body, .semibold))
                                 .foregroundStyle(primaryText)
                             Spacer(minLength: 0)
                         }
@@ -1421,13 +1151,13 @@ struct ContentView: View {
 
                 sortingStepCard(
                     number: "5",
-                    title: L("Скопируй готовый результат"),
+                    title: L("Скопируйте готовый результат"),
                     detail: L("Drive-ссылки копируются дайджестом: страна, блогер, ссылки."),
                     isActive: sortingHasResults,
                     isDone: false
                 ) {
                     Text(model.googleDriveLinkSummary)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .font(.saveMe(.label, .medium))
                         .foregroundStyle(quaternaryText)
                         .fixedSize(horizontal: false, vertical: true)
 
@@ -1444,7 +1174,7 @@ struct ContentView: View {
                     }
 
                     Text(L("Если у файла не найдутся данные Google Drive, приложение попробует получить ссылку через Finder."))
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .font(.saveMe(.label, .medium))
                         .foregroundStyle(quaternaryText)
                         .fixedSize(horizontal: false, vertical: true)
 
@@ -1456,44 +1186,75 @@ struct ContentView: View {
         }
     }
 
-    var sortingOverviewCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(L("Пройди шаги сверху вниз: выбери две папки, при необходимости добавь правила и потом скопируй результат."))
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
+    /// Отдельная утилита, не шаг сортировки: удаляет пустые подпапки в выбранной папке.
+    var emptyFolderCleanupCard: some View {
+        card(L("Удалить пустые папки"), symbol: "folder.badge.minus") {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(L("Работает отдельно от сортировки и не трогает папку «На перенос»."))
+                    .font(.saveMe(.label))
+                    .foregroundStyle(secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 10) {
-                sortingOverviewPill(title: L("Источник"), state: sortingHasSource ? L("Выбран") : L("Не выбран"), tint: sortingHasSource ? Color.green.opacity(0.75) : Color.orange.opacity(0.75))
-                sortingOverviewPill(title: L("Назначение"), state: sortingHasDestination ? L("Выбрано") : L("Не выбрано"), tint: sortingHasDestination ? Color.green.opacity(0.75) : Color.orange.opacity(0.75))
-                sortingOverviewPill(title: L("Результат"), state: sortingHasResults ? L("Готов") : L("Пусто"), tint: sortingHasResults ? Color.blue.opacity(0.72) : Color.gray.opacity(0.45))
+                horizontalMonospaceField(
+                    model.emptyFolderCleanupDirectory?.path ?? L("Папка ещё не выбрана."),
+                    fontSize: SaveMeTextRole.label.rawValue
+                )
+                .frame(height: 44)
+
+                HStack(spacing: 10) {
+                    button(L("Выбрать папку"), systemImage: "folder.badge.gearshape") {
+                        model.chooseEmptyFolderCleanupDirectory()
+                    }
+
+                    button(L("Открыть"), systemImage: "folder") {
+                        model.openEmptyFolderCleanupDirectory()
+                    }
+                    .disabled(model.emptyFolderCleanupDirectory == nil)
+                }
+
+                button(L("Удалить пустые папки"), systemImage: "trash") {
+                    showingDeleteEmptyFoldersConfirmation = true
+                }
+                .disabled(model.emptyFolderCleanupDirectory == nil)
+                .confirmationDialog(L("Удалить пустые папки?"), isPresented: $showingDeleteEmptyFoldersConfirmation) {
+                    Button(L("Удалить"), role: .destructive) {
+                        Task { await model.removeEmptyFoldersInCleanupDirectory() }
+                    }
+                    Button(L("Отмена"), role: .cancel) {}
+                } message: {
+                    Text(L("Пустые подпапки в «{0}» будут удалены. Папки с файлами останутся.", model.emptyFolderCleanupDirectory?.lastPathComponent ?? ""))
+                }
+
+                Text(model.emptyFolderCleanupSummary)
+                    .font(.saveMe(.label))
+                    .foregroundStyle(secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
-                .fill(itemFill)
-        )
+    }
+
+    var sortingOverviewCard: some View {
+        HStack(alignment: .top, spacing: 16) {
+            sortingOverviewPill(title: L("Источник"), state: sortingHasSource ? L("Выбран") : L("Не выбран"), tint: sortingHasSource ? SaveMePalette.success : SaveMePalette.warning)
+            sortingOverviewPill(title: L("Назначение"), state: sortingHasDestination ? L("Выбрано") : L("Не выбрано"), tint: sortingHasDestination ? SaveMePalette.success : SaveMePalette.warning)
+            sortingOverviewPill(title: L("Результат"), state: sortingHasResults ? L("Готов") : L("Пусто"), tint: sortingHasResults ? SaveMePalette.success : secondaryText)
+        }
     }
 
     func sortingOverviewPill(title: String, state: String, tint: Color) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .textCase(.uppercase)
-                .foregroundStyle(tertiaryText)
+        VStack(alignment: .leading, spacing: 2) {
             Text(state)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(primaryText)
+                .font(.saveMe(.body, .semibold))
+                .foregroundStyle(tint)
+            Text(title)
+                .font(.saveMe(.label))
+                .foregroundStyle(secondaryText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(tint.opacity(isDark ? 0.24 : 0.16))
-        )
+        .accessibilityElement(children: .combine)
     }
 
+    /// Шаг сортировки: номер, заголовок и содержимое; шаги разделены линией, без вложенных плиток.
     func sortingStepCard<Content: View>(
         number: String,
         title: String,
@@ -1503,172 +1264,97 @@ struct ContentView: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
+            Divider()
+
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(number)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundStyle(isDone ? Color.white : primaryText)
-                    .frame(width: 30, height: 30)
-                    .background(
-                        Circle()
-                            .fill(isDone ? Color.green.opacity(0.82) : (isActive ? prominentButtonTint.opacity(0.78) : tertiaryText.opacity(0.24)))
-                    )
+                    .font(.saveMe(.body, .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(isDone ? SaveMePalette.success : (isActive ? brandTint : secondaryText))
+                    .frame(width: 16, alignment: .leading)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Text(title)
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .foregroundStyle(primaryText)
-                        if isDone {
-                            Text(L("Готово"))
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    Capsule(style: .continuous)
-                                        .fill(Color.green.opacity(isDark ? 0.22 : 0.14))
-                                )
-                                .foregroundStyle(Color.green.opacity(0.92))
-                        }
-                    }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.saveMe(.title, .semibold))
+                        .foregroundStyle(primaryText)
 
-                    Text(detail)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                    Text(isDone ? L("Готово") + ". " + detail : detail)
+                        .font(.saveMe(.label))
                         .foregroundStyle(secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
-            content()
-                .opacity(isActive || isDone ? 1 : 0.72)
-        }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                .fill(itemFill)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                .strokeBorder((isActive ? prominentButtonTint : Color.white).opacity(isDark ? 0.18 : 0.16), lineWidth: 1)
-        )
-    }
-
-    func logsCard(maxHeight: CGFloat? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                Text(L("Логи"))
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .textCase(.uppercase)
-                    .foregroundStyle(quaternaryText)
-
-                Spacer(minLength: 0)
-
-                Button {
-                    model.copyLogs()
-                } label: {
-                    Label(L("Скопировать логи"), systemImage: "doc.on.doc")
-                }
-                .saveMeGlassButton()
-                .controlSize(.small)
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 18)
-
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 10) {
-                    ForEach(model.logs, id: \.self) { line in
-                        Text(line)
-                            .font(.system(size: 12, weight: .medium, design: .monospaced))
-                            .foregroundStyle(primaryText)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
-                    }
-                }
-                .padding(.horizontal, 18)
-                .padding(.bottom, 18)
-            }
-            .frame(maxWidth: .infinity, maxHeight: maxHeight ?? .infinity, alignment: .topLeading)
-        }
-        .background(cardBackground)
-        .overlay(
-            RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
-                .strokeBorder(cardStroke, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous))
-    }
-
-    func homeLogsCard(maxHeight: CGFloat? = nil) -> some View {
-        card(L("Логи"), padding: 0) {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 12) {
-                    Spacer(minLength: 0)
+                content()
+            }
+            .padding(.leading, 26)
+            .opacity(isActive || isDone ? 1 : 0.6)
+        }
+    }
 
-                    Button {
-                        model.copyLogs()
-                        showingLogsCopiedFeedback = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
-                            showingLogsCopiedFeedback = false
+    /// Журнал событий. Пока событий нет — одна строка вместо пустой панели.
+    func logsCard(maxHeight: CGFloat? = nil) -> some View {
+        card(L("Логи"), symbol: "text.alignleft", padding: 0) {
+            if model.logs.isEmpty {
+                Text(L("Лог пока пуст."))
+                    .font(.saveMe(.label, .medium))
+                    .foregroundStyle(secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, SaveMeMetrics.cardPadding)
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Spacer(minLength: 0)
+                        Button {
+                            model.copyLogs()
+                            showingLogsCopiedFeedback = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+                                showingLogsCopiedFeedback = false
+                            }
+                        } label: {
+                            Label(showingLogsCopiedFeedback ? L("Скопировано") : L("Скопировать логи"), systemImage: showingLogsCopiedFeedback ? "checkmark" : "doc.on.doc")
                         }
-                    } label: {
-                        Label(showingLogsCopiedFeedback ? L("Скопировано ✓") : L("Скопировать"), systemImage: showingLogsCopiedFeedback ? "checkmark" : "doc.on.doc")
+                        .saveMeGlassButton()
+                        .controlSize(.small)
                     }
-                    .saveMeGlassButton()
-                    .controlSize(.small)
-                }
-                .padding(.horizontal, 18)
+                    .padding(.horizontal, SaveMeMetrics.cardPadding)
 
-                ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 10) {
-                            ForEach(Array(model.logs.reversed().enumerated()), id: \.offset) { index, line in
+                            ForEach(Array(model.logs.reversed().enumerated()), id: \.offset) { _, line in
                                 Text(cleanedLogLine(line))
-                                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                    .font(.saveMe(.label, .medium, mono: true))
                                     .foregroundStyle(logTint(for: line))
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .textSelection(.enabled)
-                                    .id(index)
                             }
                         }
-                        .padding(.horizontal, 18)
-                        .padding(.bottom, 18)
+                        .padding(.horizontal, SaveMeMetrics.cardPadding)
+                        .padding(.bottom, SaveMeMetrics.cardPadding)
                     }
                     .frame(maxWidth: .infinity, maxHeight: maxHeight ?? 320, alignment: .topLeading)
-                    .onAppear {
-                        if !model.logs.isEmpty {
-                            proxy.scrollTo(model.logs.count - 1, anchor: .bottom)
-                        }
-                    }
-                    .onChange(of: model.logs.count) { _, newCount in
-                        guard newCount > 0 else { return }
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            proxy.scrollTo(newCount - 1, anchor: .bottom)
-                        }
-                    }
                 }
             }
         }
+        .animation(.smooth(duration: 0.3), value: model.logs.isEmpty)
     }
 
+
     func homeDiagnosticsCard(maxHeight: CGFloat? = nil) -> some View {
-        card(L("Диагностика"), padding: 0) {
+        card(L("Диагностика"), symbol: "stethoscope", padding: 0) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: model.statusTitle.mentionsAny("ошиб", "error", "fail") ? "exclamationmark.triangle.fill" : "stethoscope")
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .foregroundStyle(globalStatusTint)
-                        .frame(width: 28, height: 28)
-                        .background(
-                            Circle()
-                                .fill(globalStatusTint.opacity(isDark ? 0.14 : 0.10))
-                        )
+                    if model.statusTitle.mentionsAny("ошиб", "error", "fail") {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.saveMe(.title, .semibold))
+                            .foregroundStyle(SaveMePalette.danger)
+                            .accessibilityHidden(true)
+                    }
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(model.statusDetail)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundStyle(primaryText)
-                            .fixedSize(horizontal: false, vertical: true)
-
                         Text(model.logs.first.map(cleanedLogLine) ?? L("Технические сообщения появятся после первой операции."))
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .font(.saveMe(.label, .medium))
                             .foregroundStyle(tertiaryText)
                             .lineLimit(2)
                     }
@@ -1684,19 +1370,17 @@ struct ContentView: View {
                     }
                     .saveMeGlassButton()
                     .controlSize(.small)
-                    .tint(secondaryButtonTint)
                 }
-                .padding(.horizontal, 18)
+                .padding(.horizontal, SaveMeMetrics.cardPadding)
 
                 if showingHomeDiagnostics {
                     Divider()
                         .overlay(cardStroke)
-                        .padding(.horizontal, 18)
+                        .padding(.horizontal, SaveMeMetrics.cardPadding)
 
                     HStack(spacing: 12) {
                         Text(L("Последние события"))
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .textCase(.uppercase)
+                            .font(.saveMe(.label, .bold))
                             .foregroundStyle(quaternaryText)
 
                         Spacer(minLength: 0)
@@ -1712,31 +1396,30 @@ struct ContentView: View {
                         }
                         .saveMeGlassButton()
                         .controlSize(.small)
-                        .tint(secondaryButtonTint)
                     }
-                    .padding(.horizontal, 18)
+                    .padding(.horizontal, SaveMeMetrics.cardPadding)
 
                     if model.logs.isEmpty {
                         Text(L("Лог пока пуст."))
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .font(.saveMe(.label, .medium))
                             .foregroundStyle(secondaryText)
-                            .padding(.horizontal, 18)
-                            .padding(.bottom, 18)
+                            .padding(.horizontal, SaveMeMetrics.cardPadding)
+                            .padding(.bottom, SaveMeMetrics.cardPadding)
                     } else {
                         ScrollViewReader { proxy in
                             ScrollView {
                                 LazyVStack(alignment: .leading, spacing: 10) {
                                     ForEach(Array(model.logs.reversed().enumerated()), id: \.offset) { index, line in
                                         Text(cleanedLogLine(line))
-                                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                            .font(.saveMe(.label, .medium, mono: true))
                                             .foregroundStyle(logTint(for: line))
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                             .textSelection(.enabled)
                                             .id(index)
                                     }
                                 }
-                                .padding(.horizontal, 18)
-                                .padding(.bottom, 18)
+                                .padding(.horizontal, SaveMeMetrics.cardPadding)
+                                .padding(.bottom, SaveMeMetrics.cardPadding)
                             }
                             .frame(maxWidth: .infinity, maxHeight: maxHeight ?? 320, alignment: .topLeading)
                             .onAppear {
@@ -1752,16 +1435,15 @@ struct ContentView: View {
                     }
                 }
             }
-            .padding(.top, 18)
-            .padding(.bottom, showingHomeDiagnostics ? 0 : 18)
+            .padding(.bottom, showingHomeDiagnostics ? 0 : SaveMeMetrics.cardPadding)
         }
     }
 
     var runtimeCard: some View {
-        settingsCard(L("Техническая информация")) {
+        settingsCard(L("Техническая информация"), symbol: "cpu") {
             VStack(alignment: .leading, spacing: 12) {
                 Text(runtimeSummaryHeadline)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(.saveMe(.body, .medium))
                     .foregroundStyle(secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -1773,7 +1455,7 @@ struct ContentView: View {
                     .padding(.top, 8)
                     .transition(.opacity)
                 }
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(.saveMe(.body, .medium))
                 .tint(prominentButtonTint)
 
                 button(L("Открыть папку среды"), systemImage: "internaldrive") {
@@ -1784,13 +1466,13 @@ struct ContentView: View {
     }
 
     var languageCard: some View {
-        settingsCard("Language / Язык") {
+        settingsCard("Language / Язык", symbol: "globe") {
             LanguageSetting(secondaryText: secondaryText)
         }
     }
 
     var updatesCard: some View {
-        settingsCard(L("Обновления")) {
+        settingsCard(L("Обновления"), symbol: "arrow.triangle.2.circlepath") {
             VStack(alignment: .leading, spacing: 12) {
                 statusInlineNote(
                     title: L("Автообновление"),
@@ -1805,14 +1487,15 @@ struct ContentView: View {
                 ) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(L("Проверять и скачивать автоматически"))
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .font(.saveMe(.body, .semibold))
                             .foregroundStyle(primaryText)
 
                         Text(L("При запуске SaveMe проверит обновление и подготовит его к установке."))
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .font(.saveMe(.label, .medium))
                             .foregroundStyle(tertiaryText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .toggleStyle(.switch)
                 .disabled(!model.canCheckForUpdates)
@@ -1836,11 +1519,10 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .saveMeGlassButton(prominent: true)
-                    .tint(secondaryButtonTint)
                     .disabled(model.isCheckingForUpdates)
                 } else {
                     Text(L("Обновления пока недоступны в этой сборке"))
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .font(.saveMe(.body, .medium))
                         .foregroundStyle(quaternaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -1849,18 +1531,13 @@ struct ContentView: View {
     }
 
     var powerCard: some View {
-        settingsCard(L("Во время выгрузки")) {
+        settingsCard(L("Во время выгрузки"), symbol: "moon.zzz") {
             VStack(alignment: .leading, spacing: 12) {
                 Toggle(isOn: $model.preventSleepDuringDownloads) {
-                    HStack(alignment: .center, spacing: 10) {
-                        Image(systemName: "moon.zzz.fill")
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundStyle(model.preventSleepDuringDownloads ? prominentButtonTint : secondaryText)
-
-                        Text(L("Не давать Mac засыпать и гасить экран"))
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundStyle(primaryText)
-                    }
+                    Text(L("Не давать Mac засыпать и гасить экран"))
+                        .font(.saveMe(.body, .semibold))
+                        .foregroundStyle(primaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .toggleStyle(.switch)
 
@@ -1876,10 +1553,10 @@ struct ContentView: View {
     }
 
     var sessionCard: some View {
-        settingsCard(L("Подключение к Instagram")) {
+        settingsCard(L("Подключение к Instagram"), symbol: "person.crop.circle") {
             VStack(alignment: .leading, spacing: 12) {
-                Text(L("Если среда ещё не подготовлена, установи компоненты прямо отсюда. После этого можно открыть браузер для входа и проверить сессию."))
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                Text(L("Если среда ещё не подготовлена, установите компоненты прямо отсюда. После этого можно открыть браузер для входа и проверить сессию."))
+                    .font(.saveMe(.body, .medium))
                     .foregroundStyle(secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -1891,21 +1568,14 @@ struct ContentView: View {
                 if model.hasEmbeddedRuntime {
                     HStack(spacing: 10) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .foregroundStyle(Color.green.opacity(0.86))
+                            .font(.saveMe(.title, .semibold))
+                            .foregroundStyle(SaveMePalette.success.opacity(0.86))
 
                         Text(L("Всё встроено — дополнительная установка не нужна"))
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .font(.saveMe(.body, .semibold))
                             .foregroundStyle(primaryText)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
-                    .cardBackground(
-                        cornerRadius: controlCornerRadius,
-                        fill: cardFill,
-                        stroke: cardStroke,
-                        tint: Color.green.opacity(isDark ? 0.16 : 0.10)
-                    )
                 }
 
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
@@ -1931,35 +1601,11 @@ struct ContentView: View {
         }
     }
 
-    func downloadModePicker(showTitle: Bool = true) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if showTitle {
-                Text(L("Режим выгрузки"))
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .textCase(.uppercase)
-                    .foregroundStyle(tertiaryText)
-            }
-
-            Picker(L("Режим выгрузки"), selection: $model.downloadMode) {
-                ForEach(AppModel.DownloadMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            Text(model.downloadMode.detail)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
 
     var storiesDownloadModePicker: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L("Режим браузера"))
-                .font(.caption)
-                .tracking(1.2)
-                .textCase(.uppercase)
+                .font(.saveMe(.micro))
                 .foregroundStyle(tertiaryText)
 
             Picker(L("Режим браузера"), selection: $model.downloadMode) {
@@ -1970,7 +1616,7 @@ struct ContentView: View {
             .pickerStyle(.segmented)
 
             Text(selectedDownloadModeDescription)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(.saveMe(.body, .medium))
                 .foregroundStyle(secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
                 .transition(.opacity)
@@ -1981,9 +1627,7 @@ struct ContentView: View {
     var storiesMediaSelectionPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L("Что сохранять"))
-                .font(.caption)
-                .tracking(1.2)
-                .textCase(.uppercase)
+                .font(.saveMe(.micro))
                 .foregroundStyle(tertiaryText)
 
             Picker(L("Что сохранять"), selection: $model.mediaSelectionMode) {
@@ -1994,7 +1638,7 @@ struct ContentView: View {
             .pickerStyle(.segmented)
 
             Text(selectedMediaSelectionDescription)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(.saveMe(.body, .medium))
                 .foregroundStyle(secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
                 .transition(.opacity)
@@ -2002,37 +1646,10 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.2), value: model.mediaSelectionMode)
     }
 
-    func mediaSelectionPicker(showTitle: Bool = true) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if showTitle {
-                Text(L("Что сохранять"))
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .textCase(.uppercase)
-                    .foregroundStyle(tertiaryText)
-            }
-
-            Picker(L("Что сохранять"), selection: $model.mediaSelectionMode) {
-                ForEach(AppModel.MediaSelectionMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            Text(model.mediaSelectionMode.detail)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
 
     var reelsComposerCard: some View {
-        reelsCard(L("Ссылки на Reels")) {
+        reelsCard(L("Ссылки на Reels"), symbol: "link") {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 10) {
-                    queueSummaryPill(title: L("Вставлено"), value: "\(reelsLinkCount)", tint: Color.white.opacity(isDark ? 0.08 : 0.54))
-                    queueSummaryPill(title: L("Сессия"), value: model.sessionReady ? L("Готова") : L("Войти"), tint: (model.sessionReady ? Color.green : Color.orange).opacity(isDark ? 0.13 : 0.10))
-                }
-
                 reelsInputEditor
 
                 HStack(spacing: 10) {
@@ -2052,7 +1669,6 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .saveMeGlassButton(prominent: true)
-                    .tint(prominentButtonTint)
                     .disabled(reelsLinkCount == 0 || model.isBusy)
                     .opacity(reelsLinkCount == 0 || model.isBusy ? 0.72 : 1)
 
@@ -2063,13 +1679,12 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .saveMeGlassButton()
-                    .tint(secondaryButtonTint)
                     .disabled(model.isBusy || model.reelsInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .opacity(model.isBusy || model.reelsInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.72 : 1)
                 }
 
                 Text(L("Reels скачиваются отдельным потоком и не зависят от сценария сторис."))
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .font(.saveMe(.label, .medium))
                     .foregroundStyle(quaternaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -2077,19 +1692,11 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.2), value: model.isBusy)
     }
 
-    var reelsHero: some View {
-        detailHero(
-            eyebrow: "Reels",
-            title: L("Скачать Reels по ссылке"),
-            subtitle: L("Вставь одну или несколько ссылок на публикации Instagram. Сохраним видео в выбранную папку и покажем последние файлы справа.")
-        )
-    }
-
     var reelsInputEditor: some View {
         ZStack(alignment: .topLeading) {
             TextEditor(text: $model.reelsInput)
                 .accessibilityLabel(L("Ссылки на Reels"))
-                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .font(.saveMe(.body, .medium, mono: true))
                 .scrollContentBackground(.hidden)
                 .foregroundStyle(primaryText)
                 .padding(.horizontal, 10)
@@ -2099,7 +1706,7 @@ struct ContentView: View {
 
             if model.reelsInput.isEmpty {
                 Text(L("Например:\nhttps://www.instagram.com/reel/DMabc123/\nhttps://www.instagram.com/reel/DMxyz456/"))
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .font(.saveMe(.body, .medium, mono: true))
                     .foregroundStyle(tertiaryText)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 18)
@@ -2111,12 +1718,12 @@ struct ContentView: View {
                     model.reelsInput = ""
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.saveMe(.micro, .bold))
                         .foregroundStyle(secondaryText)
                         .frame(width: 24, height: 24)
                         .background(
                             Circle()
-                                .fill(Color.white.opacity(isDark ? 0.08 : 0.78))
+                                .fill(controlFill)
                         )
                 }
                 .buttonStyle(.plain)
@@ -2126,14 +1733,14 @@ struct ContentView: View {
                 .transition(.opacity)
             }
 
-            Text("\(reelsLinkCount) \(reelsLinkCount == 1 ? "ссылка" : reelsLinkCount < 5 ? "ссылки" : "ссылок")")
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+            Text(L("Ссылок: {0}", reelsLinkCount))
+                .font(.saveMe(.micro, .semibold))
                 .foregroundStyle(quaternaryText)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(Color.white.opacity(isDark ? 0.08 : 0.72))
+                        .fill(controlFill)
                 )
                 .padding(.trailing, 12)
                 .padding(.bottom, 12)
@@ -2149,10 +1756,10 @@ struct ContentView: View {
     }
 
     var reelsDestinationCard: some View {
-        reelsCard(L("Куда сохранять")) {
+        reelsCard(L("Куда сохранять"), symbol: "folder") {
             VStack(alignment: .leading, spacing: 12) {
                 Text(model.saveDirectory.path)
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .font(.saveMe(.body, .medium, mono: true))
                     .foregroundStyle(primaryText)
                     .lineLimit(1)
                     .truncationMode(.head)
@@ -2170,7 +1777,6 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .saveMeGlassButton()
-                    .tint(secondaryButtonTint)
 
                     Button {
                         model.openSaveDirectory()
@@ -2179,14 +1785,13 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .saveMeGlassButton()
-                    .tint(secondaryButtonTint)
                 }
             }
         }
     }
 
     var reelsActivityPanel: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: SaveMeMetrics.sectionSpacing) {
             reelsActivityHeader
             reelsDownloadsCard
             reelsLogsCard()
@@ -2196,35 +1801,27 @@ struct ContentView: View {
     }
 
     var reelsActivityHeader: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 12) {
-                Text(L("Активность"))
-                    .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    .foregroundStyle(primaryText)
-
-                Spacer(minLength: 0)
-
+        card(L("Состояние"), symbol: "waveform.path.ecg") {
+            VStack(alignment: .leading, spacing: 10) {
                 reelsSessionBadge
-                    .transition(.opacity)
-            }
 
-            Text(model.lastResult)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
+                Text(model.lastResult)
+                    .font(.saveMe(.body, .medium))
+                    .foregroundStyle(secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
 
-            if model.isBusy || !model.currentStepLabel.isEmpty {
-                HStack(spacing: 8) {
-                    if model.isBusy {
+                if model.isBusy {
+                    HStack(spacing: 8) {
                         liveIndicatorDot(size: 8)
-                    }
 
-                    Text(model.currentStepLabel)
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundStyle(tertiaryText)
-                        .fixedSize(horizontal: false, vertical: true)
+                        Text(model.currentStepLabel)
+                            .font(.saveMe(.label, .semibold))
+                            .foregroundStyle(tertiaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .contentTransition(.opacity)
+                    }
+                    .transition(.opacity)
                 }
-                .transition(.opacity)
             }
         }
     }
@@ -2233,42 +1830,39 @@ struct ContentView: View {
         let ready = model.sessionReady
         return HStack(spacing: 6) {
             Image(systemName: ready ? "person.crop.circle.badge.checkmark" : "person.crop.circle.badge.exclamationmark")
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(.saveMe(.micro, .semibold))
 
             Text(ready ? L("Сессия активна") : L("Нет сессии"))
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(.saveMe(.micro, .semibold))
         }
-        .foregroundStyle(ready ? Color.green.opacity(0.88) : Color.red.opacity(0.82))
+        .foregroundStyle(ready ? SaveMePalette.success.opacity(0.88) : SaveMePalette.danger.opacity(0.82))
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(
             Capsule(style: .continuous)
-                .fill((ready ? Color.green : Color.red).opacity(isDark ? 0.16 : 0.10))
+                .fill((ready ? SaveMePalette.success : SaveMePalette.danger).opacity(isDark ? 0.16 : 0.10))
         )
     }
 
     var reelsDownloadsCard: some View {
-        reelsCard(L("Последние загрузки"), padding: 0) {
+        reelsCard(L("Последние загрузки"), symbol: "tray.full", padding: 0) {
             Group {
                 if model.downloadedItems.isEmpty {
-                    VStack(spacing: 10) {
-                        Image(systemName: "tray")
-                            .font(.system(size: 24, weight: .regular, design: .rounded))
-                            .foregroundStyle(tertiaryText)
-
-                        Text(L("Пока ничего нет"))
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundStyle(secondaryText)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 180)
+                    Text(L("Пока ничего нет"))
+                        .font(.saveMe(.label, .medium))
+                        .foregroundStyle(secondaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, SaveMeMetrics.cardPadding)
                 } else {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 10) {
                             ForEach(model.downloadedItems.prefix(20)) { item in
                                 reelsDownloadRow(item)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
                             }
                         }
-                        .padding(18)
+                        .animation(.smooth(duration: 0.35), value: model.downloadedItems.count)
+                        .padding(SaveMeMetrics.cardPadding)
                     }
                     .frame(maxHeight: 260)
                 }
@@ -2283,12 +1877,12 @@ struct ContentView: View {
             HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(URL(fileURLWithPath: item.localPath).lastPathComponent)
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .font(.saveMe(.body, .semibold))
                         .foregroundStyle(primaryText)
                         .lineLimit(1)
 
                     Text(item.localPath)
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .font(.saveMe(.micro, .medium, mono: true))
                         .foregroundStyle(tertiaryText)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -2300,89 +1894,36 @@ struct ContentView: View {
                     model.revealDownloadedItem(at: item.localPath)
                 } label: {
                     Image(systemName: "folder")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .font(.saveMe(.label, .semibold))
                         .frame(width: 28, height: 28)
                 }
                 .saveMeGlassButton()
-                .tint(secondaryButtonTint)
                 .help(L("Показать в Finder"))
             }
 
             HStack(spacing: 8) {
                 Text(formattedFileSize(for: item.localPath))
-                Text("·")
                 Text(formattedDownloadTime(item.createdAt))
             }
-            .font(.system(size: 11, weight: .medium, design: .rounded))
+            .font(.saveMe(.micro, .medium))
             .foregroundStyle(secondaryText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                .fill(itemFill)
-        )
+        .padding(.vertical, 10)
+        .overlay(alignment: .bottom) { Divider() }
     }
 
     func reelsLogsCard(maxHeight: CGFloat? = nil) -> some View {
-        reelsCard(L("Логи"), padding: 0) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 12) {
-                    Spacer(minLength: 0)
-
-                    Button {
-                        model.copyLogs()
-                        showingLogsCopiedFeedback = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
-                            showingLogsCopiedFeedback = false
-                        }
-                    } label: {
-                        Label(showingLogsCopiedFeedback ? L("Скопировано ✓") : L("Скопировать логи"), systemImage: showingLogsCopiedFeedback ? "checkmark" : "doc.on.doc")
-                    }
-                    .saveMeGlassButton()
-                    .controlSize(.small)
-                }
-                .padding(.horizontal, 18)
-
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 10) {
-                            ForEach(Array(model.logs.reversed().enumerated()), id: \.offset) { index, line in
-                                Text(line)
-                                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                                    .foregroundStyle(logTint(for: line))
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .textSelection(.enabled)
-                                    .id(index)
-                            }
-                        }
-                        .padding(.horizontal, 18)
-                        .padding(.bottom, 18)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: maxHeight ?? 280, alignment: .topLeading)
-                    .onAppear {
-                        if !model.logs.isEmpty {
-                            proxy.scrollTo(model.logs.count - 1, anchor: .bottom)
-                        }
-                    }
-                    .onChange(of: model.logs.count) { _, newCount in
-                        guard newCount > 0 else { return }
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            proxy.scrollTo(newCount - 1, anchor: .bottom)
-                        }
-                    }
-                }
-            }
-        }
+        logsCard(maxHeight: maxHeight ?? 280)
     }
 
     func logTint(for line: String) -> Color {
         let normalized = line.lowercased()
         if normalized.contains("error") || normalized.contains("failed") {
-            return Color.red.opacity(0.84)
+            return SaveMePalette.danger.opacity(0.84)
         }
         if normalized.contains("ready") || normalized.contains("saved") {
-            return Color.green.opacity(0.84)
+            return SaveMePalette.success.opacity(0.84)
         }
         return secondaryText
     }
@@ -2431,7 +1972,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
                 TextEditor(text: $model.batchInput)
-                    .font(.system(size: 13, design: .monospaced))
+                    .font(.saveMe(.body, .regular, mono: true))
                     .scrollContentBackground(.hidden)
                     .foregroundStyle(primaryText)
                     .padding(10)
@@ -2440,7 +1981,7 @@ struct ContentView: View {
                     .accessibilityHint(L("По одной ссылке или имени пользователя на строку"))
                 if model.batchInput.isEmpty {
                     Text(L("Ссылка на профиль или @username\nПо одному на строку"))
-                        .font(.system(size: 13, design: .monospaced))
+                        .font(.saveMe(.body, .regular, mono: true))
                         .foregroundStyle(secondaryText)
                         .padding(.horizontal, 16).padding(.vertical, 18)
                         .allowsHitTesting(false)
@@ -2450,7 +1991,7 @@ struct ContentView: View {
             Divider()
             HStack {
                 Text(L("Профилей: {0}", batchProfileInputCount))
-                    .font(.caption).monospacedDigit()
+                    .font(.saveMe(.micro)).monospacedDigit()
                     .foregroundStyle(secondaryText)
                 Spacer()
                 if shouldShowStoriesInputExpandButton {
@@ -2458,7 +1999,7 @@ struct ContentView: View {
                         storiesInputExpanded.toggle()
                     }
                     .buttonStyle(.plain)
-                    .font(.caption)
+                    .font(.saveMe(.micro))
                 }
                 if !model.batchInput.isEmpty {
                     Button { model.batchInput = "" } label: {
@@ -2487,10 +2028,11 @@ struct ContentView: View {
             Toggle(isOn: $model.notionInfluencerSourceEnabled) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(L("Обновлять очередь из Notion"))
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .font(.saveMe(.body, .semibold))
                         .foregroundStyle(primaryText)
 
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .toggleStyle(.switch)
             .tint(queueActionTint)
@@ -2506,7 +2048,7 @@ struct ContentView: View {
                 }
 
                 Text(model.notionInfluencerSourceSummary)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .font(.saveMe(.label, .medium))
                     .foregroundStyle(secondaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -2514,19 +2056,13 @@ struct ContentView: View {
                     Task { await model.refreshNotionInfluencerQueue(replaceQueue: true, force: true) }
                 } label: {
                     Text(L("Обновить"))
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .font(.saveMe(.label, .semibold))
                 }
                 .saveMeGlassButton()
                 .controlSize(.small)
-                .tint(secondaryButtonTint)
                 .disabled(model.isBusy || model.isRefreshingNotionInfluencers)
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                .fill(itemFill)
-        )
     }
 
     var notionRoutingRulesSourceControl: some View {
@@ -2534,14 +2070,15 @@ struct ContentView: View {
             Toggle(isOn: $model.notionRoutingRulesSourceEnabled) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(L("Обновлять правила из Notion"))
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .font(.saveMe(.body, .semibold))
                         .foregroundStyle(primaryText)
 
                     Text(L("Перед сортировкой приложение обновит правила не чаще раза в день и заменит список ниже."))
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .font(.saveMe(.label, .medium))
                         .foregroundStyle(tertiaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .toggleStyle(.switch)
             .tint(prominentButtonTint)
@@ -2557,7 +2094,7 @@ struct ContentView: View {
                 }
 
                 Text(model.notionRoutingRulesSourceSummary)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .font(.saveMe(.label, .medium))
                     .foregroundStyle(secondaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -2565,19 +2102,13 @@ struct ContentView: View {
                     Task { await model.refreshNotionRoutingRules(force: true) }
                 } label: {
                     Text(L("Обновить"))
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .font(.saveMe(.label, .semibold))
                 }
                 .saveMeGlassButton()
                 .controlSize(.small)
-                .tint(secondaryButtonTint)
                 .disabled(model.isBusy || model.isRefreshingNotionRoutingRules)
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                .fill(itemFill)
-        )
     }
 
     var storiesDownloadButton: some View {
@@ -2605,17 +2136,8 @@ struct ContentView: View {
         }
     }
 
-    var storiesClearQueueButton: some View {
-        storiesActionButton(
-            L("Очистить"),
-            systemImage: "trash",
-            kind: .destructive,
-            isEnabled: !model.batchQueue.isEmpty && !model.isBusy
-        ) {
-            model.clearBatchQueue()
-        }
-    }
 
+    @ViewBuilder
     private func storiesActionButton(
         _ title: String,
         systemImage: String,
@@ -2624,108 +2146,80 @@ struct ContentView: View {
         isProgressing: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
-        let foreground: Color
-        let fill: Color
-        let stroke: Color
+        let label = HStack(spacing: 8) {
+            if isProgressing {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Image(systemName: systemImage)
+                    .font(.saveMe(.body, .semibold))
+                    .frame(width: 16)
+            }
+
+            Text(title)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+        }
+        .font(.saveMe(.body, .semibold))
+        .frame(maxWidth: .infinity)
 
         switch kind {
-        case .neutral:
-            foreground = primaryText
-            fill = Color.white.opacity(isDark ? 0.10 : 0.82)
-            stroke = prominentButtonTint.opacity(isDark ? 0.22 : 0.18)
         case .primary:
-            foreground = Color.white.opacity(0.96)
-            fill = queueActionTint
-            stroke = queueActionTint.opacity(0.95)
+            Button(action: action) { label.padding(.vertical, 3) }
+                .saveMeGlassButton(prominent: true)
+                .controlSize(.large)
+                .disabled(!isEnabled)
         case .destructive:
-            foreground = Color.red.opacity(0.82)
-            fill = Color.red.opacity(isDark ? 0.10 : 0.055)
-            stroke = Color.red.opacity(isDark ? 0.22 : 0.16)
+            Button(role: .destructive, action: action) { label.padding(.vertical, 3) }
+                .saveMeGlassButton(tint: SaveMePalette.danger.opacity(isDark ? 0.55 : 0.45))
+                .controlSize(.large)
+                .disabled(!isEnabled)
+        case .neutral:
+            Button(action: action) { label.padding(.vertical, 3) }
+                .saveMeGlassButton()
+                .controlSize(.large)
+                .disabled(!isEnabled)
         }
-
-        return Button(action: action) {
-            HStack(spacing: 8) {
-                if isProgressing {
-                    ProgressView()
-                        .controlSize(.small)
-                        .tint(foreground)
-                } else {
-                    Image(systemName: systemImage)
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .frame(width: 16)
-                }
-
-                Text(title)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
-            }
-            .font(.system(size: 13, weight: .semibold, design: .rounded))
-            .foregroundStyle(foreground)
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(StoriesActionButtonStyle(fill: fill, stroke: stroke))
-        .disabled(!isEnabled)
-        .opacity(isEnabled ? 1 : 0.52)
-        .frame(maxWidth: .infinity, minHeight: 46)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: isEnabled)
     }
 
+    /// Второстепенное действие внутри панели: капсула с лёгкой заливкой.
     func ghostButton(_ title: String, systemImage: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: 7) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .font(.saveMe(.label, .semibold))
                 Text(title)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.82)
             }
+            .font(.saveMe(.body, .medium))
             .frame(maxWidth: .infinity)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .padding(.vertical, 9)
         }
         .buttonStyle(StoriesActionButtonStyle(
-            fill: Color.white.opacity(isDark ? 0.10 : 0.35),
-            stroke: (tint ?? prominentButtonTint).opacity(0.22)
+            fill: tint.map { $0.opacity(isDark ? 0.16 : 0.09) } ?? controlFill,
+            stroke: (tint ?? primaryText).opacity(tint == nil ? 0.10 : 0.22)
         ))
-        .foregroundStyle((tint ?? primaryText).opacity(model.isBusy ? 0.45 : 1))
+        .foregroundStyle(tint ?? primaryText)
         .disabled(model.isBusy)
-        .opacity(model.isBusy ? 0.7 : 1)
-        .frame(maxWidth: .infinity, minHeight: 46)
+        .opacity(model.isBusy ? 0.55 : 1)
+        .frame(maxWidth: .infinity)
     }
 
     func queueSummaryBadge(text: String, tint: Color) -> some View {
         Text(text)
-            .font(.system(size: 12, weight: .semibold, design: .rounded))
-            .foregroundStyle(primaryText)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(tint)
-            )
+            .font(.saveMe(.label, .medium))
+            .monospacedDigit()
+            .foregroundStyle(secondaryText)
+            .contentTransition(.numericText())
+            .animation(.snappy(duration: 0.35), value: text)
     }
 
-    func reelsCard<Content: View>(_ title: String, padding: CGFloat = 18, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(title)
-                .font(.caption)
-                .tracking(1.2)
-                .textCase(.uppercase)
-                .foregroundStyle(quaternaryText)
-                .padding(.horizontal, 18)
-                .padding(.top, 18)
-
-            content()
-                .padding(.horizontal, padding)
-                .padding(.bottom, padding == 0 ? 18 : padding)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardBackground(cornerRadius: cardCornerRadius, fill: cardFill, stroke: cardStroke)
+    func reelsCard<Content: View>(_ title: String, symbol: String? = nil, padding: CGFloat = SaveMeMetrics.cardPadding, @ViewBuilder content: () -> Content) -> some View {
+        card(title, symbol: symbol, padding: padding, content: content)
     }
 
     struct SettingsStatusPresentation {
@@ -2741,8 +2235,8 @@ struct ContentView: View {
             return SettingsStatusPresentation(
                 symbol: "bolt.fill",
                 status: L("Готов"),
-                accent: Color.green.opacity(0.86),
-                backgroundTint: Color.green.opacity(isDark ? 0.16 : 0.10)
+                accent: SaveMePalette.success.opacity(0.86),
+                backgroundTint: SaveMePalette.success.opacity(isDark ? 0.16 : 0.10)
             )
         }
 
@@ -2750,8 +2244,8 @@ struct ContentView: View {
         return SettingsStatusPresentation(
             symbol: "bolt.fill",
             status: L("Ошибка"),
-            accent: isError ? Color.red.opacity(0.82) : Color.gray.opacity(0.78),
-            backgroundTint: isError ? Color.red.opacity(isDark ? 0.14 : 0.08) : Color.gray.opacity(isDark ? 0.12 : 0.07)
+            accent: isError ? SaveMePalette.danger.opacity(0.82) : SaveMePalette.neutral.opacity(0.78),
+            backgroundTint: isError ? SaveMePalette.danger.opacity(isDark ? 0.14 : 0.08) : SaveMePalette.neutral.opacity(isDark ? 0.12 : 0.07)
         )
     }
 
@@ -2761,8 +2255,8 @@ struct ContentView: View {
             return SettingsStatusPresentation(
                 symbol: "person.crop.circle.badge.checkmark",
                 status: L("Готов"),
-                accent: Color.green.opacity(0.86),
-                backgroundTint: Color.green.opacity(isDark ? 0.16 : 0.10)
+                accent: SaveMePalette.success.opacity(0.86),
+                backgroundTint: SaveMePalette.success.opacity(isDark ? 0.16 : 0.10)
             )
         }
 
@@ -2770,14 +2264,14 @@ struct ContentView: View {
         return SettingsStatusPresentation(
             symbol: "person.crop.circle.badge.checkmark",
             status: isError ? L("Ошибка") : L("Нет сессии"),
-            accent: isError ? Color.red.opacity(0.82) : Color.gray.opacity(0.78),
-            backgroundTint: isError ? Color.red.opacity(isDark ? 0.14 : 0.08) : Color.gray.opacity(isDark ? 0.12 : 0.07)
+            accent: isError ? SaveMePalette.danger.opacity(0.82) : SaveMePalette.neutral.opacity(0.78),
+            backgroundTint: isError ? SaveMePalette.danger.opacity(isDark ? 0.14 : 0.08) : SaveMePalette.neutral.opacity(isDark ? 0.12 : 0.07)
         )
     }
 
     var runtimeSummaryHeadline: String {
         guard !model.runtimeSummary.isEmpty else {
-            return L("Данные о runtime появятся после проверки воркера.")
+            return L("Данные о движке появятся после проверки.")
         }
 
         var fields: [String: String] = [:]
@@ -2790,84 +2284,34 @@ struct ContentView: View {
 
         let runtimeKind = (fields["worker_runtime"] ?? "node").lowercased() == "python" ? "Python" : "Node"
         let browserLabel = (fields["browsers"] ?? "").contains("ms-playwright") ? "ms-chromium" : "browser runtime"
-        return "\(runtimeKind) · Playwright · \(browserLabel)"
+        return "\(runtimeKind), Playwright, \(browserLabel)"
     }
 
     func statusCard(title: String, presentation: SettingsStatusPresentation) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: presentation.symbol)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(presentation.accent)
-                    .frame(width: 30, height: 30)
-                    .background(
-                        Circle()
-                            .fill(presentation.accent.opacity(isDark ? 0.18 : 0.12))
-                    )
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(title)
-                        .font(.caption)
-                        .tracking(1.2)
-                        .textCase(.uppercase)
-                        .foregroundStyle(quaternaryText)
-
-                    Text(presentation.status)
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .foregroundStyle(primaryText)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(presentation.accent.opacity(isDark ? 0.18 : 0.12))
-                        )
-                        .contentTransition(.opacity)
-                        .transition(.opacity)
-                }
-
-                Spacer(minLength: 0)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .cardBackground(
-            cornerRadius: controlCornerRadius,
-            fill: cardFill,
-            stroke: cardStroke,
-            tint: presentation.backgroundTint
-        )
-        .animation(.easeInOut(duration: 0.2), value: presentation.status)
-    }
-
-    var liveStatusBadge: some View {
-        HStack(spacing: 10) {
-            liveIndicatorDot(size: 12)
+        HStack(spacing: 8) {
+            Image(systemName: presentation.symbol)
+                .font(.saveMe(.body, .semibold))
+                .foregroundStyle(presentation.accent)
+                .frame(width: 18)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(L("Выгрузка выполняется"))
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .textCase(.uppercase)
+                Text(presentation.status)
+                    .font(.saveMe(.body, .semibold))
                     .foregroundStyle(primaryText)
-
-                Text(L("Приложение работает, просто дождись завершения текущего шага."))
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .contentTransition(.opacity)
+                Text(title)
+                    .font(.saveMe(.label))
                     .foregroundStyle(secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
-                .fill(prominentButtonTint.opacity(isDark ? 0.22 : 0.12))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
-                .strokeBorder(prominentButtonTint.opacity(isDark ? 0.36 : 0.22), lineWidth: 1)
-        )
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .animation(.easeInOut(duration: 0.2), value: presentation.status)
     }
+
 
     var stepTracker: some View {
         HStack(spacing: 10) {
@@ -2879,27 +2323,26 @@ struct ContentView: View {
                     .opacity(model.isBusy ? 1 : 0)
 
                 Image(systemName: model.isBusy ? "point.3.connected.trianglepath.dotted" : "sparkle")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .font(.saveMe(.body, .semibold))
                     .foregroundStyle(model.isBusy ? prominentButtonTint : tertiaryText)
                     .symbolEffect(.pulse.byLayer, options: .repeating, isActive: model.isBusy && !reduceMotion)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(L("Текущий шаг"))
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .textCase(.uppercase)
+                    .font(.saveMe(.micro, .bold))
                     .foregroundStyle(quaternaryText)
 
                 if model.isBusy && !reduceMotion {
                     TimelineView(.periodic(from: .now, by: 0.6)) { context in
                         Text(animatedBusyStepLabel(at: context.date))
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .font(.saveMe(.body, .semibold))
                             .foregroundStyle(primaryText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 } else {
                     Text(model.currentStepLabel)
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .font(.saveMe(.body, .medium))
                         .foregroundStyle(primaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -2913,12 +2356,6 @@ struct ContentView: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
-                .fill(model.isBusy ? prominentButtonTint.opacity(isDark ? 0.18 : 0.10) : itemFill)
-        )
     }
 
     func animatedBusyStepLabel(at date: Date) -> String {
@@ -2955,124 +2392,80 @@ struct ContentView: View {
             .accessibilityHidden(true)
     }
 
-    func statPill(title: String, value: Int, accent: Color) -> some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(accent)
-                .frame(width: 10, height: 10)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .textCase(.uppercase)
-                    .foregroundStyle(tertiaryText)
-
-                Text("\(value)")
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundStyle(primaryText)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
-                .fill(pillFill)
-        )
-    }
-
-    func statusRailPill(title: String, value: String, detail: String, tint: Color) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .textCase(.uppercase)
-                .foregroundStyle(quaternaryText)
-
+    /// Показатель: число табличными цифрами и подпись, без плитки и значка. Цифры перекатываются при изменении.
+    func figure(_ title: String, _ value: String, tint: Color? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
             Text(value)
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(primaryText)
-                .lineLimit(2)
-
-            Text(detail)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .font(.saveMe(.heading, .semibold))
+                .monospacedDigit()
+                .foregroundStyle(tint ?? primaryText)
+                .contentTransition(.numericText())
+                .animation(.snappy(duration: 0.35), value: value)
+            Text(title)
+                .font(.saveMe(.label))
                 .foregroundStyle(secondaryText)
-                .lineLimit(2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
-                .fill(.thinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
-                        .fill(tint.opacity(isDark ? 0.16 : 0.10))
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
-                .strokeBorder(cardStroke, lineWidth: 1)
-        )
+        .accessibilityElement(children: .combine)
     }
+
+    /// Строка списка внутри панели: разделитель вместо отдельной плитки.
+    func listRow<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 10)
+            .overlay(alignment: .bottom) { Divider() }
+    }
+
+    func statPill(title: String, value: Int, accent: Color) -> some View {
+        figure(title, "\(value)")
+    }
+
 
     func queueSummaryPill(title: String, value: String, tint: Color) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        figure(title, value)
+    }
+
+    func settingsCard<Content: View>(_ title: String, symbol: String? = nil, padding: CGFloat = SaveMeMetrics.cardPadding, @ViewBuilder content: () -> Content) -> some View {
+        card(title, symbol: symbol, padding: padding, content: content)
+    }
+
+    /// Заголовок панели: значок раздела в фирменном цвете и название.
+    func cardHeader(_ title: String, symbol: String? = nil) -> some View {
+        HStack(spacing: 8) {
+            if let symbol {
+                Image(systemName: symbol)
+                    .font(.saveMe(.title, .medium))
+                    .foregroundStyle(brandTint)
+                    .frame(width: 20, alignment: .center)
+                    .accessibilityHidden(true)
+            }
             Text(title)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .textCase(.uppercase)
-                .foregroundStyle(tertiaryText)
-            Text(value)
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .font(.saveMe(.title, .semibold))
                 .foregroundStyle(primaryText)
+                .accessibilityAddTraits(.isHeader)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
-                .fill(tint)
-        )
     }
 
-    func settingsCard<Content: View>(_ title: String, padding: CGFloat = 18, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(title)
-                .font(.caption)
-                .tracking(1.2)
-                .textCase(.uppercase)
-                .foregroundStyle(quaternaryText)
-                .padding(.horizontal, 18)
-                .padding(.top, 18)
-
-            content()
-                .padding(.horizontal, padding)
-                .padding(.bottom, padding == 0 ? 18 : padding)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardBackground(cornerRadius: cardCornerRadius, fill: cardFill, stroke: cardStroke)
-    }
-
+    /// Основная панель раздела из Liquid Glass.
     func card<Content: View>(
         _ title: String,
-        padding: CGFloat = 18,
+        symbol: String? = nil,
+        padding: CGFloat = SaveMeMetrics.cardPadding,
         minHeight: CGFloat? = nil,
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(title)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundStyle(primaryText)
-                .padding(.horizontal, 18)
-                .padding(.top, 18)
+            cardHeader(title, symbol: symbol)
+                .padding(.horizontal, SaveMeMetrics.cardPadding)
+                .padding(.top, SaveMeMetrics.cardPadding)
 
             content()
                 .padding(.horizontal, padding)
-                .padding(.bottom, padding == 0 ? 18 : padding)
+                .padding(.bottom, padding == 0 ? SaveMeMetrics.cardPadding : padding)
         }
         .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
-        .background(cardBackground)
-        .overlay(
-            RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
-                .strokeBorder(cardStroke, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous))
+        .saveMeGlassSurface(cornerRadius: cardCornerRadius)
     }
 
     func button(
@@ -3084,16 +2477,17 @@ struct ContentView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: 7) {
                 Image(systemName: systemImage)
                 Text(title)
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
             }
+            .fontWeight(prominent ? .semibold : .medium)
             .frame(maxWidth: .infinity)
         }
-        .saveMeGlassButton(prominent: true)
-        .tint(tint ?? (prominent ? prominentButtonTint : secondaryButtonTint))
+        .saveMeGlassButton(prominent: prominent, tint: tint.map { $0.opacity(prominent ? 1 : 0.5) })
+        .controlSize(.large)
         .disabled(!allowWhileBusy && model.isBusy)
     }
 
@@ -3113,7 +2507,7 @@ struct ContentView: View {
         ZStack(alignment: .topLeading) {
             TextEditor(text: text)
                 .accessibilityLabel(placeholder)
-                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .font(.saveMe(.body, .medium, mono: true))
                 .scrollContentBackground(.hidden)
                 .foregroundStyle(primaryText)
                 .padding(10)
@@ -3121,7 +2515,7 @@ struct ContentView: View {
 
             if text.wrappedValue.isEmpty {
                 Text(placeholder)
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .font(.saveMe(.body, .medium, mono: true))
                     .foregroundStyle(tertiaryText)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 18)
@@ -3131,86 +2525,80 @@ struct ContentView: View {
         .background(fieldBackground)
     }
 
+    /// Строка очереди: значок состояния, профиль и одна строка пояснения.
     func batchQueueItem(_ item: AppModel.BatchProfileItem) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .center, spacing: 10) {
             ZStack {
-                Circle()
-                    .fill(statusColor(for: item.status).opacity(isDark ? 0.22 : 0.14))
-
                 if item.status == .running {
                     ProgressView()
                         .controlSize(.small)
-                        .scaleEffect(0.62)
+                        .transition(.opacity)
                 } else {
                     Image(systemName: statusSystemImage(for: item.status))
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.saveMe(.body, .semibold))
                         .foregroundStyle(statusColor(for: item.status))
+                        .contentTransition(.symbolEffect(.replace))
+                        .symbolEffect(.bounce, options: .nonRepeating, value: item.status == .completed)
+                        .transition(.scale(scale: 0.6).combined(with: .opacity))
                 }
             }
-            .frame(width: 30, height: 30)
+            .frame(width: 20, height: 20)
+            .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(item.url)
-                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(primaryText)
-                            .textSelection(.enabled)
-                            .lineLimit(2)
-
-                        HStack(spacing: 8) {
-                            statusBadge(for: item.status)
-
-                            if item.status == .running, !model.batchCurrentURL.isEmpty {
-                                Text(L("текущий профиль"))
-                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(tertiaryText)
-                            }
-                        }
-                    }
-
-                    Spacer(minLength: 8)
-
-                    if !model.isBusy {
-                        Button {
-                            model.removeBatchProfile(id: item.id)
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(secondaryText)
-                                .frame(width: 24, height: 24)
-                                .background(
-                                    Circle()
-                                        .fill(Color.white.opacity(isDark ? 0.06 : 0.30))
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.url)
+                    .font(.saveMe(.body, .medium, mono: true))
+                    .foregroundStyle(primaryText)
+                    .textSelection(.enabled)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
 
                 Text(item.message)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .font(.saveMe(.label))
+                    .foregroundStyle(item.status == .failed ? SaveMePalette.danger : secondaryText)
+                    .lineLimit(2)
+                    .contentTransition(.opacity)
+            }
+
+            Spacer(minLength: 8)
+
+            if !model.isBusy {
+                Button {
+                    model.removeBatchProfile(id: item.id)
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.saveMe(.micro, .semibold))
+                        .foregroundStyle(secondaryText)
+                        .frame(width: 22, height: 22)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(L("Убрать {0}", item.url))
+                .accessibilityLabel(L("Убрать {0}", item.url))
             }
         }
-        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                .fill(item.status == .running ? prominentButtonTint.opacity(isDark ? 0.18 : 0.09) : itemFill)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
-                .strokeBorder(statusColor(for: item.status).opacity(item.status == .pending ? 0.08 : 0.24), lineWidth: 1)
-        )
+        .padding(.vertical, 8)
+        .accessibilityElement(children: .contain)
+        .accessibilityValue(item.status.title)
+        .overlay(alignment: .bottom) {
+            // У скачиваемого профиля разделитель превращается в бегущую полосу.
+            if item.status == .running {
+                ProgressView()
+                    .progressViewStyle(.linear)
+                    .tint(brandTint)
+                    .transition(.opacity)
+            } else {
+                Divider()
+            }
+        }
     }
 
     func statusBadge(for status: AppModel.BatchProfileItem.Status) -> some View {
         Text(status.title)
-            .font(.system(size: 11, weight: .bold, design: .rounded))
-            .textCase(.uppercase)
+            .font(.saveMe(.micro, .bold))
             .foregroundStyle(statusColor(for: status))
+            .contentTransition(.opacity)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(
@@ -3226,130 +2614,56 @@ struct ContentView: View {
         case .running:
             return "arrow.down.circle"
         case .completed:
-            return "checkmark"
+            return "checkmark.circle.fill"
         case .failed:
-            return "exclamationmark"
+            return "exclamationmark.circle.fill"
         case .stopped:
-            return "pause"
+            return "pause.circle"
         }
     }
 
     func statusColor(for status: AppModel.BatchProfileItem.Status) -> Color {
         switch status {
         case .pending:
-            return Color.orange.opacity(0.80)
+            return SaveMePalette.warning.opacity(0.80)
         case .running:
-            return Color.blue.opacity(0.84)
+            return SaveMePalette.info.opacity(0.84)
         case .completed:
-            return Color.green.opacity(0.84)
+            return SaveMePalette.success.opacity(0.84)
         case .failed:
-            return Color.red.opacity(0.80)
+            return SaveMePalette.danger.opacity(0.80)
         case .stopped:
-            return Color.gray.opacity(0.78)
+            return SaveMePalette.neutral.opacity(0.78)
         }
     }
 
-    func placeholderBullet(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Circle()
-                .fill(prominentButtonTint.opacity(0.82))
-                .frame(width: 8, height: 8)
-                .padding(.top, 6)
 
-            Text(text)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(primaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
+    /// Подпись и значение без собственной плитки.
     func statusInlineNote(title: String, message: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 3) {
             Text(title)
-                .font(.caption)
-                .tracking(1.2)
-                .textCase(.uppercase)
-                .foregroundStyle(tertiaryText)
+                .font(.saveMe(.label))
+                .foregroundStyle(secondaryText)
 
             Text(message)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(.saveMe(.body, .medium))
                 .foregroundStyle(primaryText)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
-                .fill(pillFill)
-        )
     }
 
     var fieldBackground: some View {
         RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
             .fill(inputFill)
-    }
-
-    var cardBackground: some View {
-        RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
-            .fill(cardFill)
-            .shadow(color: .black.opacity(isDark ? 0.12 : 0.035), radius: 8, y: 3)
-    }
-
-    var windowBackground: some View {
-        Group {
-            if reduceTransparency {
-                Color(nsColor: .windowBackgroundColor)
-            } else {
-                LinearGradient(
-                    colors: isDark ? [
-                        Color(red: 0.07, green: 0.09, blue: 0.12),
-                        Color(red: 0.09, green: 0.14, blue: 0.20),
-                        Color(red: 0.08, green: 0.16, blue: 0.16),
-                    ] : [
-                        Color(red: 0.96, green: 0.94, blue: 0.89),
-                        Color(red: 0.85, green: 0.92, blue: 0.98),
-                        Color(red: 0.82, green: 0.91, blue: 0.88),
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-        }
-        .ignoresSafeArea()
-    }
-
-}
-
-private struct CardBackgroundModifier: ViewModifier {
-    let cornerRadius: CGFloat
-    let fill: Color
-    let stroke: Color
-    let tint: Color?
-
-    func body(content: Content) -> some View {
-        content
-            .background {
-                ZStack {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(fill)
-                    if let tint {
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(tint)
-                    }
-                }
-            }
             .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(stroke, lineWidth: 1)
+                RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
+                    .strokeBorder(cardStroke, lineWidth: 1)
             }
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
-}
 
-private extension View {
-    func cardBackground(cornerRadius: CGFloat, fill: Color, stroke: Color, tint: Color? = nil) -> some View {
-        modifier(CardBackgroundModifier(cornerRadius: cornerRadius, fill: fill, stroke: stroke, tint: tint))
-    }
+    var windowBackground: some View { SaveMeBackdrop() }
+
 }
 
 private struct ConfettiOverlayView: View {
@@ -3431,7 +2745,7 @@ private struct LanguageSetting: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             Text(L("Язык изменится после перезапуска приложения."))
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .font(.saveMe(.label, .medium))
                 .foregroundStyle(secondaryText)
         }
     }

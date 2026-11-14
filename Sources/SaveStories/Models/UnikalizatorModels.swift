@@ -63,6 +63,13 @@ struct UnikOptions: Codable, Hashable, Sendable {
         var speedOffsetMs = 0.0
     }
 
+    /// Яркость, контраст и отражение: применяются ко всем результатам, независимо от стилей вариаций.
+    struct Adjust: Codable, Hashable, Sendable {
+        var brightness = 0.0
+        var contrast = 1.0
+        var horizontalFlip = false
+    }
+
     struct AgeMark: Codable, Hashable, Sendable {
         var enabled = false
         var geoId = ""
@@ -110,12 +117,34 @@ struct UnikOptions: Codable, Hashable, Sendable {
     var bitrate = "2M"
     var variations = Variations()
     var manual = Manual()
+    var adjust = Adjust()
     var ageMark = AgeMark()
     var intro = Intro()
     var overlay = Overlay()
     var audio = Audio()
     var metadata = Metadata()
     var naming = Naming()
+}
+
+extension UnikOptions {
+    /// Настройки и пресеты, сохранённые до появления новых полей, читаются с умолчаниями для этих полей.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init()
+        formatPresetId = try c.decode(String.self, forKey: .formatPresetId)
+        resize = try c.decode(UnikResize.self, forKey: .resize)
+        fps = try c.decode(Int.self, forKey: .fps)
+        bitrate = try c.decode(String.self, forKey: .bitrate)
+        variations = try c.decode(Variations.self, forKey: .variations)
+        manual = try c.decode(Manual.self, forKey: .manual)
+        adjust = try c.decodeIfPresent(Adjust.self, forKey: .adjust) ?? Adjust()
+        ageMark = try c.decode(AgeMark.self, forKey: .ageMark)
+        intro = try c.decode(Intro.self, forKey: .intro)
+        overlay = try c.decode(Overlay.self, forKey: .overlay)
+        audio = try c.decode(Audio.self, forKey: .audio)
+        metadata = try c.decode(Metadata.self, forKey: .metadata)
+        naming = try c.decode(Naming.self, forKey: .naming)
+    }
 }
 
 struct UnikFile: Identifiable, Hashable, Sendable {
@@ -354,6 +383,6 @@ enum UnikalizatorLogic {
         } else {
             parts.append(L("картинка"))
         }
-        return parts.joined(separator: " · ")
+        return parts.joined(separator: ", ")
     }
 }

@@ -148,7 +148,7 @@ final class AppModelRuntimeTests: XCTestCase {
         XCTAssertEqual(model.currentStepLabel, "Сохраняю браузерную сессию.")
 
         model.handleWorkerProgress("playwright=/tmp/ms-playwright")
-        XCTAssertEqual(model.currentStepLabel, "Проверяю runtime и зависимости.")
+        XCTAssertEqual(model.currentStepLabel, "Проверяю движок и его компоненты.")
     }
 
     func testNormalizedReelLinkAcceptsOnlyCanonicalInstagramMediaURLs() {

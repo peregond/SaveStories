@@ -84,19 +84,19 @@ final class UnikalizatorModel: ObservableObject {
         previewSamplesLoaded = true
         ffmpeg = .ready(version: "7.1")
         files = [
-            UnikFile(path: "/Users/preview/Movies/story-01.mp4", info: "1080×1920 · 0:12"),
-            UnikFile(path: "/Users/preview/Movies/story-02.mp4", info: "720×1280 · 0:08"),
+            UnikFile(path: "/Users/preview/Movies/story-01.mp4", info: "1080×1920, 0:12"),
+            UnikFile(path: "/Users/preview/Movies/story-02.mp4", info: "720×1280, 0:08"),
             UnikFile(path: "/Users/preview/Pictures/banner.png", info: "1500×1500"),
         ]
         options.variations.count = 2
         options.ageMark = UnikOptions.AgeMark(enabled: true, geoId: "de-germany", position: "bottom")
         jobs = [
-            UnikJob(index: 1, label: "story-01 · v1", percent: 100, status: .done, outputPath: L("/Users/preview/Downloads/SaveMe/Уникализатор/DE_meta_9x16_v1.mp4")),
-            UnikJob(index: 2, label: "story-01 · v2", percent: 100, status: .done, outputPath: L("/Users/preview/Downloads/SaveMe/Уникализатор/DE_meta_9x16_v2.mp4")),
-            UnikJob(index: 3, label: "story-02 · v1", percent: 62, status: .running),
-            UnikJob(index: 4, label: "story-02 · v2", status: .queued),
-            UnikJob(index: 5, label: "banner · v1", status: .queued),
-            UnikJob(index: 6, label: "banner · v2", status: .queued),
+            UnikJob(index: 1, label: "story-01, v1", percent: 100, status: .done, outputPath: L("/Users/preview/Downloads/SaveMe/Уникализатор/DE_meta_9x16_v1.mp4")),
+            UnikJob(index: 2, label: "story-01, v2", percent: 100, status: .done, outputPath: L("/Users/preview/Downloads/SaveMe/Уникализатор/DE_meta_9x16_v2.mp4")),
+            UnikJob(index: 3, label: "story-02, v1", percent: 62, status: .running),
+            UnikJob(index: 4, label: "story-02, v2", status: .queued),
+            UnikJob(index: 5, label: "banner, v1", status: .queued),
+            UnikJob(index: 6, label: "banner, v2", status: .queued),
         ]
         summary = L("Готово 2 из 6")
         presets = [UnikPreset(name: "Reels DE 18+", options: options), UnikPreset(name: L("Квадрат без плашки"), options: UnikOptions())]
