@@ -93,6 +93,23 @@ final class UnikalizatorTests: XCTestCase {
         XCTAssertEqual(decoded, options)
     }
 
+    func testOptionsSavedBeforeAdjustStillDecode() throws {
+        var options = UnikOptions()
+        options.adjust = UnikOptions.Adjust(brightness: 0.1, contrast: 1.2, horizontalFlip: true)
+        options.naming.geo = "DE"
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(options)) as? [String: Any])
+        let adjust = try XCTUnwrap(object["adjust"] as? [String: Any])
+        XCTAssertEqual(adjust["brightness"] as? Double, 0.1)
+        XCTAssertEqual(adjust["contrast"] as? Double, 1.2)
+        XCTAssertEqual(adjust["horizontalFlip"] as? Bool, true)
+
+        // Настройки и пресеты, сохранённые до появления яркости, контраста и отражения.
+        object.removeValue(forKey: "adjust")
+        let old = try JSONDecoder().decode(UnikOptions.self, from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertEqual(old.adjust, UnikOptions.Adjust())
+        XCTAssertEqual(old.naming.geo, "DE")
+    }
+
     func testCatalogFromWorkerDecodes() throws {
         let json = """
         {"formatPresets":[{"id":"meta-story","name":"Instagram Stories 9x16","description":"d","output":{"container":"mp4","videoCodec":"h264","audioCodec":"aac"},
@@ -105,6 +122,12 @@ final class UnikalizatorTests: XCTestCase {
         let catalog = try JSONDecoder().decode(UnikCatalog.self, from: Data(json.utf8))
         XCTAssertEqual(catalog.formatPresets.first?.resize.height, 1920)
         XCTAssertEqual(catalog.stylePresets.first?.label, "Мягкий")
+        XCTAssertEqual(catalog.stylePresets.first?.hueShift, 8)
+        XCTAssertEqual(catalog.stylePresets.first?.saturation, 1.18)
+        // Каталог старой версии без цвета стилей по-прежнему читается.
+        let legacy = try JSONDecoder().decode(UnikStylePreset.self, from: Data(#"{"id":"clean","label":"Чистый","hint":"-"}"#.utf8))
+        XCTAssertEqual(legacy.hueShift, 0)
+        XCTAssertEqual(legacy.saturation, 1)
         XCTAssertEqual(catalog.ageMarkGeos.first?.id, "au-australia")
         XCTAssertEqual(catalog.bitrateOptions.first?.id, "2M")
     }
@@ -124,7 +147,7 @@ final class UnikalizatorTests: XCTestCase {
 
     func testDescribeInspection() {
         let video = UnikInspection(ok: true, filePath: "a", kind: "video", durationSeconds: 75, width: 720, height: 1280, hasAudio: false, message: nil)
-        XCTAssertEqual(UnikalizatorLogic.describe(video), "720×1280 · 1:15 · без звука")
+        XCTAssertEqual(UnikalizatorLogic.describe(video), "720×1280, 1:15, без звука")
         let broken = UnikInspection(ok: false, filePath: "a", kind: nil, durationSeconds: nil, width: nil, height: nil, hasAudio: nil, message: "битый")
         XCTAssertEqual(UnikalizatorLogic.describe(broken), "битый")
     }

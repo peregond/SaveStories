@@ -318,7 +318,7 @@ final class WorkerClient {
             return LaunchConfiguration(executable: nodeExecutable, arguments: [nodeScript.path], runtime: "node")
         }
 
-        throw WorkerClientError.processLaunchFailed(L("Node runtime не найден. Подготовьте среду воркера в настройках приложения."))
+        throw WorkerClientError.processLaunchFailed(L("Движок не найден. Установите его в настройках приложения."))
     }
 
     private func nodeWorkerScriptURL() -> URL? {

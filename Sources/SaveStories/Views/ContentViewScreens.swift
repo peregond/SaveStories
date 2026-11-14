@@ -5,8 +5,8 @@ extension ContentView {
         GeometryReader { proxy in
             let compact = proxy.size.width < 900
             ScrollView {
+                SaveMeGlassGroup(spacing: 0) {
                 VStack(alignment: .leading, spacing: 20) {
-                    homeTwoHero
                     if compact {
                         homeTwoComposerCard(compact: true)
                         homeTwoQueueCard(compact: true)
@@ -35,6 +35,7 @@ extension ContentView {
                 .padding(.horizontal, contentHorizontalPadding(for: proxy.size.width))
                 .padding(.top, 8)
                 .padding(.bottom, 28)
+                }
             }
         }
     }
@@ -44,34 +45,32 @@ extension ContentView {
             let compact = proxy.size.width < 980
             let horizontalPadding = contentHorizontalPadding(for: proxy.size.width)
 
-            if compact {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 18) {
-                        reelsHero
-                        reelsComposerCard
-                        reelsDestinationCard
-                        reelsActivityPanel
-                    }
-                    .padding(.horizontal, horizontalPadding)
-                    .padding(.bottom, 28)
-                    .padding(.top, 4)
-                }
-            } else {
-                HStack(spacing: 24) {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 18) {
-                            reelsHero
+            ScrollView {
+                SaveMeGlassGroup(spacing: 0) {
+                    VStack(alignment: .leading, spacing: SaveMeMetrics.sectionSpacing) {
+                        if compact {
                             reelsComposerCard
                             reelsDestinationCard
-                        }
-                        .padding(.vertical, 4)
-                    }
-                    .frame(maxWidth: 560, maxHeight: .infinity, alignment: .topLeading)
+                            reelsActivityPanel
+                        } else {
+                            HStack(alignment: .top, spacing: SaveMeMetrics.sectionSpacing) {
+                                VStack(alignment: .leading, spacing: SaveMeMetrics.sectionSpacing) {
+                                    reelsComposerCard
+                                    reelsDestinationCard
+                                }
+                                .frame(maxWidth: .infinity, alignment: .top)
 
-                    reelsActivityPanel
+                                reelsActivityPanel
+                                    .frame(maxWidth: .infinity, alignment: .top)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: 1180, alignment: .topLeading)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, horizontalPadding)
+                    .padding(.top, 8)
+                    .padding(.bottom, 28)
                 }
-                .padding(.horizontal, horizontalPadding)
-                .padding(.bottom, 28)
             }
         }
     }
@@ -82,31 +81,33 @@ extension ContentView {
             let horizontalPadding = contentHorizontalPadding(for: proxy.size.width)
 
             ScrollView {
+                SaveMeGlassGroup(spacing: 0) {
                 VStack(alignment: .leading, spacing: 20) {
-                    detailHero(
-                        eyebrow: L("Сортировка"),
-                        title: L("Разложить файлы по папкам"),
-                        subtitle: L("Сначала выбираешь источник и папку назначения, потом запускаешь перенос и копируешь готовый результат.")
-                    )
 
                     if compact {
                         VStack(alignment: .leading, spacing: 20) {
                             postProcessingCard
+                            emptyFolderCleanupCard
                             logsCard(maxHeight: 320)
                         }
                     } else {
                         HStack(alignment: .top, spacing: 20) {
                             postProcessingCard
                                 .frame(maxWidth: .infinity, alignment: .top)
-                            logsCard(maxHeight: 420)
-                                .frame(maxWidth: .infinity, alignment: .top)
+                            VStack(alignment: .leading, spacing: 20) {
+                                emptyFolderCleanupCard
+                                logsCard(maxHeight: 420)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .top)
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .frame(maxWidth: 1180, alignment: .topLeading)
+                .frame(maxWidth: .infinity)
                 .padding(.horizontal, horizontalPadding)
                 .padding(.bottom, 28)
-                .padding(.top, 4)
+                .padding(.top, 8)
+                }
             }
         }
     }
@@ -117,12 +118,8 @@ extension ContentView {
             let horizontalPadding = contentHorizontalPadding(for: proxy.size.width)
 
             ScrollView {
+                SaveMeGlassGroup(spacing: 0) {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text(L("Настройки"))
-                        .font(.system(size: 28, weight: .semibold, design: .rounded))
-                        .foregroundStyle(primaryText)
-
-                    settingsOverviewCard
 
                     if compact {
                         VStack(alignment: .leading, spacing: 20) {
@@ -151,32 +148,18 @@ extension ContentView {
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .frame(maxWidth: 1180, alignment: .topLeading)
+                .frame(maxWidth: .infinity)
                 .padding(.horizontal, horizontalPadding)
                 .padding(.bottom, 28)
-                .padding(.top, 4)
-            }
-        }
-    }
-
-    var settingsOverviewCard: some View {
-        settingsCard(L("Обзор")) {
-            VStack(alignment: .leading, spacing: 14) {
-                if model.isBusy {
-                    liveStatusBadge
-                        .frame(maxWidth: 280, alignment: .leading)
+                .padding(.top, 8)
                 }
-
-                Text(L("По умолчанию приложение не даёт ноутбуку заснуть во время активной выгрузки stories или Reels. При этом проверки среды, логин и проверка обновлений работают отдельно и не мешают обычной работе системы."))
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
     var settingsStatusSection: some View {
-        settingsCard(L("Состояние")) {
+        settingsCard(L("Состояние"), symbol: "waveform.path.ecg") {
             VStack(alignment: .leading, spacing: 12) {
                 statusCards
 
@@ -188,107 +171,39 @@ extension ContentView {
         }
     }
 
-    var homeTwoHero: some View {
-        homeHeroTitleBlock
-    }
-
-    var homeHeroTitleBlock: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(L("Сохраните момент."))
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .foregroundStyle(primaryText)
-                .accessibilityAddTraits(.isHeader)
-            Text(L("Stories любимых профилей — в вашей папке."))
-                .font(.callout)
-                .foregroundStyle(secondaryText)
-        }
-    }
-
     var homeStatusCard: some View {
-        card(L("Состояние"), minHeight: homeSummaryCardHeight) {
+        card(L("Состояние"), symbol: "waveform.path.ecg") {
             VStack(alignment: .leading, spacing: 14) {
                 homeStatusHeader
 
                 Text(model.statusDetail)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(.saveMe(.body, .medium))
                     .foregroundStyle(secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
 
-                stepTracker
+                if model.isBusy {
+                    stepTracker
+                        .transition(.opacity)
+                }
             }
+            .animation(.smooth(duration: 0.3), value: model.isBusy)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     var homeResultCard: some View {
-        card(L("Результат")) {
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                homeResultTile(title: L("Найдено"), value: model.foundStoriesCount, accent: Color.orange.opacity(0.78))
-                homeResultTile(title: L("Сохранено"), value: model.savedStoriesCount, accent: Color.green.opacity(0.78))
-                homeResultTile(title: L("Файлов"), value: model.liveDownloadedFileCount, accent: Color.blue.opacity(0.78))
-                homeResultTile(title: L("Папок"), value: model.liveCreatedFolderCount, accent: Color.mint.opacity(0.78))
+        card(L("Результат"), symbol: "chart.bar") {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 14) {
+                homeResultTile(title: L("Найдено"), value: model.foundStoriesCount, accent: SaveMePalette.warning.opacity(0.78))
+                homeResultTile(title: L("Сохранено"), value: model.savedStoriesCount, accent: SaveMePalette.success.opacity(0.78))
+                homeResultTile(title: L("Файлов"), value: model.liveDownloadedFileCount, accent: SaveMePalette.info.opacity(0.78))
+                homeResultTile(title: L("Папок"), value: model.liveCreatedFolderCount, accent: SaveMePalette.info.opacity(0.78))
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
-    var statusRail: some View {
-        HStack(spacing: 12) {
-            statusRailPill(
-                title: L("Состояние"),
-                value: model.statusTitle,
-                detail: model.statusDetail,
-                tint: model.isBusy ? prominentButtonTint : Color.green.opacity(0.75)
-            )
-
-            statusRailPill(
-                title: L("Текущий шаг"),
-                value: model.currentStepLabel,
-                detail: model.batchIsRunning ? L("Сейчас {0} из {1}", max(model.batchCurrentIndex, 1), max(model.batchTotalCount, 1)) : L("Готово к следующей выгрузке"),
-                tint: Color.orange.opacity(0.75)
-            )
-
-            statusRailPill(
-                title: L("Результат"),
-                value: L("{0} сохранено", model.savedStoriesCount),
-                detail: L("{0} найдено", model.foundStoriesCount),
-                tint: Color.blue.opacity(0.72)
-            )
-
-            statusRailPill(
-                title: L("В выбранной папке"),
-                value: L("{0} файлов", model.liveDownloadedFileCount),
-                detail: L("{0} папок создано", model.liveCreatedFolderCount),
-                tint: Color.mint.opacity(0.72)
-            )
-        }
-    }
-
     func homeResultTile(title: String, value: Int, accent: Color) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(accent)
-                    .frame(width: 7, height: 7)
-
-                Text(title)
-                    .font(.caption2.weight(.medium))
-                    .tracking(0.8)
-                    .textCase(.uppercase)
-                    .foregroundStyle(secondaryText)
-            }
-
-            Text("\(value)")
-                .font(.system(size: 20, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(primaryText)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
-                .fill(pillFill)
-        )
+        figure(title, "\(value)")
     }
 }
