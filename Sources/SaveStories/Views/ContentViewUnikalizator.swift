@@ -592,6 +592,7 @@ extension ContentView {
             UnikEffectPreview(
                 path: unik.files.first?.path,
                 options: unik.options,
+                stylePresets: unik.catalog?.stylePresets ?? [],
                 showsStyle: !unikMultipleStyles,
                 stroke: cardStroke,
                 fill: inputFill,
@@ -921,6 +922,7 @@ extension ContentView {
 private struct UnikEffectPreview: View {
     let path: String?
     let options: UnikOptions
+    let stylePresets: [UnikStylePreset]
     /// Показывать ли оттенок и насыщенность стиля (при нескольких стилях они разные у каждой вариации).
     let showsStyle: Bool
     let stroke: Color
@@ -934,8 +936,11 @@ private struct UnikEffectPreview: View {
     }
 
     var body: some View {
-        let manual = options.manual
-        let styled = showsStyle && manual.enabled
+        // Как в воркере: при одном результате и ручных настройках — они, иначе — цвет выбранного стиля.
+        // При нескольких стилях оттенок и насыщенность у вариаций разные, поэтому в предпросмотре их нет.
+        let style = stylePresets.first { $0.id == options.variations.styleIds.first }
+        let hue = showsStyle ? (options.manual.enabled ? options.manual.hueShift : style?.hueShift ?? 0) : 0
+        let saturation = showsStyle ? (options.manual.enabled ? options.manual.saturation : style?.saturation ?? 1) : 1
         // Пока кадра нет (файл не добавлен или не читается), место под предпросмотр не занимаем.
         if image == nil {
             Color.clear.frame(height: 0).padding(.bottom, -14).task(id: path) { image = await Self.load(path) }
@@ -955,8 +960,8 @@ private struct UnikEffectPreview: View {
             }
         }
         .scaleEffect(x: options.adjust.horizontalFlip ? -1 : 1, y: 1)
-        .hueRotation(.degrees(styled ? manual.hueShift : 0))
-        .saturation(styled ? manual.saturation : 1)
+        .hueRotation(.degrees(hue))
+        .saturation(saturation)
         .brightness(options.adjust.brightness)
         .contrast(options.adjust.contrast)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

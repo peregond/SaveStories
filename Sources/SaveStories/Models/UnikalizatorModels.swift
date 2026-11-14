@@ -24,6 +24,20 @@ struct UnikStylePreset: Decodable, Identifiable, Hashable, Sendable {
     let id: String
     let label: String
     let hint: String
+    /// Цвет стиля, как его применяет воркер; нужен предпросмотру. Старый каталог без этих полей читается с нейтральными значениями.
+    let hueShift: Double
+    let saturation: Double
+
+    private enum CodingKeys: String, CodingKey { case id, label, hint, hueShift, saturation }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        label = try c.decode(String.self, forKey: .label)
+        hint = try c.decode(String.self, forKey: .hint)
+        hueShift = try c.decodeIfPresent(Double.self, forKey: .hueShift) ?? 0
+        saturation = try c.decodeIfPresent(Double.self, forKey: .saturation) ?? 1
+    }
 }
 
 struct UnikBitrateOption: Decodable, Identifiable, Hashable, Sendable {

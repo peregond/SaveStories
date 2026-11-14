@@ -122,6 +122,12 @@ final class UnikalizatorTests: XCTestCase {
         let catalog = try JSONDecoder().decode(UnikCatalog.self, from: Data(json.utf8))
         XCTAssertEqual(catalog.formatPresets.first?.resize.height, 1920)
         XCTAssertEqual(catalog.stylePresets.first?.label, "Мягкий")
+        XCTAssertEqual(catalog.stylePresets.first?.hueShift, 8)
+        XCTAssertEqual(catalog.stylePresets.first?.saturation, 1.18)
+        // Каталог старой версии без цвета стилей по-прежнему читается.
+        let legacy = try JSONDecoder().decode(UnikStylePreset.self, from: Data(#"{"id":"clean","label":"Чистый","hint":"-"}"#.utf8))
+        XCTAssertEqual(legacy.hueShift, 0)
+        XCTAssertEqual(legacy.saturation, 1)
         XCTAssertEqual(catalog.ageMarkGeos.first?.id, "au-australia")
         XCTAssertEqual(catalog.bitrateOptions.first?.id, "2M")
     }
