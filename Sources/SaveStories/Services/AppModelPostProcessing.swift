@@ -4,7 +4,7 @@ import Foundation
 extension AppModel {
     func chooseSortingSourceDirectory() {
         guard !isBusy else {
-            appendLog(L("Выбор папки источника пропущен: дождись завершения текущей операции."))
+            appendLog(L("Выбор папки источника пропущен: дождитесь завершения текущей операции."))
             return
         }
 
@@ -23,7 +23,7 @@ extension AppModel {
 
     func chooseEmptyFolderCleanupDirectory() {
         guard !isBusy else {
-            appendLog(L("Выбор папки для очистки пропущен: дождись завершения текущей операции."))
+            appendLog(L("Выбор папки для очистки пропущен: дождитесь завершения текущей операции."))
             return
         }
 
@@ -44,8 +44,8 @@ extension AppModel {
     func removeEmptyFoldersInCleanupDirectory() async {
         guard !isBusy else { return }
         guard let emptyFolderCleanupDirectory else {
-            emptyFolderCleanupSummary = L("Сначала выбери папку, внутри которой нужно удалить пустые подпапки.")
-            postProcessingSummary = L("Сначала выбери папку, внутри которой нужно удалить пустые подпапки.")
+            emptyFolderCleanupSummary = L("Сначала выберите папку, внутри которой нужно удалить пустые подпапки.")
+            postProcessingSummary = L("Сначала выберите папку, внутри которой нужно удалить пустые подпапки.")
             appendLog(L("Очистка пустых папок пропущена: папка не выбрана."))
             return
         }
@@ -155,7 +155,7 @@ extension AppModel {
 
     func chooseDistributionRootDirectory() {
         guard !isBusy else {
-            appendLog(L("Выбор папки раскладки пропущен: дождись завершения текущей операции."))
+            appendLog(L("Выбор папки раскладки пропущен: дождитесь завершения текущей операции."))
             return
         }
 
@@ -178,12 +178,12 @@ extension AppModel {
             guard await refreshNotionRoutingRules() else { return }
         }
         guard let sortingSourceDirectory else {
-            postProcessingSummary = L("Сначала выбери папку-источник, например Перенос.")
+            postProcessingSummary = L("Сначала выберите папку-источник, например Перенос.")
             appendLog(L("Сортировка остановлена: не выбрана папка Перенос."))
             return
         }
         guard let distributionRootDirectory else {
-            postProcessingSummary = L("Сначала выбери базовую папку назначения.")
+            postProcessingSummary = L("Сначала выберите базовую папку назначения.")
             appendLog(L("Сортировка остановлена: не выбрана папка назначения."))
             return
         }
@@ -247,7 +247,7 @@ extension AppModel {
             return
         }
         guard let distributionRootDirectory else {
-            postProcessingSummary = L("Сначала выбери папку, внутри которой лежат конечные подпапки.")
+            postProcessingSummary = L("Сначала выберите папку, внутри которой лежат конечные подпапки.")
             appendLog(L("Постобработка остановлена: не выбрана папка раскладки."))
             return
         }

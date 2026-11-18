@@ -41,6 +41,12 @@ export function normalizeOptions(raw = {}) {
     bitrate: raw.bitrate ?? "2M",
     variations: { count, styleIds, mode: variations.mode === "preset-per-file" ? "preset-per-file" : "all-variations" },
     manual: { enabled: Boolean(raw.manual?.enabled), hueShift: raw.manual?.hueShift ?? 0, saturation: raw.manual?.saturation ?? 1, sharpness: raw.manual?.sharpness ?? 0, speedOffsetMs: raw.manual?.speedOffsetMs ?? 0 },
+    // Яркость, контраст и отражение применяются ко всем результатам, независимо от стилей вариаций.
+    adjust: {
+      brightness: Math.min(0.25, Math.max(-0.25, Number(raw.adjust?.brightness) || 0)),
+      contrast: Math.min(1.5, Math.max(0.5, Number(raw.adjust?.contrast) || 1)),
+      horizontalFlip: Boolean(raw.adjust?.horizontalFlip),
+    },
     ageMark: { enabled: Boolean(raw.ageMark?.enabled), geoId: raw.ageMark?.geoId ?? "", position: raw.ageMark?.position === "top" ? "top" : "bottom", custom: raw.ageMark?.custom ?? null },
     intro: { enabled: Boolean(raw.intro?.enabled), imagePath: raw.intro?.imagePath ?? "", durationMs: Math.min(10000, Math.max(100, Number(raw.intro?.durationMs) || 500)), random: Boolean(raw.intro?.random), library: raw.intro?.library ?? [] },
     overlay: { enabled: Boolean(raw.overlay?.enabled), videoPath: raw.overlay?.videoPath ?? "", opacity: Math.min(1, Math.max(0.05, Number(raw.overlay?.opacity) || 0.25)), random: Boolean(raw.overlay?.random), library: raw.overlay?.library ?? [] },
@@ -149,6 +155,9 @@ export function planBatch(request, { random = Math.random, exists = fs.existsSyn
           saturation: adjust.saturation,
           sharpness: adjust.sharpness,
           speedFactor,
+          ...(options.adjust.brightness !== 0 ? { brightness: options.adjust.brightness } : {}),
+          ...(options.adjust.contrast !== 1 ? { contrast: options.adjust.contrast } : {}),
+          ...(options.adjust.horizontalFlip ? { horizontalFlip: true } : {}),
           audioNormalize: options.audio.normalize,
           audioReplacePath: options.audio.replacePath || undefined,
           stripMetadata: options.metadata.mode === "strip",

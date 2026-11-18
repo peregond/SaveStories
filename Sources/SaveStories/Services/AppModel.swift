@@ -299,7 +299,7 @@ final class AppModel: ObservableObject {
             UserDefaults.standard.set(folderRoutingRules, forKey: Self.folderRoutingRulesKey)
         }
     }
-    @Published var workerSummary: String = L("Воркер ещё не проверялся.")
+    @Published var workerSummary: String = L("Движок ещё не проверялся.")
     @Published var sessionSummary: String = L("Состояние сессии неизвестно.")
     @Published var lastResult: String = L("Действий пока не было.")
     @Published var statusTitle: String = L("Ожидание")

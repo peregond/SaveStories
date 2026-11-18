@@ -189,6 +189,18 @@ export function Unikalizer({ s }: { s: Store }) {
             )}
           </Card>
 
+          <Card title={t("Яркость, контраст и отражение")}>
+            <Field label={t("Яркость: {0}", [`${o.adjust.brightness > 0 ? "+" : ""}${o.adjust.brightness.toFixed(2)}`])}>
+              <input type="range" min={-0.25} max={0.25} step={0.01} value={o.adjust.brightness} disabled={locked} onChange={(e) => set((c) => ({ ...c, adjust: { ...c.adjust, brightness: Number(e.target.value) } }))} />
+            </Field>
+            <Field label={t("Контраст: {0}", [o.adjust.contrast.toFixed(2)])}>
+              <input type="range" min={0.5} max={1.5} step={0.05} value={o.adjust.contrast} disabled={locked} onChange={(e) => set((c) => ({ ...c, adjust: { ...c.adjust, contrast: Number(e.target.value) } }))} />
+            </Field>
+            <Row title={t("Отразить по горизонтали")} hint={t("Применяется ко всем результатам, поверх выбранного стиля")}>
+              <Switch label={t("Отразить по горизонтали")} checked={o.adjust.horizontalFlip} disabled={locked} onChange={(v) => set((c) => ({ ...c, adjust: { ...c.adjust, horizontalFlip: v } }))} />
+            </Row>
+          </Card>
+
           <Card title={t("Плашка 18+")}>
             <Row title={t("Добавить плашку 18+")} hint={t("Готовые шаблоны по странам, подбираются под соотношение сторон")}><Switch label={t("Плашка 18+")} checked={o.ageMark.enabled} disabled={locked} onChange={(v) => set((c) => ({ ...c, ageMark: { ...c.ageMark, enabled: v } }))} /></Row>
             {o.ageMark.enabled && (

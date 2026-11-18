@@ -30,8 +30,12 @@ struct SaveMeApp: App {
                     } else if model.isDesignPreview, let path = PreviewCapture.windowIDFilePath {
                         await PreviewCapture.publishWindowIDAndWait(to: path)
                     }
+                    if model.isDesignPreview, PreviewCapture.wantsCleanupPrompt {
+                        model.showEmptyFolderCleanupPrompt = true
+                    }
                     if model.isDesignPreview,
-                       Bundle.main.object(forInfoDictionaryKey: "SaveMePreviewOnboarding") as? Bool == true {
+                       PreviewCapture.wantsOnboarding
+                        || Bundle.main.object(forInfoDictionaryKey: "SaveMePreviewOnboarding") as? Bool == true {
                         model.showRuntimeOnboarding = true
                     }
                 }

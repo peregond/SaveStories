@@ -27,6 +27,28 @@ test("шаги плана описывают включённые преобра
   assert.match(text, /Метаданные удалены/);
 });
 
+test("отражение, яркость и контраст идут перед стилем, как в онлайн-сервисе", () => {
+  const plan = buildExecutionPlan({
+    input: { filePath: "/in/a.mp4", mediaKind: "video" },
+    output: { container: "mp4", videoCodec: "h264", audioCodec: "aac" },
+    transforms: { resize: { width: 1080, height: 1920, fit: "cover" }, horizontalFlip: true, brightness: 0.1, contrast: 1.2, hueShift: 8, audioNormalize: false, stripMetadata: true },
+  }, "/out/a.mp4");
+  const filter = plan.ffmpegArgs[plan.ffmpegArgs.indexOf("-vf") + 1];
+  assert.match(filter, /hflip,eq=brightness=0\.1:contrast=1\.2,hue=h=8/);
+  const text = plan.steps.map((s) => s.description).join("\n");
+  assert.match(text, /отражён/);
+  assert.match(text, /Яркость: 0\.1, контраст: 1\.2/);
+});
+
+test("только контраст даёт фильтр с нулевой яркостью", () => {
+  const plan = buildExecutionPlan({
+    input: { filePath: "/in/a.png", mediaKind: "image" },
+    output: { container: "png", videoCodec: "h264", audioCodec: "aac" },
+    transforms: { resize: { width: 1080, height: 1080, fit: "cover" }, contrast: 0.8, audioNormalize: false, stripMetadata: true },
+  }, "/out/a.png");
+  assert.ok(plan.ffmpegArgs.join(" ").includes("eq=brightness=0:contrast=0.8"));
+});
+
 test("плашка 18+ выбирается по соотношению сторон", () => {
   const files = { enabled: true, portraitFilePath: "p", squareFilePath: "s", fourByFiveFilePath: "f" };
   const job = (width, height) => ({ transforms: { ageMark: files, resize: { width, height } } });

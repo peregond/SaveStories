@@ -82,6 +82,20 @@ test("ручные настройки применяются только к о�
   assert.equal(several[0].job.transforms.hueShift, STYLE_PRESETS.find((s) => s.id === "soft").hueShift);
 });
 
+test("яркость, контраст и отражение применяются ко всем вариациям и ограничены диапазоном", () => {
+  const adjust = { brightness: 0.1, contrast: 1.2, horizontalFlip: true };
+  const several = plan({ sources: [video("a.mp4")], options: { adjust, variations: { count: 2, styleIds: ["soft", "warm"] } } });
+  for (const item of several) {
+    assert.equal(item.job.transforms.brightness, 0.1);
+    assert.equal(item.job.transforms.contrast, 1.2);
+    assert.equal(item.job.transforms.horizontalFlip, true);
+  }
+  const [plain] = plan({ sources: [video("a.mp4")], options: {} });
+  assert.equal("brightness" in plain.job.transforms, false);
+  assert.equal("horizontalFlip" in plain.job.transforms, false);
+  assert.deepEqual(normalizeOptions({ adjust: { brightness: 9, contrast: 0.1 } }).adjust, { brightness: 0.25, contrast: 0.5, horizontalFlip: false });
+});
+
 test("проверка настроек возвращает понятные ошибки", () => {
   const bad = normalizeOptions({ resize: { width: 1081, height: 1920, fit: "cover" }, ageMark: { enabled: true }, metadata: { mode: "custom-date", customDate: "2026-02-31" }, intro: { enabled: true, random: true, library: [] } });
   const errors = validateOptions(bad, { exists: everythingExists });

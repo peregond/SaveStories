@@ -97,7 +97,7 @@ extension AppModel {
                 self.runtimeSetupStage = .welcome
                 self.runtimeSetupFailedStage = nil
                 self.runtimeSetupErrorMessage = nil
-                self.runtimeSetupMessage = L("Нужно один раз докачать движок: Node, Playwright и Chromium.")
+                self.runtimeSetupMessage = L("Нужно один раз докачать движок и встроенный браузер.")
                 self.showRuntimeOnboarding = true
             }
             if self.workerReady {
@@ -109,7 +109,7 @@ extension AppModel {
 
     func chooseSaveDirectory() {
         guard !isBusy else {
-            appendLog(L("Выбор папки пропущен: дождись завершения текущей операции."))
+            appendLog(L("Выбор папки пропущен: дождитесь завершения текущей операции."))
             return
         }
 
@@ -211,7 +211,7 @@ extension AppModel {
                 self.runtimeSetupFailedStage = self.runtimeSetupStage
                 self.runtimeSetupStage = .failed
                 self.runtimeSetupErrorMessage = self.runtimeSetupFailureSummary(from: error.localizedDescription)
-                self.runtimeSetupMessage = L("Установка остановилась. Проверь интернет и попробуй ещё раз.")
+                self.runtimeSetupMessage = L("Установка остановилась. Проверьте интернет и попробуйте ещё раз.")
                 self.workerReady = false
                 self.statusTitle = L("Ошибка")
                 self.statusDetail = error.localizedDescription
@@ -269,7 +269,7 @@ extension AppModel {
         let normalized = normalizedProfileLink(trimmed)
         guard !normalized.isEmpty else {
             statusTitle = L("Ошибка")
-            statusDetail = L("Укажи корректную ссылку на профиль Instagram или имя пользователя.")
+            statusDetail = L("Укажите корректную ссылку на профиль Instagram или имя пользователя.")
             lastResult = statusDetail
             appendLog(L("Ссылка на профиль пустая или некорректная."))
             return
@@ -471,7 +471,7 @@ extension AppModel {
 
         if !sessionReady {
             statusTitle = L("Нужен вход")
-            statusDetail = L("Для работы приложения сначала войди в Instagram через встроенный браузер.")
+            statusDetail = L("Для работы приложения сначала войдите в Instagram через встроенный браузер.")
             lastResult = statusDetail
             currentStepLabel = L("Ожидаю вход в Instagram.")
         }
@@ -497,7 +497,7 @@ extension AppModel {
             runtimeSetupMessage = L("Копирую worker в локальную папку приложения.")
         } else if lowered.contains("npm") || lowered.contains("playwright") {
             runtimeSetupStage = .packages
-            runtimeSetupMessage = L("Устанавливаю Playwright и npm-зависимости.")
+            runtimeSetupMessage = L("Устанавливаю компоненты движка.")
         } else if lowered.contains("chromium") || lowered.contains("browser") {
             runtimeSetupStage = .browser
             runtimeSetupMessage = L("Скачиваю Chromium для автоматической выгрузки.")
@@ -521,7 +521,7 @@ extension AppModel {
             }
 
         let selected = cleanedLines.suffix(4).joined(separator: "\n")
-        return selected.isEmpty ? L("Не удалось подготовить среду. Проверь интернет и попробуй ещё раз.") : selected
+        return selected.isEmpty ? L("Не удалось подготовить среду. Проверьте интернет и попробуйте ещё раз.") : selected
     }
 
     private func buildRuntimeSummary(from response: WorkerResponse) -> String {
@@ -598,7 +598,7 @@ extension AppModel {
         } else if lowered.contains("background_window") {
             currentStepLabel = L("Подготавливаю фоновый режим браузера.")
         } else if lowered.contains("playwright=") || lowered.contains("worker_runtime=") {
-            currentStepLabel = L("Проверяю runtime и зависимости.")
+            currentStepLabel = L("Проверяю движок и его компоненты.")
         }
 
         if lowered.contains("saved=") || lowered.contains("profile_download_directory=") {

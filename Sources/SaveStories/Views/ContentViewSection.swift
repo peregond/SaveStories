@@ -54,20 +54,5 @@ extension ContentView {
                 "gearshape.fill"
             }
         }
-
-        var sidebarEmoji: String? {
-            switch self {
-            case .main:
-                "📱"
-            case .reels:
-                "📹"
-            case .unikalizator:
-                "🪄"
-            case .sorting:
-                "🗂️"
-            case .settings:
-                nil
-            }
-        }
     }
 }
