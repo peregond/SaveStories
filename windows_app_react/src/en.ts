@@ -546,4 +546,9 @@ export const EN: Record<string, string> = {
   "Среда готова.": "Environment ready.",
   "Готово: {0} из {1}.": "Done: {0} of {1}.",
   "Готово: {0} из {1}, ошибок: {2}.": "Done: {0} of {1}, errors: {2}.",
+  "Яркость, контраст и отражение": "Brightness, contrast and mirroring",
+  "Яркость: {0}": "Brightness: {0}",
+  "Контраст: {0}": "Contrast: {0}",
+  "Отразить по горизонтали": "Flip horizontally",
+  "Применяется ко всем результатам, поверх выбранного стиля": "Applies to every result, on top of the chosen style",
 };

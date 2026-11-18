@@ -136,3 +136,20 @@ describe("свои пресеты", () => {
     expect(loadPresets(json, "2026-01-01")[0].options).toEqual(options);
   });
 });
+
+describe("яркость, контраст и отражение", () => {
+  it("по умолчанию нейтральны и уходят воркеру внутри настроек", () => {
+    const o = defaultOptions("2026-01-01");
+    expect(o.adjust).toEqual({ brightness: 0, contrast: 1, horizontalFlip: false });
+    expect(toWorkerOptions(o).adjust).toEqual({ brightness: 0, contrast: 1, horizontalFlip: false });
+  });
+
+  it("читаются из сохранённых настроек и ограничиваются диапазоном", () => {
+    const o = loadOptions(JSON.stringify({ adjust: { brightness: 0.1, contrast: 1.2, horizontalFlip: true } }), "2026-01-01");
+    expect(o.adjust).toEqual({ brightness: 0.1, contrast: 1.2, horizontalFlip: true });
+    const wild = loadOptions(JSON.stringify({ adjust: { brightness: 9, contrast: 0.01, horizontalFlip: "да" } }), "2026-01-01");
+    expect(wild.adjust).toEqual({ brightness: 0.25, contrast: 0.5, horizontalFlip: false });
+    const old = loadOptions(JSON.stringify({ bitrate: "4M" }), "2026-01-01");
+    expect(old.adjust).toEqual({ brightness: 0, contrast: 1, horizontalFlip: false });
+  });
+});
