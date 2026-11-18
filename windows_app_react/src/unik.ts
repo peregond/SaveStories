@@ -37,6 +37,8 @@ export interface UnikOptions {
   bitrate: string;
   variations: { count: number; styleIds: string[]; mode: "all-variations" | "preset-per-file" };
   manual: { enabled: boolean; hueShift: number; saturation: number; sharpness: number; speedOffsetMs: number };
+  /** Яркость (-0,25…0,25), контраст (0,5…1,5) и отражение по горизонтали: для всех результатов, независимо от стиля. */
+  adjust: { brightness: number; contrast: number; horizontalFlip: boolean };
   ageMark: { enabled: boolean; geoId: string; position: "top" | "bottom" };
   intro: { enabled: boolean; imagePath: string; durationMs: number; random: boolean; library: string[] };
   overlay: { enabled: boolean; videoPath: string; opacity: number; random: boolean; library: string[] };
@@ -54,6 +56,7 @@ export function defaultOptions(today = todayIso()): UnikOptions {
     fps: 30, bitrate: "2M",
     variations: { count: 1, styleIds: ["clean"], mode: "all-variations" },
     manual: { enabled: false, hueShift: 0, saturation: 1, sharpness: 0, speedOffsetMs: 0 },
+    adjust: { brightness: 0, contrast: 1, horizontalFlip: false },
     ageMark: { enabled: false, geoId: "", position: "bottom" },
     intro: { enabled: false, imagePath: "", durationMs: 500, random: false, library: [] },
     overlay: { enabled: false, videoPath: "", opacity: 0.25, random: false, library: [] },
@@ -79,6 +82,15 @@ export function loadOptions(json: string, today = todayIso()): UnikOptions {
     if (isObject(base[key]) && isObject(value)) (merged as Record<string, unknown>)[key] = { ...(base[key] as object), ...value };
     else if (!isObject(base[key]) && typeof value === typeof base[key]) (merged as Record<string, unknown>)[key] = value;
   }
+  const clamp = (value: unknown, min: number, max: number, fallback: number) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+  };
+  merged.adjust = {
+    brightness: clamp(merged.adjust.brightness, -0.25, 0.25, 0),
+    contrast: clamp(merged.adjust.contrast, 0.5, 1.5, 1),
+    horizontalFlip: merged.adjust.horizontalFlip === true,
+  };
   const count = Math.min(5, Math.max(1, Math.round(Number(merged.variations.count)) || 1));
   merged.variations = { ...merged.variations, count, styleIds: Array.from({ length: count }, (_, i) => String(merged.variations.styleIds?.[i] ?? merged.variations.styleIds?.[0] ?? "clean")) };
   return merged;
